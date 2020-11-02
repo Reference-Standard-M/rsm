@@ -1,0 +1,33 @@
+image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
+="Fourth Watch Software Logo", width="480", height="80"]
+
+'''
+
+= Reference Standard M Release Notes
+
+===== v1.72.0 - 2020 Nov 2
+
+The first release of Reference Standard M is based on MUMPS V1 by Raymond
+Douglas Newman, located at https://gitlab.com/Reference-Standard-M/mumpsv1
+
+The initial release notes refer to changes between MUMPS V1.71 and Reference
+Standard M V1.72.0.
+
+* Change repository to refer to new name, maintainer, copyright, and licence
+* Update build rules to maintain support on the platforms we are targeting
+* Fix various compiler warnings on supported platforms
+* Fix various linter errors and warnings
+* Change version scheme to semantic versioning
+* Remove shared memory when there is an environment initialization error
+* Reset terminal to initial settings when shutting down the environment 
+* Improve error and exception handling
+* Fix several bugs that lead to segfaults
+* Fix several memory and resource leaks
+* Fix several minor bugs
+* Fix commenting errors
+* Remove unused, extraneous code
+* Remove alternate terminal code for input terminators
+* Remove use of ASCII 127 as an input terminator
+* Fix the `WRITE` form feed command [`WRITE #`]
+* Improve the `$&%DIRECTORY` XCall semantics
+* Update, and improve, the `$&PASCHK` XCall to work on more supported platforms

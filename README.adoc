@@ -1,0 +1,176 @@
+:source-highlighter: pygments
+
+image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
+="Fourth Watch Software Logo", width="480", height="80"]
+
+'''
+
+= Reference Standard M
+
+*Version 1.72.0 - 2020 Nov 2*
+
+=== Implementation of ANSI Standard M X11.1-1995 and ISO/IEC 11756:1999
+
+'''
+
+==== Copyright and License
+
+Developed and maintained by David Wicksell dlw@linux.com +
+Copyright © 2020 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
+
+Based on MUMPS V1 by Raymond Douglas Newman +
+Copyright (c) 1999-2018 +
+https://gitlab.com/Reference-Standard-M/mumpsv1
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License (AGPL) as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+Full license text: link:COPYING[AGPL-3.0]
+
+==== Summary and Info
+
+Reference Standard M (RSM) is the new name of the MUMPS V1 (MV1) implementation
+of M, originally developed by Ray Douglas Newman. Ray gave me permission to take
+over as the official developer and maintainer of Mumps V1, as well as permission
+to change the licensing of the code base, in July of 2020. The initial release
+of RSM is based on the last released version of MUMPS V1, version 1.71, and
+includes a number of quality-of-life improvements. Reference Standard M will
+attempt to track and implement the latest M standard that is released by the M
+Development Committee (MDC), currently ANSI X11.1-1995. This software uses
+link:https://semver.org/[semantic versioning].
+
+_This is the post-relational database._
+
+//link:doc/index.adoc[RSM Documentation]
+
+==== Installation
+
+This version of RSM runs on Linux x86 and x86_64, FreeBSD, NetBSD, OpenBSD,
+MacOS X 10.4 through 10.15 in 32 and 64 bit mode, Solaris on x86 and x86_64, and
+the Raspberry Pi [ARMv6 and ARMv7] running Raspbian (for embedded RSM). This
+version might also run on Windows XP, Windows 7, and Windows 10 under Cygwin,
+but it has not been built or tested there recently.
+
+Thanks to John Willis for helping me test the FreeBSD, NetBSD, OpenBSD, MacOS X,
+Solaris, and Raspberry Pi ports.
+
+To build RSM, first clone the RSM git repository (the latest):
+
+[source,bash]
+----
+git clone https://gitlab.com/Reference-Standard-M/rsm.git
+----
+
+Then change to the `rsm` directory and build the RSM executable:
+
+[source,bash]
+----
+make
+----
+
+On FreeBSD, NetBSD, and OpenBSD:
+
+[source,bash]
+----
+make -f BSDmakefile
+----
+
+On Solaris:
+
+[source,bash]
+----
+gmake
+----
+
+The resulting `rsm` executable will be optimized for your system.
+
+==== Usage
+
+To use RSM, first create a database:
+
+[source,bash]
+----
+# -v <volume set name [1-8 characters]>
+# -b <block size in KiB [4-256 KiB]>
+# -s <number of blocks [100-2147483647]>
+# <database file name>
+./rsm -v TEST -b 32 -s 2000 testdb
+----
+
+NOTE: In order to load the supplied M utilities, use a block size of 32 or
+larger
+
+Then start the environment:
+
+[source,bash]
+----
+# -j <max number of concurrent jobs [1-256]>
+# <database file name>
+./rsm -j 12 testdb
+----
+
+On MacOS X, you might need to increase the accessible shared memory before
+starting the environment, if the previous command failed. If so, as root, run
+the following commands:
+
+....
+sysctl -w kern.sysv.shmmax=536870912
+sysctl -w kern.sysv.shmall=131072
+....
+
+Then load the M utilities:
+
+[source,bash]
+----
+# -x <M code to execute>
+# <database file name>
+./rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' testdb
+----
+
+NOTE: On Solaris and Cygwin, $horolog is in GMT as these implementations don't
+have a local time offset
+
+To start direct mode:
+
+[source,bash]
+----
+# <database file name>
+./rsm testdb
+----
+
+To run an M routine:
+
+[source,bash]
+----
+# -x <M code to execute>
+# <database file name>
+# start the M Command Language shell
+./rsm -x "do ^%M" testdb
+----
+
+Remember to shut it down when you are done to free the shared memory:
+
+[source,m]
+----
+RSM> kill ^$job
+----
+
+Or if `utils.rsm` has been loaded:
+
+[source,m]
+----
+MCL> do ^SSD
+----
+
+Enjoy!

@@ -1,0 +1,5 @@
+*/*.o
+rsm
+daemon_*.log
+RSM_CRASH
+rsm.core
