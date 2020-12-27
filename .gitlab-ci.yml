@@ -2,19 +2,12 @@ image: gcc
 
 stages:
  - build
- - install
 
 build:
   stage: build
   before_script:
     - apt update
-    - apt -y install make
+    - apt -y install make 
   script:
     - make
-
-install:
-  stage: install
-  before_script:
-    - apt -y install coreutils
-  script:
     - make install
