@@ -5,9 +5,5 @@ stages:
 
 build:
   stage: build
-  before_script:
-    - apt update
-    - apt -y install make 
   script:
     - make
-    - make install
