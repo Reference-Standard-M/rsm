@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <errno.h>                      		// error stuff
 #include <fcntl.h>					// for open()
@@ -63,7 +62,7 @@
 // GBD been garbaged,     SET        SET             0
 //  but is on a dirty list.
 //
-// Note: if dirty pointer is less than (gbd *)3 then this dirty pointer has
+// Note: if dirty pointer is less than (gbd *) 3 then this dirty pointer has
 // been set by a function to reserve this gbd.
 //
 // Note also that every GBD should always have its "mem" member set, not NULL.
@@ -77,7 +76,7 @@
 //	     The gbd found is returned in blk[level]
 //	     ->dirty is set to (gbd *) 1 if (writing)
 //	     ->last_accessed is set to the current time
-//	     The block pointers idx & iidx are setup, Index is set to 10
+//	     The block pointers idx & iidx are setup, Index is set to IDX_START
 // Input(s): Block number to get
 // Return:   0 -> Ok, negative M error
 //
@@ -150,23 +149,21 @@ short Get_block(u_int blknum)				// Get block
       }
     }
   }
-  file_off = lseek(partab.vol_fds[volnum - 1],
-		    file_off, SEEK_SET);		// Seek to blk
+  file_off = lseek(partab.vol_fds[volnum - 1], file_off, SEEK_SET); // Seek to blk
   if (file_off < 1)					// if that failed
   { panic("Get_block: lseek() failed!");		// die
   }
-  i = read(partab.vol_fds[volnum-1], blk[level]->mem,
-	   systab->vol[volnum-1]->vollab->block_size);
+  i = read(partab.vol_fds[volnum - 1], blk[level]->mem, systab->vol[volnum - 1]->vollab->block_size);
   if (i < 0)						// if read failed
   { panic("Get_block: read() failed!");			// die
   }
 
 exit:
-  blk[level]->last_accessed = time(0);			// set access time
+  blk[level]->last_accessed = current_time(TRUE);	// set access time
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
-  Index = 10;						// first one
+  Index = IDX_START;					// first one
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
   return 0;						// return success
@@ -179,7 +176,7 @@ exit:
 //	     ->dirty is set to (gbd *) -1
 //	     ->last_accessed is set to the current time
 //	     The entire block is zeroed
-//	     The block pointers idx & iidx are setup, Index is set to 10
+//	     The block pointers idx & iidx are setup, Index is set to IDX_START
 // Input(s): none
 // Return:   0 -> Ok, negative M error
 // Note:     curr_lock MUST be WRITE when calling this function
@@ -194,27 +191,25 @@ short New_block()					// get new block
 
   Get_GBD();						// get a GBD
 
-  Index = 10;						// first one
-  c = (u_char *)systab->vol[volnum-1]->first_free;	// look at first_free
-  end = ((u_char *) systab->vol[volnum-1]->map)		// start
+  Index = IDX_START;					// first one
+  c = (u_char *)systab->vol[volnum - 1]->first_free;	// look at first_free
+  end = ((u_char *) systab->vol[volnum - 1]->map)	// start
 	+ (systab->vol[volnum-1]->vollab->max_block / 8); // plus bits
   while (c <= end)					// scan map
   { if (*c != 255)					// is there space
-    { blknum = (c - ((u_char *) systab->vol[volnum-1]->map)) * 8; // base number
-      for (i = 0; ((1U << i) & *c); i++);		// find first free bit
+    { blknum = (c - ((u_char *) systab->vol[volnum - 1]->map)) * 8; // base number
+      for (i = 0; ((1U << i) & *c); i++) ;		// find first free bit
       blknum = blknum + i;				// add the little bit
-      if (blknum <= systab->vol[volnum-1]->vollab->max_block)
+      if (blknum <= systab->vol[volnum - 1]->vollab->max_block)
       { *c |= (1U << i);				// mark block as used
-        systab->vol[volnum-1]->map_dirty_flag++;	// mark map dirty
+        systab->vol[volnum - 1]->map_dirty_flag++;	// mark map dirty
         blk[level]->block = blknum;			// save in structure
-        blk[level]->next
-          = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)];
-	systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]
-	 = blk[level];					// link it in
+        blk[level]->next = systab->vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)];
+	systab->vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)] = blk[level]; // link it in
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
 	blk[level]->dirty = (gbd *) 1;			// reserve it
-	blk[level]->last_accessed = time(0);		// accessed
-	systab->vol[volnum-1]->first_free = c;		// save this
+	blk[level]->last_accessed = current_time(TRUE);	// accessed
+	systab->vol[volnum - 1]->first_free = c;	// save this
 	return 0;					// return success
       }
     }
@@ -252,7 +247,7 @@ start:
     }
     ptr = ptr->next;					// point at next
   }							// end while
-  now = time(0) + 1;					// get current time +
+  now = current_time(TRUE) + 1;				// get current time + 1
 
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
   while (TRUE)						// loop
@@ -331,15 +326,13 @@ void Get_GBD()						// get a GBD
   gbd *last;						// points to ptr
 
 start:
-  if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
-  { blk[level]
-      = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
-    systab->vol[volnum-1]->gbd_hash [GBD_HASH]
-      = blk[level]->next;				// unlink it
+  if (systab->vol[volnum - 1]->gbd_hash[GBD_HASH])	// any free?
+  { blk[level] = systab->vol[volnum - 1]->gbd_hash [GBD_HASH]; // get one
+    systab->vol[volnum - 1]->gbd_hash[GBD_HASH] = blk[level]->next; // unlink it
     goto exit;						// common exit code
   }
 
-  now = time(0);					// get current time
+  now = current_time(TRUE);				// get current time
   old = now + 1;					// remember oldest
   exp = now - gbd_expired;				// expired time
 

@@ -36,7 +36,6 @@
 #include <math.h>				// maths functions
 #include <assert.h>
 #include "rsm.h"                                // standard includes
-#include <assert.h>
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
 #include "opcodes.h"				// the op codes
@@ -65,9 +64,9 @@ short run(int savasp, int savssp)		// run compiled code
   mvar *var2;					// an mvar pointer
   u_char *p;					// usefull ptr
   short var_undefined = VAR_UNDEFINED;		// for CMDO undefined vars
-  chr_q rou;					// a routine name
-  chr_q tag;					// a tag name
-  var_u *list;					// pointer to chr_q things
+  var_u rou;					// a routine name
+  var_u tag;					// a tag name
+  var_u *list;					// pointer to var_u things
   tags *ttbl;					// a structure of tags
   rbd *rouadd;					// routine pointer
   do_frame *curframe;				// a do frame pointer
@@ -75,7 +74,7 @@ short run(int savasp, int savssp)		// run compiled code
   int ssp;					// and ssp
   u_char temp[256];				// some temp storage
   for_stack *forx;				// point at a for stack
-  chr_q *vt;					// pointer for var tab
+  var_u *vt;					// pointer for var tab
   struct ST_DATA *data;				// for direct symbol access
 
   asp = savasp;
@@ -83,7 +82,7 @@ short run(int savasp, int savssp)		// run compiled code
 
   while (TRUE)					// keep going till done
   { if (ssp >= MAX_SSTK)			// check ssp
-    panic("String Stack overflow in runtime!!"); // die
+      panic("String Stack overflow in runtime!!"); // die
     if (partab.jobtab->attention)		// any attention thingys
     { s = attention();				// do it
       if (s == BREAK_NOW)			// funny debug stuff
@@ -95,9 +94,7 @@ short run(int savasp, int savssp)		// run compiled code
       if (s > 0)
       { return s;				// return other than error
       }
-      if ((s < 0) ||
-          (partab.jobtab->error_frame >
-           partab.jobtab->cur_do)) 		// if we have an error
+      if ((s < 0) || (partab.jobtab->error_frame > partab.jobtab->cur_do)) // if we have an error
       { savasp = partab.jobtab->dostk[partab.jobtab->cur_do].asp;
         savssp = partab.jobtab->dostk[partab.jobtab->cur_do].ssp;
         ssp = savssp;				// restore ssp
@@ -108,15 +105,15 @@ short run(int savasp, int savssp)		// run compiled code
           bcopy(&partab.jobtab->dostk[partab.jobtab->cur_do],
 	        &partab.jobtab->dostk[STM1_FRAME],
 	        sizeof(do_frame));		// save for ron
-	    }
-	    if (s == -(ERRMLAST+ERRZ51))		// if it's a control c
-	    { partab.jobtab->io = 0;                // $IO = 0
-	    }
-	    partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc; // save pc
-            cptr = (cstring *) &strstk[ssp];		// where we will put it
-	    var = &partab.src_var;			// a spare mvar
-	    var->volset = 0;			// local var
-	    var->uci = UCI_IS_LOCALVAR;		// ditto
+	}
+	if (s == -(ERRMLAST+ERRZ51))		// if it's a control c
+	{ partab.jobtab->io = 0;                // $IO = 0
+	}
+	partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc; // save pc
+        cptr = (cstring *) &strstk[ssp];		// where we will put it
+	var = &partab.src_var;			// a spare mvar
+	var->volset = 0;			// local var
+	var->uci = UCI_IS_LOCALVAR;		// ditto
 
 	flag = 0;				// say no error here
 	if (s)
@@ -124,7 +121,8 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 
 	cptr->len = 0;				// clear the cstring
-        bcopy("$ETRAP\0\0", &var->name.var_cu[0], 8); // $ET
+        VAR_CLEAR(var->name);
+        bcopy("$ETRAP", &var->name.var_cu[0], 6); // $ET
         var->slen = 0;				// setup for $ETRAP
         t = ST_Get(var, cptr->buf);		// get it
 	if (t < 0)
@@ -142,16 +140,14 @@ short run(int savasp, int savssp)		// run compiled code
 	  partab.jobtab->etrap_at = partab.jobtab->cur_do; // remember current
 	}
 	partab.jobtab->dostk[partab.jobtab->cur_do].endlin = comp_ptr;
-	if ((partab.jobtab->dostk[partab.jobtab->cur_do].type)
-	  == TYPE_EXTRINSIC)
+	if ((partab.jobtab->dostk[partab.jobtab->cur_do].type) == TYPE_EXTRINSIC)
 	{ *comp_ptr++ = OPSTR;			// string follows
 	  *comp_ptr++ = 0;			// these were
 	  *comp_ptr++ = 0;			// *((short *)comp_ptr)++ = 0
 	  *comp_ptr++ = '\0';			// null terminated
 	  *comp_ptr++ = CMQUITA;		// quit with arg
 	}
-	else if ((partab.jobtab->dostk[partab.jobtab->cur_do].type)
-	  != TYPE_RUN)
+	else if ((partab.jobtab->dostk[partab.jobtab->cur_do].type) != TYPE_RUN)
 	{ *comp_ptr++ = CMQUIT;			// quit without arg
 	}
 	*comp_ptr++ = ENDLIN;			// JIC
@@ -177,10 +173,10 @@ short run(int savasp, int savssp)		// run compiled code
 	CleanJob(0);				// remove all locks etc
 	return OPHALT;				// all done
       case OPERROR:				// ERROR
-    assert(sizeof(s) == 2);
-    bcopy(rsmpc, &s,sizeof(s));
-    rsmpc += sizeof(s);
-    ERROR(s)
+        assert(sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
+        ERROR(s)
 	//ERROR(*((short *)rsmpc)++)		// return the error
       case OPNOT:				// unary not
 	i = cstringtob((cstring *)addstk[--asp]); // get the arg
@@ -201,9 +197,9 @@ short run(int savasp, int savssp)		// run compiled code
 	isp = partab.jobtab->dostk[partab.jobtab->cur_do].isp; // and isp
 	break;
       case JMP0:				// jump if false
-    assert(sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-    rsmpc += sizeof(s);
+        assert(sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
 	//s = *((short *)rsmpc)++;		// get the offset
 	if (cstringtob((cstring *)addstk[--asp]) == 0)
 	{ rsmpc = rsmpc + s;			// jump if reqd
@@ -234,11 +230,11 @@ short run(int savasp, int savssp)		// run compiled code
 	if (cstringtob((cstring *)addstk[--asp]) == 0)
 	{ partab.jobtab->test = 0;		// clear $TEST
 	  if (opc == OPIFI)			// indirect
-      { assert(sizeof(isp) == sizeof(long));
-	bcopy(rsmpc, &isp, sizeof(isp));
-        rsmpc += sizeof(isp);
-	    //isp = *((int *)rsmpc)++;		// restore the isp
-      }
+          { assert(sizeof(isp) == sizeof(long));
+            bcopy(rsmpc, &isp, sizeof(isp));
+            rsmpc += sizeof(isp);
+            //isp = *((int *)rsmpc)++;		// restore the isp
+          }
 	  if (infor)
 	  { i = 1;				// offset for standard FORs
 	    if ((((for_stack *) addstk[savasp-1])->type & 7) == FOR_TYP_0)
@@ -732,8 +728,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Set(var, ptr1);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, ptr1);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -765,10 +760,8 @@ short run(int savasp, int savssp)		// run compiled code
 
       case OPNAKED:				// reset naked pointer
 	var = (mvar *) addstk[asp-1];		// get the variable
-	if ((var->uci != UCI_IS_LOCALVAR) &&
-	    (var->name.var_cu[0] != '$'))	// a real global
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	if ((var->uci != UCI_IS_LOCALVAR) && (var->name.var_cu[0] != '$')) // a real global
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	}
 	break;					// done
 
@@ -787,8 +780,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -809,8 +801,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -827,8 +818,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -849,8 +839,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -868,8 +857,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -888,8 +876,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') // ssvn?
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
 	  s = DB_Set(var, cptr);		// do it - global	
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -913,7 +900,7 @@ short run(int savasp, int savssp)		// run compiled code
         break;
       case CMWRTAB:                             // write ?expr
 	partab.jobtab->commands++;		// count a command
-        i = cstringtoi((cstring *)addstk[--asp]); // get the value
+        i = cstringtoi((cstring *) addstk[--asp]); // get the value
 	if (i < 1)				// ingore junk
 	{ break;
 	}
@@ -922,12 +909,12 @@ short run(int savasp, int savssp)		// run compiled code
         break;
       case CMWRTEX:                             // write expr
 	partab.jobtab->commands++;		// count a command
-        s = SQ_Write((cstring *)addstk[--asp]); // do it
+        s = SQ_Write((cstring *) addstk[--asp]); // do it
         if (s < 0) ERROR(s)			// complain on error
         break;
       case CMUSE:				// use (args) ch, a1, a2, ...
 	partab.jobtab->commands++;		// count a command
-	rou = 0;				// clear this
+	VAR_CLEAR(rou);				// clear this
 	args = (int) *rsmpc++;			// number of args
 	ptr1 = (cstring *) NULL;		// default to nothing
 	ptr2 = (cstring *) NULL;		// default to nothing
@@ -973,13 +960,13 @@ short run(int savasp, int savssp)		// run compiled code
 	    i |= SQ_NOCONTROLT;
 	  else if (strncasecmp((const char *) tmp->buf, "namespace=", 10) == 0)
 	  { p = &tmp->buf[10];			// point past the =
-	    for (j = 0; j < 8; j++)		// scan the remainder
+	    for (j = 0; j < VAR_LEN; j++)	// scan the remainder
 	    { if (!p[j]) break;			// quit when done
 	      if ((!j) && (p[j] != '%') && (!isalpha(p[j])))
 		ERROR(-ERRM36)			// complain if invalid
 	      if ((j) && (!isalnum(p[j])))
 		ERROR(-ERRM36)			// complain if invalid
-	      ((u_char *)&rou)[j] = p[j];	// copy one char
+	      ((u_char *) &rou)[j] = p[j];	// copy one char
 	    }
 	  }
 	  else ERROR(-(ERRMLAST+ERRZ13))	// else error
@@ -987,13 +974,13 @@ short run(int savasp, int savssp)		// run compiled code
 	j = cstringtoi((cstring *)addstk[--asp]); // finally get chan#
 	s = SQ_Use (j, ptr1, ptr2, i);		// doit
         if (s < 0) ERROR(s)			// complain on error
-	if (rou != 0)				// if a routine was sepcified
-	{ partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu = rou;
+	if (!var_empty(rou))			// if a routine was sepcified
+	{ VAR_COPY(partab.jobtab->seqio[partab.jobtab->io].namespace, rou);
 	}
         break;
       case CMOPEN:				// open, ch, p1, p2, to, mnspc
 	partab.jobtab->commands++;		// count a command
-	rou = 0;				// clear this
+	VAR_CLEAR(rou);				// clear this
 	cptr = (cstring *) addstk[--asp];	// get the namespace
 	i = cstringtoi((cstring *)addstk[--asp]); // get the timeout
 	ptr2 = (cstring *) addstk[--asp];	// get second string ptr
@@ -1003,16 +990,16 @@ short run(int savasp, int savssp)		// run compiled code
         if (s < 0) ERROR(s)			// complain on error
 	if ((cptr->len) && (strncasecmp((const char *) cptr->buf, "namespace=", 10) == 0))
 	{ p = &cptr->buf[10];			// point past the =
-	  for (i = 0; i < 8; i++)		// scan the remainder
+	  for (i = 0; i < VAR_LEN; i++)		// scan the remainder
 	  { if (!p[i]) break;			// quit when done
 	    if ((!i) && (p[i] != '%') && (!isalpha(p[i])))
 	      ERROR(-ERRM36)			// complain if invalid
 	    if ((i) && (!isalnum(p[i])))
 	      ERROR(-ERRM36)			// complain if invalid
-	    ((u_char *)&rou)[i] = p[i];		// copy one char
+	    ((u_char *) &rou)[i] = p[i];	// copy one char
 	  }
 	}
-	partab.jobtab->seqio[j].namespace.var_qu = rou;
+	VAR_COPY(partab.jobtab->seqio[j].namespace, rou);
 	break;					// done
       case CMCLOSE:				// close chanel
 	partab.jobtab->commands++;		// count a command
@@ -1023,9 +1010,7 @@ short run(int savasp, int savssp)		// run compiled code
 
       case OPSTR:				// string follows in line
 	addstk[asp++] = rsmpc;			// store the address
-	rsmpc = rsmpc +
-		  ((cstring *)rsmpc)->len +
-		  sizeof(short) + 1;		// point past the string
+	rsmpc = rsmpc + ((cstring *) rsmpc)->len + sizeof(short) + 1; // point past the string
 	break;
       case OPVAR:				// var name
 	s = buildmvar(&partab.src_var, 0, asp); // build mvar from the code
@@ -1037,8 +1022,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (partab.src_var.name.var_cu[0] == '$') // ssvn?
 	  s = SS_Get(&partab.src_var, cptr->buf); // do it - ssvn
 	else
-	{ bcopy(&partab.src_var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + partab.src_var.slen);	// update naked
+	{ bcopy(&partab.src_var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + partab.src_var.slen); // update naked
 	  s = DB_Get(&partab.src_var, cptr->buf); // do it - global
 	}
         if (s < 0) ERROR(s)			// complain on error
@@ -1071,13 +1055,13 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    assert(sizeof(comp_ptr) == sizeof(long));
-    bcopy(&isp, comp_ptr, sizeof(long));
-    comp_ptr += sizeof(comp_ptr);
+        assert(sizeof(comp_ptr) == sizeof(long));
+        bcopy(&isp, comp_ptr, sizeof(isp));
+        comp_ptr += sizeof(isp);
 	//*((int *)comp_ptr)++ = isp;		// the isp to restore
-    assert(sizeof(comp_ptr) == sizeof(long));
-    bcopy(&rsmpc, comp_ptr, sizeof(long));
-    comp_ptr += sizeof(comp_ptr);
+        assert(sizeof(comp_ptr) == sizeof(long));
+        bcopy(&rsmpc, comp_ptr, sizeof(rsmpc));
+        comp_ptr += sizeof(rsmpc);
 	//*((u_char **)comp_ptr)++ = rsmpc;	// and the rsmpc
 	rsmpc = &indstk[isp];			// what we are going to do
 	isp = (comp_ptr - &indstk[isp]) + isp;	// adjust isp
@@ -1101,13 +1085,14 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    assert(sizeof(comp_ptr) == sizeof(long));
-    bcopy(&isp, comp_ptr, sizeof(long));
-    comp_ptr += sizeof(comp_ptr);
+        assert(sizeof(comp_ptr) == sizeof(long));
+        bcopy(&isp, comp_ptr, sizeof(isp));
+        //comp_ptr += sizeof(comp_ptr);
+        comp_ptr += sizeof(isp);
 	//*((int *)comp_ptr)++ = isp;		// the isp to restore
-    assert(sizeof(comp_ptr) == sizeof(long));
-    bcopy(&rsmpc, comp_ptr, sizeof(long));
-    comp_ptr += sizeof(comp_ptr);
+        assert(sizeof(comp_ptr) == sizeof(long));
+        bcopy(&rsmpc, comp_ptr, sizeof(rsmpc));
+        comp_ptr += sizeof(rsmpc);
 	//*((u_char **)comp_ptr)++ = rsmpc;	// and the rsmpc
 	rsmpc = &indstk[isp];			// what we are going to do
 	isp = (comp_ptr - &indstk[isp]) + isp;	// adjust isp
@@ -1226,7 +1211,11 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case VARS:				// $S[TORAGE]
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	cptr->len = itocstring(cptr->buf, STORAGE);
+        s = 0;
+        for (i = 0; i < STORAGE; i++)
+        { if (symtab[i].data == NULL) s++;
+        }
+	cptr->len = itocstring(cptr->buf, s);
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	addstk[asp++] = (u_char *) cptr;	// stack it
 	break;
@@ -1294,8 +1283,7 @@ short run(int savasp, int savssp)		// run compiled code
 	cptr->len = 0;				// clear the count
 	args = *rsmpc++;			// get arg count
 	for (i = 0; i < args; i++)
-	{ s = Dchar(&cptr->buf[cptr->len],
-		    cstringtoi((cstring *)addstk[asp-args+i])); // doit
+	{ s = Dchar(&cptr->buf[cptr->len], cstringtoi((cstring *) addstk[asp - args + i])); // doit
 	  cptr->len = cptr->len + s;		// add the count
 	}
 	asp = asp - args;			// remove the args
@@ -1558,14 +1546,14 @@ short run(int savasp, int savssp)		// run compiled code
 	  { 					// NEED VOLSET CHECKS LATER
 	    if (var->volset != 1) ERROR(-ERRM26) // not there
 	    list = &systab->vol[0]->vollab->volnam; // point at vol name
-	    for (args = 0; args < 8; args++)	// use a random int
+	    for (args = 0; args < VAR_LEN; args++) // use a random int
 	    { if (list->var_cu[args] == 0) break; // quit on null
 	      cptr->buf[i++] = list->var_cu[args]; // copy a character
 	    }
 	    cptr->buf[i++] = ',';		// add the comma
 	  }					// end volset processing
 	  list = &systab->vol[0]->vollab->uci[var->uci - 1].name; // ucitab
-	  for (args = 0; args < 8; args++)	// use a random int
+	  for (args = 0; args < VAR_LEN; args++) // use a random int
 	  { if (list->var_cu[args] == 0) break; // quit on null
 	    cptr->buf[i++] = list->var_cu[args]; // copy a character
 	  }
@@ -1575,7 +1563,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  break;
 	}					// end environment stuff
 	if (j == 0)				// the name?
-	{ for (i = 0; i < 8; i++)		// max 8 chars
+	{ for (i = 0; i < VAR_LEN; i++)		// max VAR_LEN chars
 	  { if (var->name.var_cu[i] == '\0') break; // done
 	    cptr->buf[i] = var->name.var_cu[i];	// copy a character
 	  }
@@ -1592,7 +1580,7 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 	args = 0;				// clear ky index
 	while (j)				// look for the subscript
-	{ i = 0;				// don't do the rabit's ears
+	{ i = 0;				// don't do the rabbit's ears
 	  s = UTIL_Key_Extract(&var->key[args], // get key from here
 				cptr->buf,	// to this string
 				&i);		// return key bytes used
@@ -1694,8 +1682,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  j = cstringtoi((cstring *) addstk[--asp]); // get size
 	i = cstringtoi((cstring *) addstk[--asp]); // get location
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Dview(cptr->buf, cstringtoi((cstring *) addstk[--asp]),
-	    i, j, ptr1);			// doit
+	s = Dview(cptr->buf, cstringtoi((cstring *) addstk[--asp]), i, j, ptr1); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// the count
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -1717,8 +1704,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      DB_ViewRel(i, partab.jobtab->view[i - 1]); // yes - release it
 	    partab.jobtab->view[i - 1] = NULL;	// say it's released
 	    if (j == 0) break;			// done if release
-	    partab.jobtab->view[i - 1] =
-	      DB_ViewGet(i, j);			// get another block
+	    partab.jobtab->view[i - 1] = DB_ViewGet(i, j); // get another block
 	    if (partab.jobtab->view[i - 1] == NULL) // failed?
 	      ERROR(-(ERRMLAST+ERRZ63))		// die
 	    break;				// and exit
@@ -1809,64 +1795,69 @@ short run(int savasp, int savssp)		// run compiled code
       case CMDON:				// DO - no arguments
 	partab.jobtab->commands++;		// count a command
 	offset = 0;				// clear offset
-	tag = 0;				// clear tag
+	VAR_CLEAR(tag);				// clear tag
 	if (opc == CMDOWRT)
-	{ rou = partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu;
+	{ VAR_COPY(rou, partab.jobtab->seqio[partab.jobtab->io].namespace);
 	}
 	else
-	{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;
-						// default to current routine
+	{ VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam); // default to current routine
 	  if ((opc == CMDOROU) || (opc == CMDORT) || (opc == CMDORTO))
-      { assert(sizeof(rou) == 8);
-	bcopy(rsmpc, &rou, sizeof(rou));
-        rsmpc += sizeof(rou);
-	    //rou = *((chr_q *)rsmpc)++;	// get routine name
-      }
-	  if ((opc == CMDORTO) && (rou == 0))	// could be zero from this op
-	  { rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;
-	  }					// reset to current
+          { assert(sizeof(rou) == VAR_LEN);
+            if (*rsmpc == OPERROR)
+            { s = (*(short *) ++rsmpc);		// get the routine name error
+              ERROR(s);
+            }
+            bcopy(rsmpc, &rou, sizeof(rou));
+            rsmpc += sizeof(rou);
+            //rou = *((var_u)rsmpc)++;	// get routine name
+          }
+	  if ((opc == CMDORTO) && (var_empty(rou))) // could be zero from this op
+	  { VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam); // reset to current
+          }
 	}
-	if ((opc == CMDOTAG) || (opc == CMDORT)
-	   || (opc == CMDORTO) || (opc == CMDOWRT))
-	{  assert(sizeof(tag) == 8);
-      bcopy(rsmpc, &tag, sizeof(tag));
-      rsmpc += sizeof(tag);
-      //tag = *((chr_q *)rsmpc)++;		// get tag name
+	if ((opc == CMDOTAG) || (opc == CMDORT) || (opc == CMDORTO) || (opc == CMDOWRT))
+	{ assert(sizeof(tag) == VAR_LEN);
+          if (*rsmpc == OPERROR)
+          { s = (*(short *) ++rsmpc);		// get the tag error
+            ERROR(s);
+          }
+          bcopy(rsmpc, &tag, sizeof(tag));
+          rsmpc += sizeof(tag);
+          //tag = *((var_u)rsmpc)++;		// get tag name
 	}
 	if (opc == CMDORTO)			// if there is one
 	{ if (!(systab->historic & HISTORIC_OFFOK)) // if not permitted
 	  { ERROR(-(ERRMLAST+ERRZ70))		// complain
 	  }
-      assert(sizeof(s) == 2);
-      bcopy(rsmpc, &s, sizeof(s));
-      rsmpc += sizeof(s);
-      offset = s;
+          assert(sizeof(s) == 2);
+          bcopy(rsmpc, &s, sizeof(s));
+          rsmpc += sizeof(s);
+          offset = s;
 	  //offset = *((short *)rsmpc)++;	// get the offset
 	}
 	args = 0;				// asume no args
 	if (opc != CMDON)			// if not argless type
 	  args = *rsmpc++;			// get the arg count
 
-	if (((args) || (!tag)) && (offset))	// can't do that
+	if (((args) || (var_empty(tag))) && (offset)) // can't do that
 	{ ERROR(-ERRM20)
 	}
 	if ((partab.jobtab->cur_do + 1) == MAX_DO_FRAMES)
 	  ERROR(-(ERRZ7+ERRMLAST))		// too many
-	if ((rou == 0) && (opc != CMDON))	// check for nosuch
+	if ((var_empty(rou)) && (opc != CMDON))	// check for nosuch
 	  for (i = partab.jobtab->cur_do - 1; i > 0; i--)
-	    if (partab.jobtab->dostk[i].rounam.var_qu != 0)
-	    { rou = partab.jobtab->dostk[i].rounam.var_qu;
+	    if (!var_empty(partab.jobtab->dostk[i].rounam))
+	    { VAR_COPY(rou, partab.jobtab->dostk[i].rounam);
 	      break;
 	    }
-	if (rou == 0)				// check for nosuch
+	if (var_empty(rou))			// check for nosuch
 	  ERROR(-ERRM13)			// give up
-	partab.jobtab->dostk[partab.jobtab->cur_do].pc =
-	  rsmpc;				// save current pc
+	partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;	// save current pc
 	partab.jobtab->cur_do++;		// increment do level
 	curframe = &partab.jobtab->dostk[partab.jobtab->cur_do]; // point at it
 	rouadd = NULL;				// clear rouadd
-	for (i = partab.jobtab->cur_do-1; i > 0; i--)
-	  if ((rou == partab.jobtab->dostk[i].rounam.var_qu) &&
+	for (i = partab.jobtab->cur_do - 1; i > 0; i--)
+	  if ((var_equal(rou, partab.jobtab->dostk[i].rounam)) &&
 	      (partab.jobtab->ruci == partab.jobtab->dostk[i].uci) &&
 	      (partab.jobtab->rvol == partab.jobtab->dostk[i].vol))
 	  { bcopy(&partab.jobtab->dostk[i], curframe, sizeof(do_frame));
@@ -1890,7 +1881,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  }
 	  curframe->routine = (u_char *) rouadd; // save address
 	  curframe->symbol = NULL;		// symbol table
-	  curframe->rounam.var_qu = rou;	// routine name
+	  VAR_COPY(curframe->rounam, rou); 	// routine name
 	  curframe->vol = partab.jobtab->rvol;	// current volset
 	  curframe->uci = partab.jobtab->ruci;	// current uci
 	  curframe->flags = DO_FLAG_ATT;	// flag an attach
@@ -1899,14 +1890,13 @@ short run(int savasp, int savssp)		// run compiled code
 	{ curframe->flags |= DO_FLAG_FOR;	// remember that
 	  infor = 0;				// and clear the for flag
 	}
-	curframe->pc =
-	  &((u_char *)rouadd)[rouadd->code];	// save start pc
-	if (tag != 0)				// tag specified ?
-	{ ttbl = (tags *) &((u_char *)rouadd)[rouadd->tag_tbl];
+	curframe->pc = &((u_char *) rouadd)[rouadd->code]; // save start pc
+	if (!var_empty(tag))			// tag specified ?
+	{ ttbl = (tags *) &((u_char *) rouadd)[rouadd->tag_tbl];
 	  j = 0;				// setup j as a flag
 	  for (i = 0; i < rouadd->num_tags; i++) // scan the tags
-            if (ttbl[i].name.var_qu == tag)	// found it
-	    { curframe->pc = curframe->pc + ttbl[i].code; // addjust pc
+            if (var_equal(ttbl[i].name, tag))	// found it
+	    { curframe->pc = curframe->pc + ttbl[i].code; // adjust pc
 	      j = 1;				// flag ok
 	      break;				// and exit
 	    }
@@ -1930,18 +1920,13 @@ short run(int savasp, int savssp)		// run compiled code
 	  }					// end offset junk
 	}
 	curframe->newtab = NULL;		// where news go
-	curframe->estack =
-	  partab.jobtab->dostk[partab.jobtab->cur_do - 1].estack;
+	curframe->estack = partab.jobtab->dostk[partab.jobtab->cur_do - 1].estack;
 	curframe->line_num = 1;			// current routine line#
-	curframe->type =
-	  (args & 128) ? TYPE_EXTRINSIC : TYPE_DO; // how we got here
+	curframe->type = (args & 128) ? TYPE_EXTRINSIC : TYPE_DO; // how we got here
 	curframe->level = 0;			// no dots
 	if (opc == CMDON)			// argless do?
-	{ curframe->level =
-	    partab.jobtab->dostk[partab.jobtab->cur_do - 1].level + 1;
-	  curframe->pc =
-	    partab.jobtab->dostk[partab.jobtab->cur_do - 1].endlin;
-
+	{ curframe->level = partab.jobtab->dostk[partab.jobtab->cur_do - 1].level + 1;
+	  curframe->pc = partab.jobtab->dostk[partab.jobtab->cur_do - 1].endlin;
 	  p = curframe->pc;			// the new pc
 	  if (!*p) p++;				// skip possible eol
 	  if (*p == LINENUM)
@@ -1955,8 +1940,7 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 	if ((curframe->symbol == NULL) &&	// need symbol space?
 	    (rouadd->num_vars))			// any vars?
-	{ curframe->symbol =
-	    malloc(rouadd->num_vars * sizeof(short)); // symbol index space
+	{ curframe->symbol = malloc(rouadd->num_vars * sizeof(short)); // symbol index space
 	// SHOULD FREE() THIS IN THE ERRORS THAT FOLLOW !!!
 	  for (i = 0; i < rouadd->num_vars; i++) // for each one
 	    curframe->symbol[i] = -1;		// mark not setup
@@ -1987,14 +1971,15 @@ short run(int savasp, int savssp)		// run compiled code
 	    ERROR(-ERRM58)			// complain
 	  }
 	  list = (var_u *) &strstk[ssp];	// where we put this
+          VAR_CLEAR((*list));
 	  for (i = 0; i < j; i++)		// for each arg
-	  { vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
-	    list[i].var_qu = vt[rsmpc[i]];    // get the var name
+	  { vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
+	    VAR_COPY(list[i], vt[rsmpc[i]]);	// get the var name
 	  }
 	  s = ST_New(j, list); 			// new them
 	  if (s < 0)  ERROR(s)			// complain on error
 	  var = (mvar *) &strstk[ssp];		// get some space
-	  var->name.var_qu = 0;			// clear the name
+	  VAR_CLEAR(var->name);			// clear the name
 	  var->uci = UCI_IS_LOCALVAR;		// all locals
 	  var->slen = 0;			// no subscripts
 	  s = 0;				// clear error flag
@@ -2013,7 +1998,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      var->name = ((mvar *) cptr)->name; // copy the name
 	      s = ST_ConData(var, p);		// connect them
 	      if (s < 0) break;			// exit on error
-	      var->name.var_qu = 0;		// clear the name for more
+	      VAR_CLEAR(var->name);		// clear the name for more
 	    }
 	  }
 	  if (s < 0) ERROR(s)			// exit on error
@@ -2034,7 +2019,7 @@ short run(int savasp, int savssp)		// run compiled code
 	curframe->ssp = ssp;			// save
 	curframe->isp = isp;			// and indirect stack ptr
 	savasp = asp;				// use these in
-	savssp = ssp;				//  the subrou
+	savssp = ssp;				// the subrou
 	break;					// return to interp
 
       case CMJOBTAG:				// JOB tag in this rou
@@ -2043,33 +2028,33 @@ short run(int savasp, int savssp)		// run compiled code
       case CMJOBRTO:				// JOB routine, tag, off
 	partab.jobtab->commands++;		// count a command
 	offset = 0;				// clear offset
-	rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;
+	VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
 						// default to current routine
-	tag = 0;				// clear tag
+	VAR_CLEAR(tag);				// clear tag
 	if ((opc == CMJOBROU) || (opc == CMJOBRT) || (opc == CMJOBRTO))
-    { assert(sizeof(rou) == 8);
-      bcopy(rsmpc, &rou, sizeof(rou));
-      rsmpc += sizeof(rou);
-	  //rou = *((chr_q *)rsmpc)++;		// get routine name
-    }
-	if ((opc == CMJOBRTO) && (rou == 0))	// could be zero from this op
-	{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;
+        { assert(sizeof(rou) == VAR_LEN);
+          bcopy(rsmpc, &rou, sizeof(rou));
+          rsmpc += sizeof(rou);
+          //rou = *((var_u)rsmpc)++;		// get routine name
+        }
+	if ((opc == CMJOBRTO) && (var_empty(rou))) // could be zero from this op
+	{ VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
 	}					// reset to current
 	if ((opc == CMJOBTAG) || (opc == CMJOBRT) || (opc == CMJOBRTO))
-    { assert(sizeof(tag) == 8);
-      bcopy(rsmpc, &tag, sizeof(tag));
-      rsmpc += sizeof(tag);
-	  //tag = *((chr_q *)rsmpc)++;		// get tag name
-    }
+        { assert(sizeof(tag) == VAR_LEN);
+          bcopy(rsmpc, &tag, sizeof(tag));
+          rsmpc += sizeof(tag);
+          //tag = *((var_u)rsmpc)++;		// get tag name
+        }
 	j = -1;					// timeout (if any)
 	if (opc == CMJOBRTO)			// if there is one
 	{ if (!(systab->historic & HISTORIC_OFFOK)) // if not permitted
 	  { ERROR(-(ERRMLAST+ERRZ70))		// complain
 	  }
-      assert(sizeof(s) == 2);
-      bcopy(rsmpc, &s, sizeof(s));
-      rsmpc += sizeof(s);
-      offset = s;
+          assert(sizeof(s) == 2);
+          bcopy(rsmpc, &s, sizeof(s));
+          rsmpc += sizeof(s);
+          offset = s;
 	  //offset = *((short *)rsmpc)++;	// get the offset
 	}
 	args = *rsmpc++;			// get argument count
@@ -2086,7 +2071,7 @@ short run(int savasp, int savssp)		// run compiled code
 	strstk[i++] = ' ';			// and a space
 	list = (var_u *) &tag;			// point at the tag
 	j = 0;					// clear pointer
-	while ((list->var_cu[j] != 0) && (j < 8))
+	while ((list->var_cu[j] != 0) && (j < VAR_LEN))
 	  strstk[i++] = list->var_cu[j++];	// copy it
 	if (offset)				// if we have an offset
 	{ strstk[i++] = '+';			// add the plus
@@ -2095,7 +2080,7 @@ short run(int savasp, int savssp)		// run compiled code
 	strstk[i++] = '^';			// the ^
 	list = (var_u *) &rou;			// point at the rou
 	j = 0;					// clear pointer
-	while ((list->var_cu[j] != 0) && (j < 8))
+	while ((list->var_cu[j] != 0) && (j < VAR_LEN))
 	  strstk[i++] = list->var_cu[j++];	// copy it
 	if (args)
 	{ strstk[i++] = '(';			// an open bracket
@@ -2126,52 +2111,52 @@ short run(int savasp, int savssp)		// run compiled code
 	  savasp = asp;				// and that
 	}
 	offset = 0;				// clear offset
-	rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;
+	VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
 						// default to current routine
-	tag = 0;				// clear tag
+	VAR_CLEAR(tag);				// clear tag
 	if ((opc == CMGOROU) || (opc == CMGORT) || (opc == CMGORTO))
-    { assert(sizeof(rou) == 8);
-      bcopy(rsmpc, &rou, sizeof(rou));
-      rsmpc += sizeof(rou);
-	  //rou = *((chr_q *)rsmpc)++;		// get routine name
-    }
-	if ((opc == CMGORTO) && (rou == 0))	// could be zero from this op
-	{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;
+        { assert(sizeof(rou) == VAR_LEN);
+          bcopy(rsmpc, &rou, sizeof(rou));
+          rsmpc += sizeof(rou);
+          //rou = *((var_u)rsmpc)++;		// get routine name
+        }
+	if ((opc == CMGORTO) && (var_empty(rou))) // could be zero from this op
+	{ VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
 	}					// reset to current
 	if ((opc == CMGOTAG) || (opc == CMGORT) || (opc == CMGORTO))
-    { assert(sizeof(tag) == 8);
-      bcopy(rsmpc, &tag, sizeof(tag));
-      rsmpc += sizeof(tag);
-	  //tag = *((chr_q *)rsmpc)++;		// get tag name
-    }
+        { assert(sizeof(tag) == VAR_LEN);
+          bcopy(rsmpc, &tag, sizeof(tag));
+          rsmpc += sizeof(tag);
+          //tag = *((var_u)rsmpc)++;		// get tag name
+        }
 	if (opc == CMGORTO)			// if there is one
 	{ if (!(systab->historic & HISTORIC_OFFOK)) // if not permitted
 	  { ERROR(-(ERRMLAST+ERRZ70))		// complain
 	  }
-      assert(sizeof(s) == 2);
-      bcopy(rsmpc, &s, sizeof(s));
-      rsmpc += sizeof(s);
-      offset = s;
+          assert(sizeof(s) == 2);
+          bcopy(rsmpc, &s, sizeof(s));
+          rsmpc += sizeof(s);
+          offset = s;
 	  //offset = *((short *)rsmpc)++;	// get the offset
 	}
-	if ((!tag) && (offset))			// can't do that
+	if ((var_empty(tag)) && (offset))	// can't do that
 	{ ERROR(-ERRM20)
 	}
 	curframe = &partab.jobtab->dostk[partab.jobtab->cur_do]; // point at it
 	rouadd = NULL;				// clear rouadd
-	if (rou == 0)				// check for nosuch (Xecute)
+	if (var_empty(rou))			// check for nosuch (Xecute)
 	  for (i = partab.jobtab->cur_do - 1; i > 0; i--)
-	    if (partab.jobtab->dostk[i].rounam.var_qu != 0)
-	    { rou = partab.jobtab->dostk[i].rounam.var_qu;
+	    if (!var_empty(partab.jobtab->dostk[i].rounam))
+	    { VAR_COPY(rou, partab.jobtab->dostk[i].rounam);
 	      break;
 	    }
-	if (rou == 0)				// check for nosuch
+	if (var_empty(rou))			// check for nosuch
 	  ERROR(-ERRM13)			// give up
-	if ((rou != partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu)
+	if ((!var_equal(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam))
 	  && (partab.jobtab->dostk[partab.jobtab->cur_do].level))
 	  ERROR(-ERRM14)			// can't GOTO from ....
 	for (i = partab.jobtab->cur_do; i > 0; i--)
-	  if ((rou == partab.jobtab->dostk[i].rounam.var_qu) &&
+	  if ((var_equal(rou, partab.jobtab->dostk[i].rounam)) &&
 	      (partab.jobtab->ruci == partab.jobtab->dostk[i].uci) &&
 	      (partab.jobtab->rvol == partab.jobtab->dostk[i].vol))
 	  { rouadd = (rbd *) partab.jobtab->dostk[i].routine; // remember rou
@@ -2183,7 +2168,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      }
 	      curframe->routine = (u_char *) rouadd; // where the routine is
 	      curframe->symbol = partab.jobtab->dostk[i].symbol; // same symb
-	      curframe->rounam.var_qu = rou;		// the routine name
+	      VAR_COPY(curframe->rounam, rou);	// the routine name
 	      curframe->vol = partab.jobtab->rvol;
 	      curframe->uci = partab.jobtab->ruci;
 	      curframe->flags &= ~DO_FLAG_ATT;	// flag no attach not same frame
@@ -2199,25 +2184,23 @@ short run(int savasp, int savssp)		// run compiled code
 	  if (rouadd == ((rbd *)(-2)))		// wrong version
 	    ERROR(-(ERRZ59+ERRMLAST))		// give up
 	  if (curframe->flags & DO_FLAG_ATT)	// if current was an attach
-	  { ST_SymDet(((rbd *) curframe->routine)->num_vars,
-	              curframe->symbol); 	// detach symbols
+	  { ST_SymDet(((rbd *) curframe->routine)->num_vars, curframe->symbol);	// detach symbols
 	    Routine_Detach((rbd *) curframe->routine); // detach it
 	  }
 	  curframe->routine = (u_char *) rouadd; // save address
 	  curframe->symbol = NULL;		// symbol table
-	  curframe->rounam.var_qu = rou;	// routine name
+	  VAR_COPY(curframe->rounam, rou); 	// routine name
 	  curframe->vol = partab.jobtab->rvol;	// current volset
 	  curframe->uci = partab.jobtab->ruci;	// current uci
 	  curframe->flags |= DO_FLAG_ATT;	// flag an attach
 	}					// end get new one
-	curframe->pc =
-	  &((u_char *)rouadd)[rouadd->code];	// save start pc
-	if (tag != 0)				// tag specified ?
-	{ ttbl = (tags *) &((u_char *)rouadd)[rouadd->tag_tbl];
+	curframe->pc = &((u_char *) rouadd)[rouadd->code]; // save start pc
+	if (!var_empty(tag))			// tag specified ?
+	{ ttbl = (tags *) &((u_char *) rouadd)[rouadd->tag_tbl];
 	  j = 0;				// setup j as a flag
 	  for (i = 0; i < rouadd->num_tags; i++) // scan the tags
-            if (ttbl[i].name.var_qu == tag)	// found it
-	    { curframe->pc = curframe->pc + ttbl[i].code; // addjust pc
+            if (var_equal(ttbl[i].name, tag))	// found it
+	    { curframe->pc = curframe->pc + ttbl[i].code; // adjust pc
 	      j = 1;				// flag ok
 	      break;				// and exit
 	    }
@@ -2241,10 +2224,10 @@ short run(int savasp, int savssp)		// run compiled code
 	p = curframe->pc;			// the new pc
 	if (*p++ == LINENUM)
 	{ assert(sizeof(s) == 2);
-      bcopy(p, &s, sizeof(s));
-      p +=sizeof(s) ;
-      curframe->line_num = s;
-      //*((short *)p)++;	// store the line number
+          bcopy(p, &s, sizeof(s));
+          p +=sizeof(s) ;
+          curframe->line_num = s;
+          //*((short *)p)++;	// store the line number
 	  p += sizeof(short);			// point past the offset
 	}
 	i = 0;					// assume no dots here
@@ -2286,16 +2269,14 @@ short run(int savasp, int savssp)		// run compiled code
 	partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;
 	partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;
 	partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
-	partab.jobtab->dostk[partab.jobtab->cur_do].endlin =
-	  rsmpc + cptr->len - 4;
-	partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu = 0;
+	partab.jobtab->dostk[partab.jobtab->cur_do].endlin = rsmpc + cptr->len - 4;
+	VAR_CLEAR(partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
 	partab.jobtab->dostk[partab.jobtab->cur_do].vol = partab.jobtab->vol;
 	partab.jobtab->dostk[partab.jobtab->cur_do].uci = partab.jobtab->uci;
 	partab.jobtab->dostk[partab.jobtab->cur_do].line_num = 0;
 	partab.jobtab->dostk[partab.jobtab->cur_do].type = TYPE_XECUTE;
 	partab.jobtab->dostk[partab.jobtab->cur_do].level = 0;
-	partab.jobtab->dostk[partab.jobtab->cur_do].estack =
-	  partab.jobtab->dostk[partab.jobtab->cur_do - 1].estack;
+	partab.jobtab->dostk[partab.jobtab->cur_do].estack = partab.jobtab->dostk[partab.jobtab->cur_do - 1].estack;
 	partab.jobtab->dostk[partab.jobtab->cur_do].flags = 0;
 	partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
 	partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
@@ -2337,8 +2318,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  break;				// and continue
 	}
 	curframe = &partab.jobtab->dostk[partab.jobtab->cur_do]; // point at it
-	if ((curframe->type == TYPE_RUN) ||
-	    (curframe->type == TYPE_JOB))
+	if ((curframe->type == TYPE_RUN) || (curframe->type == TYPE_JOB))
 	{ if (opc == CMQUIT) return opc;	// return the quit
 	  return (cstringtoi((cstring *) addstk[--asp])
 	  	  | BREAK_QN); 			// tell it how many
@@ -2355,8 +2335,7 @@ short run(int savasp, int savssp)		// run compiled code
 	infor = curframe->flags & DO_FLAG_FOR;	// reset for flag if reqd
 	if (curframe->flags & DO_FLAG_ATT) 	// if we attached
 	{ if (curframe->symbol != NULL)		// had some vars?
-	    ST_SymDet(((rbd *) curframe->routine)->num_vars,
-	              curframe->symbol);	// detach symbols
+	    ST_SymDet(((rbd *) curframe->routine)->num_vars, curframe->symbol);	// detach symbols
 	  Routine_Detach((rbd *) curframe->routine); // detach routine
 	}
 	cptr = NULL;				// shut up the c compiler
@@ -2416,16 +2395,17 @@ short run(int savasp, int savssp)		// run compiled code
 	partab.jobtab->commands++;		// count a command
 	cptr = NULL;				// flag for $ETRAP
 	list = (var_u *) &strstk[ssp];		// where we put this
+        VAR_CLEAR((*list));
 	flag = *rsmpc++;			// get arg count
 	args = 0;				// for the calls
 	for (i = 0; i < flag; i++)		// for each arg
 	{ var = (mvar *) addstk[--asp];		// get next from list
-	  list[args++].var_qu = var->name.var_qu; // get each name
-	  if (list[args - 1].var_qu == 0)	// an index type?
-	  { rouadd =
-	     (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-	    vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
-	    list[args - 1].var_qu = vt[var->volset - 1]; // get the var name
+	  VAR_COPY(list[args], var->name);	// get each name
+          args++;
+	  if (var_empty(list[args - 1]))	// an index type?
+	  { rouadd = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+	    vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
+	    VAR_COPY(list[args - 1], vt[var->volset - 1]); // get the var name
 	  }
 	  if (var->slen)			// any subscripts
 	    ERROR(-(ERRMLAST+ERRZ13))		// not permitted
@@ -2435,8 +2415,9 @@ short run(int savasp, int savssp)		// run compiled code
 	  { if (opc != CMNEW) ERROR(-ERRM8)	// can't do that
 	    if ((strncasecmp((const char *) &var->name.var_cu[0], "$et\0", 4) == 0) ||
 	        (strncasecmp((const char *) &var->name.var_cu[0], "$etrap\0", 7) == 0))
-	    { bcopy("$ETRAP\0\0", &var->name.var_cu[0], 8);
-	      list[args - 1].var_qu = var->name.var_qu; // ensure list OK
+            { VAR_CLEAR(var->name);
+	      bcopy("$ETRAP", &var->name.var_cu[0], 6);
+	      VAR_COPY(list[args - 1], var->name); // ensure list OK
 	      s = ST_GetAdd(var, &cptr);	// get address of current value
 	      if (s < 1) cptr = NULL;		// ignore junk
 	    }
@@ -2458,7 +2439,8 @@ short run(int savasp, int savssp)		// run compiled code
 	if (s < 0) ERROR(s)			// complain on error
 	if (cptr != NULL)			// need to restore $ETRAP?
 	{ var = (mvar *) &strstk[ssp];		// where to put this
-	  bcopy("$ETRAP\0\0", &var->name.var_cu[0], 8);
+          VAR_CLEAR(var->name);
+	  bcopy("$ETRAP", &var->name.var_cu[0], 6);
 	  var->uci = UCI_IS_LOCALVAR;		// local
 	  var->volset = 0;
 	  var->slen = 0;			// no subscripts
@@ -2478,15 +2460,15 @@ short run(int savasp, int savssp)		// run compiled code
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
 	  s = SS_Kill(var);			// do it - ssvn
 	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
-	    s = DB_Kill(var);			// do it - global
+	{ bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+	  s = DB_Kill(var);			// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
 	break;
       case CMKILLB:				// kill but()
 	partab.jobtab->commands++;		// count a command
 	list = (var_u *) &strstk[ssp];		// where we put this
+        VAR_CLEAR((*list));
 	args = *rsmpc++;			// get arg count
 	for (i = 0; i < args; i++)		// for each arg
 	{ var = (mvar *) addstk[--asp];		// point at mvar
@@ -2495,13 +2477,12 @@ short run(int savasp, int savssp)		// run compiled code
 	  if (var->slen)			// any subscripts
 	    ERROR(-(ERRMLAST+ERRZ13))		// not permitted
 	  if (var->volset)			// index type?
-	  { rouadd = (rbd *)
-	      (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-	    vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
+	  { rouadd = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+	    vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
 	    					// point at var table
-	    var->name.var_qu = vt[var->volset - 1];    // get the var name
+	    VAR_COPY(var->name, vt[var->volset - 1]); // get the var name
 	  }
-	  list[i].var_qu = var->name.var_qu;	// get the name
+	  VAR_COPY(list[i], var->name);		// get the name
 	}
 	s = ST_KillAll(args, list);		// do it in symbol
 	if (s < 0) ERROR(s)			// complain on error
@@ -2514,14 +2495,13 @@ short run(int savasp, int savssp)		// run compiled code
 	if (var->slen)				// any subscripts
 	  ERROR(-(ERRMLAST+ERRZ13))		// not permitted
 	if (var->volset)			// index type?
-	{ rouadd = (rbd *)
-	    (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-	  vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
+	{ rouadd = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+	  vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
 	    					// point at var table
-	  var->name.var_qu = vt[var->volset - 1];	// get the var name
+	  VAR_COPY(var->name, vt[var->volset - 1]); // get the var name
 	  var->volset = 0;			// clear the index
 	}
-	s = ST_Create(var->name.var_qu);	// get its index
+	s = ST_Create(var->name);		// get its index
 	if (s < 0) ERROR(s)			// die on error
 	if (symtab[s].data == ST_DATA_NULL)	// if data block undef
 	{ symtab[s].data = malloc(DTMINSIZ); 	// allocate some mem
@@ -2539,16 +2519,16 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
 
       case LINENUM:				// set current line number
-    assert (sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-    rsmpc += sizeof(s);
-	partab.jobtab->dostk[partab.jobtab->cur_do].line_num = s;
-	  //*((short *)rsmpc)++;		// store the line number
-    assert (sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-	partab.jobtab->dostk[partab.jobtab->cur_do].endlin = rsmpc + s;
-    rsmpc += sizeof(s);
-      //*((short *)rsmpc)++;			// store the line number
+        assert (sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
+        partab.jobtab->dostk[partab.jobtab->cur_do].line_num = s;
+        //*((short *)rsmpc)++;		// store the line number
+        assert (sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        partab.jobtab->dostk[partab.jobtab->cur_do].endlin = rsmpc + s;
+        rsmpc += sizeof(s);
+        //*((short *)rsmpc)++;			// store the line number
 	if (partab.debug < 0)			// in debug?
 	{ s = Debug(savasp, savssp, 0);		// do it
 	  if (s == OPHALT) return s;		// halt if reqd
@@ -2569,9 +2549,9 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 	ERROR(-ERRM11)				// complain
       case JMP:					// Jump
-    assert(sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-    rsmpc += sizeof(s);
+        assert(sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
 	//s = *((short *)rsmpc)++;		// get the offset
 	rsmpc = rsmpc + s;			// jump
 	break;
@@ -2586,9 +2566,9 @@ short run(int savasp, int savssp)		// run compiled code
 	if (infor)
 	{ forx->type |= FOR_NESTED;		// check for nesting
 	}
-    assert(sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-    rsmpc += sizeof(s);
+        assert(sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
 	//s = *((short *)rsmpc)++;		// get the offset
 	forx->quit = rsmpc + s;			// save the new address
 	infor = 1;				// say in a for loop
@@ -2717,8 +2697,8 @@ short run(int savasp, int savssp)		// run compiled code
 	  if (s == -1)				// if not attached
 	  { rouadd =
 	      (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-	    vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
-	    tag = vt[i];			// get the var name
+	    vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
+	    VAR_COPY(tag, vt[i]);		// get the var name
 	    s = ST_SymAtt(tag);			// attach to var
 	    if (s < 0) ERROR(s)			// die on error
 	    partab.jobtab->dostk[partab.jobtab->cur_do].symbol[i] = s;
@@ -2743,14 +2723,14 @@ short run(int savasp, int savssp)		// run compiled code
 	if (infor) forx->type |= FOR_NESTED;	// check for nesting
 	forx->svar = s;				// save syment
 	forx->var = var;			// or mvar address
-    assert(sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-    rsmpc += sizeof(s);
+        assert(sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
 	//s = *((short *)rsmpc)++;		// get the offset
 	forx->startpc = rsmpc + s;		// save the new address
-    assert(sizeof(s) == 2);
-    bcopy(rsmpc, &s, sizeof(s));
-    rsmpc += sizeof(s);
+        assert(sizeof(s) == 2);
+        bcopy(rsmpc, &s, sizeof(s));
+        rsmpc += sizeof(s);
 	//s = *((short *)rsmpc)++;		// get the offset
 	forx->quit = rsmpc + s;			// save the new address
 	infor = 1;				// say in a for loop
@@ -2830,12 +2810,12 @@ short run(int savasp, int savssp)		// run compiled code
 
 // ************** Indirection stuff **************
       case INDREST:				// restore isp and rsmpc
-    assert (sizeof(isp) == sizeof(long));
-    bcopy(rsmpc, &isp, sizeof(isp));
-    rsmpc += sizeof(isp);
-	//isp = *((int *)rsmpc)++;		// restore the isp
-    assert(sizeof(rsmpc) == sizeof(long));
-    bcopy(rsmpc, &rsmpc, sizeof(rsmpc));
+        assert (sizeof(isp) == sizeof(long));
+        bcopy(rsmpc, &isp, sizeof(isp));
+        rsmpc += sizeof(isp);
+        //isp = *((int *)rsmpc)++;		// restore the isp
+        assert(sizeof(rsmpc) == sizeof(long));
+        bcopy(rsmpc, &rsmpc, sizeof(rsmpc));
 	//rsmpc = *((u_char **)rsmpc);		// and the rsmpc
 	break;					// continue
 
@@ -2914,13 +2894,13 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    assert (sizeof(comp_ptr) == sizeof(long));
-    bcopy(&isp, comp_ptr, sizeof(long));
-    comp_ptr += sizeof(comp_ptr);
+        assert (sizeof(comp_ptr) == sizeof(long));
+        bcopy(&isp, comp_ptr, sizeof(long));
+        comp_ptr += sizeof(comp_ptr);
 	//*((int *)comp_ptr)++ = isp;		// the isp to restore
-    assert (sizeof(comp_ptr) == sizeof(long));
-    bcopy(&rsmpc, comp_ptr, sizeof(long));
-    comp_ptr += sizeof(comp_ptr);
+        assert (sizeof(comp_ptr) == sizeof(long));
+        bcopy(&rsmpc, comp_ptr, sizeof(long));
+        comp_ptr += sizeof(comp_ptr);
 	//*((u_char **)comp_ptr)++ = rsmpc;	// and the rsmpc
 	rsmpc = &indstk[isp];			// what we are going to do
 	isp = (comp_ptr - &indstk[isp]) + isp;	// adjust isp
@@ -2949,7 +2929,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_host((char *)cptr->buf, ptr1, ptr2);  // doit
+	s = Xcall_host((char *) cptr->buf, ptr1, ptr2);  // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -2960,7 +2940,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_file((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_file((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -2971,7 +2951,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_wait((char *)cptr->buf, ptr1, ptr2);  // doit
+	s = Xcall_wait((char *) cptr->buf, ptr1, ptr2);  // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -2982,7 +2962,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_debug((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_debug((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -2993,7 +2973,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_directory((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_directory((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3003,7 +2983,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_errmsg((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_errmsg((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3013,7 +2993,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_opcom((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_opcom((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3023,7 +3003,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_signal((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_signal((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3033,7 +3013,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_spawn((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_spawn((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3043,7 +3023,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_version((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_version((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3053,7 +3033,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_zwrite((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_zwrite((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3063,7 +3043,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_e((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_e((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3073,7 +3053,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_paschk((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_paschk((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3083,7 +3063,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_v((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_v((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3093,7 +3073,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_x((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_x((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3103,7 +3083,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_xrsm((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_xrsm((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3113,7 +3093,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_setenv((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_setenv((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3123,7 +3103,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_getenv((char *)cptr->buf, ptr1, ptr2); // doit
+	s = Xcall_getenv((char *) cptr->buf, ptr1, ptr2); // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
@@ -3134,6 +3114,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
         var2 = (mvar *) &strstk[ssp];		// some space
         ssp = ssp + sizeof(mvar);		// cover it
+        VAR_CLEAR(var2->name);
         bcopy("$ROUTINE", &var2->name.var_cu, 8); // ^$R
 	var2->volset = partab.jobtab->rvol;	// the volume
 	var2->uci = partab.jobtab->ruci;	// and the uci
@@ -3155,7 +3136,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) addstk[--asp];	// get arg 2 (ignored)
 	ptr1 = (cstring *) addstk[--asp];	// get arg 1
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
-	s = Xcall_fork((char *)cptr->buf, ptr1, ptr2);	// do it
+	s = Xcall_fork((char *) cptr->buf, ptr1, ptr2);	// do it
 	if (s < 0) ERROR(s)			// give up on error
 	cptr->len = s;				// save length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it

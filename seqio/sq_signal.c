@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_Signal.c
+ * File:     rsm/seqio/sq_signal.c
  * Summary:  module IO - sequential I/O signal handling
  *
  * David Wicksell <dlw@linux.com>
@@ -72,7 +72,7 @@ int setSignal (int sig, int flag)
 // This function tells the system that the set of all signals that can be
 // caught should be delivered to the designated signal handler. Upon success,
 // 0 is returned. Otherwise, a negative integer value is returned to indicate
-// the error that has occured.
+// the error that has occurred.
 //
 // Note, if a signal arrives during one of the primitive operations ( ie open,
 //	 read etc ), the operation will exit with -1, with "errno" set to
@@ -212,7 +212,7 @@ int setSignals (void)
 // This function handles all caught signals.
 //
 // Note, refer to the function "setSignalBitMask" in the file
-//	 "rsm/seqio/SQ_Util.c".
+//	 "rsm/seqio/sq_util.c".
 
 void signalHandler(int sig)				// Caught signal
 { setSignalBitMask(sig);

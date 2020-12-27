@@ -26,12 +26,12 @@
  */
 
 #include <stdio.h>					// always include
+#include <stddef.h>					// for offsetof
 #include <stdlib.h>					// these two
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
 #include <fcntl.h>					// for file stuff
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <errno.h>					// errno
 #include <sys/types.h>                                  // for semaphores
@@ -44,21 +44,21 @@
 
 int curr_lock;						// lock on globals
 mvar db_var;						// local copy of var
-int volnum;                         // current volume
+int volnum;                                             // current volume
 
-gbd *blk[MAXTREEDEPTH];				// current tree
-int level;                          // level in above
-                                    // 0 = global dir
-u_int rekey_blk[MAXREKEY];			// to be re-keyed
-int   rekey_lvl[MAXREKEY];			// from level
+gbd *blk[MAXTREEDEPTH];					// current tree
+int level;                                              // level in above
+                                                        // 0 = global dir
+u_int rekey_blk[MAXREKEY];				// to be re-keyed
+int   rekey_lvl[MAXREKEY];				// from level
 
-int Index;                          // Index # into above
+int Index;                                              // Index # into above
 cstring *chunk;						// chunk at Index
 cstring *record;					// record at Index
-                                    // points at dbc
+                                                        // points at dbc
 u_char keybuf[260];					// for storing keys
 u_short *idx;						// for Indexes
-int *iidx;                          // int ver of Index
+int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 
@@ -66,7 +66,7 @@ int hash_start = 0;					// start searching here
 
 //-----------------------------------------------------------------------------
 // Function: Copy2local
-// Descript: Copy passed in mvar to db_var, adjusting volset and uci
+// Descript: Copy passed in mvar to db_var, adjusting volset and UCI
 //	     The local copy of the mvar, db_var, is then used by all
 //	     other database code. Only DB_QueryD uses the original.
 //	     DB_Compress also updates the original so that it can be watched.
@@ -84,7 +84,7 @@ short Copy2local(mvar *var)
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
   level = -1;						// no claimed gbds yet
-  bcopy(var, &db_var, sizeof(var_u)+4+var->slen);	// copy the data
+  bcopy(var, &db_var, sizeof(var_u) + 4 + var->slen);	// copy the data
   if (db_var.volset == 0)				// if volset is zero
   { db_var.volset = partab.jobtab->vol;			// get current volset
   }
@@ -94,9 +94,9 @@ short Copy2local(mvar *var)
   if (systab->vol[db_var.volset-1] == NULL)		// is it mounted?
   { return (-ERRM26);					// no - error
   }
-  if (db_var.uci == 0)					// uci specified?
+  if (db_var.uci == 0)					// UCI specified?
   { if (db_var.name.var_cu[0] == '%')
-    { db_var.uci = 1;					// MGR
+    { db_var.uci = 1;					// manager UCI
     }
     else
     { db_var.uci = partab.jobtab->uci;			// or current
@@ -106,23 +106,22 @@ short Copy2local(mvar *var)
   { return (-ERRM26);					// too big
   }
 
-  if ((var->volset == 0) && (var->uci == 0))		// no vol or uci
+  if ((var->volset == 0) && (var->uci == 0))		// no vol or UCI
   { for (i = 0; i < systab->max_tt; i++)		// scan trantab
     if (bcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) // if a match
     { if (systab->tt[i].to_vol == 0)
-      { return (i+1);					// flag routine proc
+      { return (i + 1);					// flag routine proc
       }
-      bcopy(&systab->tt[i].to_global, &db_var.name, sizeof(var_u) + 2);
+      bcopy((char *) &systab->tt[i] + offsetof(trantab, to_global), &db_var.name, sizeof(var_u) + 2);
       break;
     }							// end found one
   }							// end trantab lookup
 
-  if (systab->vol[db_var.volset-1]->vollab->
-      uci[db_var.uci-1].name.var_cu[0] == '\0')		// does uci exits?
+  if (systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].name.var_cu[0] == '\0') // does UCI exist?
   { return (-ERRM26);					// no - error
   }
   if ((db_var.name.var_cu[0] == '%') &&			// if a %global
-      (db_var.uci != 1))				// and uci is not 1
+      (db_var.uci != 1))				// and UCI is not 1
   { return (-ERRM26);					// error
   }
   volnum = db_var.volset;				// save this for ron
@@ -191,7 +190,7 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   { i += (4 - (i & 3));					// round up
   }
   i += 4;						// add Index
-  if (i > (systab->vol[volnum-1]->vollab->block_size - 20)) // if too big
+  if (i > (systab->vol[volnum-1]->vollab->block_size - sizeof(DB_Block))) // if too big
   { return -ERRM75;					// return an error
   }
   systab->vol[volnum-1]->stats.dbset++;                 // update stats
@@ -243,7 +242,8 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
   i = 1;						// assume data found
   if (s == -ERRM7)					// undefined global?
   { i = 0;						// yes - no data
-    if (level == 0)					// check for global
+    if (level == 0 &&					// check for global
+       (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) != 0)) // but not ^$G
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
@@ -389,14 +389,14 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
       return s;						// and return the error
     }
     if ((level == 0) && (s == -ERRM7) &&		// if no such global
-	(bcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8)))	// and not ^$G()
+	(bcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8))) // and not ^$G()
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
       return 0;						// and return
     }
     Index--;                                          	// backup the Index
-    if (Index < 10)                                   	// can't happen?
+    if (Index < IDX_START)				// can't happen?
     { panic("DB_Order: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
@@ -412,7 +412,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
       return (s < 0) ? s : -(ERRMLAST+ERRZ61);		// and return the error
     }
     if ((level == 0) &&					// if no such global
-	(bcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8)))	// and not ^$G()
+	(bcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8))) // and not ^$G()
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
@@ -428,22 +428,20 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
       }
     }
   }							// end forwards
-  for (i = 10; i <= Index; i++)				// scan to current
+  for (i = IDX_START; i <= Index; i++)			// scan to current
   { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
+    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }
 
   if (curr_lock)					// if locked
   { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
   }
-  if ((keybuf[0] < (last_key + 1)) ||
-      (bcmp(&keybuf[1], db_var.key, last_key)))		// check for past it
+  if ((keybuf[0] < (last_key + 1)) || (bcmp(&keybuf[1], db_var.key, last_key)))	// check for past it
   { return 0;						// done
   }
   i = 0;						// clear flag
-  s = UTIL_Key_Extract(&keybuf[last_key+1], buf, &i);	// extract the key
+  s = UTIL_Key_Extract(&keybuf[last_key + 1], buf, &i);	// extract the key
   return s;						// return result
 }
 
@@ -481,7 +479,7 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
       return 0;						// and return
     }
     Index--;                                          	// backup the Index
-    if (Index < 10)                                   	// can't happen?
+    if (Index < IDX_START)				// can't happen?
     { panic("DB_Query: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
@@ -528,10 +526,9 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
     }
   }
 
-  for (i = 10; i <= Index; i++)				// scan to current
+  for (i = IDX_START; i <= Index; i++)			// scan to current
   { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
+    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }
   if (curr_lock)					// if locked
@@ -539,7 +536,7 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
   }
   db_var.uci = var->uci;				// copy
   db_var.volset = var->volset;				//   original & new
-  db_var.name.var_qu = var->name.var_qu;		//      data
+  VAR_COPY(db_var.name, var->name);			//      data
   db_var.slen = keybuf[0];				//         to
   bcopy(&keybuf[1], &db_var.key[0], keybuf[0]);		//           db_var
   return UTIL_String_Mvar(&db_var, buf, 9999);		// convert and return
@@ -557,7 +554,6 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
 
 short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 { short s;						// for returns
-//  int i;						// a handy int
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
@@ -771,7 +767,7 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
   }
   jj.action = action;
   jj.uci = 0;
-  jj.name.var_qu = 0;
+  VAR_CLEAR(jj.name);
   jj.slen = 0;
   DoJournal(&jj, NULL);
   systab->vol[vol - 1]->vollab->journal_available = 0;
@@ -888,8 +884,8 @@ short DB_Compress(mvar *var, int flags)			// Compress global
   if (!level)
   { return -ERRM7;					// give up if nosuch
   }
-  chunk = (cstring *) &iidx[idx[10]];			// point at the first
-  bcopy(&chunk->buf[1], &var->slen, chunk->buf[1]+1);	// save the real key
+  chunk = (cstring *) &iidx[idx[IDX_START]];		// point at the first
+  bcopy(&chunk->buf[1], &var->slen, chunk->buf[1] + 1);	// save the real key
 
   while (TRUE)
   { bcopy(var, &db_var, sizeof(mvar));			// get next key
@@ -911,7 +907,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     }
     if (s == -ERRM7)					// if key changed
     { if (blk[level]->mem->right_ptr)			// if more
-      { chunk = (cstring *) &iidx[idx[10]];		// point at the first
+      { chunk = (cstring *) &iidx[idx[IDX_START]];	// point at the first
 	bcopy(&chunk->buf[1], &db_var.slen, chunk->buf[1]+1); // save real key
 	SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
 	continue;					// go again
@@ -940,11 +936,11 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       return s;						// exit on error
     }
-    i = ((blk[level-1]->mem->last_free*2 + 1 - blk[level-1]->mem->last_idx)*2)
-      + ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2);
+    i = ((blk[level - 1]->mem->last_free * 2 + 1 - blk[level - 1]->mem->last_idx) * 2)
+      + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2);
     if (i < 1024)	// if REALLY not enough space (btw: make this a param)
-    { chunk = (cstring *) &iidx[idx[10]];		// point at first in RL
-      bcopy(&chunk->buf[1], &var->slen, chunk->buf[1]+1); // save the real key
+    { chunk = (cstring *) &iidx[idx[IDX_START]];	// point at first in RL
+      bcopy(&chunk->buf[1], &var->slen, chunk->buf[1] + 1); // save the real key
       SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       continue;						// go again
     }

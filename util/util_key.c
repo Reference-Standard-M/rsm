@@ -270,7 +270,7 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
   int p = 0;					// string pointer
   int vol;					// for volset
   uci_tab up;					// ptr to uci tab
-  chr_q *vt;					// var table pointer
+  var_u *vt;					// var table pointer
   rbd *r;					// a handy pointer
   u_char *ptr;					// string ptr
 
@@ -282,7 +282,7 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
       vol = var->volset;			// get vol
       if (vol == 0) vol = partab.jobtab->vol;	// if none, get default
       up = systab->vol[vol-1]->vollab->uci[var->uci-1]; // uci tab pointer
-      for (i=0; i<8; i++)			// for each possible character
+      for (i = 0; i < VAR_LEN; i++)		// for each possible character
       { if (up.name.var_cu[i] == '\0') break;	// done if we hit a null
         str[p++] = up.name.var_cu[i];		// copy the character
       }
@@ -291,7 +291,7 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
       { str[p++] = ',';				// copy in a comma
         str[p++] = '"';				// a leading quote
 	ptr = systab->vol[var->volset-1]->vollab->volnam.var_cu;
-        for (i=0; i<8; i++)			// for each possible character
+        for (i = 0; i < VAR_LEN; i++)		// for each possible character
         { if (ptr[i] == '\0') break;		// done if we hit a null
           str[p++] = ptr[i];			// copy the character
         }
@@ -303,12 +303,12 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
   if ((var->uci == UCI_IS_LOCALVAR) &&
       (var->volset))				// special index type
   { r = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-    vt = (chr_q *) (((u_char *) r) + r->var_tbl); // point at var table
-    var->name.var_qu = vt[var->volset - 1];	// get the var name
+    vt = (var_u *) (((u_char *) r) + r->var_tbl); // point at var table
+    VAR_COPY(var->name, vt[var->volset - 1]);	// get the var name
     var->volset = 0;				// clear the volset
   }
 
-  for (i = 0; i < 8; i++)			// now the name
+  for (i = 0; i < VAR_LEN; i++)			// now the name
   { if (var->name.var_cu[i] == '\0') break;	// quit when done
     str[p++] = var->name.var_cu[i];		// copy a byte
   }
@@ -341,7 +341,7 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
   var->volset = 0;				// clear volset
   var->uci = UCI_IS_LOCALVAR;			// assume local variable
   var->slen = 0;				// and no subscripts
-  var->name.var_qu = 0;				// clear the name
+  VAR_CLEAR(var->name);				// clear the name
   ptr = src->buf;				// point at the source
   if (*ptr == '^')				// global?
   { ptr++;					// skip the ^
@@ -349,12 +349,12 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
 
     if (*ptr == '[')				// environment specified?
     { ptr++;					// skip the [
-      nam.var_qu = 0;				// clear quadword
+      VAR_CLEAR(nam);				// clear quadword
       if (*ptr++ != '"')			// must be a quote
         return -(ERRMLAST+ERRZ12);		// complain
       i = 0;					// clear an index
       while (*ptr != '"')			// scan to end of literal
-      { if (i == 8)				// check for too many
+      { if (i == VAR_LEN)			// check for too many
           return -(ERRMLAST+ERRZ12);		// complain
         nam.var_cu[i++] = *ptr++;		// copy a byte
       }
@@ -362,27 +362,26 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
 
       if (*ptr == ',')				// vol name too ?
       { ptr++;					// skip the ,
-        vol.var_qu = 0;				// clear quadword
+        VAR_CLEAR(vol);				// clear quadword
         if (*ptr++ != '"')			// must be a quote
           return -(ERRMLAST+ERRZ12);		// complain
         i = 0;					// clear an index
         while (*ptr != '"')			// scan to end of literal
-        { if (i == 8)				// check for too many
+        { if (i == VAR_LEN)			// check for too many
             return -(ERRMLAST+ERRZ12);		// complain
           vol.var_cu[i++] = *ptr++;		// copy a byte
         }
         ptr++;					// go past closing "
         for (i = 0; i < MAX_VOL; i++)		// scan vol list
           if (systab->vol[i] != NULL)		// vol here ?
-            if (systab->vol[i]->vollab->volnam.var_qu == vol.var_qu)
+            if (var_equal(systab->vol[i]->vollab->volnam, vol))
 	      break;				// quit if found
         if (i == MAX_VOL) return -ERRM26;	// no such, complain
         var->volset = i + 1;			// store the vol#
       }
       if (var->volset == 0) var->volset = partab.jobtab->vol; // default
       for (i = 0; i < UCIS; i++)		// scan uci list (vol 0)
-        if (systab->vol[var->volset-1]->vollab->uci[i].name.var_qu
-              == nam.var_qu)
+        if (var_equal(systab->vol[var->volset-1]->vollab->uci[i].name, nam))
 	  break;				// quit if found
       if (i == UCIS) return -ERRM26;		// no such, complain
       var->uci = i + 1;				// store the uci#
@@ -390,7 +389,7 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
         return -ERRM26;				// give error instead
     }
   }						// end special global stuff
-  for (i = 0; i < 8; i++)			// now the name
+  for (i = 0; i < VAR_LEN; i++)			// now the name
   { if ((*ptr == '(') || (*ptr == '\0'))	// subs or end of str
       break;					// quit
     var->name.var_cu[i] = *ptr++;		// copy a byte
@@ -477,7 +476,7 @@ int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2)
 int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs,
                                                         char *KeyBuffer)
 { int cnt, i;						// subs & char counts
-  cnt = 0;						// initialise
+  cnt = 0;						// initialize
   i = 0;						// these two
   while ((i < keylen) && (cnt < maxsubs))		// while still in key
   { if ((Key[i]&128) || (Key[i]&64))			// if +ve no. or string

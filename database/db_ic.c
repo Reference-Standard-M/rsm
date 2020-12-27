@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -53,8 +52,7 @@ u_int volsiz;						// blocks in volume
 
 void ic_full();						// full check
 void ic_bits(u_int block, int flag, u_int points_at);	// check bits
-u_int ic_block(u_int block, u_int points_at,
-	      u_char *kin, chr_q global);		// check block
+u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global); // check block
 void ic_map(int flag);					// check the map
 
 extern int dbfd;					// global db file desc
@@ -69,6 +67,9 @@ extern int dbfd;					// global db file desc
 
 int DB_ic(int vol, int block)                  		// integrity checker
 {
+  int uci;						// UCI#
+  u_int b1;						// a block
+
   if (vol > MAX_VOL)					// within limits?
   { return (-ERRM26);					// no - error
   }
@@ -81,8 +82,8 @@ int DB_ic(int vol, int block)                  		// integrity checker
   icerr = 0;						// clear errors
   doing_full = 0;					// and this
   outc = (cstring *) wrt_buf;				// for reporting
-  used = ((u_char *) systab->vol[volnum-1]->map);	// point at map
-  volsiz = systab->vol[volnum-1]->vollab->max_block;	// number of blocks
+  used = ((u_char *) systab->vol[volnum - 1]->map);	// point at map
+  volsiz = systab->vol[volnum - 1]->vollab->max_block;	// number of blocks
   gbd_expired = 0;					// clear this
   for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL);
 
@@ -94,7 +95,14 @@ int DB_ic(int vol, int block)                  		// integrity checker
   }
   else if (block > 0)
   { level = 1;
-    ic_block(block, 0, NULL, 0);			// check it
+    for (uci = 0; uci < UCIS; uci++)			// scan uci table
+    { b1 = systab->vol[volnum - 1]->vollab->uci[uci].global; // get GD
+      if (b1 == block)					// if block is GD
+      { level = 0;
+        break;
+      }
+    }
+    ic_block(block, 0, NULL, (var_u) 0ull);		// check it
     gbd_expired = GBD_EXPIRED;
     return icerr;					// and return
   }
@@ -134,11 +142,11 @@ void ic_full()						// full check
   dlnk[0] = 1;						// say blk 0 used
 
   for (uci = 0; uci < UCIS; uci++)			// scan uci table
-  { b1 = systab->vol[volnum-1]->vollab->uci[uci].global; // get GD
+  { b1 = systab->vol[volnum - 1]->vollab->uci[uci].global; // get GD
     if (b1 == 0)					// if none
     { continue;						// ignore it
     }
-    if ((used[b1/8] & (1U << (b1 & 7))) == 0)		// if marked free
+    if ((used[b1 / 8] & (1U << (b1 & 7))) == 0)		// if marked free
     { outc->len = sprintf((char *)&outc->buf[0],
         "%10d free (global directory for UCI %d) - skipped",
         b1, uci + 1);					// error msg
@@ -149,7 +157,7 @@ void ic_full()						// full check
     }
     ic_bits(b1, 3, 0);					// set link bits
     level = 0;						// clear level
-    ic_block(b1, 0, NULL, 0);				// check the block
+    ic_block(b1, 0, NULL, (var_u) 0ull);		// check the block
   }							// end main for loop
 
   for (i = 0; i < (volsiz / 8); i++)			// for each byte in map
@@ -254,8 +262,7 @@ void ic_bits(u_int block, int flag, u_int points_at)	// check bits
 // Return:   none
 //
 
-u_int ic_block(u_int block, u_int points_at,
-	      u_char *kin, chr_q global)		// check block
+u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check block
 { int i;						// a handy int
   short s;						// for funct
   int left_edge;					// a flag
@@ -292,7 +299,7 @@ u_int ic_block(u_int block, u_int points_at,
     return 0;						// and exit
   }
 
-  if ((used[block/8] & (1U << (block & 7))) == 0)	// if marked free
+  if ((used[block / 8] & (1U << (block & 7))) == 0)	// if marked free
   { outc->len = sprintf((char *)&outc->buf[0],
       "%10d <- %10d marked free, type = %d",
       block, points_at, blk[level]->mem->type);		// error msg
@@ -302,8 +309,7 @@ u_int ic_block(u_int block, u_int points_at,
       return 0;						// give up
   }
 
-  eob = (u_char *) blk[level]->mem
-        + systab->vol[volnum-1]->vollab->block_size - 1;
+  eob = (u_char *) blk[level]->mem + systab->vol[volnum - 1]->vollab->block_size - 1;
 
   if (blk[level]->dirty == NULL)
   { blk[level]->dirty = (gbd *) 3;			// reserve it
@@ -314,8 +320,8 @@ u_int ic_block(u_int block, u_int points_at,
   Lgbd = blk[level];					// and this
   s = SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
 
-  if (global)
-  { if (global != blk[level]->mem->global)		// check global
+  if (!var_empty(global))
+  { if (!var_equal(global, blk[level]->mem->global))	// check global
     { outc->len = sprintf((char *)&outc->buf[0],
         "%10d <- %10d - global is wrong",
         block, points_at);				// error msg
@@ -325,7 +331,7 @@ u_int ic_block(u_int block, u_int points_at,
     }
   }
 
-  chunk = (cstring *) &iidx[idx[10]];			// point at 1st chunk
+  chunk = (cstring *) &iidx[idx[IDX_START]];		// point at 1st chunk
   left_edge = (!chunk->buf[1]);				// check for first
   if (chunk->buf[0])					// non-zero ccc
   { outc->len = sprintf((char *)&outc->buf[0],
@@ -336,7 +342,7 @@ u_int ic_block(u_int block, u_int points_at,
     s = SQ_WriteFormat(SQ_LF);				// and a !
   }
   else if (kin != NULL)					// if key supplied
-  { if (bcmp(kin, &chunk->buf[1], kin[0]+1))		// if not the same
+  { if (bcmp(kin, &chunk->buf[1], kin[0] + 1))		// if not the same
     { outc->len = sprintf((char *)&outc->buf[0],
         "%10d <- %10d - downlink differs from first key",
         block, points_at);				// error msg
@@ -350,9 +356,9 @@ u_int ic_block(u_int block, u_int points_at,
   { Llast = blk[level]->mem->last_idx;			// remember this
     lb = 0;						// clear this
     brl = 0;						// and this
-    for (Lidx = 10; Lidx <= Llast; Lidx++)
+    for (Lidx = IDX_START; Lidx <= Llast; Lidx++)
     { level = Llevel;					// restore this
-      if ((!level) && (Lidx ==10))			// ignore entry
+      if ((!level) && (Lidx == IDX_START))		// ignore entry
       { continue;					// for $GLOBAL in GD
       }
       blk[level] = Lgbd;				// and this
@@ -363,11 +369,10 @@ u_int ic_block(u_int block, u_int points_at,
       { k[0] = '\0';					// empty key
       }
       else						// pointer
-      { bcopy(&chunk->buf[2], &k[chunk->buf[0]+1],
-	      chunk->buf[1]);				// update the key
+      { bcopy(&chunk->buf[2], &k[chunk->buf[0] + 1], chunk->buf[1]); // update the key
         k[0] = chunk->buf[0] + chunk->buf[1];		// and the size
       }
-      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
+      record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at the dbc
       Align_record();					// ensure aligned
       b1 = *(u_int *) record;				// get blk#
       if ((b1 > volsiz) || (!b1))			// out of range
@@ -414,7 +419,7 @@ u_int ic_block(u_int block, u_int points_at,
       { brl = ic_block(b1, block, k, blk[level-1]->mem->global); // check block
       }
       else						// from GD
-      { brl = ic_block(b1, block, k, 0); // check the block (DO BETTER LATER)
+      { brl = ic_block(b1, block, k, (var_u) 0ull);	// check the block (DO BETTER LATER)
       }
     }							// end block scan
   }							// end if (!isdata)
@@ -430,16 +435,14 @@ u_int ic_block(u_int block, u_int points_at,
   { blk[level]->dirty = NULL;				// clear it
   }
 
-  if (blk[level]->mem->last_idx < 10)
-  { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - last_idx is too low",
-        block, points_at);				// error msg
+  if (blk[level]->mem->last_idx < IDX_START)
+  { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - last_idx is too low", block, points_at); // error msg
     icerr++;						// count it
     s = SQ_Write(outc);					// output it
     s = SQ_WriteFormat(SQ_LF);				// and a !
   }
 
-  if (((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2) < 0)
+  if (((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2) < 0)
   { outc->len = sprintf((char *)&outc->buf[0],
         "%10d <- %10d - last_idx too high or last_free too low",
         block, points_at);				// error msg
@@ -452,7 +455,7 @@ u_int ic_block(u_int block, u_int points_at,
   iix = (u_int *) blk[level]->mem;
   k1[0] = 0;
 
-  for (i = 10; i <= blk[level]->mem->last_idx; i++)
+  for (i = IDX_START; i <= blk[level]->mem->last_idx; i++)
   { c = (cstring *) &iix[isx[i]];
     if (&c->buf[c->len - 3] > eob)
     { outc->len = sprintf((char *)&outc->buf[0],
@@ -476,7 +479,7 @@ u_int ic_block(u_int block, u_int points_at,
     if (c->buf[0] == 255)
     { continue;
     }
-    if ((i == 10) && (c->buf[0]))
+    if ((i == IDX_START) && (c->buf[0]))
     { outc->len = sprintf((char *)&outc->buf[0],
         "%10d <- %10d - non-zero ccc in first record",
         block, points_at);				// error msg
@@ -484,7 +487,7 @@ u_int ic_block(u_int block, u_int points_at,
       s = SQ_Write(outc);				// output it
       s = SQ_WriteFormat(SQ_LF);			// and a !
     }
-    if ((i > 10) && (!c->buf[1]))
+    if ((i > IDX_START) && (!c->buf[1]))
     { outc->len = sprintf((char *)&outc->buf[0],
         "%10d <- %10d - zero ucc found",
         block, points_at);				// error msg
@@ -494,7 +497,7 @@ u_int ic_block(u_int block, u_int points_at,
     }
     bcopy(&c->buf[2], &k2[c->buf[0] + 1], c->buf[1]);
     k2[0] = c->buf[0] + c->buf[1];
-    if ((k2[0]) || (i > 10))
+    if ((k2[0]) || (i > IDX_START))
     { if (UTIL_Key_KeyCmp(&k1[1], &k2[1], k1[0], k2[0]) != K2_GREATER)
       { outc->len = sprintf((char *)&outc->buf[0],
         "%10d <- %10d - (%d) key does not follow previous",
@@ -544,7 +547,7 @@ void ic_map(int flag)					// check the map
       if (block > systab->vol[volnum - 1]->vollab->max_block)
       { continue;
       }
-      ptr = systab->vol[volnum-1]->gbd_hash[block & (GBD_HASH - 1)];
+      ptr = systab->vol[volnum - 1]->gbd_hash[block & (GBD_HASH - 1)];
       while (ptr != NULL)				// scan for block
       { if (ptr->block == block)			// if found
 	{ type_byte = ptr->mem->type;			// save this
@@ -560,9 +563,8 @@ void ic_map(int flag)					// check the map
       }							// end memory check
       if (status == -1)					// if not found
       { file_off = (off_t) block - 1;			// block#
-        file_off = (file_off * (off_t)
-    			systab->vol[volnum-1]->vollab->block_size)
-		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
+        file_off = (file_off * (off_t) systab->vol[volnum - 1]->vollab->block_size)
+		 + (off_t) systab->vol[volnum - 1]->vollab->header_bytes;
         file_off = lseek(dbfd, file_off, SEEK_SET);	// Seek to block
         if (file_off < 1)
         { panic("ic_map: lseek failed!!");		// die on error
@@ -589,7 +591,7 @@ void ic_map(int flag)					// check the map
       else						// free
       { *c &= (u_char) (~(1U << off));			// clear it
       }
-      systab->vol[volnum-1]->map_dirty_flag = 1;	// map needs writing
+      systab->vol[volnum - 1]->map_dirty_flag = 1;	// map needs writing
     }							// end byte scan
     SemOp(SEM_GLOBAL, -curr_lock);			// free lock
     c++;						// point at next

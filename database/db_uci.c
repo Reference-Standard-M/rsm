@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -59,51 +58,49 @@ short DB_UCISet(int vol, int uci, var_u name)	  	// set uci name
   { return (-ERRM26);					// too big
   }
 
+  volnum = vol;						// set this
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { (void)sleep(5);					// wait a bit
+  { (void) sleep(5);					// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-  volnum = vol;						// set this
   writing = 1;						// writing
   level = 0;						// clear this
   s = SemOp(SEM_GLOBAL, WRITE);				// get write lock
   if (s < 0)						// on error
   { return s;						// return it
   }
-  if (systab->vol[vol-1] == NULL)			// is it mounted?
+  if (systab->vol[vol - 1] == NULL)			// is it mounted?
   { SemOp(SEM_GLOBAL, -curr_lock);
     return (-ERRM26);					// no - error
   }
-  if (!systab->vol[vol-1]->vollab->uci[uci-1].global)	// if no GD
+  if (!systab->vol[vol - 1]->vollab->uci[uci-1].global)	// if no GD
   { s = New_block();					// get a new block
     if (s < 0)						// if failed
     { SemOp(SEM_GLOBAL, -curr_lock);
       return s;						// error
     }
-    systab->vol[vol-1]->vollab->uci[uci-1].global
-      = blk[level]->block;				// save block #
+    systab->vol[vol - 1]->vollab->uci[uci - 1].global = blk[level]->block; // save block #
     blk[level]->mem->type = uci + 64;			// block type
-    blk[level]->mem->last_idx = 10;			// one index
-    bcopy("$GLOBAL\0", &blk[level]->mem->global, 8);	// the global
-    blk[level]->mem->last_free
-      = (systab->vol[volnum-1]->vollab->block_size >> 2) - 7; // use 6 words
-    idx[10] = blk[level]->mem->last_free + 1;		// the data
-    chunk = (cstring *) &iidx[idx[10]];			// point at it
+    blk[level]->mem->last_idx = IDX_START;		// one index
+    VAR_CLEAR(blk[level]->mem->global);
+    bcopy("$GLOBAL", &blk[level]->mem->global, 7);      // the global
+    blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 7; // use 6 words
+    idx[IDX_START] = blk[level]->mem->last_free + 1;	// the data
+    chunk = (cstring *) &iidx[idx[IDX_START]];		// point at it
     chunk->len = 24;					// 5 words
     chunk->buf[0] = 0;					// zero ccc
     chunk->buf[1] = 9;					// ucc
-    bcopy("\200$GLOBAL\0",&chunk->buf[2], 9);		// the key
-    record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// setup record ptr
+    bcopy("\200$GLOBAL\0", &chunk->buf[2], 9);		// the key
+    record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // setup record ptr
     Align_record();					// align it
     *(u_int *) record = blk[level]->block;		// point at self
-    *(u_int *) &(record->buf[2]) = 0;			// zero flags
+    bzero(&(record->buf[2]), sizeof(u_int));		// zero flags
     blk[level]->dirty = blk[level];			// setup for write
     Queit();						// que for write
   }							// end new block code
-  systab->vol[vol-1]->vollab->uci[uci-1].name.var_qu
-    = name.var_qu;					// set the new name
+  VAR_COPY(systab->vol[vol - 1]->vollab->uci[uci - 1].name, name); // set the new name
   SemOp(SEM_GLOBAL, -curr_lock);
   return 0;						// and exit
 }
@@ -126,29 +123,29 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   if ((uci > UCIS) || (uci < 1))
   { return (-ERRM26);					// too big
   }
+
+  volnum = vol;						// set this
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { (void)sleep(5);					// wait a bit
+  { (void) sleep(5);					// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-  volnum = vol;						// set this
   writing = 1;						// writing
   level = 0;						// clear this
   s = SemOp(SEM_GLOBAL, WRITE);				// get write lock
   if (s < 0)						// on error
   { return s;						// return it
   }
-  if (systab->vol[vol-1] == NULL)			// is it mounted?
+  if (systab->vol[vol - 1] == NULL)			// is it mounted?
   { SemOp(SEM_GLOBAL, -curr_lock);
     return (-ERRM26);					// no - error
   }
-  if (systab->vol[vol-1]->vollab->
-      uci[uci-1].name.var_cu[0] == '\0')		// does uci exits?
+  if (systab->vol[vol - 1]->vollab->uci[uci-1].name.var_cu[0] == '\0') // does uci exits?
   { SemOp(SEM_GLOBAL, -curr_lock);
     return 0;						// no - just return
   }
-  gb = systab->vol[vol-1]->vollab->uci[uci-1].global;	// get global directory
+  gb = systab->vol[vol - 1]->vollab->uci[uci - 1].global;	// get global directory
   s = Get_block(gb);					// get the block
   if (s < 0)
   { SemOp(SEM_GLOBAL, -curr_lock);
@@ -157,14 +154,14 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   if (blk[level]->dirty == (gbd *) 1)			// if reserved
   { blk[level]->dirty = NULL;				// clear it
   }
-  if (blk[level]->mem->last_idx > 10)			// if any globals
+  if (blk[level]->mem->last_idx > IDX_START)		// if any globals
   { SemOp(SEM_GLOBAL, -curr_lock);
     return -(ERRM29);					// no can do
   }
-  systab->vol[vol-1]->vollab->uci[uci-1].global = 0;	// clear this
-  systab->vol[vol-1]->vollab->uci[uci-1].name.var_qu = 0; // and this
-  systab->vol[vol-1]->map_dirty_flag = 1;		// mark map dirty
-  blk[level]->mem->last_idx = 9;			// say no index
+  systab->vol[vol - 1]->vollab->uci[uci - 1].global = 0; // clear this
+  VAR_CLEAR(systab->vol[vol - 1]->vollab->uci[uci - 1].name); // and this
+  systab->vol[vol - 1]->map_dirty_flag = 1;		// mark map dirty
+  blk[level]->mem->last_idx = IDX_START - 1;		// say no index
   Garbit(gb);						// garbage it
   bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
   SemOp(SEM_GLOBAL, -curr_lock);

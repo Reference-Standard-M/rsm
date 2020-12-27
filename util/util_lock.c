@@ -35,7 +35,6 @@
 #include "error.h"                              // errors
 #include "compile.h"                            // for rbd definition
 #include <unistd.h>                             // for sleep
-#include <time.h>                               // for time functions
 #include <sys/ipc.h>                            // semaphore stuff
 #include <sys/sem.h>                            // semaphore stuff
 
@@ -46,15 +45,15 @@ short UTIL_String_Lock(locktab *var,         	// address of lock entry
   int p = 0;                                    // string pointer
   int slen;                                     // subscript length
   u_char save;                                  // stuffing with struct
-  uci_tab up;                                   // ptr to uci tab
+  uci_tab up;                                   // ptr to UCI tab
   u_char *vp;                                   // ptr to vol name
 
   if (var->uci != UCI_IS_LOCALVAR)              // if it's a global var
   { str[p++] = '^';                             // lead off with the caret
     str[p++] = '[';                             // open bracket
     str[p++] = '"';                             // a leading quote
-    up = systab->vol[var->vol - 1]->vollab->uci[var->uci - 1]; // uci pointer
-    for (i=0; i<8; i++)                         // for each possible character
+    up = systab->vol[var->vol - 1]->vollab->uci[var->uci - 1]; // UCI pointer
+    for (i = 0; i < VAR_LEN; i++)               // for each possible character
     { if (up.name.var_cu[i] == '\0') break;     // done if we hit a null
       str[p++] = up.name.var_cu[i];             // copy the character
     }
@@ -62,7 +61,7 @@ short UTIL_String_Lock(locktab *var,         	// address of lock entry
     str[p++] = ',';                             // comma
     str[p++] = '"';                             // start quote for vol
     vp = systab->vol[var->vol - 1]->vollab->volnam.var_cu; // point at name
-    for (i=0; i<8; i++)                         // for each possible character
+    for (i = 0; i < VAR_LEN; i++)               // for each possible character
     { if (vp[i] == '\0') break;                 // done if we hit a null
       str[p++] = vp[i];                         // copy the character
     }
@@ -70,7 +69,7 @@ short UTIL_String_Lock(locktab *var,         	// address of lock entry
     str[p++] = ']';                             // closing bracket
   }                                             // end global specific stuff
 
-  for (i = 0; i < 8; i++)                       // now the name
+  for (i = 0; i < VAR_LEN; i++)                 // now the name
   { if (var->name.var_cu[i] == '\0') break;     // quit when done
     str[p++] = var->name.var_cu[i];             // copy a byte
   }
@@ -78,10 +77,10 @@ short UTIL_String_Lock(locktab *var,         	// address of lock entry
   slen = var->byte_count - sizeof(var_u) - (2 * sizeof(u_char)); // subs len
 
   if (slen != 0)                                // if there are subscripts
-  { save = var->name.var_cu[7];                 // save that value
-    var->name.var_cu[7] = (u_char) slen;        // put len there for call
-    i = UTIL_String_Key(&var->name.var_cu[7], &str[p], 255); //do the subscripts
-    var->name.var_cu[7] = save;                 // restore saved value
+  { save = var->name.var_cu[VAR_LEN - 1];       // save that value
+    var->name.var_cu[VAR_LEN - 1] = (u_char) slen; // put len there for call
+    i = UTIL_String_Key(&var->name.var_cu[VAR_LEN - 1], &str[p], 255); //do the subscripts
+    var->name.var_cu[VAR_LEN - 1] = save;       // restore saved value
     if (i < 0) return i;                        // quit on error
     p = p + i;                                  // add to length
   }
@@ -93,20 +92,20 @@ short UTIL_String_Lock(locktab *var,         	// address of lock entry
 
 short UTIL_mvartolock(mvar *var, u_char *buf)	// convert mvar to string
 { int i;                                        // a handy int
-  chr_q *vt;                                    // var table pointer
+  var_u *vt;                                    // var table pointer
   rbd *p;                                       // a handy pointer
 
   if (var->uci == UCI_IS_LOCALVAR)              // if local
   { if (var->volset)                            // if index type
     { p = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-      vt = (chr_q *) (((u_char *) p) + p->var_tbl); // point at var table
-      *((chr_q *) &buf[2]) = vt[var->volset - 1]; // get the var name
+      vt = (var_u *) (((u_char *) p) + p->var_tbl); // point at var table
+      VAR_COPY((*((var_u *) &buf[2])), vt[var->volset - 1]); // get the var name
     }                                           // end index type
     else                                        // non index type
-    { *((chr_q *) &buf[2]) = var->name.var_qu;	// copy name
+    { VAR_COPY((*((var_u *) &buf[2])), var->name); // copy name
     }
-    bcopy(&var->key[0], &buf[2 + sizeof(chr_q)], var->slen); // copy key
-    i = var->slen + sizeof(chr_q) + 2;          // how big it is
+    bcopy(&var->key[0], &buf[2 + sizeof(var_u)], var->slen); // copy key
+    i = var->slen + sizeof(var_u) + 2;          // how big it is
     buf[1] = UCI_IS_LOCALVAR;                   // setup as local
     buf[0] = 0;                                 // no vol set
     buf[i] = '\0';                              // ensure null terminated
@@ -118,33 +117,33 @@ short UTIL_mvartolock(mvar *var, u_char *buf)	// convert mvar to string
     if (i < 0) return (short)i;                 // quit on error
   }
   buf[0] = var->volset;                         // copy volset
-  buf[1] = var->uci;                            // copy uci
-  *((chr_q *) &buf[2]) = var->name.var_qu;      // copy varname
+  buf[1] = var->uci;                            // copy UCI
+  VAR_COPY((*((var_u *) &buf[2])), var->name);	// copy varname
   if (!buf[0])                                  // if no volset
   { buf[0] = partab.jobtab->lvol;               // default
   }
-  if (!buf[1])                                  // if no uci
+  if (!buf[1])                                  // if no UCI
   { if (var->name.var_cu[0] == '%')             // if % var
-    { buf[1] = 1;                               // MGR
+    { buf[1] = 1;                               // manager UCI
     }
     else
     { buf[1] = partab.jobtab->luci;             // default
     }
   }
-  if ((var->volset == 0) && (var->uci == 0))	// no vol or uci
+  if ((var->volset == 0) && (var->uci == 0))	// no vol or UCI
   { for (i = 0; i < systab->max_tt; i++)        // scan trantab
     { if ((buf[0] == systab->tt[i].from_vol) &&
 	  (buf[1] == systab->tt[i].from_uci) &&
-	  (var->name.var_qu == systab->tt[i].from_global.var_qu))
+	  (var_equal(var->name, systab->tt[i].from_global)))
       { buf[0] = systab->tt[i].to_vol;          // copy this
-	buf[1] = systab->tt[i].to_uci;              // and this
-	*((chr_q *) &buf[2]) = systab->tt[i].to_global.var_qu; // and this
-	break;                                      // done
+	buf[1] = systab->tt[i].to_uci;          // and this
+	VAR_COPY((*((var_u *) &buf[2])), systab->tt[i].to_global); // and this
+	break;                                  // done
       }
     }                                           // end found one
   }                                             // end trantab lookup
-  bcopy(&var->key[0], &buf[sizeof(chr_q) + 2], var->slen); // copy key
-  i = var->slen + sizeof(chr_q) + 2;            // how big it is
+  bcopy(&var->key[0], &buf[sizeof(var_u) + 2], var->slen); // copy key
+  i = var->slen + sizeof(var_u) + 2;            // how big it is
   buf[i] = '\0';                                // ensure null terminated
   return (short) i;                             // return the length
 }
@@ -228,7 +227,7 @@ locktab *LCK_Insert(int size)	// go thru share section for chunk of size
       p->fwd_link = ptr->fwd_link;              // point it at same
       p->size = ptr->size - size;               // init the size
       p->job = -1;                              // mark as free
-      p->lock_count = 0;                        // initialise
+      p->lock_count = 0;                        // initialize
       p->byte_count = 0;                        // these two also
       if (prevptr == NULL) systab->lockfree = p; // new head of freelist
       else prevptr->fwd_link = p;               // else link as usual
@@ -422,15 +421,14 @@ typedef struct _lck_add {
 #define x         pctx->_x
 #define lptr      pctx->_lptr
 
-static
-int failed(lck_add_ctx *pctx)                 // common code
+static int failed(lck_add_ctx *pctx)          // common code
 { done = count + 1;                           // begin again from scratch
 
   if (to == 0)                                // if no timeout
       tryagain = 0;                           // flag as if timeout expired
 
   if (to > 0)                                 // if timeout value specified
-  { currtime = time((time_t *) NULL);         // get current time
+  { currtime = current_time(TRUE);            // get current time
     if (strttime + to < currtime) tryagain = 0; // flag if time expired
   }                                           // end if timeout specified
 
@@ -480,7 +478,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
   done = 0;
   tryagain = 1;
 
- strttime = time((time_t *) NULL);              // save op start time
+ strttime = current_time(TRUE);                 // save op start time
  while (tryagain)                               // while we should give it a go
  {tryagain = 0;                                 // reset retry flag
   if (to > -1)
@@ -847,22 +845,22 @@ void Dump_lt()
 
   lptr = (locktab *) systab->lockstart;
 
-  printf("Dump of Lockspace starting at %p\r\n", lptr);
+  printf("Dump of Lockspace starting at %p\r\n\r\n", lptr);
   printf("Lock Head starts at %p\r\n", systab->lockhead);
   printf("Lock Free starts at %p\r\n", systab->lockfree);
-  printf("Lptr         Fwd_link  Size    Job  Lcnt Bcnt Vol  Uci  Var  Key\r\n");
+  printf("  Lock_ptr   Fwd_link  Size    Job Lock_cnt Byte_cnt  Vol  Uci  Var(Key)\r\n");
 
   while (lptr != NULL)
   { keystr[0] = '\0';
-    if (lptr->byte_count > 10)
-    { workstr[0] = lptr->byte_count-10;
+    if (lptr->byte_count > (VAR_LEN + 2))
+    { workstr[0] = lptr->byte_count - (VAR_LEN + 2);
       bcopy(lptr->key, &workstr[1], workstr[0]);
       x = UTIL_String_Key(workstr, keystr, 255);
       if (x < 0)
       { sprintf((char *) keystr, " ERROR: %d", x);
       }
     }
-    printf("%10p %10p %5d   %4d %4d %4d %4d %4d  %s%s\r\n",
+    printf("%10p %10p %5d   %4d %8d %8d %4d %4d  %s%s\r\n",
            lptr, lptr->fwd_link,
            lptr->size, lptr->job, lptr->lock_count, lptr->byte_count,
            lptr->vol, lptr->uci, lptr->name.var_cu, keystr);

@@ -45,11 +45,12 @@ u_char *debug;					// a pointer to compiled code
 
 void Debug_off()				// turn off debugging
 {
-  bcopy("$BP\0\0\0\0\0", &dvar.name.var_cu[0], 8);
+  VAR_CLEAR(dvar.name);
+  bcopy("$ZBP", &dvar.name.var_cu[0], 4);
   dvar.volset = 0;				// clear volume
   dvar.uci = UCI_IS_LOCALVAR;			// local variable
   dvar.slen = 0;				// no subscripts
-  (void)ST_Kill(&dvar);				// dong it
+  (void) ST_Kill(&dvar);			// dong it
   partab.debug = 0;				// turn off flag
   return;					// done
 }
@@ -60,7 +61,7 @@ void Debug_off()				// turn off debugging
 //	Debug_ref:		Add simple breakpoint
 //	Debug_ref:code		Add breakpoint with code to Xecute
 //	:code			Code to execute at QUIT n breakpoint
-//0
+//
 
 short Debug_on(cstring *param)			// turn on/modify debug
 { int i = 0;					// a handy int
@@ -70,7 +71,8 @@ short Debug_on(cstring *param)			// turn on/modify debug
   cstring *ptr;					// string pointer
 
   debug = NULL;					// clear auto debug
-  bcopy("$BP\0\0\0\0\0", &dvar.name.var_cu[0], 8);
+  VAR_CLEAR(dvar.name);
+  bcopy("$ZBP", &dvar.name.var_cu[0], 4);
   dvar.volset = 0;				// clear volume
   dvar.uci = UCI_IS_LOCALVAR;			// local variable
   dvar.slen = 0;				// assume no key - aka :code
@@ -85,7 +87,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
     }
     if (param->buf[i++] != '^')
       return -(ERRZ9+ERRMLAST);			// we don't like it
-    for (j = 0; j < 8; j++)			// copy the routine name
+    for (j = 0; j < VAR_LEN; j++)		// copy the routine name
     { if ((isalnum(param->buf[j + i]) == 0) &&
 	  ((param->buf[j + i] != '%') || (j != 0)))
         break;					// done
@@ -94,7 +96,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
     dvar.key[j + 1] = '\0';			// null terminate it
     dvar.slen = j + 2;				// save the length
     j = j + i;					// point to next char
-    while (isalnum(param->buf[j])) j++;		// skip long names
+    if (isalnum(param->buf[j])) return -ERRM56;	// complain about long names
     if ((param->buf[j] != ':') &&		// not :
         (param->buf[j] != '\0'))		// and not eol
 	  return -(ERRZ9+ERRMLAST);		// we don't like it
@@ -135,13 +137,15 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
 { int i;					// a handy int
   int io;					// save current $IO
   short s = 0;					// for calls
+  short ts;					// for temp index
   do_frame *curframe;				// a do frame pointer
   cstring *ptr;					// a string pointer
   mvar *var;					// and an mvar ptr
 
   if (!partab.debug) partab.debug = -1;		// ensure it's on
 
-  bcopy("$BP\0\0\0\0\0", &dvar.name.var_cu[0], 8);
+  VAR_CLEAR(dvar.name);
+  bcopy("$ZBP", &dvar.name.var_cu[0], 4);
   dvar.volset = 0;				// clear volume
   dvar.uci = UCI_IS_LOCALVAR;			// local variable
   dvar.slen = 0;				// no key
@@ -149,30 +153,28 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
   curframe = &partab.jobtab->dostk[partab.jobtab->cur_do]; // point at it
 
   if (dot == 0)					// a check type, setup mvar
-  { if ((curframe->type != TYPE_DO) &&
-        (curframe->type != TYPE_EXTRINSIC))
+  { if ((curframe->type != TYPE_DO) && (curframe->type != TYPE_EXTRINSIC))
       return 0;					// ensure we have a routine
     dvar.key[0] = 128;				// setup for string key
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < VAR_LEN; i++)
       if (!(dvar.key[i + 1] = curframe->rounam.var_cu[i]))
         break;
     dvar.slen = i + 1;				// the length so far
     dvar.key[dvar.slen++] = '\0';		// null terminate it
     dvar.key[dvar.slen++] = 64;			// next key
-    s = itocstring(&dvar.key[dvar.slen],
-			   curframe->line_num);	// setup second key
+    s = itocstring(&dvar.key[dvar.slen], curframe->line_num); // setup second key
     dvar.key[dvar.slen - 1] |= s;		// fix type
     dvar.slen += s;				// and length
     dvar.slen++;				// count the null
     s = ST_Get(&dvar, &cmp[sizeof(short)]);	// get whatever
     if (s < 0) return 0;			// just return if nothing
-    (*(short *) cmp) = s;			// save the length
+    memcpy(cmp, &s, sizeof(short));		// save the length
   }
 
   if (dot == -1)				// from a QUIT n
   { s = ST_Get(&dvar, &cmp[sizeof(short)]);	// get whatever
     if (s < 0) s = 0;				// ignore errors
-    (*(short *) cmp) = s;			// save the length
+    memcpy(cmp, &s, sizeof(short));		// save the length
   }
   if (partab.jobtab->cur_do >= MAX_DO_FRAMES)
     return (-(ERRMLAST+ERRZ8));			// too many (perhaps ??????)
@@ -185,9 +187,9 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;
     partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;
     partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
-    partab.jobtab->dostk[partab.jobtab->cur_do].endlin =
-      &cmp[(*(short *) cmp) - 3 + sizeof(short)];
-    partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu = 0;
+    memcpy(&ts, &cmp, sizeof(short));
+    partab.jobtab->dostk[partab.jobtab->cur_do].endlin = &cmp[ts - 3 + sizeof(short)];
+    VAR_CLEAR(partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
     partab.jobtab->dostk[partab.jobtab->cur_do].vol = partab.jobtab->vol;
     partab.jobtab->dostk[partab.jobtab->cur_do].uci = partab.jobtab->uci;
     partab.jobtab->dostk[partab.jobtab->cur_do].line_num = 0;
@@ -221,18 +223,17 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
   while (TRUE)					// see what they want
   { if (partab.jobtab->seqio[0].dx)		// need a cr/lf
       s = SQ_WriteFormat(SQ_LF);		// doit
-    if (curframe->rounam.var_qu == 0)
+    if (var_empty(curframe->rounam))
     { bcopy("Debug", ptr->buf, 5);
       ptr->len = 5;
     }
     else
     { ptr->len = 0;				// clear ptr
       ptr->buf[ptr->len++] = '+';		// lead off
-      ptr->len = itocstring(&ptr->buf[ptr->len],
-			   curframe->line_num) + ptr->len; // setup line number
+      ptr->len = itocstring(&ptr->buf[ptr->len], curframe->line_num) + ptr->len; // setup line number
 
       ptr->buf[ptr->len++] = '^';		// lead off routine
-      for (i = 0; i < 8; i++)
+      for (i = 0; i < VAR_LEN; i++)
         if (!(ptr->buf[i + ptr->len] = curframe->rounam.var_cu[i]))
           break;				// copy rou name
       ptr->len += i;				// save length
@@ -258,7 +259,7 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;
     partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
     partab.jobtab->dostk[partab.jobtab->cur_do].endlin = comp_ptr - 3;
-    partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu = 0;
+    VAR_CLEAR(partab.jobtab->dostk[partab.jobtab->cur_do].rounam);
     partab.jobtab->dostk[partab.jobtab->cur_do].vol = partab.jobtab->vol;
     partab.jobtab->dostk[partab.jobtab->cur_do].uci = partab.jobtab->uci;
     partab.jobtab->dostk[partab.jobtab->cur_do].line_num = 0;
@@ -290,7 +291,8 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
       return s;
     }
     var = (mvar *) &strstk[savssp];		// space to setup a var
-    bcopy("$ECODE\0\0", &var->name.var_cu[0], 8);
+    VAR_CLEAR(var->name);
+    bcopy("$ECODE", &var->name.var_cu[0], 6);
     var->volset = 0;
     var->uci = UCI_IS_LOCALVAR;
     var->slen = 0;				// setup for $EC

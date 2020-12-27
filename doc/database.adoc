@@ -1,0 +1,13 @@
+image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption="Fourth
+Watch Software Logo", width="480", height="80"]
+
+'''
+
+= Reference Standard M Database Management
+
+== Under Construction
+
+'''
+
+[role="right"]
+link:index.adoc[Site Directory]

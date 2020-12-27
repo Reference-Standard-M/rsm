@@ -36,7 +36,6 @@
 #include <sys/param.h>                  // for realpath() function
 #include <errno.h>                      // error stuff
 #include <fcntl.h>                      // file stuff
-#include <time.h>                       // for time(0)
 #include <unistd.h>                     // database access
 #include <sys/ipc.h>                    // shared memory
 #include <sys/shm.h>                    // shared memory
@@ -54,29 +53,29 @@ short DB_Mount(char *file,                      // database
                 int gmb)                        // mb of global buf
 { int dbfd;                                     // database file descriptor
   int i;                                        // usefull int
-  int n_gbd;									// number of gbd
+  int n_gbd;					// number of gbd
   int indx;                                     // loop control
-  int avbl;										// available space
+  int avbl;					// available space
   int map_size;                               	// size of database map (bytes)
   int volset_size;                              // size of volset struct (bytes)
   int pagesize;                                 // system pagesize (bytes)
-  char fullpathvol[MAXPATHLEN];					// full pathname of vol file
-  gbd *gptr;									// a gbd pointer
-  u_char *ptr;									// and a byte one
-  u_char *ptr2;									// and another
-  label_block *labelblock;						// label block pointer
+  char fullpathvol[MAXPATHLEN];			// full pathname of vol file
+  gbd *gptr;					// a gbd pointer
+  u_char *ptr;					// and a byte one
+  u_char *ptr2;					// and another
+  label_block *labelblock;			// label block pointer
 
-  if ((volnum < 2) || (volnum > MAX_VOL))		// valid volnum range for mount
+  if ((volnum < 2) || (volnum > MAX_VOL))	// valid volnum range for mount
   { return -(ERRZ71+ERRMLAST);
   }
-  if (systab->vol[volnum-1]->file_name[0] != 0)	// check for already open
+  if (systab->vol[volnum - 1]->file_name[0] != 0) // check for already open
   { return -(ERRZ71+ERRMLAST);
   }
-  if (systab->addsize/MBYTE < 2)				// check for spare buffer space
+  if (systab->addsize / MBYTE < 2)		// check for spare buffer space
   { return -(ERRZ60+ERRMLAST);
   }
-  if (systab->maxjob == 1)						// if in single user mode
-  { return -(ERRZ60+ERRMLAST);					// complain
+  if (systab->maxjob == 1)			// if in single user mode
+  { return -(ERRZ60+ERRMLAST);			// complain
   }
 
   dbfd = open(file, O_RDWR);                    // open the database read/write
@@ -86,35 +85,33 @@ short DB_Mount(char *file,                      // database
 
   labelblock = systab + systab->addoff;		// point at the spare memory
 
-  i = read(dbfd, labelblock, (513*1024));       // read label block + largest map
-  if (i < (513*1024))                           // in case of error
+  i = read(dbfd, labelblock, sizeof(label_block)); // read label block
+  if (i < sizeof(label_block))			// in case of error
   { return -(ERRZ73+ERRMLAST);
   }
 
-  if (labelblock->db_ver != DB_VER)				// if we need to upgrade
-  { return -(ERRZ73+ERRMLAST);
-  }
   if (labelblock->magic != RSM_MAGIC)
   { return -(ERRZ73+ERRMLAST);
   }
-  map_size = labelblock->header_bytes - 1024;	// fetch map size
-  avbl = systab->addsize;						// and available size
-  avbl -= map_size;								// subtract map size
-  avbl -= 1024;									// and label block size
-  avbl -= sizeof(vol_def);						// and the vol structure
+  if (labelblock->db_ver != DB_VER)		// if we need to upgrade
+  { return -(ERRZ73+ERRMLAST);
+  }
+  map_size = labelblock->header_bytes - sizeof(label_block); // fetch map size
+  avbl = systab->addsize;			// and available size
+  avbl -= map_size;				// subtract map size
+  avbl -= sizeof(label_block);			// and label block size
+  avbl -= sizeof(vol_def);			// and the vol structure
 
-  systab->vol[volnum - 1] = (vol_def *)
-	(labelblock + labelblock->header_bytes + 1024);	// the vol structure
-
-  systab->vol[volnum - 1]->vollab = labelblock;		// and point to label blk
+  systab->vol[volnum - 1] = (vol_def *) (labelblock + labelblock->header_bytes + sizeof(label_block)); // the vol structure
+  systab->vol[volnum - 1]->vollab = labelblock;	// and point to label blk
 
   ptr = systab->vol[volnum - 1]->vollab + sizeof(vol_def); // up to here
-  ptr2 = ptr;									// save
+  ptr2 = ptr;					// save
 
   pagesize = getpagesize();                     // get sys pagesize (bytes)
 
-  ptr = ((ptr / pagesize) + 1) * pagesize; 		// round up to next page boundary
-  avbl -= (ptr - ptr2);							// and adjust size
+  ptr = ((ptr / pagesize) + 1) * pagesize; 	// round up to next page boundary
+  avbl -= (ptr - ptr2);				// and adjust size
 
   n_gbd = avbl / systab->vol[volnum - 1]->vollab->block_size; // This many
 
@@ -137,24 +134,18 @@ short DB_Mount(char *file,                      // database
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
   share_size = sjlt_size + volset_size;		// shared memory size
 
-  systab->vol[0]->map =
-    (void*)((void *)systab->vol[0]->vollab + sizeof(label_block));
+  systab->vol[0]->map = (void*) ((char *) systab->vol[0]->vollab + sizeof(label_block));
 						// and point to map
-  systab->vol[0]->first_free = systab->vol[0]->map;	// init first free
+  systab->vol[0]->first_free = systab->vol[0]->map; // init first free
 
-  systab->vol[0]->gbd_head =
-    (gbd *) ((void *)systab->vol[0]->vollab + hbuf[2]); // gbds
+  systab->vol[0]->gbd_head = (gbd *) ((char *) systab->vol[0]->vollab + hbuf[2]); // gbds
   systab->vol[0]->num_gbd = n_gbd;		// number of gbds
 
-  systab->vol[0]->global_buf =
-    (void *) &systab->vol[0]->gbd_head[n_gbd]; 	//glob buffs
-  systab->vol[0]->zero_block =
-    (void *)&(((u_char *)systab->vol[0]->global_buf)[gmb*MBYTE]);
-						     // pointer to zero blk
-
-  systab->vol[0]->rbd_head =
-    (void *) ((void*)systab->vol[0]->zero_block + hbuf[3]); //rbds
-  systab->vol[0]->rbd_end = ((void *)systab + share_size); // end of share
+  systab->vol[0]->global_buf = (void *) &systab->vol[0]->gbd_head[n_gbd]; 	//glob buffs
+  systab->vol[0]->zero_block = (void *) &(((u_char *) systab->vol[0]->global_buf)[gmb * MBYTE]);
+						// pointer to zero blk
+  systab->vol[0]->rbd_head = (void *) ((char *) systab->vol[0]->zero_block + hbuf[3]); //rbds
+  systab->vol[0]->rbd_end = (void *) ((char *) systab + share_size); // end of share
 
   systab->vol[0]->shm_id = shar_mem_id;		// set up share id
   systab->sem_id = sem_id;			// set up semaphore id
@@ -165,12 +156,12 @@ short DB_Mount(char *file,                      // database
         { strcpy(systab->vol[0]->file_name, 	// copy this full path into
 		  fullpathvol);			// the vol_def structure
         }					// end if path will fit
-      else						// otherwise
+      else					// otherwise
         { i = VOL_FILENAME_MAX - strlen(fullpathvol);	// copy as much as
-          strcpy(systab->vol[0]->file_name,		// is possible, thats
-		  &fullpathvol[i]);			// the best we can do
-        }						// end length testing
-    }							// end realpath worked
+          strcpy(systab->vol[0]->file_name,	// is possible, thats
+		  &fullpathvol[i]);		// the best we can do
+        }					// end length testing
+    }						// end realpath worked
   else						// otherwise there was an error
     { i = shmdt(systab);			// detach the shared mem
       i = shmctl(shar_mem_id, (IPC_RMID), &sbuf); // remove the share
@@ -184,7 +175,7 @@ short DB_Mount(char *file,                      // database
   if (i < hbuf[2])                              // in case of error
   { fprintf(stderr, "Read of label/map block failed\n - %s\n", //complain
             strerror(errno));                   // what was returned
-    i = shmdt(systab);                     // detach the shared mem
+    i = shmdt(systab);                          // detach the shared mem
     i = shmctl(shar_mem_id, (IPC_RMID), &sbuf);	// remove the share
     i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
     return(errno);                              // exit with error
@@ -208,7 +199,7 @@ short DB_Mount(char *file,                      // database
     if (i != 0)                                 // in case of error
     { fprintf(stderr, "**** Died on error - %s ***\n\n", // complain
               strerror(errno));                 // what was returned
-      i = shmdt(systab);                   // detach the shared mem
+      i = shmdt(systab);                        // detach the shared mem
       return(errno);                            // exit with error
     }
   }                                             // all daemons started
@@ -262,18 +253,26 @@ short DB_Mount(char *file,                      // database
 	      close(jfd);
 	    }
 	    else
-	    { jj.action = JRN_START;
-	      jj.time = time(0);
+	    {
+#if RSM_DBVER == 1
+              jj.size = 8;
+#else
+              jj.size = 12;
+#endif
+	      jj.action = JRN_START;
 	      jj.uci = 0;
-	      jj.size = 8;
-	      i = write(jfd, &jj, 8);		// write the create record
-	      systab->vol[0]->jrn_next += 8;	// adjust pointer
+#if RSM_DBVER == 1
+	      jj.time = current_time(TRUE);
+#else
+	      jj.time = (u_int64) current_time(TRUE);
+#endif
+	      i = write(jfd, &jj, jj.size);	// write the create record
+	      systab->vol[0]->jrn_next += jj.size; // adjust pointer
 	      lseek(jfd, 4, SEEK_SET);
 	      i = write(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
 	      i = close(jfd);			// and close it
 	      systab->vol[0]->vollab->journal_available = 1;
-	      fprintf(stderr, "Journaling started to %s.\n",
-		      systab->vol[0]->vollab->journal_file); // say it worked
+	      fprintf(stderr, "Journaling started to %s.\n", systab->vol[0]->vollab->journal_file); // say it worked
 	    }
 	  }
 	}

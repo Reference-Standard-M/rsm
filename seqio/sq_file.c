@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_File.c
+ * File:     rsm/seqio/sq_file.c
  * Summary:  module IO - sequential file I/O
  *
  * David Wicksell <dlw@linux.com>
@@ -54,7 +54,7 @@
 // This function opens a sequential file "file" for the specified operation
 // "op" ( ie writing, reading or appending ). If successful, it returns a
 // non-negative integer, termed a file descriptor. Otherwise, a negative
-// integer is returned to indicate the error that has occured.
+// integer is returned to indicate the error that has occurred.
 
 int SQ_File_Open (char *file, int op)
 { int	flag;
@@ -86,7 +86,7 @@ int SQ_File_Open (char *file, int op)
 // This function writes "nbytes" bytes from the buffer "writebuf" to the file
 // associated with the descriptor "fid". Upon successful completion, the number
 // of bytes actually written is returned. Otherwise, a negative integer is
-// returned to indicate the error that has occured.
+// returned to indicate the error that has occurred.
 
 int SQ_File_Write (int fid, u_char *writebuf, int nbytes)
 { int	ret;
@@ -100,7 +100,7 @@ int SQ_File_Write (int fid, u_char *writebuf, int nbytes)
 // This function reads "nbytes" bytes into the buffer "readbuf" from the file
 // associated with the descriptor "fid". If successful, the number of bytes
 // actually read is returned. Otherwise, a negative integer is returned to
-// indicate the error that has occured.
+// indicate the error that has occurred.
 
 int SQ_File_Read (int fid, u_char *readbuf)
 { int	ret;

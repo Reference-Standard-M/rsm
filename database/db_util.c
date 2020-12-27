@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <fcntl.h>					// for expand
 #include <ctype.h>					// for gbd stuff
 #include <errno.h>					// for errors
@@ -61,7 +60,7 @@ short Insert(u_char *key, cstring *data)		// insert a node
   isdata = ((blk[level]->mem->type > 64) &&		// data block and
 	    (level));					// not the directory
 
-  if (blk[level]->mem->last_idx > 9)			// if some data
+  if (blk[level]->mem->last_idx > (IDX_START - 1))	// if some data
   { s = Locate(key);					// search for it
     if (s >= 0)						// if found
     { return -(ERRMLAST+ERRZ61);			// database stuffed
@@ -71,12 +70,12 @@ short Insert(u_char *key, cstring *data)		// insert a node
     }
   }
   else							// empty block
-  { Index = 10;						// start
+  { Index = IDX_START;					// start
     idx = (u_short *) blk[level]->mem;			// point at the block
     iidx = (int *) blk[level]->mem;			// point at the block
   }
   if (!level)						// insert in GD
-  { chunk = (cstring *) &iidx[idx[10]];			// point at $G chunk
+  { chunk = (cstring *) &iidx[idx[IDX_START]];		// point at $G chunk
     record = (cstring *) &chunk->buf[chunk->buf[1] + 2];
     Align_record();					// align it
     flags = ((u_int *) record)[1];			// get default flags
@@ -84,10 +83,9 @@ short Insert(u_char *key, cstring *data)		// insert a node
   }
 
   keybuf[0] = 0;					// clear keybuf
-  for (i = 10; i < Index; i++)				// for all prev Indexes
+  for (i = IDX_START; i < Index; i++)			// for all prev Indexes
   { chunk = (cstring *) &iidx[idx[i]];			// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
+    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1], chunk->buf[1]); // update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }							// we insert after this
 
@@ -114,18 +112,18 @@ short Insert(u_char *key, cstring *data)		// insert a node
   }
   rs += 4;						// allow for the Index
 
-  if (rs > ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2))
+  if (rs > ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2))
   { if (!(blk[level]->mem->flags & BLOCK_DIRTY))	// if block is clean
     { return -(ERRMLAST+ERRZ62);			// say no room
     }
     Tidy_block();					// tidy it
-    if (rs > ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2))
+    if (rs > ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2))
     { return -(ERRMLAST+ERRZ62);			// say no room
     }
   }							// it will now fit
   rs -= 4;						// rs now chunksize
 
-  for (i = blk[level]->mem->last_idx; i>=Index; i--)	// the trailing ones
+  for (i = blk[level]->mem->last_idx; i >= Index; i--)	// the trailing ones
   { idx[i + 1] = idx[i];				// get copied down
   }
   idx[Index] = blk[level]->mem->last_free - (rs / 4) + 1; // where it goes
@@ -288,11 +286,10 @@ void Tidy_block()					// tidy current blk
   }
 
   blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy RL
-  blk[level]->mem->global = ptr->mem->global;		// copy global name
-  blk[level]->mem->last_idx = 9;			// unused block
-  blk[level]->mem->last_free
-    = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
-  Copy_data(ptr, 10);					// copy entire block
+  VAR_COPY(blk[level]->mem->global, ptr->mem->global);	// copy global name
+  blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+  blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+  Copy_data(ptr, IDX_START);				// copy entire block
   btmp = blk[level]->mem;				// save this
   blk[level]->mem = ptr->mem;				// copy in this
   ptr->mem = btmp;					// end swap 'mem'
@@ -331,14 +328,13 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
   fiidx = (int *) fptr->mem;				// point at it
 
   keybuf[0] = 0;					// clear this
-  for (i = 10; i <= blk[level]->mem->last_idx; i++)	// scan to end to blk
+  for (i = IDX_START; i <= blk[level]->mem->last_idx; i++) // scan to end to blk
   { chunk = (cstring *) &iidx[idx[i]];			// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
+    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }							// end update keybuf[]
 
-  for (i = 10; i <= fptr->mem->last_idx; i++)		// for each Index
+  for (i = IDX_START; i <= fptr->mem->last_idx; i++)	// for each Index
   { c = (cstring *) &fiidx[sfidx[i]];			// point at chunk
     bcopy(&c->buf[2], &fk[c->buf[0] + 1], c->buf[1]);	// copy key
     fk[0] = c->buf[0] + c->buf[1];			// and the length
@@ -444,7 +440,7 @@ short Compress1()
 { int i;
   int curlevel;
   short s;
-  u_char gtmp[16];					// to find glob
+  u_char gtmp[VAR_LEN + 4];				// to find glob
 
   Get_GBDs(MAXTREEDEPTH * 2);                           // ensure this many
 
@@ -470,13 +466,13 @@ short Compress1()
   { if ((level == 2) && (!db_var.slen))			// and blk 1 on level 2
     { level = 0;					// look at the GD
       gtmp[1] = 128;					// start string key
-      for (i=0; i<8; i++)				// for each char
+      for (i = 0; i < VAR_LEN; i++)			// for each char
       { if (db_var.name.var_cu[i] == '\0')		// check for null
         { break;					// break if found
         }
-        gtmp[i+2] = db_var.name.var_cu[i];		// copy char
+        gtmp[i + 2] = db_var.name.var_cu[i];		// copy char
       }
-      i +=2;						// correct count
+      i += 2;						// correct count
       gtmp[i] = '\0';					// null terminate
       gtmp[0] = (u_char) i;				// add the count
       s = Locate(gtmp);					// search for it
@@ -491,7 +487,7 @@ short Compress1()
       }
 	// Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;				// pretend it's data
-      blk[1]->last_accessed = time(0);			// clear last access
+      blk[1]->last_accessed = current_time(TRUE);	// clear last access
       Garbit(blk[1]->block);				// que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));	// clear last ref
@@ -516,8 +512,8 @@ short Compress1()
     }
     return s;						// just exit
   }
-  i = ((blk[level+1]->mem->last_free*2 + 1 - blk[level+1]->mem->last_idx)*2)
-    + ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2);
+  i = ((blk[level + 1]->mem->last_free * 2 + 1 - blk[level + 1]->mem->last_idx) * 2)
+    + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2);
   if (i < 1024)		// if REALLY not enough space (btw: make this a param)
   { level++;
     while (level >= 0)
@@ -531,15 +527,15 @@ short Compress1()
   Un_key();						// unkey RL block
   level++;						// point at left blk
   Tidy_block();						// ensure it's tidy
-  Copy_data(blk[level - 1], -1);			// combine them
+  Copy_data(blk[level - 1], - 1);			// combine them
   if (blk[level]->dirty == (gbd *) 1)			// if not queued
   { blk[level]->dirty = (gbd *) 2;			// mark for queuing
   }
   level--;						// point at rl
   Tidy_block();						// ensure it's tidy
-  if (blk[level]->mem->last_idx < 10)			// if it's empty
+  if (blk[level]->mem->last_idx < IDX_START)		// if it's empty
   { blk[level]->mem->type = 65;				// pretend it's data
-    blk[level]->last_accessed = time(0);		// clear last access
+    blk[level]->last_accessed = current_time(TRUE);	// clear last access
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);				// que for freeing
     blk[level] = NULL;					// ignore
@@ -558,9 +554,8 @@ short Compress1()
 
   if (blk[level] != NULL)				// if more to go
   { if (blk[level]->dirty == (gbd *) 2)			// if some left
-    { chunk = (cstring *) &iidx[idx[10]];		// point at the first
-      bcopy(&chunk->buf[1], &partab.jobtab->last_ref.slen,
-  			  chunk->buf[1]+1);		// save the real key
+    { chunk = (cstring *) &iidx[idx[IDX_START]];	// point at the first
+      bcopy(&chunk->buf[1], &partab.jobtab->last_ref.slen, chunk->buf[1] + 1); // save the real key
     }
   }
   else
@@ -604,24 +599,39 @@ void ClearJournal(int vol)				// clear journal
 { jrnrec jj;						// to write with
   int jfd;						// file descriptor
   int i;						// a handy int
-  u_char tmp[12];
 
-  jfd = open(systab->vol[vol]->vollab->journal_file,
-        O_TRUNC | O_RDWR | O_CREAT, 0770);		// open it
+  struct __attribute__ ((__packed__))
+  { u_int magic;
+    off_t free;
+  } tmp;
+
+  jfd = open(systab->vol[vol]->vollab->journal_file, O_TRUNC | O_RDWR | O_CREAT, 0770);	// open it
   if (jfd > 0)						// if OK
-  { (*(u_int *) tmp) = (RSM_MAGIC - 1);
-    (*(off_t *) &tmp[4]) = 20;				// next free byte
-    i = write(jfd, tmp, 12);
+  { tmp.magic = (RSM_MAGIC - 1);
+#if RSM_DBVER == 1
+    tmp.free = 20;					// next free byte
+#else
+    tmp.free = 24;					// next free byte
+#endif
+    i = write(jfd, (u_char *) &tmp, 12);
     if (i < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
-    jj.action = JRN_CREATE;
-    jj.time = time(0);
-    jj.uci = 0;
+#if RSM_DBVER == 1
     jj.size = 8;
-    i = write(jfd, &jj, 8);				// write the create rec
+#else
+    jj.size = 12;
+#endif
+    jj.action = JRN_CREATE;
+    jj.uci = 0;
+#if RSM_DBVER == 1
+    jj.time = current_time(TRUE);
+#else
+    jj.time = (u_int64) current_time(TRUE);
+#endif
+    i = write(jfd, &jj, jj.size);			// write the create rec
     if (i < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
     (void) fchmod(jfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // make grp wrt
     (void) close(jfd);					// and close it
-    systab->vol[vol]->jrn_next = (off_t) 20;		// where it's upto
+    systab->vol[vol]->jrn_next = (off_t) tmp.free;	// where it's upto
   }
   return;						// done
 }
@@ -640,21 +650,19 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   int i;
   int j;
 
-  jptr = lseek(partab.jnl_fds[volnum - 1],
-	       systab->vol[volnum - 1]->jrn_next,
-	       SEEK_SET);				// address to locn
+  jptr = lseek(partab.jnl_fds[volnum - 1], systab->vol[volnum - 1]->jrn_next, SEEK_SET); // address to locn
   if (jptr != systab->vol[volnum  - 1]->jrn_next)	// if failed
   { goto fail;
   }
-  jj->time = time(0);					// store the time
-  jj->size = 3 + sizeof(u_short) + sizeof(time_t) + sizeof(var_u) + jj->slen;
+  jj->size = 13 + sizeof(var_u) + jj->slen;
   if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) // not SET of KILL
-  { jj->size = 8;					// size is 8
+  { jj->size = 12;					// size is 12
   }
   i = jj->size;
   if (jj->action == JRN_SET)
   { jj->size += (sizeof(short) + data->len);
   }
+  jj->time = (u_int64) current_time(TRUE);			// store the time
   j = write(partab.jnl_fds[volnum - 1], jj, i);		// write header
   if (j != i)						// if that failed
   { goto fail;
@@ -674,9 +682,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jptr != 4)
   { goto fail;
   }
-  j = write(partab.jnl_fds[volnum - 1],
-	    &systab->vol[volnum  - 1]->jrn_next,
-	    sizeof(off_t));				// write next
+  j = write(partab.jnl_fds[volnum - 1], &systab->vol[volnum  - 1]->jrn_next, sizeof(off_t)); // write next
   if (j < 0)
   { goto fail;
   }

@@ -68,9 +68,8 @@ void ser(short s)                               // display errors
   }
   cptr = (cstring *) junk;			// some space
   if (s < 0) s = -s;                            // make error positive
-  (void)UTIL_strerror(s, &cptr->buf[0]);          // get the text
-  fprintf(stderr, "\r\nERROR occured %d\r\n%s\r\n",
-  	   s, &cptr->buf[0]);			// print it
+  (void) UTIL_strerror(s, &cptr->buf[0]);       // get the text
+  fprintf(stderr, "\r\nERROR occurred %d\r\n%s\r\n", s, &cptr->buf[0]); // print it
   return;                                       // and return
 }
 
@@ -93,7 +92,7 @@ void controlc()					// say ^C
 // Attach to an environment - switches are:
 //                            x = xecute command                Opt
 //                            e = environment (UCI)             Opt
-int INIT_Run(char *file,                       // database file
+int INIT_Run(char *file,                        // database file
               char *env,                        // environment (UCI)
               char *cmd)                        // command
 
@@ -102,7 +101,7 @@ int INIT_Run(char *file,                       // database file
   int ret = 0;					// return value
   int env_num = 1;				// startup environment number
   var_u tmp;					// temp descriptor
-  uci_tab *uci_ptr;				// for uci search
+  uci_tab *uci_ptr;				// for UCI search
   int pid;					// job number
   int ssp = 0;					// string stack ptr
   int asp = 0;					// address stack ptr
@@ -125,16 +124,21 @@ start:
   { i = UTIL_Share(file);                       // attach to shared mem
     if (i != 0) return(i);                      // quit on error
   }
-  if (env != NULL)				// passed in uci ?
-  { env_num = 0;				// clear uci number
-    uci_ptr = &systab->vol[0]->vollab->uci[0];	// get ptr to uci table
-    tmp.var_qu = 0;				// zero entire name
-    for (i = 0; i < 8; i++)			// copy in name
+  if (systab->vol[0] == NULL)
+  { fprintf(stderr, "Error occurred in process - Environment does not match runtime image version\n");
+    ret = -1;
+    goto exit;
+  }
+  if (env != NULL)				// passed in UCI ?
+  { env_num = 0;				// clear UCI number
+    uci_ptr = &systab->vol[0]->vollab->uci[0];	// get ptr to UCI table
+    VAR_CLEAR(tmp);				// zero entire name
+    for (i = 0; i < VAR_LEN; i++)		// copy in name
     { if (env[i] == '\0') break;		// done at null
       tmp.var_cu[i] = env[i];			// copy character
     }
-    for (i = 0; i < UCIS; i++)			// scan all ucis
-     if (uci_ptr[i].name.var_qu == tmp.var_qu)	// if we have a match
+    for (i = 0; i < UCIS; i++)			// scan all UCIs
+     if (var_equal(uci_ptr[i].name, tmp))	// if we have a match
      { env_num = i + 1;				// save it
        break;					// and exit loop
      }
@@ -208,15 +212,14 @@ start:
 
   partab.jobtab->precision = systab->precision;	// decimal precision
 
-  partab.jobtab->uci = env_num;			// uci number
+  partab.jobtab->uci = env_num;			// UCI number
   partab.jobtab->vol = 1;			// volset
-  partab.jobtab->luci = env_num;		// uci number
+  partab.jobtab->luci = env_num;		// UCI number
   partab.jobtab->lvol = 1;			// volset
-  partab.jobtab->ruci = env_num;		// uci number
+  partab.jobtab->ruci = env_num;		// UCI number
   partab.jobtab->rvol = 1;			// volset
 
-  partab.jobtab->start_len =
-    Vhorolog(partab.jobtab->start_dh);		// store start date/time
+  partab.jobtab->start_len = Vhorolog(partab.jobtab->start_dh); // store start date/time
 
   partab.jobtab->dostk[0].type = TYPE_RUN;	// ensure slot 0 has a value
 
@@ -234,12 +237,10 @@ start:
 
   ST_Init();					// initialize symbol table
 
-  if ((systab->vol[0]->vollab->journal_available) &&
-      (systab->vol[0]->vollab->journal_requested)) // if journaling
+  if ((systab->vol[0]->vollab->journal_available) && (systab->vol[0]->vollab->journal_requested)) // if journaling
   { partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
     if (partab.jnl_fds[0] < 0)
-    { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
-		systab->vol[0]->vollab->journal_file, errno);
+    { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
       ret = -1;
       if (cmd != NULL) goto exit;
     }
@@ -263,9 +264,9 @@ start:
     partab.jobtab->dostk[0].symbol = NULL;	// nowhere
     partab.jobtab->dostk[0].newtab = NULL;	// nowhere
     partab.jobtab->dostk[0].endlin = rsmpc + i - 4; // ENDLIN
-    partab.jobtab->dostk[0].rounam.var_qu = 0;	// zero the routine name
+    VAR_CLEAR(partab.jobtab->dostk[0].rounam);  // zero the routine name
     partab.jobtab->dostk[0].vol = partab.jobtab->vol; // current volume
-    partab.jobtab->dostk[0].uci = partab.jobtab->uci; // current uci
+    partab.jobtab->dostk[0].uci = partab.jobtab->uci; // current UCI
     partab.jobtab->dostk[0].line_num = 0;	// no line number
     partab.jobtab->dostk[0].type = start_type;	// how we started
     partab.jobtab->dostk[0].estack = 0;		// estack offset
@@ -285,7 +286,8 @@ start:
     if (s == JOBIT) goto jobit;			// look after JOB
     partab.jobtab->io = 0;			// force chan 0
     var = (mvar *) &strstk[0];			// space to setup a var
-    bcopy("$ECODE\0\0", &var->name.var_cu[0], 8);
+    VAR_CLEAR(var->name);
+    bcopy("$ECODE", &var->name.var_cu[0], 6);
     var->volset = 0;
     var->uci = UCI_IS_LOCALVAR;
     var->slen = 0;				// setup for $EC
@@ -355,9 +357,9 @@ start:
     partab.jobtab->dostk[0].symbol = NULL;	// nowhere
     partab.jobtab->dostk[0].newtab = NULL;	// nowhere
     partab.jobtab->dostk[0].endlin = rsmpc + i - 4; // ENDLIN
-    partab.jobtab->dostk[0].rounam.var_qu = 0;	// zero the routine name
+    VAR_CLEAR(partab.jobtab->dostk[0].rounam);  // zero the routine name
     partab.jobtab->dostk[0].vol = partab.jobtab->vol; // current volume
-    partab.jobtab->dostk[0].uci = partab.jobtab->uci; // current uci
+    partab.jobtab->dostk[0].uci = partab.jobtab->uci; // current UCI
     partab.jobtab->dostk[0].line_num = 0;	// no line number
     partab.jobtab->dostk[0].type = TYPE_RUN;	// how we started
     partab.jobtab->dostk[0].estack = 0;		// estack offset
@@ -381,7 +383,8 @@ start:
     else if (s < 0) ser(s);
     partab.jobtab->error_frame = 0;		// and that one
     var = (mvar *) &strstk[0];			// space to setup a var
-    bcopy("$ECODE\0\0", &var->name.var_cu[0], 8);
+    VAR_CLEAR(var->name);
+    bcopy("$ECODE", &var->name.var_cu[0], 6);
     var->volset = 0;
     var->uci = UCI_IS_LOCALVAR;
     var->slen = 0;				// setup for $EC
@@ -422,7 +425,7 @@ exit:						// general exit code
 
 jobit:						// code for JOB
   start_type = TYPE_JOB;			// what we are doing
-  env_num = partab.jobtab->ruci;		// remember (current) rou uci
+  env_num = partab.jobtab->ruci;		// remember (current) rou UCI
   cmd = (char *) &strstk[0];			// where the command is
   ssp = strlen((const char *) strstk);		// protect original command
   isp = 0;					// clear all these

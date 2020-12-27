@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_Pipe.c
+ * File:     rsm/seqio/sq_pipe.c
  * Summary:  module IO - sequential named pipe I/O
  *
  * David Wicksell <dlw@linux.com>
@@ -66,7 +66,7 @@ int createPipe(char *pipe);
 //
 // If successful, this function returns a non-negative integer, termed a
 // descriptor. Otherwise, a negative integer value is returned to indicate the
-// error that has occured.
+// error that has occurred.
 
 int SQ_Pipe_Open (char *pipe, int op)
 { int	ret;
@@ -98,7 +98,7 @@ int SQ_Pipe_Open (char *pipe, int op)
 //	- removes the FIFO "pipe" itself.
 //
 // Upon successful completion, a value of 0 is returned. Otherwise, a negative
-// integer value is returned to indicate the error that has occured.
+// integer value is returned to indicate the error that has occurred.
 
 int SQ_Pipe_Close (int pid, char *pipe)
 { int	ret;
@@ -126,7 +126,7 @@ int SQ_Pipe_Close (int pid, char *pipe)
 // This function writes "nbytes" bytes from the buffer "writebuf" to the FIFO
 // associated with the descriptor "pid". Upon successful completion, the number
 // of bytes actually written is returned. Otherwise, a negative integer value
-// is returned to indicate the error that has occured.
+// is returned to indicate the error that has occurred.
 //
 // Note, if one tries to write to a pipe with no reader, a SIGPIPE signal is
 // generated. This signal is caught, where write will return -1 with errno set
@@ -147,7 +147,7 @@ int SQ_Pipe_Write (int pid, u_char *writebuf, int nbytes)
 // This function reads "nbytes" bytes into the buffer "readbuf" from the FIFO
 // associated with the descriptor "pid". Upon successful completion, the number
 // of bytes actually read is returned. Otherwise, a negative integer value is
-// returned to indicate the error that has occured.
+// returned to indicate the error that has occurred.
 
 int SQ_Pipe_Read (int pid, u_char *readbuf, int tout)
 { int	ret;
@@ -169,7 +169,7 @@ start:
     goto start;
   }
 
-  // An error has occured
+  // An error has occurred
 
   if (bytesread == -1)
   { if (errno == EAGAIN)			// Resource temporarily unavail
@@ -208,7 +208,7 @@ start:
 // ************************************************************************* //
 // This function creates a FIFO special file with the name "pipe". Upon
 // successful completion, a value of 0 is returned. Otherwise, a negative
-// integer value is returned to indicate the error that has occured.
+// integer value is returned to indicate the error that has occurred.
 
 int createPipe (char *pipe)
 { int	ret;

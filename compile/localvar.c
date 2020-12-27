@@ -49,7 +49,7 @@
 // Following the OPVAR is a byte indicating type of
 // variable as per the following:
 //	TYPMAXSUB       63                      // max subscripts
-//	TYPVARNAM       0                       // name only (8 bytes)
+//	TYPVARNAM       0                       // name only (VAR_LEN bytes)
 //	TYPVARLOCMAX    TYPVARNAM+TYPMAXSUB     // local is 1->63 subs
 //	TYPVARIDX       64                      // 1 byte index (+ #subs)
 //	TYPVARGBL       128                     // first global
@@ -113,21 +113,24 @@ short localvar()                                // evaluate local variable
     { return (-(ERRZ12+ERRMLAST));              // return the error
     }
     i = toupper(*source_ptr);			// get the next character
-    if (strchr("DEHIJKPQRSTXY", i) == NULL)	// if letter is invalid
+    // TODO: Add check for real intrinsic (special) variables, not just their first letter
+    //     $device, $ecode, $estack, $etrap, $horolog, $io, $job, $key, $principal,
+    //     $quit, $reference, $storage, $stack, $system, $test, $x, $y, $zbp,
+    if (strchr("DEHIJKPQRSTXYZ", i) == NULL)	// if letter is invalid
     { return -ERRM8;				// complain
     }
   }
-  var.var_qu = 0;                               // clear the variable name
+  VAR_CLEAR(var);                               // clear the variable name
   var.var_cu[0] = c;                            // save first char
-  for (i = 1; i<8; i++)                         // scan for rest of name
+  for (i = 1; i < VAR_LEN; i++)                 // scan for rest of name
   { c = *source_ptr++;                          // get next char
-    if (isalnum((int)c) == 0)                   // if not alpha numeric
+    if (isalnum((int) c) == 0)                  // if not alpha numeric
     { --source_ptr;                             // point back at it
       break;                                    // and exit
     }
     var.var_cu[i] = c;                          // save in the variable
   }
-  while (isalnum(*source_ptr) !=0) source_ptr++; // skip extended name
+  if (isalnum(*source_ptr) != 0) return -ERRM56; // complain about name length
 subs:
   if (*source_ptr == '(')                       // see if it's subscripted
   { source_ptr++;				// skip the bracket
@@ -148,10 +151,10 @@ subs:
       (var.var_cu[0] != '$'))			// and it's not $...
   { for (i = 0; ; i++)				// scan list
     { if (i == 256) break;			// too many
-      if (partab.varlst[i].var_qu == var.var_qu)
+      if (var_equal(partab.varlst[i], var))
         break;					// found it
-      if (partab.varlst[i].var_qu == 0)
-      { partab.varlst[i].var_qu = var.var_qu;	// set it
+      if (var_empty(partab.varlst[i]))
+      { VAR_COPY(partab.varlst[i], var);        // set it
 	break;
       }
     }
@@ -174,8 +177,7 @@ subs:
        (type >= TYPVARGBL)) &&			// a 'normal' global
       (type != TYPVARNAKED) &&			// and not naked
       (type != TYPVARIND))			// or indirect
-    for (i = 0; i<8; i++)                       // scan the name
+    for (i = 0; i < VAR_LEN; i++)               // scan the name
       *comp_ptr++ = var.var_cu[i];              // copy into compiled code
   return ret;					// say what we did
 }                                               // end variable parse
-

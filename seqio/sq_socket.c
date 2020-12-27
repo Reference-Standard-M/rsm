@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_Socket.c
+ * File:     rsm/seqio/sq_socket.c
  * Summary:  module IO - sequential socket I/O
  *
  * David Wicksell <dlw@linux.com>
@@ -70,7 +70,7 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout);
 // ************************************************************************* //
 // This function creates an endpoint for communication. If successful, it
 // returns a descriptor referencing the socket. Otherwise, a negative integer
-// value is returned to indicate the error that has occured.
+// value is returned to indicate the error that has occurred.
 //
 // NOTE, that the socket is marked as non-blocking.
 
@@ -101,7 +101,7 @@ int SQ_Socket_Create(int nonblock)
 // ************************************************************************* //
 // This function binds the socket "sid" to the port "port". If the bind is
 // successful, 0 is returned. Otherwise, a negative integer value is returned
-// to indicate the error that has occured.
+// to indicate the error that has occurred.
 
 int SQ_Socket_Bind(int sid, u_short port)
 { int			ret;
@@ -118,7 +118,7 @@ int SQ_Socket_Bind(int sid, u_short port)
 // ************************************************************************* //
 // This function listens for a connection(s) on the socket "sid". If
 // successful, it returns 0. Otherwise, it returns a negative integer value to
-// indicate the error that has occured.
+// indicate the error that has occurred.
 
 int SQ_Socket_Listen(int sid)
 { int	ret;
@@ -132,7 +132,7 @@ int SQ_Socket_Listen(int sid)
 // This function accepts a connection on the socket "sid". If successful, it
 // returns a non-negative integer that is a descriptor for the accepted socket.
 // Otherwise, it returns a negative integer value to indicate the error that has
-// occured.
+// occurred.
 
 int SQ_Socket_Accept(int sid, int tout)
 { int			ret;
@@ -151,7 +151,7 @@ int SQ_Socket_Accept(int sid, int tout)
 // This function attempts to make a connection from the socket end-point "sid",
 // to another end-point specified by the IP address "addr" and port "port". If
 // the connection succeeds, 0 is returned. Otherwise, a negative integer value
-// is returned to indicate the error that has occured.
+// is returned to indicate the error that has occurred.
 
 int SQ_Socket_Connect(int sid, char *addr, u_short port)
 { int			ret;
@@ -180,7 +180,7 @@ int SQ_Socket_Connect(int sid, char *addr, u_short port)
 // associated with the descriptor "sid". Upon successful completion, the number
 // of bytes actually written is returned. If the peer has disconnected, then
 // send will return -1 with errno set to EPIPE. Otherwise, a negative integer
-// is returned to indicate the error that has occured.
+// is returned to indicate the error that has occurred.
 
 int SQ_Socket_Write(int sid, u_char *writebuf, int nbytes)
 { int	ret;

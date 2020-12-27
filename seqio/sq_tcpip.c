@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_Tcpip.c
+ * File:     rsm/seqio/sq_tcpip.c
  * Summary:  module IO - sequential TCP/IP socket I/O
  *
  * David Wicksell <dlw@linux.com>
@@ -63,7 +63,7 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout);
 // ************************************************************************* //
 // This function determines the type of socket to open. If it can not determine
 // the type of socket, a negative integer value is returned to indicate the
-// error that has occured.
+// error that has occurred.
 
 int SQ_Tcpip_Open(char *bind, int op)
 { switch (op)
@@ -77,21 +77,21 @@ int SQ_Tcpip_Open(char *bind, int op)
 }
 
 // ************************************************************************* //
-// Refer to function SQ_Socket_Accept in the file SQ_Socket.c.
+// Refer to function SQ_Socket_Accept in the file sq_socket.c.
 
 int SQ_Tcpip_Accept(int sid, int tout)
 { return (SQ_Socket_Accept(sid, tout));
 }
 
 // ************************************************************************* //
-// Refer to function SQ_Socket_Write in the file SQ_Socket.c.
+// Refer to function SQ_Socket_Write in the file sq_socket.c.
 
 int SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes)
 { return (SQ_Socket_Write(sid, writebuf, nbytes));
 }
 
 // ************************************************************************* //
-// Refer to function SQ_Socket_Read in the file SQ_Socket.c.
+// Refer to function SQ_Socket_Read in the file sq_socket.c.
 
 int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout)
 { return (SQ_Socket_Read(sid, readbuf, tout));
@@ -107,7 +107,7 @@ int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout)
 // This function opens a server socket end-point and binds it to the port
 // "bind". If successful, it returns a non-negative integer, termed a
 // descriptor. Otherwise, it returns a negative integer to indicate the error
-// that has occured.
+// that has occurred.
 
 int SQ_Tcpip_Open_Server(char *bind)
 { int	sid;
@@ -134,7 +134,7 @@ int SQ_Tcpip_Open_Server(char *bind)
 // This function opens a client socket end-point and connects it to the
 // port "conn". If successful, it returns a non-negative integer, termed a
 // descriptor. Otherwise, it returns a negative integer to indicate the error
-// that has occured.
+// that has occurred.
 
 int SQ_Tcpip_Open_Client(char *conn)
 { int	sid;

@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -61,7 +60,7 @@ struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
   }
   s = Get_block(block);					// get it
   if (s >= 0)
-  { blk[level]->last_accessed = time(0)+86400;		// push last access
+  { blk[level]->last_accessed = current_time(TRUE) + 86400; // push last access
   }
   if (curr_lock)
   { SemOp(SEM_GLOBAL, -curr_lock);			// unlock the globals
@@ -85,7 +84,7 @@ void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
   if (s < 0)						// check error
   { return;						// quit if so
   }
-  ptr->last_accessed = time(0);				// reset access
+  ptr->last_accessed = current_time(TRUE);		// reset access
   if (ptr->mem->type)					// if used
   { Used_block(ptr->block);				// mark it so
   }
@@ -116,7 +115,7 @@ void DB_ViewRel(int vol, struct GBD *ptr)	      	// release block, gbd
 { short s;						// for functions
 
   writing = 0;						// clear this
-  ptr->last_accessed = time(0);				// reset access
+  ptr->last_accessed = current_time(TRUE);		// reset access
   if (ptr->dirty != NULL)				// not owned elsewhere
   { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
     if (s < 0)						// check error

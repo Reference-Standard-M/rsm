@@ -292,11 +292,7 @@ short pattern (cstring *a, cstring *b)		// evaluates a ? b
     short   ptrpcd[PATDEPTH],
             position[PATDEPTH];
 
-#ifdef __FreeBSD__
     short   mincnt[PATDEPTH] = {0},           	// minimum number of matches
-#else
-    short   mincnt[PATDEPTH],           	// minimum number of matches
-#endif
             maxcnt[PATDEPTH],           	// maximum number of matches
             actcnt[PATDEPTH];           	// actual count of matches
     short   Pflag,
@@ -396,9 +392,7 @@ short pattern (cstring *a, cstring *b)		// evaluates a ? b
 // ******** THIS NOW EVALUATES THE STRINGS *************
 
     levels = patx;
-    if (b->buf[x - 1] == 'e' &&
-        mincnt[levels - 1] == 0 &&
-        maxcnt[levels - 1] == 255)
+    if (b->buf[x - 1] == 'e' && mincnt[levels - 1] == 0 && maxcnt[levels - 1] == 255)
          b->buf[x - 1] = '~';         // frequent spec case: last patt is '.E'
     mincnt[levels] = maxcnt[levels] = 1;        // sentinel, does never match
     actcnt[levels] = 0;

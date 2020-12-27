@@ -127,7 +127,7 @@ void dodollar()					// parse var, funct etc
     { name[i++] = c;				// save it
       c = toupper(*source_ptr++);		// get next
     }
-    while (isalpha((int)c) != 0)		// while we have alphas
+    while (isalpha((int) c) != 0)		// while we have alphas
     { name[i++] = c;				// save it
       c = toupper(*source_ptr++);		// get next
     }
@@ -201,7 +201,7 @@ void dodollar()					// parse var, funct etc
   }
   name[0] = c;					// save first char
   for (len = 0; isalpha(source_ptr[len]) != 0; len++) // scan string
-    name[len+1] = source_ptr[len];		// copy alphas
+    name[len + 1] = source_ptr[len];		// copy alphas
   source_ptr = source_ptr + len;		// move source along
   len++;					// add in first character
   name[len] = '\0';				// null terminate name
@@ -310,14 +310,14 @@ void dodollar()					// parse var, funct etc
 function:					// function code starts here
   source_ptr++;					// incr past the bracket
   ptr = comp_ptr;				// remember where this goes
-  sel = ((name[0] == 'S') && (toupper((int)name[1]) != 'T')); // is $SELECT
+  sel = ((name[0] == 'S') && (toupper((int) name[1]) != 'T')); // is $SELECT
   if ((name[0] == 'D') ||			// $DATA
       (name[0] == 'G') ||			// $GET
       (name[0] == 'N') ||			// $NAME / $NEXT
       (name[0] == 'O') ||			// $ORDER
      ((name[0] == 'Q') &&			// $QUERY
-      (toupper((int)name[1]) != 'S') &&		// but not $QS
-      (toupper((int)name[1]) != 'L')))		// and not $QL
+      (toupper((int) name[1]) != 'S') &&	// but not $QS
+      (toupper((int) name[1]) != 'L')))		// and not $QL
 
     { if (*source_ptr == '@')			// indirection ?
       { atom();					// eval it
@@ -358,7 +358,7 @@ function:					// function code starts here
           *ptr = OPMVAR;			// change to a OPMVAR
       }
     }
-    else if ((name[0] == 'T') && (toupper((int)name[1]) != 'R')) // $TEXT
+    else if ((name[0] == 'T') && (toupper((int) name[1]) != 'R')) // $TEXT
     { i = routine(-2);				// parse to strstk
       if (i < -4)				// check for error
       { comperror(i);				// complain
@@ -436,7 +436,7 @@ function:					// function code starts here
 	}
 	EXPRE
       }						// end $FIND
-      if (((len == 2) && (toupper((int)name[1]) == 'N')) ||
+      if (((len == 2) && (toupper((int) name[1]) == 'N')) ||
 	  (strncasecmp(name, "fnumber", 7) == 0)) // $FNUMBER
       { if (args == 2)
 	{ *comp_ptr++ = FUNFN2;			// two arg form
@@ -485,9 +485,9 @@ function:					// function code starts here
 	if (!(systab->historic & HISTORIC_DNOK)) EXPRE
 	if (args != 1) EXPRE
 	*comp_ptr++ = OPSTR;
-    *comp_ptr++ = 1;
-    *comp_ptr++ = 0;
-    //*((short *)comp_ptr)++ = 1;		// string length
+        *comp_ptr++ = 1;
+        *comp_ptr++ = 0;
+        //*((short *)comp_ptr)++ = 1;		// string length
 	*comp_ptr++ = '2';			// $N kludge
         *comp_ptr++ = '\0';			// null terminated
 	*comp_ptr++ = FUNO2;			// 2 arg form of $O()
@@ -535,7 +535,7 @@ function:					// function code starts here
 	else EXPRE
 	return;					// and exit
       }						// end $Q[UERY]
-      if (((len == 2) && (toupper((int)name[1]) == 'L')) ||
+      if (((len == 2) && (toupper((int) name[1]) == 'L')) ||
 	  (strncasecmp(name, "qlength", 7) == 0)) // $QLENGTH
       { if (args == 1)
 	{ *comp_ptr++ = FUNQL;
@@ -543,7 +543,7 @@ function:					// function code starts here
 	}
 	EXPRE
       }						// end $FIND
-      if (((len == 2) && (toupper((int)name[1]) == 'S')) ||
+      if (((len == 2) && (toupper((int) name[1]) == 'S')) ||
 	  (strncasecmp(name, "qsubscript", 10) == 0)) // $QSUBSCRIPT
       { if (args == 2)
 	{ *comp_ptr++ = FUNQS;
@@ -561,7 +561,7 @@ function:					// function code starts here
 	}
 	EXPRE
       }
-      if (((len == 2) && (toupper((int)name[1]) == 'E')) ||
+      if (((len == 2) && (toupper((int) name[1]) == 'E')) ||
 	  (strncasecmp(name, "reverse", 7) == 0)) // $REVERSE
       { if (args == 1)
 	{ *comp_ptr++ = FUNRE;
@@ -582,8 +582,8 @@ function:					// function code starts here
 	  comp_ptr = comp_ptr + sizeof(short);	// leave space for it
 	  selj[args+1] = comp_ptr;		// for the last JMP0
 	  *comp_ptr++ = OPERROR;		// no tve is an error
-      bcopy(&errm4, comp_ptr, 2);
-      comp_ptr += 2;
+          bcopy(&errm4, comp_ptr, 2);
+          comp_ptr += 2;
 	  //*((short *)comp_ptr)++ = -ERRM4;	// and the error#
 	  for (i = 1; i <= args; i++)		// scan the addr array
 	  { if (i & 1)
@@ -595,7 +595,7 @@ function:					// function code starts here
 	  }
 	  return;				// end of $SELECT()
 	}
-	if (((len == 2) && (toupper((int)name[1]) == 'T')) ||
+	if (((len == 2) && (toupper((int) name[1]) == 'T')) ||
 	    (strncasecmp(name, "stack", 5) == 0)) // $ST[ACK]
 	{ if (args == 1)
 	  { *comp_ptr++ = FUNST1;
@@ -616,7 +616,7 @@ function:					// function code starts here
 	  }
 	  EXPRE
 	}
-	if (((len == 2) && (toupper((int)name[1]) == 'R')) ||
+	if (((len == 2) && (toupper((int) name[1]) == 'R')) ||
 	    (strncasecmp(name, "translate", 9) == 0)) // $TR[ANSLATE]
 	{ if (args == 2)
 	  { *comp_ptr++ = FUNTR2;

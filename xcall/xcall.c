@@ -69,14 +69,14 @@
 
 #include <unistd.h>				// crypt et al
 
-#define TRIM_PARITY  0x1 /* 'P' */
-#define DISCARD_SPACES  0x2 /* 'D' */
-#define DISCARD_CONTROLS 0x4 /* 'C' */
-#define DISCARD_LEADING  0x8 /* 'B' */
-#define COMPRESS_SPACES  0x10 /* 'R' */
-#define CONVERT_TO_UPPER 0x20 /* 'U' */
-#define CONVERT_TO_LOWER 0x40 /* 'L' */
-#define DISCARD_TRAILING 0x80 /* 'T' */
+#define TRIM_PARITY      0x1   /* 'P' */
+#define DISCARD_SPACES   0x2   /* 'D' */
+#define DISCARD_CONTROLS 0x4   /* 'C' */
+#define DISCARD_LEADING  0x8   /* 'B' */
+#define COMPRESS_SPACES  0x10  /* 'R' */
+#define CONVERT_TO_UPPER 0x20  /* 'U' */
+#define CONVERT_TO_LOWER 0x40  /* 'L' */
+#define DISCARD_TRAILING 0x80  /* 'T' */
 #define PRESERVE_QUOTED  0x100 /* 'Q' */
 
 //***********************************************************************
@@ -94,11 +94,11 @@ void crcgen(void)				// build the crcTable
 
   blnitDone = TRUE;
   poly = 0xEDB88320L;
-  for (i=0; i<256; i++)
+  for (i = 0; i < 256; i++)
   { crc = i;
-    for (j=8; j>0; j--)
+    for (j = 8; j > 0; j--)
     { if (crc & 1)
-      { crc = (crc>>1) ^ poly;
+      { crc = (crc >> 1) ^ poly;
       }
       else
       { crc >>= 1;
@@ -135,11 +135,11 @@ void crcgen(void)				// build the crcTable
 // DEBUG() - Dump info on console
 //
 short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
-{ if (strcmp((char *)arg1->buf, "RBD") == 0)		// Routine Buf Desc
+{ if (strcmp((char *) arg1->buf, "RBD") == 0)	// Routine Buf Desc
     Dump_rbd();					// do it
-  else if (strcmp((char *)arg1->buf, "LTD") == 0)
+  else if (strcmp((char *) arg1->buf, "LTD") == 0)
     Dump_lt();
-  else if (strcmp((char *)arg1->buf, "SEMS") == 0)	// semaphores
+  else if (strcmp((char *) arg1->buf, "SEMS") == 0) // semaphores
   { int i,val,sempid;
     for (i=0; i<SEM_MAX; i++)
     { val = semctl(systab->sem_id, i, GETVAL, 0);
@@ -153,8 +153,8 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
     }
     fprintf(stderr,"(maxjobs = %d)\r\n",systab->maxjob);
   }
-#if defined(__NetBSD__) && 0
-  else if (strcmp((char *)arg1->buf, "STRUCT") == 0) // sanity check structs
+#if defined(__NetBSD__) && FALSE
+  else if (strcmp((char *) arg1->buf, "STRUCT") == 0) // sanity check structs
   {
      fprintf(stderr, "FOR_STACK size %ld\r\n", sizeof(struct FOR_STACK));
      fprintf(stderr, "TAGS size %ld\r\n", sizeof(struct TAGS));
@@ -436,31 +436,55 @@ short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
 //***********************************************************************
 // %SPAWN - Create subprocess
 //
+short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
+{ if (type->len == 1 && type->buf[0] == '1')
+  {
+    int  ret, chk, err;
+    FILE *fp = NULL;
 
-short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *dummy)
-{
-  int			ret, tmp, chk;
-  struct termios	t;
+    // Do command
+    fp = popen((char *) cmd->buf, "r");
+    // Return error if necessary
+    if (fp == NULL) return (-(ERRMLAST + ERRZLAST + errno));
 
-  // Store current settings
-  chk = tcgetattr(0, &t);
+    // Read output
+    ret = fread(ret_buffer, 1, MAX_STR_LEN, fp);
 
-  // ret_buffer unused
-  ret_buffer[0] = '\0';
+    // Check for error
+    chk = ferror(fp);
+    err = errno;
 
-  // Do command
-  ret = system((char *) cmd->buf);
+    // Close pipe
+    (void) pclose(fp);
 
-  if (chk != -1)
-  { // Restore original settings
-    tmp = tcsetattr(0, TCSANOW, &t);
-    if (tmp == -1) return (-(ERRMLAST + ERRZLAST + errno));
+    // Return error if necessary
+    if (chk != 0) return (-(ERRMLAST + ERRZLAST + err));
+    else return ret;
   }
-  if ((ret == -1) && (errno == ECHILD)) ret = 0;        // allow ECHILD
+  else
+  { int ret, tmp, chk;
+    struct termios t;
 
-  // Return 0 or error
-  if (ret == -1) return (-(ERRMLAST + ERRZLAST + errno));
-  else return (0);
+    // Store current settings
+    chk = tcgetattr(0, &t);
+
+    // ret_buffer unused
+    ret_buffer[0] = '\0';
+
+    // Do command
+    ret = system((char *) cmd->buf);
+
+    if (chk != -1)
+    { // Restore original settings
+      tmp = tcsetattr(0, TCSANOW, &t);
+      if (tmp == -1) return (-(ERRMLAST + ERRZLAST + errno));
+    }
+    if ((ret == -1) && (errno == ECHILD)) ret = 0; // allow ECHILD
+
+    // Return 0 or error
+    if (ret == -1) return (-(ERRMLAST + ERRZLAST + errno));
+    else return (0);
+  }
 }
 
 //***********************************************************************
@@ -468,7 +492,7 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *dummy)
 // returns "Reference Standard M V<major.minor.patch> for <platform> ..."
 
 short Xcall_version(char *ret_buffer, cstring *name, cstring *dummy)
-{ return rsm_version((u_char *)ret_buffer);             // do it elsewhere
+{ return rsm_version((u_char *) ret_buffer);    // do it elsewhere
 }
 
 //***********************************************************************
@@ -502,7 +526,7 @@ short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
   if (STR_mask->len != 0)                       // if we have a mask
   { if (STR_mask->buf[0] < 'A')                 // If it's a numeric arg
     { mask = 0;                                 // clear mask
-      for (i = 0; i != (int)STR_mask->len; i++) // For all characters
+      for (i = 0; i != (int) STR_mask->len; i++) // For all characters
         mask = (mask * 10) + ((int) STR_mask->buf[i] - 48); // Cvt to int
     }
     else                                        // It's the string type
@@ -1459,7 +1483,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
         char    *err;                           // fgets error
 	char	*preptr;			// ':' ( ie username: )
 	char	*postptr;			// ':' ( ie username:password: )
-	char	password[256];			// encrypted password
+	char	password[256] = {0};		// encrypted password
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
   fd = fopen("/etc/master.passwd", "r");
@@ -1552,9 +1576,9 @@ short Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
   crc = 0xFFFFFFFF;
   for (ulldx = 0; ulldx<str->len; ulldx++)
   { c = *(str->buf + ulldx);
-    crc = ((crc>>8) & 0x00FFFFFF) ^ crcTable[(crc^c) & 0xFF];
+    crc = ((crc >> 8) & 0x00FFFFFF) ^ crcTable[(crc ^ c) & 0xFF];
   }
-  crc = crc^0xFFFFFFFF;
+  crc = crc ^ 0xFFFFFFFF;
   bcopy(&crc, ret_buffer, 4);
   return sizeof(unsigned long);
 }
@@ -1617,7 +1641,7 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
   }
   else						// Set environment variable
   {
-    ret = setenv((char *) env->buf, (char *)value->buf, 1);
+    ret = setenv((char *) env->buf, (char *) value->buf, 1);
     if (ret == -1)				// Error has occurred
       return (-(ERRMLAST + ERRZLAST + errno));
     else return (0);
@@ -1634,7 +1658,7 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
 short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2)
 { short s;					// for returns
   s = ForkIt(1);				// do it, copy file table
-  return itocstring((u_char *)ret_buffer, s);		// return result
+  return itocstring((u_char *) ret_buffer, s);	// return result
 }
 
 //***********************************************************************
@@ -1672,7 +1696,7 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
 
   if (ret == -1)				// stat() failed
   {
-    if ((strcasecmp("exists", (char *)attr->buf) == 0) &&
+    if ((strcasecmp("exists", (char *) attr->buf) == 0) &&
          ((errno == ENOENT) ||
          (errno == ENOTDIR)))
     {
@@ -1730,7 +1754,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
   short		 s;
   u_char	a[8];
 
-  if (strcasecmp((char *)arg2->buf, "ip") == 0)
+  if (strcasecmp((char *) arg2->buf, "ip") == 0)
   {
 
 // Acquire host's attributes
@@ -1761,7 +1785,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
 
   }						// end of "IP"
 
-  if (strcasecmp((char *)arg2->buf, "name") == 0)
+  if (strcasecmp((char *) arg2->buf, "name") == 0)
   { if (name->len == 0)
     { i = gethostname(ret_buffer, 1023);	// get it
       if (i < 0) return -(ERRMLAST+ERRZLAST+errno); // die on error
@@ -1824,7 +1848,7 @@ short Xcall_wait(char *ret_buffer, cstring *arg1, cstring *arg2)
 
   ret_buffer[0] = '\0';
   if (arg2->len) {              // blocked waiting
-    if (!strncmp((char *)arg2->buf, "BLOCK", 5))
+    if (!strncmp((char *) arg2->buf, "BLOCK", 5))
       blocked = 0;
     else if (strncmp((char *) arg2->buf, "NOBLOCK", 7))
       return -ERRM99;

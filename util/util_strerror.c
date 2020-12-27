@@ -41,7 +41,7 @@
 #include <sys/types.h>				// for u_char def
 #include <string.h>				// for strerror
 #include <unistd.h>
-#include <time.h>				// ctime(time(0))
+#include <time.h>				// for ctime
 #include <errno.h>                              // error stuff
 #include "rsm.h"                                // standard includes
 #include "proto.h"                              // standard includes
@@ -49,7 +49,7 @@
 
 static struct
 {
-    int         err;
+    int      err;
     char     *msg;
 } merrtab[] = {
   {0,         "no error"},                      // standard errors
@@ -177,7 +177,7 @@ static struct
   {ERRZ69+ERRMLAST,	"Unknown Signal received"},
   {ERRZ70+ERRMLAST,	"Offset not permitted in entryref"},
   {ERRZ71+ERRMLAST,	"No such host is known"},
-  {ERRZ72+ERRMLAST,	"Type h_errno error has occured"},
+  {ERRZ72+ERRMLAST,	"Type h_errno error has occurred"},
   {ERRZ73+ERRMLAST, "Invalid database file specified"},
   {0,         NULL}
 };                                                      // merrtab[]
@@ -209,18 +209,17 @@ void panic(char *msg)					// print msg and exit
   int j;						// and another
   time_t t;						// for time
 
-  fprintf(stderr, "\n\rFATAL RSM ERROR occured!!\n\r%s\n\r", msg); // print
+  fprintf(stderr, "\n\rFATAL RSM ERROR occurred!!\n\r%s\n\r", msg); // print
   if (errno) fprintf(stderr, "errno = %d %s\n\r", errno, strerror(errno));
   fflush(stderr);
 
   a = freopen("RSM_CRASH", "a", stderr);		// redirect stderr
   if (a != NULL)					// if that worked
-  { t = time(0);					// current time
-    fprintf(stderr, "RSM CRASH OCCURED on %s",
-    		     ctime(&t));			// output the time
+  { t = current_time(FALSE);				// current time
+    fprintf(stderr, "RSM CRASH OCCURED on %s", ctime(&t)); // output the time
     i = rsm_version((u_char *) tmp);
     fprintf(stderr, "%s", tmp);
-    fprintf(stderr, "\nFATAL RSM ERROR occured - pid %d!!\n%s\n",
+    fprintf(stderr, "\nFATAL RSM ERROR occurred - pid %d!!\n%s\n",
     		     getpid(), msg);			// print
     if (errno) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
 
@@ -228,15 +227,12 @@ void panic(char *msg)					// print msg and exit
     { fprintf(stderr, "Job No %d\n",
 	((int) (partab.jobtab - systab->jobtab) + 1));
       j = partab.jobtab->cur_do;			// get current do
-      for (i=0; i<8; i++)
+      for (i = 0; i < VAR_LEN; i++)
         tmp[i] = partab.jobtab->dostk[j].rounam.var_cu[i]; // copy it
-      tmp[8] = '\0';					// and terminate
-      fprintf(stderr, "Uci: %d  Routine: %s  Line: %d\n",
-		       partab.jobtab->dostk[j].uci, tmp,
-		       partab.jobtab->dostk[j].line_num);
+      tmp[VAR_LEN] = '\0';				// and terminate
+      fprintf(stderr, "Uci: %d  Routine: %s  Line: %d\n", partab.jobtab->dostk[j].uci, tmp, partab.jobtab->dostk[j].line_num);
       if (partab.jobtab->last_ref.name.var_cu[0])	// if there is a $REF
-      { i = UTIL_String_Mvar(&partab.jobtab->last_ref,
-			     (u_char *) &tmp[0], 9999);		// get in string form
+      { i = UTIL_String_Mvar(&partab.jobtab->last_ref, (u_char *) &tmp[0], 9999);		// get in string form
         fprintf(stderr, "Last Global: %s\n", tmp);	// print it
       }
     // more status stuff to go here

@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_Util.c
+ * File:     rsm/seqio/sq_util.c
  * Summary:  module IO - sequential misc. I/O operations
  *
  * David Wicksell <dlw@linux.com>
@@ -102,7 +102,7 @@ void setSignalBitMask(int sig)
 // This function will return 0 when the object referenced by the descriptor
 // "sid" is ready for reading or writing ( as determined by "type" ).
 // Otherwise, a negative integer is returned to indicate the error that has
-// occured.
+// occurred.
 
 int seqioSelect(int sid, int type, int tout)
 { int           	nfds;
@@ -128,7 +128,7 @@ int seqioSelect(int sid, int type, int tout)
     else ret = select(nfds, NULL, &fds, NULL, NULL);
   }
 
-  // An error has occured ( possibly timed out by alarm() )
+  // An error has occurred ( possibly timed out by alarm() )
 
   if (ret == -1) return (getError(SYS, errno));
   else if (ret == 0)

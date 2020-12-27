@@ -7,7 +7,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 = Reference Standard M
 
-*Version 1.72.0 - 2020 Nov 2*
+*Version 1.73.0 - 2020 Dec 26*
 
 === Implementation of ANSI Standard M X11.1-1995 and ISO/IEC 11756:1999
 
@@ -45,25 +45,34 @@ of M, originally developed by Ray Douglas Newman. Ray gave me permission to take
 over as the official developer and maintainer of Mumps V1, as well as permission
 to change the licensing of the code base, in July of 2020. The initial release
 of RSM is based on the last released version of MUMPS V1, version 1.71, and
-includes a number of quality-of-life improvements. Reference Standard M will
-attempt to track and implement the latest M standard that is released by the M
-Development Committee (MDC), currently ANSI X11.1-1995. This software uses
-link:https://semver.org/[semantic versioning].
+includes a number of quality-of-life improvements. The latest release of RSM
+adds support for 32 character names and a host of other improvements and bug
+fixes. See the link:release-notes.adoc[release notes] for more information.
+Reference Standard M will attempt to track and implement the latest M standard
+that is released by the M Development Committee (MDC), currently ANSI
+X11.1-1995. This software uses link:https://semver.org/[semantic versioning].
 
 _This is the post-relational database._
 
-//link:doc/index.adoc[RSM Documentation]
+The link:doc/index.adoc[RSM Documentation] is a work-in-progress.
 
 ==== Installation
 
 This version of RSM runs on Linux x86 and x86_64, FreeBSD, NetBSD, OpenBSD,
-MacOS X 10.4 through 10.15 in 32 and 64 bit mode, Solaris on x86 and x86_64, and
+MacOS X 10.4 through 11.0 in 32 and 64 bit mode, Solaris on x86 and x86_64, and
 the Raspberry Pi [ARMv6 and ARMv7] running Raspbian (for embedded RSM). This
 version might also run on Windows XP, Windows 7, and Windows 10 under Cygwin,
 but it has not been built or tested there recently.
 
 Thanks to John Willis for helping me test the FreeBSD, NetBSD, OpenBSD, MacOS X,
 Solaris, and Raspberry Pi ports.
+
+To output a helpful options menu:
+
+[source,bash]
+----
+rsm -h
+----
 
 To build RSM, first clone the RSM git repository (the latest):
 
@@ -95,38 +104,72 @@ gmake
 
 The resulting `rsm` executable will be optimized for your system.
 
+Then install the `rsm` executable in a system location:
+
+[source,bash]
+----
+sudo make install
+----
+
+You can clean up the build environment after installation with:
+
+[source,bash]
+----
+make clean
+----
+
 ==== Usage
+
+NOTE: Set the environment variable `RSM_DBFILE` to the database file path to
+avoid having to pass it to `rsm`
 
 To use RSM, first create a database:
 
 [source,bash]
 ----
-# -v <volume set name [1-8 characters]>
-# -b <block size in KiB [4-256 KiB]>
-# -s <number of blocks [100-2147483647]>
+# -v <volume set name> [1 - 32 alpha characters]
+# -b <block size> [4 - 256 KiB]
+# -s <number of blocks> [100 - 2147483647 blocks]
+# -e <manager environment (UCI) name> [1 - 32 alpha characters]
+# -m <map block size> [0 - 262147 KiB]
 # <database file name>
-./rsm -v TEST -b 32 -s 2000 testdb
+rsm -v TST -b 16 -s 4096 tst.dat
+----
+or
+[source,bash]
+----
+export RSM_DBFILE="/home/dlw/rsm/tst.dat"
+rsm -v TST -b 16 -s 4096
 ----
 
-NOTE: In order to load the supplied M utilities, use a block size of 32 or
+NOTE: In order to load the supplied M utilities, use a block size of 14 or
 larger
 
 Then start the environment:
 
 [source,bash]
 ----
-# -j <max number of concurrent jobs [1-256]>
+# -j <max number of concurrent jobs> [1 - 256 jobs]
+# -g <global buffer size in MiB>
+# -r <routine buffer size in MiB>
+# -a <additional buffer size in MiB>
 # <database file name>
-./rsm -j 12 testdb
+rsm -j 12 tst.dat
+----
+or
+[source,bash]
+----
+export RSM_DBFILE="/home/dlw/rsm/tst.dat"
+rsm -j 12
 ----
 
 On MacOS X, you might need to increase the accessible shared memory before
-starting the environment, if the previous command failed. If so, as root, run
-the following commands:
+starting the environment, if the previous command failed. If so, as root or
+using sudo, run the following commands:
 
 ....
-sysctl -w kern.sysv.shmmax=536870912
-sysctl -w kern.sysv.shmall=131072
+sudo sysctl -w kern.sysv.shmmax=536870912
+sudo sysctl -w kern.sysv.shmall=131072
 ....
 
 Then load the M utilities:
@@ -135,10 +178,16 @@ Then load the M utilities:
 ----
 # -x <M code to execute>
 # <database file name>
-./rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' testdb
+rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' tst.dat
+----
+or
+[source,bash]
+----
+export RSM_DBFILE="/home/dlw/rsm/tst.dat"
+rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code'
 ----
 
-NOTE: On Solaris and Cygwin, $horolog is in GMT as these implementations don't
+NOTE: On Solaris and Cygwin, `$horolog` is in UTC as these implementations don't
 have a local time offset
 
 To start direct mode:
@@ -146,7 +195,13 @@ To start direct mode:
 [source,bash]
 ----
 # <database file name>
-./rsm testdb
+rsm tst.dat
+----
+or
+[source,bash]
+----
+export RSM_DBFILE="/home/dlw/rsm/tst.dat"
+rsm
 ----
 
 To run an M routine:
@@ -156,7 +211,13 @@ To run an M routine:
 # -x <M code to execute>
 # <database file name>
 # start the M Command Language shell
-./rsm -x "do ^%M" testdb
+rsm -x "do ^%M" tst.dat
+----
+or
+[source,bash]
+----
+export RSM_DBFILE="/home/dlw/rsm/tst.dat"
+rsm -x "do ^%M"
 ----
 
 Remember to shut it down when you are done to free the shared memory:
@@ -170,7 +231,25 @@ Or if `utils.rsm` has been loaded:
 
 [source,m]
 ----
-MCL> do ^SSD
+RSM> do ^SSD
 ----
+
+Or if running in the MCL shell:
+
+[source,m]
+----
+MCL> shutdown
+----
+
+This version of RSM introduced an upgrade from 8 character identifiers to 32
+character identifiers. This necessitated a change to the database format, the
+compiled routine format, and the journal format, and also bumped the database
+version from 1 to 2, and the compiler version from 7 to 8.
+
+The RSM runtime image will detect a database in the older format, as well as
+compiled bytecode in the older format, and return an appropriate error. If you
+would like to move your globals and routines from an older database to a new
+one, which works with this version of RSM, please follow these
+link:doc/upgrade.adoc[instructions], or run the experimental upgrade script.
 
 Enjoy!

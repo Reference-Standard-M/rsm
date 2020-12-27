@@ -27,12 +27,17 @@
 
 OS    != uname
 CC    = gcc
+FLAGS = -fsigned-char -fwrapv -Wall -std=gnu99 -Iinclude
 LIBS  = -lm -lcrypt
 
 .ifmake test
-EXTRA = -O0 -g -fsigned-char -fwrapv -Wall -Iinclude
+EXTRA = -O0 -g
 .else
-EXTRA = -O3 -fsigned-char -fwrapv -Wall -Iinclude
+EXTRA = -O3
+.endif
+
+.ifdef dbver
+FLAGS += -DRSM_DBVER=$(dbver)
 .endif
 
 .if ($(OS) == OpenBSD)
@@ -74,14 +79,14 @@ OBJS  = compile/dollar.o \
         runtime/runtime_ssvn.o \
         runtime/runtime_util.o \
         runtime/runtime_vars.o \
-        seqio/SQ_Util.o \
-        seqio/SQ_Signal.o \
-        seqio/SQ_Device.o \
-        seqio/SQ_File.o \
-        seqio/SQ_Pipe.o \
-        seqio/SQ_Seqio.o \
-        seqio/SQ_Socket.o \
-        seqio/SQ_Tcpip.o \
+        seqio/sq_util.o \
+        seqio/sq_signal.o \
+        seqio/sq_device.o \
+        seqio/sq_file.o \
+        seqio/sq_pipe.o \
+        seqio/sq_seqio.o \
+        seqio/sq_socket.o \
+        seqio/sq_tcpip.o \
         symbol/symbol_new.o \
         symbol/symbol_util.o \
         util/util_key.o \
@@ -93,13 +98,23 @@ OBJS  = compile/dollar.o \
         xcall/xcall.o
 
 .c.o:
-	${CC} ${EXTRA} -c $< -o $@
+	${CC} ${EXTRA} ${FLAGS} -c $< -o $@
 
 all: ${OBJS}
-	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
+	${CC} ${EXTRA} ${FLAGS} -o ${PROG} ${OBJS} ${LIBS}
 
 test: ${OBJS}
-	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
+	${CC} ${EXTRA} ${FLAGS} -o ${PROG} ${OBJS} ${LIBS}
+
+install: ${PROG}
+	@if [ "$${USER}" != "root" ]; then \
+	    echo "You must install ${PROG} as root"; \
+	    exit 1; \
+	fi
+
+	install -o root -g 0 -m 755 ${PROG} /usr/local/bin/
 
 clean:
 	${RM} ${OBJS} ${PROG} ${PROG}.core
+
+.PHONY: all test install clean

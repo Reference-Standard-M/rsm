@@ -60,15 +60,17 @@
 
 // **** Structures ***********************************************************
 
-typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
+typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK // database block layout
 { u_char type;						// block type
   u_char flags;						// flags
   u_short spare;					// future
   u_int right_ptr;					// right pointer
   u_short last_idx;					// last used index off
   u_short last_free;					// last free lw in block
-  chr_q global;						// global name
+  var_u global;						// global name
 } DB_Block;						// end block header
+
+#define IDX_START	(sizeof(DB_Block) / 2)
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
@@ -82,7 +84,11 @@ typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 { u_short size;						// size of record
   u_char action;					// what it is
   u_char uci;						// uci number
+#if RSM_DBVER == 1
   time_t time;						// now
+#else
+  u_int64 time;						// now
+#endif
   var_u name;						// global name
   u_char slen;						// subs length
   u_char key[256];					// the key to 256 char
@@ -101,7 +107,7 @@ typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 //	 The next 8 bytes (off_t) in the file point at the next free byte.
 //	 (Initially 12 and always rounded to the next 4 byte boundary).
 //	 Journal file is only accessed while a write lock is held.
-//	 Protection on the file is changed to g:rw by init_start (TODO).
+//	 Protection on the file is changed to g:rw by init_start
 
 // **** External declarations ************************************************
 // Defined in database/db_main.c

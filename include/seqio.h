@@ -2,7 +2,7 @@
  * Package:  Reference Standard M
  * File:     rsm/include/seqio.h
  * Summary:  This module declares all the global constants and functions
- *           used only by sequential Input/Output ( IO ) operations.
+ *           used only by sequential Input/Output (IO) operations.
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020 Fourth Watch Software LC
@@ -48,8 +48,8 @@
 #define		SERVER		6		// Forking server socket
 #define		NOFORK		7		// Non-forking server socket
 #define		FORKED		8		// Forked server socket client
-#define		PIPE		9		// Named pipe ( writing )
-#define		NEWPIPE		10		// Named pipe ( reading )
+#define		PIPE		9		// Named pipe (writing)
+#define		NEWPIPE		10		// Named pipe (reading)
 
 // Signal operations
 
@@ -76,26 +76,26 @@
 //									     //
 // ************************************************************************* //
 
-void setSignalBitMask ( int sig );
-int setSignal ( int sig, int flag );
-int setSignals ( void );
-void printBytestr ( char *bytestr, int nbytes );
-void printSQChan ( jobtab *jobptr, SQ_Chan *chanptr );
-int seqioSelect ( int sid, int type, int tout );
-int getError ( int type, int errnum );
-int SQ_File_Open ( char *file, int op );
-int SQ_File_Write ( int fid, u_char *writebuf, int nbytes );
-int SQ_File_Read ( int fid, u_char *readbuf );
-int SQ_Device_Open ( char *device, int op );
-int SQ_Device_Write ( int did, u_char *writebuf, int nbytes );
-int SQ_Device_Read ( int did, u_char *readbuf, int tout );
-int SQ_Pipe_Open ( char *pipe, int op );
-int SQ_Pipe_Close ( int pid, char *pipe );
-int SQ_Pipe_Read ( int pid, u_char *readbuf, int tout );
-int SQ_Pipe_Write ( int pid, u_char *writebuf, int nbytes );
-int SQ_Tcpip_Open ( char *bind, int op );
-int SQ_Tcpip_Write ( int sid, u_char *writebuf, int nbytes );
-int SQ_Tcpip_Accept ( int sid, int tout );
-int SQ_Tcpip_Read ( int sid, u_char *readbuf, int tout );
+void setSignalBitMask(int sig);
+int setSignal(int sig, int flag);
+int setSignals(void);
+void printBytestr(char *bytestr, int nbytes);
+void printSQChan(jobtab *jobptr, SQ_Chan *chanptr);
+int seqioSelect(int sid, int type, int tout);
+int getError(int type, int errnum);
+int SQ_File_Open(char *file, int op);
+int SQ_File_Write(int fid, u_char *writebuf, int nbytes);
+int SQ_File_Read(int fid, u_char *readbuf);
+int SQ_Device_Open(char *device, int op);
+int SQ_Device_Write(int did, u_char *writebuf, int nbytes);
+int SQ_Device_Read(int did, u_char *readbuf, int tout);
+int SQ_Pipe_Open(char *pipe, int op);
+int SQ_Pipe_Close(int pid, char *pipe);
+int SQ_Pipe_Read(int pid, u_char *readbuf, int tout);
+int SQ_Pipe_Write(int pid, u_char *writebuf, int nbytes);
+int SQ_Tcpip_Open(char *bind, int op);
+int SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes);
+int SQ_Tcpip_Accept(int sid, int tout);
+int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout);
 
 #endif						// _RSM_SEQIO_H_

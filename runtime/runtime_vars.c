@@ -32,7 +32,6 @@
 #include <strings.h>
 #include <ctype.h>
 #include <errno.h>                              // error stuff
-#include <time.h>                               // for $H
 #include "rsm.h"                                // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // standard errors
@@ -45,7 +44,7 @@
 // for the value returned by the function (max size is 32767).
 // The function returns a count of characters in the return string
 // or a negative error number (to be defined).
-// The function name is Vvarname where thevariable call is $varname.
+// The function name is Vvarname where the variable call is $varname.
 //
 
 //***********************************************************************
@@ -55,7 +54,8 @@ short Vecode(u_char *ret_buffer)                // $ECODE
 { mvar *var;					// for ST_Get
   short s;
   var = (mvar *) ret_buffer;			// use here for the mvar
-  bcopy("$ECODE\0\0", &var->name.var_cu[0], 8);	// get the name
+  VAR_CLEAR(var->name);
+  bcopy("$ECODE", &var->name.var_cu[0], 6);	// get the name
   var->volset = 0;				// clear volset
   var->uci = UCI_IS_LOCALVAR;			// local var
   var->slen = 0;				// no subscripts
@@ -74,7 +74,8 @@ short Vetrap(u_char *ret_buffer)                // $ETRAP
 { mvar *var;					// for ST_Get
   short s;
   var = (mvar *) ret_buffer;			// use here for the mvar
-  bcopy("$ETRAP\0\0", &var->name.var_cu[0], 8);	// get the name
+  VAR_CLEAR(var->name);
+  bcopy("$ETRAP", &var->name.var_cu[0], 6);	// get the name
   var->volset = 0;				// clear volset
   var->uci = UCI_IS_LOCALVAR;			// local var
   var->slen = 0;				// no subscripts
@@ -87,16 +88,10 @@ short Vetrap(u_char *ret_buffer)                // $ETRAP
 // $HOROLOG
 //
 short Vhorolog(u_char *ret_buffer)              // $HOROLOG
-{ time_t sec = time(NULL);                      // get secs from 1 Jan 1970 UTC
-  int day;                                      // number of days
-#if !defined(__CYGWIN__) && !defined(__sun__) && !defined(_AIX)
-  struct tm *buf;                               // struct for localtime()
-  buf = localtime(&sec);                        // get GMT-localtime
-  sec = sec + buf->tm_gmtoff;                   // adjust to local
-#endif
-  day = sec/SECDAY+YRADJ;                       // get number of days
-  sec = sec%SECDAY;                             // and number of seconds
-  return sprintf((char *)ret_buffer, "%d,%d", day, (int) sec); // return count and $H
+{ time_t sec = current_time(TRUE);              // get secs from 1 Jan 1970 with local offset
+  int day = sec / SECDAY + YRADJ;               // get number of days
+  sec = sec % SECDAY;                           // and number of seconds
+  return sprintf((char *) ret_buffer, "%d,%d", day, (int) sec); // return count and $H
 }
 
 //***********************************************************************
@@ -173,7 +168,8 @@ short Vset(mvar *var, cstring *cptr)		// set a special variable
     }
     if ((cptr->len == 0) ||			// set to null ok
 	(cptr->buf[0] == 'U'))			// or Uanything
-    { bcopy("$ECODE\0\0", &var->name.var_cu[0], 8); // ensure name correct
+    { VAR_CLEAR(var->name);
+      bcopy("$ECODE", &var->name.var_cu[0], 6); // ensure name correct
       partab.jobtab->error_frame = 0;		// and where the error happened
       partab.jobtab->etrap_at = 0;		// not required
       if (cptr->len == 0)			// if we are clearing it
@@ -184,7 +180,8 @@ short Vset(mvar *var, cstring *cptr)		// set a special variable
   }
   if ((strncasecmp((char *)&var->name.var_cu[1], "et", 2) == 0) ||
       (strncasecmp((char *)&var->name.var_cu[1], "etrap", 5) == 0)) // $ET[RAP]
-  { bcopy("$ETRAP\0\0", &var->name.var_cu[0], 8); // ensure name correct
+  { VAR_CLEAR(var->name);
+    bcopy("$ETRAP", &var->name.var_cu[0], 6);	// ensure name correct
     if (cptr->len == 0) return ST_Kill(var);	// kill it
     return ST_Set(var, cptr);			// do it in symbol
   }

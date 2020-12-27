@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -61,13 +60,12 @@ short Locate(u_char *key)				// find key
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
-  Index = 10;						// start at the start
+  Index = IDX_START;					// start at the start
   while (TRUE)						// loop
   { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
+    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-    record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
+    record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at the dbc
     i = UTIL_Key_KeyCmp(&keybuf[1], &key[1], keybuf[0], key[0]); // compare
     if (i == KEQUAL)					// same?
     { return 0;						// done
@@ -109,10 +107,9 @@ short Locate_next()					// point at next key
   }							// end new block
 
   chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
-  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	chunk->buf[1]);					// update the key
+  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
   keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-  record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
+  record = (cstring *) &chunk->buf[chunk->buf[1] + 2];	// point at the dbc
   return 0;						// all done
 }
 

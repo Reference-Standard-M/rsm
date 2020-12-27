@@ -111,9 +111,9 @@ void parse_do(int runtime)				// DO
     }
     else
     { args = 0;					// number of args
-      if (i == -2) *ptr = CMDORT;		// just a routine
-      if (i == -3) *ptr = CMDOROU;		// both
-      if (i == -4) *ptr = CMDORTO;		// and an offset
+      if (i == -2) *ptr = CMDORT;		// routine and tag
+      if (i == -3) *ptr = CMDOROU;		// just a routine
+      if (i == -4) *ptr = CMDORTO;		// routine, tag, and offset
       if (*source_ptr == '(')			// any args?
       { savecount = comp_ptr - ptr;		// bytes that got compiled
         bcopy(ptr, save, savecount);		// save that lot
@@ -126,8 +126,7 @@ void parse_do(int runtime)				// DO
           { source_ptr++;			// skip the )
             break;				// and exit
           }
-	  if ((*source_ptr == ',') ||
-	      (*source_ptr == ')'))		// if empty argument
+	  if ((*source_ptr == ',') || (*source_ptr == ')')) // if empty argument
 	  { *comp_ptr++ = VARUNDF;		// flag it
 	  }
           else if ((*source_ptr == '.') &&	// by reference?
@@ -323,6 +322,7 @@ void parse_job(int runtime)			// JOB
 	  SYNTX					// all else is an error
 	}					// end of while
 	bcopy(save, comp_ptr, savecount); 	// copy the code back
+	ptr = comp_ptr;				// move save pointer for timeout
 	comp_ptr = comp_ptr + savecount;	// and add to the pointer
       }						// end of argument decode
       if (*source_ptr == ':')			// funny timeout
@@ -735,10 +735,10 @@ void parse_open()				// OPEN
       if (*source_ptr == ':')			// if another colon
       { source_ptr++;				// advance past it
 	*comp_ptr++ = OPSTR;			// push a string
-    *comp_ptr++ = 10;
-    *comp_ptr++ = 0;
+        *comp_ptr++ = 10;
+        *comp_ptr++ = 0;
 	//*((short *)comp_ptr)++ = (short) 10;	// the length
-	bcopy("namespace=\0",comp_ptr, 11);	// copy the param name
+	bcopy("namespace=\0", comp_ptr, 11);	// copy the param name
 	eval();					// eval the arg
 	*comp_ptr++ = OPCAT;			// concatenate them
       }
@@ -993,10 +993,10 @@ void parse_set()				// SET
       source_ptr++;				// and skip it
     }
     while (TRUE)				// in case of brackets
-    { if ((strncasecmp((char *)source_ptr, "$e(", 3) == 0) ||
-	  (strncasecmp((char *)source_ptr, "$extract(", 9) == 0) ||
-	  (strncasecmp((char *)source_ptr, "$p(", 3) == 0) ||
-	  (strncasecmp((char *)source_ptr, "$piece(", 7) == 0))
+    { if ((strncasecmp((char *) source_ptr, "$e(", 3) == 0) ||
+	  (strncasecmp((char *) source_ptr, "$extract(", 9) == 0) ||
+	  (strncasecmp((char *) source_ptr, "$p(", 3) == 0) ||
+	  (strncasecmp((char *) source_ptr, "$piece(", 7) == 0))
       { args = (toupper(source_ptr[1]) == 'P'); // $P = 1, $E = 0
 	while ((*source_ptr != '(') && (*source_ptr))
 	  source_ptr++;				// skip to bracket
@@ -1256,7 +1256,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'B':                                 // BREAK - no indirection
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "reak", 4) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "reak", 4) != 0) SYNTX
           source_ptr += 4;                      // point past the "reak"
         }
         c = *source_ptr++;                      // get next char
@@ -1288,7 +1288,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'C':                                 // CLOSE
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "lose", 4) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "lose", 4) != 0) SYNTX
           source_ptr += 4;                      // point past the "lose"
         }
         c = *source_ptr++;                      // get next char
@@ -1305,7 +1305,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'D':					// DO
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "o", 1) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "o", 1) != 0) SYNTX
           source_ptr += 1;                      // point past the "o"
         }
         c = *source_ptr++;                      // get next char
@@ -1325,8 +1325,8 @@ void parse()                                    // MAIN PARSE LOOP
 	break;					// end of do
 
       case 'E':                                 // ELSE - no indirect
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "lse", 3) != 0) SYNTX
+        if (isalpha(*source_ptr) != 0)           // if the next is alpha
+        { if (strncasecmp((char *) source_ptr, "lse", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "lse"
         }
         c = *source_ptr++;                      // get next char
@@ -1336,8 +1336,8 @@ void parse()                                    // MAIN PARSE LOOP
 	break;					// end else
 
       case 'F':					// FOR - no indirection
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "or", 2) != 0) SYNTX
+        if (isalpha(*source_ptr) != 0)           // if the next is alpha
+        { if (strncasecmp((char *) source_ptr, "or", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "or"
         }
         c = *source_ptr++;                      // get next char
@@ -1405,13 +1405,12 @@ void parse()                                    // MAIN PARSE LOOP
 	--source_ptr;				// backup to null (I hope)
 	*comp_ptr++ = CMFOREND;			// do end of for processing
 	*comp_ptr++ = OPNOP;			// add the NOP
-	*((short *)ptr) =
-	  (short) ((comp_ptr - ptr) - sizeof(short) - 1);
+	*((short *)ptr) = (short) ((comp_ptr - ptr) - sizeof(short) - 1);
 	break;					// end of FOR
 
       case 'G':					// GOTO
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "oto", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "oto", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "oto"
         }
         c = *source_ptr++;                      // get next char
@@ -1429,9 +1428,9 @@ void parse()                                    // MAIN PARSE LOOP
       case 'H':                                 // HALT/HANG
 	i = 0;					// halt = 1, hang = 2
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "alt", 3) == 0)
+        { if (strncasecmp((char *) source_ptr, "alt", 3) == 0)
 	    i = 1;
-	  else if (strncasecmp((char *)source_ptr, "ang", 3) == 0)
+	  else if (strncasecmp((char *) source_ptr, "ang", 3) == 0)
 	    i = 2;
 	  else if (!i) SYNTX			// neither of these
           source_ptr += 3;                      // point past the "alt/ang"
@@ -1461,7 +1460,7 @@ void parse()                                    // MAIN PARSE LOOP
 
      case 'I':                                 	// IF
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "f", 1) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "f", 1) != 0) SYNTX
           source_ptr += 1;                      // point past the "f"
         }
         c = *source_ptr++;                      // get next char
@@ -1476,7 +1475,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'J':					// JOB
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ob", 2) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "ob", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "ob"
         }
         c = *source_ptr++;                      // get next char
@@ -1493,7 +1492,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'K':                                 // KILL
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ill", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "ill", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "ill"
         }
 	c = ' ';				// assume a space
@@ -1520,7 +1519,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'L':					// LOCK
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ock", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "ock", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "ock"
         }
         c = *source_ptr++;                      // get next char
@@ -1547,7 +1546,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'M':                                 // MERGE
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "erge", 4) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "erge", 4) != 0) SYNTX
           source_ptr += 4;                      // point past the "erge"
         }
         c = *source_ptr++;                      // get next char
@@ -1564,7 +1563,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'N':					// NEW
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ew", 2) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "ew", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "ew"
         }
 	args = 0;				// clear arg count
@@ -1592,7 +1591,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'O':					// OPEN
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "pen", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "pen", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "pen"
         }
         c = *source_ptr++;                      // get next char
@@ -1609,7 +1608,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'Q':					// QUIT - no indirection
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "uit", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "uit", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "uit"
         }
 	c = ' ';				// assume a space
@@ -1635,7 +1634,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'R':					// READ
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ead", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "ead", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "ead"
         }
         c = *source_ptr++;                      // get next char
@@ -1652,7 +1651,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'S':                                 // SET
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "et", 2) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "et", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "et"
         }
         c = *source_ptr++;                      // get next char
@@ -1669,7 +1668,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'U':					// USE
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "se", 2) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "se", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "se"
         }
         c = *source_ptr++;                      // get next char
@@ -1686,7 +1685,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'V':					// VIEW - no indirection
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "iew", 3) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "iew", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "iew"
         }
         c = *source_ptr++;                      // get next char
@@ -1711,7 +1710,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'W':                                 // WRITE
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "rite", 4) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "rite", 4) != 0) SYNTX
           source_ptr += 4;                      // point past the "rite"
         }
         c = *source_ptr++;                      // get next char
@@ -1728,7 +1727,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'X':					// XECUTE
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ecute", 5) != 0) SYNTX
+        { if (strncasecmp((char *) source_ptr, "ecute", 5) != 0) SYNTX
           source_ptr += 5;                      // point past the "ecute"
         }
         c = *source_ptr++;                      // get next char

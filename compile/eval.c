@@ -127,16 +127,16 @@ void atom()                                     // evaluate source
     return;                                     // and exit
   }                                             // end function parse
 
-  if ((isdigit((int)c) != 0) || (c == '.'))     // check for number or dot
+  if ((isdigit((int) c) != 0) || (c == '.'))    // check for number or dot
   { source_ptr--;                               // back up the source ptr
     *comp_ptr++ = OPSTR;                        // say string following
-    s = ncopy(&source_ptr, comp_ptr+2);         // copy as number
-    *((short *)comp_ptr) = s;                   // store string count
+    s = ncopy(&source_ptr, comp_ptr + 2);       // copy as number
+    *((short *) comp_ptr) = s;                  // store string count
     comp_ptr = comp_ptr + sizeof(short) + s + 1; // allow for null byte
     return;
   }                                             // end numeric parse
 
-  if (c == '"')                                 // rabit ear
+  if (c == '"')                                 // rabbit ear
   { *comp_ptr++ = OPSTR;                        // say string following
     p = comp_ptr;                               // possible destination
     j = 2;                                      // point at p->buf[0]
@@ -154,7 +154,7 @@ void atom()                                     // evaluate source
       }                                         // end 'end of str' code
       p[j++] = *source_ptr++;                   // copy the character
       if ((*(source_ptr-1) == '"') &&
-          (*source_ptr == '"'))                 // check for rabit ear
+          (*source_ptr == '"'))                 // check for rabbit ear
         source_ptr++;                           // point past the second one
     }                                           // end of copy loop
     *((short *)p) = (short) j-2;                // store cstring count
@@ -255,7 +255,6 @@ int operator()                                  // extract an operator
 
 // function eval entered with source_ptr pointing at the source
 // expression to evaluate and comp_ptr pointing at where to put the code.
-//
 void eval()                                     // evaluate source
 { int op;                                       // operator
   int q;					// in quotes indicator

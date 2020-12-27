@@ -32,6 +32,7 @@
 #include <strings.h>
 #include <ctype.h>
 #include <errno.h>                              // error stuff
+#include <time.h>                               // for current_time()
 #include <sys/utsname.h>                        // defines struct utsname
 #include <limits.h>
 #include <math.h>
@@ -44,17 +45,14 @@ int cstringtoi(cstring *str)                    // convert cstring to int
   int i;                                        // for loops
   int minus = FALSE;                            // sign check
 
-  for (i=0; (i < (int)str->len)&&
-            ((str->buf[i] == '-') ||
-             (str->buf[i] == '+')); i++)        // check leading characters
+  for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++) // check leading characters
     if (str->buf[i] == '-') minus = !minus;     // count minus signs
-  for (; i < (int)str->len; i++)                // for each character
-  { if ((str->buf[i] > '9')||(str->buf[i] < '0')) break; // check for digit
+  for (; i < (int) str->len; i++)               // for each character
+  { if ((str->buf[i] > '9') || (str->buf[i] < '0')) break; // check for digit
     if (ret > 214748363) return INT_MAX;	// check for possible overflow
-    ret = (ret * 10) + ((int)str->buf[i] - 48); // Cvt to int
+    ret = (ret * 10) + ((int) str->buf[i] - 48); // Cvt to int
   }                                             // end convert loop
-  if ((systab->historic & HISTORIC_EOK)
-     && (i < (str->len - 1)) && (str->buf[i] == 'E'))
+  if ((systab->historic & HISTORIC_EOK) && (i < (str->len - 1)) && (str->buf[i] == 'E'))
   { int exp = 0;				// an exponent
     int expsgn = 1;				// and the sign
     int j = 10;					// for E calc
@@ -154,13 +152,14 @@ short Set_Error(int err, cstring *user, cstring *space)
   int flag;					// to remember
   mvar *var;					// a handy mvar
   cstring *tmp;					// spare cstring ptr
-  char temp[20];				// and some space
+  char temp[8];					// and some space
 
   var = &partab.src_var;			// a spare mvar
   var->slen = 0;				// no subs
   // note - the uci and volset were setup by the caller
 
-  bcopy("$ECODE\0\0", &var->name.var_cu[0], 8);	// get the name
+  VAR_CLEAR(var->name);
+  bcopy("$ECODE", &var->name.var_cu[0], 6);	// get the name
   t = ST_Get(var, space->buf);			// get it
   if (t < 0) t = 0;				// ignore undefined
   flag = t;					// remember if some there
@@ -222,23 +221,38 @@ int rsm_version(u_char *ret_buffer)             // return version string
   int j = 0;                                    // for returned strings
   struct utsname uts;                           // struct for uname
   i = uname(&uts);                              // get system info
-  if (i == -1) return (-1);                      // exit on error
+  if (i == -1) return (-1);                     // exit on error
   bcopy("Reference Standard M V", ret_buffer, 22); // copy in Reference Standard M V
   i = 22;					// point past it
   if (VERSION_TEST)				// if an internal version
-  { i += sprintf((char *)&ret_buffer[i], "%d.%d.%d T%d for ",
+  { i += sprintf((char *) &ret_buffer[i], "%d.%d.%d T%d for ",
 		 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TEST);
   }
   else						// else normal release
-  { i += sprintf((char *)&ret_buffer[i], "%d.%d.%d for ",
+  { i += sprintf((char *) &ret_buffer[i], "%d.%d.%d for ",
 		 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
   }
   j = 0;                                        // clear src ptr
   while ((ret_buffer[i++] = uts.sysname[j++])); // copy name
-  ret_buffer[i-1] = ' ';                        // and a space over the null
+  ret_buffer[i - 1] = ' ';                      // and a space over the null
   j = 0;                                        // clear src ptr
   while ((ret_buffer[i++] = uts.machine[j++])); // copy hardware
-  ret_buffer[i-1] = ' ';                        // and a space over the null
-  i += sprintf((char *)&ret_buffer[i], "Built %s at %s", __DATE__ , __TIME__);
-  return i-1;                                   // and return count
+  ret_buffer[i - 1] = ' ';                      // and a space over the null
+  i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__ , __TIME__);
+  return i;                                     // and return count
+}
+
+time_t current_time(short local)                // get current time with local offset
+{ time_t sec = time(NULL);                      // get secs from 1 Jan 1970 UTC
+  if (local)
+  {
+#if !defined(__CYGWIN__) && !defined(__sun__) && !defined(_AIX)
+  struct tm *buf;                               // struct for localtime()
+  buf = localtime(&sec);                        // get UTC-localtime
+  sec = sec + buf->tm_gmtoff;                   // adjust to local
+#else
+  ;
+#endif
+  }
+  return sec;
 }

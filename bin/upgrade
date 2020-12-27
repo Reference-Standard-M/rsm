@@ -1,0 +1,274 @@
+#!/bin/bash -
+#
+# upgrade - Upgrade an RSM or MV1 database from version 1 to 2
+#
+# Written by David Wicksell <dlw@linux.com>
+# Copyright © 2020 Fourth Watch Software LC
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License (AGPL)
+# as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see http://www.gnu.org/licenses/.
+
+DEF="\033[0m"
+LOG="\033[0;32m"
+ERR="\033[0;31m"
+
+function error_trap
+{
+    local CMD="$BASH_COMMAND" ERROR=$?
+    echo -e "\n${ERR}Upgrade failed: \`$CMD\` exited with error $ERROR!!!${DEF}"
+}
+
+function error_on
+{
+    set -eE
+    trap error_trap ERR
+}
+
+function error_off
+{
+    set +eE
+    trap - ERR
+}
+
+error_on
+
+echo -e "${LOG}Reference Standard M Database Upgrade Utility${DEF}\n"
+echo -e "Upgrades an RSM or Mumps V1 (MV1) database from version 1 to 2\n"
+echo -e "${ERR}WARNING:${DEF} This script is experimental.\n"
+echo "David Wicksell <dlw@linux.com>"
+echo "Copyright (c) 2020 Fourth Watch Software LC"
+echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
+
+[[ $1 == "-h" ]] && echo -e "\n${LOG}Usage:${DEF}\t$0 [<database file to upgrade>]\n\t$0 -h" && exit 0
+
+[[ -n $1 && ! -f $1 ]] && echo -e "\n${ERR}File does not exist or is not a regular file${DEF}"
+[[ ! -f $1 ]] && echo && read -ep "Enter the name of the database file to upgrade: " DBFILE || DBFILE="$1"
+
+DBFILE="${DBFILE/\~\//~/}"
+
+[[ -z $DBFILE ]] && echo -e "\n${ERR}No file was entered, aborting${DEF}" && exit 1
+[[ ! -f $DBFILE ]] && echo -e "\n${ERR}File does not exist or is not a regular file, aborting${DEF}" && exit 2
+
+CWD="$(pwd)"
+REPO="$(dirname $(readlink -f $CWD/$(dirname $0)))"
+DBBKUP="${DBFILE}-$(date "+%Y%m%d%H%M%S").bkup"
+TYPE="$(file -bm $REPO/conf/magic $DBFILE)"
+
+if [[ $TYPE != "Reference Standard M Database file, version 1" ]]
+then
+    echo -e "\n${ERR}Wrong database file version [$TYPE], aborting${DEF}"
+    exit 3
+fi
+
+cd $REPO
+
+echo -e "\n${LOG}Building RSM for database version 1 ...${DEF}"
+
+make clean 2>/dev/null
+make dbver=1 2>/dev/null
+
+echo -e "\n${LOG}Making sure the $DBFILE environment is shut down for the database backup ...${DEF}"
+
+error_off
+
+$REPO/rsm -x 'kill ^$job' $DBFILE 2>/dev/null
+if [[ $? == 0 ]]
+then
+    echo -e "\n${LOG}The $DBFILE environment is now shut down${DEF}"
+else
+    echo -e "\n${LOG}The $DBFILE environment was already shut down${DEF}"
+fi
+
+error_on
+
+echo -e "\n${LOG}Backing up the $DBFILE database as $DBBKUP ...${DEF}"
+
+cp -a $DBFILE $DBBKUP
+
+echo -e "\n${LOG}Starting the $DBFILE environment in single user mode ...${DEF}"
+
+$REPO/rsm -j 1 $DBFILE
+
+echo -e "\n${LOG}Extracting the database and journal configuration ...${DEF}"
+
+VOLUME="$($REPO/rsm -x 'write ^$system("vol",1,"name")' $DBFILE)"
+BLKSIZE=$(($($REPO/rsm -x 'write ^$system("vol",1,"block")' $DBFILE) / 1024))
+BLOCKS=$($REPO/rsm -x 'write ^$system("vol",1,"size")' $DBFILE)
+HDRSIZE=$(($($REPO/rsm -x 'write ^$system("vol",1,"header")' $DBFILE) / 1024 + 2))
+
+[[ $HDRSIZE -gt 262147 ]] && HDRSIZE=262147
+
+NEXTOK=$($REPO/rsm -x 'write ^$system("$nextok")' $DBFILE)
+EOK=$($REPO/rsm -x 'write ^$system("eok")' $DBFILE)
+
+JRNFILE="$($REPO/rsm -x 'write ^$system("vol",1,"journal_file")' $DBFILE)"
+JRNREQ=$($REPO/rsm -x 'write ^$system("vol",1,"journal_requested")' $DBFILE)
+GLOBAL=($($REPO/rsm -x 'set nm="" for  set nm=$order(^$global(nm)) quit:nm=""  write:^$global(nm,"journal")=1 nm_" "' $DBFILE))
+
+if [[ -f $JRNFILE ]]
+then
+    JRNBKUP="${JRNFILE}-$(date "+%Y%m%d%H%M%S").bkup"
+
+    echo -e "\n${LOG}Backing up the $JRNFILE journal as $JRNBKUP ...${DEF}"
+
+    cp -a $JRNFILE $JRNBKUP
+fi
+
+NUM=0
+UCI=""
+UCIS=""
+CNT=0
+while true
+do
+    NUM=$($REPO/rsm -x "write \$order(^\$system(\"vol\",1,\"uci\",$NUM))" $DBFILE)
+    [[ $NUM == "" ]] && break
+
+    UCI="$($REPO/rsm -x "write ^\$system(\"vol\",1,\"uci\",$NUM)" $DBFILE)"
+
+    UCIS[$CNT]="$UCI"
+    CNT=$((CNT + 1))
+
+    echo -e "\n${LOG}Exporting the globals and routines from the $UCI UCI ...${DEF}"
+
+    $REPO/rsm -e $UCI -x "do INT^%GS(\"*\",\"$DBFILE-$UCI.go\",\"RSM [$UCI] Globals\")" $DBFILE
+    $REPO/rsm -e $UCI -x "do INT^%RS(\"*\",\"$DBFILE-$UCI.ro\",\"RSM [$UCI] Routines\")" $DBFILE
+
+    echo -e "\n${LOG}Calculating new bytecode sizes ...${DEF}"
+
+    RTNMAX=$($REPO/rsm -x "set rou=\"\",max=0 for  set rou=\$order(^\$routine(rou)) write:rou=\"\" max,! quit:rou=\"\"  \
+      set cmp=^\$routine(rou,0),len=\$length(cmp),tag=\$ascii(cmp,16)*256+\$ascii(cmp,15),var=\$ascii(cmp,20)*256+\$ascii(cmp,19) \
+      set max=\$select(tag+var*24+len>max:tag+var*24+len,1:max)" $DBFILE | tr -d '')
+
+    if [[ -n $PREVRTNMAX ]]
+    then
+        PREVRTNMAX=$RTNMAX
+    else
+        [[ $PREVRTNMAX -gt $RTNMAX ]] && RTNMAX=$PREVRTNMAX
+    fi
+done
+
+if [[ $RTNMAX -lt 32768 && $RTNMAX -gt $(($BLKSIZE * 1024)) ]]
+then
+    RTNMAX=$(($RTNMAX / 1024 + 1))
+
+    echo -e "\nTo load your routines, use a block size of at least $RTNMAX KiB - current size is $BLKSIZE KiB"
+    read -p "Do you want to use a larger size? [N/y]: " ANS
+
+    if [[ $ANS == "y" || $ANS == "Y" ]]
+    then
+        read -p "What block size in KiB do you want to use? [4 - 256 KiB]: " ANS
+        [[ -n $ANS ]] && BLKSIZE=$ANS
+    fi
+fi
+
+echo -e "\n${LOG}Shutting down the old $DBFILE environment ...${DEF}"
+
+$REPO/rsm -x 'kill ^$job' $DBFILE
+
+echo -e "\n${LOG}Building RSM for database version 2 ...${DEF}"
+
+make clean 2>/dev/null
+make 2>/dev/null
+
+echo -e "\n${LOG}Removing the old $DBFILE database ...${DEF}"
+
+rm -f $DBFILE
+
+echo -e "\n${LOG}Creating the new $DBFILE database with the same configuration as the old one ...${DEF}"
+
+$REPO/rsm -v $VOLUME -b $BLKSIZE -s $BLOCKS -m $HDRSIZE $DBFILE
+
+echo -e "\n${LOG}Starting the new $DBFILE environment in single user mode ...${DEF}"
+
+$REPO/rsm -j 1 $DBFILE
+
+echo -e "\n${LOG}Loading the database and journal configuration ...${DEF}"
+
+$REPO/rsm -x "set ^\$system(\"\$nextok\")=$NEXTOK" $DBFILE
+$REPO/rsm -x "set ^\$system(\"eok\")=$EOK" $DBFILE
+$REPO/rsm -x "set ^\$system(\"vol\",1,\"journal_file\")=\"$JRNFILE\"" $DBFILE
+$REPO/rsm -x "set ^\$system(\"vol\",1,\"journal_requested\")=$JRNREQ" $DBFILE
+
+if [[ -f $JRNFILE ]]
+then
+    echo -e "\n${LOG}Cutting a new journal file for database version 2 ...${DEF}"
+    
+    $REPO/rsm -x 'set ^$system("vol",1,"journal_size")=0' $DBFILE
+fi
+
+for global in ${GLOBAL[@]}
+do
+    $REPO/rsm -x "set ^\$global(\"$global\",\"journal\")=1" $DBFILE
+
+    [[ $GLOBAL == "$GLOBAL" ]] && break
+done
+
+echo -e "\n${LOG}Loading the vendor import utility ...${DEF}"
+
+$REPO/rsm -x "open 1:(\"$REPO/utils.rsm\":\"r\") use 1 read code xecute code" $DBFILE
+
+CNT=1
+for uci in ${UCIS[@]}
+do
+    if [[ $CNT != 1 ]]
+    then
+        echo -e "\n${LOG}Creating the $uci UCI ...${DEF}"
+
+        $REPO/rsm -x "set ^\$system(\"vol\",1,\"uci\",$CNT)=\"$uci\"" $DBFILE
+    fi
+
+    CNT=$((CNT + 1))
+
+    echo -e "\n${LOG}Importing the globals and routines to the $uci UCI ...${DEF}"
+
+    if [[ -f $DBFILE-$uci.go ]]
+    then
+        $REPO/rsm -e $uci -x "do INT^%GR(\"$DBFILE-$uci.go\",1)" $DBFILE
+    fi
+
+    if [[ -f $DBFILE-$uci.ro ]]
+    then
+        $REPO/rsm -e $uci -x "do INT^%RR(\"$DBFILE-$uci.ro\",1)" $DBFILE
+    fi
+done
+
+$REPO/rsm -x 'kill ^$job' $DBFILE
+
+while fuser $DBFILE &>/dev/null
+do
+    sleep 1
+done
+
+echo
+
+$REPO/rsm -j 2 $DBFILE
+
+echo -e "\n${LOG}Loading the new vendor utilities ...${DEF}"
+
+$REPO/rsm -x "open 1:(\"$REPO/utils.rsm\":\"r\") use 1 read code xecute code" $DBFILE
+
+echo -e "\n${LOG}Shutting down the new $DBFILE environment ...${DEF}"
+
+$REPO/rsm -x 'kill ^$job' $DBFILE
+
+echo -e "\n${LOG}Removing the temporary routine and global export files ...${DEF}"
+
+rm -f $DBFILE-*.[rg]o
+
+echo -e "\n${LOG}Cleaning the build environment ...${DEF}"
+
+make clean 2>/dev/null
+
+cd $CWD
+
+exit 0

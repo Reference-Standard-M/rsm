@@ -33,30 +33,29 @@
 //
 
 // Database prototypes
-short DB_Get(mvar *var, u_char *buf);            // get global data
-short DB_Set(mvar *var, cstring *data);          // set global data
-short DB_Data(mvar *var, u_char *buf);           // get $DATA()
-short DB_Kill(mvar *var);                        // remove sub-tree
+short DB_Get(mvar *var, u_char *buf);           // get global data
+short DB_Set(mvar *var, cstring *data);         // set global data
+short DB_Data(mvar *var, u_char *buf);          // get $DATA()
+short DB_Kill(mvar *var);                       // remove sub-tree
 short DB_Mount(char *file, int volnum, int gmb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_Query(mvar *var, u_char *buf, int dir); // get next key
-short DB_QueryD(mvar *var, u_char *buf);	 // get next key and data
+short DB_QueryD(mvar *var, u_char *buf);	// get next key and data
 short DB_GetLen(mvar *var, int lock, u_char *buf); // return length of global
-short DB_Compress(mvar *var, int flags);	     // on line compressor
-int DB_Free(int vol);                            // return total free blocks
-short DB_UCISet(int vol, int uci, var_u name);   // set uci name
-short DB_UCIKill(int vol, int uci);              // kill uci entry
-short DB_Expand(int vol, u_int vsiz);		     // expand db
-int DB_Dismount(int vol);			             // dismount a volume
-void ClearJournal();				             // clear journal
-void DB_StopJournal(int vol, u_char action);	 // Stop journal
-int DB_GetFlags(mvar *var);                    	 // Get flags
-int DB_SetFlags(mvar *var, int flags);         	 // Set flags
-int DB_ic(int vol, int block);			         // integrity checker
-struct GBD *DB_ViewGet(int vol, int block);      // return gbd address of
-                                                 // specified block, null on err
-void DB_ViewPut(int vol, struct GBD *ptr);       // que block for write
-void DB_ViewRel(int vol, struct GBD *ptr);       // release block, gbd -> free
+short DB_Compress(mvar *var, int flags);	// on line compressor
+int DB_Free(int vol);                           // return total free blocks
+short DB_UCISet(int vol, int uci, var_u name);  // set uci name
+short DB_UCIKill(int vol, int uci);             // kill uci entry
+short DB_Expand(int vol, u_int vsiz);		// expand db
+int DB_Dismount(int vol);			// dismount a volume
+void ClearJournal();				// clear journal
+void DB_StopJournal(int vol, u_char action);	// Stop journal
+int DB_GetFlags(mvar *var);                    	// Get flags
+int DB_SetFlags(mvar *var, int flags);         	// Set flags
+int DB_ic(int vol, int block);			// integrity checker
+struct GBD *DB_ViewGet(int vol, int block);     // return gbd address of specified block, null on err
+void DB_ViewPut(int vol, struct GBD *ptr);      // que block for write
+void DB_ViewRel(int vol, struct GBD *ptr);      // release block, gbd -> free
 
 //****************************************************************************
 // Sequential IO
@@ -101,8 +100,9 @@ int cstringtoi(cstring *str);                   // convert cstring to int
 int cstringtob(cstring *str);                   // convert cstring to boolean
 short itocstring(u_char *buf, int n);		// convert int to string
 short uitocstring(u_char *buf, u_int n);	// convert u_int to string
-int rsm_version(u_char *ret_buffer);          // return version string
+int rsm_version(u_char *ret_buffer);            // return version string
 short Set_Error(int err, cstring *user, cstring *space); // Set $ECODE
+time_t current_time(short local);               // get current time with/without local offset
 
 short run(int asp, int ssp);			// run compiled code
 short buildmvar(mvar *var, int nul_ok, int asp); // build an mvar
@@ -142,8 +142,7 @@ short Dorder1(u_char *ret_buffer, mvar *var);
 short Dorder2(u_char *ret_buffer, mvar *var, int dir);
 short Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim);
 short Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1);
-short Dpiece4(u_char *ret_buffer, cstring *expr,
-	cstring *delim, int i1, int i2);
+short Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2);
 short Dquery1(u_char *ret_buffer, mvar *var);
 short Dquery2(u_char *ret_buffer, mvar *var, int dir);
 short Drandom(u_char *ret_buffer, int seed);
@@ -154,15 +153,11 @@ short Dstack2(u_char *ret_buffer, int level, cstring *code);
 short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job);
 short Dtext(u_char *ret_buffer, cstring *str);
 short Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
-short Dtranslate3(u_char *ret_buffer, cstring *expr1,
-                 cstring *expr2, cstring *expr3);
-short Dview(u_char *ret_buffer, int chan, int loc,
-            int size, cstring *value);			// $VIEW()
+short Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3);
+short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value); // $VIEW()
 
-short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
-		cstring *dptr, int i1, int i2);		// Set $PIECE()
-short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
-		  int i1, int i2);			// Set $EXTRACT()
+short DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2); // Set $PIECE()
+short DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2); // Set $EXTRACT()
 
 // Runtime Variables
 short Vecode(u_char *ret_buffer);
@@ -189,7 +184,7 @@ short ST_QueryD(mvar *var, u_char *buf);	// get next key and data
 short ST_Dump();				// dump the symbol table
 short ST_DumpV(mvar *global);			// dump symtab vars as subs
 
-short ST_SymAtt(chr_q var);			// attach to variable
+short ST_SymAtt(var_u var);			// attach to variable
 void  ST_SymDet(int count, short *list);	// detach from variables
 short ST_SymGet(short syment, u_char *buf);	// get using syment
 short ST_SymSet(short syment, cstring *data);	// set using syment
@@ -209,17 +204,13 @@ short SS_Order(mvar *var, u_char *buf, int dir); // get next subscript
 
 // Key Utility prototypes
 short UTIL_Key_Build(cstring *src, u_char *dest); // locn of source string
-short UTIL_Key_Extract(u_char *key,
-	u_char *str, int *cnt); 		// extract subscript
-short UTIL_String_Key(u_char *key,
-	u_char *str, int max_subs); 		// extr all keys
-short UTIL_String_Mvar(mvar *var,
-	u_char *str, int max_subs); 		// mvar -> string
+short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt); // extract subscript
+short UTIL_String_Key(u_char *key, u_char *str, int max_subs); // extr all keys
+short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs); // mvar -> string
 int UTIL_Key_Last(mvar *var);			// point at last subs in mvar
 short UTIL_MvarFromCStr(cstring *src, mvar *var); // cvt cstring to mvar
 int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
-int UTIL_Key_Chars_In_Subs(char *Key, int keylen,
-	int maxsubs, int *subs, char *KeyBuffer);
+int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *KeyBuffer);
 
 // General utility prototypes
 short UTIL_strerror(int err, u_char *buf);      // return string error msg
@@ -227,9 +218,9 @@ short mcopy(u_char *src, u_char *dst, int bytes); // bcopy with checking etc
 short ncopy(u_char **src, u_char *dst);         // copy as number
 void CleanJob(int job);				// tidy up a job
 void panic(char *msg); 				// die on error
-struct RBD *Routine_Attach(chr_q routine);	// attach to routine
+struct RBD *Routine_Attach(var_u routine);	// attach to routine
 void Routine_Detach(struct RBD *pointer);	// Detach from routine
-void Routine_Delete(chr_q routine, int uci);	// mark mapped routine deleted
+void Routine_Delete(var_u routine, int uci);	// mark mapped routine deleted
 void Dump_rbd();				// dump descriptors
 void Dump_lt();					// dump used/free lockspace
 
@@ -249,7 +240,6 @@ short LCK_Add(int count, cstring *list, int to);
 short LCK_Sub(int count, cstring *list);
 
 // Xcalls
-//
 short Xcall_host(char *ret_buffer, cstring *name, cstring *dum2);
 short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
 short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2);

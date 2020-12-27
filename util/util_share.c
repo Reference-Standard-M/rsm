@@ -76,7 +76,7 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
 short SemOp(int sem_num, int numb)              // Add/Remove semaphore
 { short s;                                      // for returns
   int i;                                        // for try loop
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+  struct sembuf buf = {0, 0, SEM_UNDO};         // for semop()
 
   if (numb == 0)				// check for junk
   { return 0;					// just return

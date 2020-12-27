@@ -30,19 +30,23 @@
 
 #define MAX_GROUPS	32			// max number of unix groups
 
-int INIT_Create_File(int blocks,                // number of blocks
-                     int bsize,                 // block size in bytes
-                     int map,                   // map size in bytes may be 0
+int INIT_Create_File(u_int blocks,              // number of blocks
+                     u_int bsize,               // block size in bytes
+                     u_int map,                 // map size in bytes may be 0
                      char *volnam,              // volume name
+                     char *env,                 // manager UCI name
                      char *file);               // file name
+
 int INIT_Run(char *file,                        // database file
-              char *env,                        // environment (UCI)
-              char *cmd);                       // command
+             char *env,                         // environment (UCI)
+             char *cmd);                        // command
+
 int INIT_Start(char *file,                      // database
-                int jobs,                       // number of jobs
-                int gmb,                        // mb of global buf
-                int rmb,                        // mb of routine buf
-                int addmb);                     // mb of additional buf
+               u_int jobs,                      // number of jobs
+               u_int gmb,                       // MiB of global buf
+               u_int rmb,                       // MiB of routine buf
+               u_int addmb);                    // MiB of additional buf
+
 void ST_Init();					// empty symbol table
 
 #endif                                          // !_RSM_INIT_H_

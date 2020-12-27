@@ -33,9 +33,9 @@
 #define SYNTX { comperror(-(ERRZ13+ERRMLAST)); return; } // compile syntax err
 #define ERROR(E) { partab.jobtab->async_error = E;\
 		   partab.jobtab->attention = 1;\
-		   break; }				// report an error
+		   break; }			// report an error
 
-#define INDSNOK(S) (((S * 2) + (sizeof(int) *2) + isp) > MAX_ISTK)
+#define INDSNOK(S) (((S * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)
 	// The above is for testing indirection size - a guess
 #define INDANOK(A) ((comp_ptr + (sizeof(int) * 2) + 1) >= &indstk[MAX_ISTK])
 	// The above is for testing the address of compiled indirection
@@ -44,7 +44,7 @@
 		+ sizeof(int) + sizeof(time_t) + sizeof(var_u) \
 		+ sizeof(u_char) + sizeof(u_char) + sizeof(short)
 
-#define RESERVE_TIME	17*60			// 17 minutes
+#define RESERVE_TIME	(17 * 60)		// 17 minutes
 #define SIZE_CLOSE	1024			// routine size match
 
 #define FOR_TYP_0       0			// no args
@@ -54,16 +54,16 @@
 
 #define FOR_NESTED      16			// we are not an outside for
 
-// Funnee op code stuff
+// Funny op code stuff
 
-#define BREAK_NOW 256				// break (not really an opcode)
-#define JOBIT	512				// JOB (ditto)
-#define BREAK_QN 16384				// return a QUIT n
+#define BREAK_NOW       256			// break (not really an opcode)
+#define JOBIT           512			// JOB (ditto)
+#define BREAK_QN        16384			// return a QUIT n
 
 // ** Variable types follow **
 
 #define TYPMAXSUB	63			// max subscripts
-#define TYPVARNAM	0			// name only (8 bytes)
+#define TYPVARNAM	0			// name only (NAME_LEN bytes)
 #define TYPVARLOCMAX	TYPVARNAM+TYPMAXSUB	// local is 1->63 subs
 #define TYPVARIDX	64			// 1 byte index (+ #subs)
 #define TYPVARGBL	128			// first global
@@ -118,7 +118,6 @@ typedef struct __attribute__ ((__packed__)) RBD // define routine buf desciptor
   u_short num_vars;                             // number of vars in table
   u_short code;                                 // offset to compiled code
   u_short code_size;                            // bytes of code
-
 } rbd;                 				// end rbd struct
 
 // Compile only prototypes follow

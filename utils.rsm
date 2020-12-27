@@ -1,36 +1,113 @@
  S %I=$I R B X B U 0 C %I D ^%C K ^$R("%C") W !,"Done",! Q
  F  R R Q:R=""  U 0 W R,! U %I K A F I=1:1 R A(I) I A(I)="" M ^$R(R)=A Q
+%RR
+%RR ;Routine Restore from file
+ N FILE
+ R "Restore from file: ",FILE,! Q:FILE=""
+ D INT(FILE,0) Q
+INT(FILE,NOSAY,%,A,R,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%RR"
+ O 1:(FILE:"R") U 1 R A,R U 0 S A=$TR(A,$C(13)),R=$TR(R,$C(13))
+ I NOSAY<2 W !,A,!,R,!
+ I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
+ U 1 F  R R S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
+ . I NOSAY<2 U 0 W:$X>70 ! W R,?$X\10+1*10 U 1
+ . K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)) Q:A(%)=""  Q:$A($K)=255
+ . M ^$R(R)=A
+EX U 0 W:R'="" "$ECODE=,"_$P($EC,",",2)_","_$&%ERRMSG($P($EC,",",2))
+ W:NOSAY<2 ! S $EC="" U:R'="" 1 I R="" C 1 Q
+
+%RS
+%RS ;Routine Save
+ R !,"Routine(s): ",ROU Q:ROU=""
+ R !,"Filename:   ",FILE G %RS:FILE=""
+ R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=ROU
+ D INT(ROU,FILE,HEAD) Q
+INT(ROU,FILE,HEAD,%,VOL,UCI,R,ZR) N $ET S ZR="INT^%RS",$ET="D EX^%RS"
+ S HEAD=$G(HEAD,ROU)
+ S UI=$$UI^%U() K ^UTILITY(UI) S ROU=$$PAT^%U(ROU)
+ D INT^%RD(3,ROU,^$J($J,"ROUTINE"),"","z","^UTILITY("_UI_")")
+ I $O(^UTILITY(UI,""))="" W !,"?No routines selected.",! Q
+ S %=^$J($J,"ROUTINE_VOL"),VOL=^$S("VOL",%,"NAME")
+ S UCI=^$S("VOL",%,"UCI",^$J($J,"ROUTINE"))
+ O 1:(FILE:"W") U 1 W "Saved by %RS from ["_UCI_","_VOL_"] on "
+ W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
+ S R="" F  S R=$O(^UTILITY(UI,R)) Q:R=""  D
+ . U 0 W:$X>70 ! W R,?$X\10+1*10 U 1 W R,!
+ . S %=0 F  S %=$O(^$R(R,%)) Q:%=""  W ^$R(R,%),!
+ . W !
+EX W ! U 0 W:R'="" "$ECODE=,"_$P($EC,",",2)_","_$&%ERRMSG($P($EC,",",2))
+ S $EC="" U:R'="" 1 I R="" C 1 W ! Q
+
+%GR
+%GR ;Global Restore from file
+ R "Restore from file: ",FILE,! Q:FILE=""
+ D INT(FILE,0) Q
+INT(FILE,NOSAY,%,G,S,ZR) N $ET S ZR="INT^%GR",NOSAY=$G(NOSAY),$ET="D EX^%GR"
+ O 1:(FILE:"R") U 1 R G,% U 0 S G=$TR(G,$C(13)),%=$TR(%,$C(13))
+ I NOSAY<2 W !,G,!,%,!
+ I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
+ U 1 F  R G,% S G=$TR(G,$C(13)),%=$TR(%,$C(13)) Q:$E(G)="*"  D  Q:$A($K)=255
+ .S @G=% I NOSAY<2 U 0 W:$X>70 ! W G,?$X\10+1*10 U 1
+ .F  R S,% S S=$TR(S,$C(13)),%=$TR(%,$C(13)) Q:$E(S)="*"  S:$E(S)="^" G="" S @(G_S)=%
+EX U 0 W:NOSAY<2 ! C 1 Q
+
+%GS
+%GS ;Global Save
+ R !,"Global(s):  ",GLO Q:GLO=""
+ R !,"Filename:   ",FILE G %RS:FILE=""
+ R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=GLO
+ D INT(GLO,FILE,HEAD) Q
+INT(GLO,FILE,HEAD,%,VOL,UCI,G,ZR) N $ET S ZR="INT^%GS",$ET="D EX^%GS"
+ S HEAD=$G(HEAD,GLO)
+ S UI=$$UI^%U() K ^UTILITY(UI) S GLO=$$PAT^%U(GLO)
+ D INT^%GD(3,GLO,^$J($J,"GLOBAL"),"","z","^UTILITY("_UI_")")
+ I $O(^UTILITY(UI,""))="" W !,"?No globals selected.",! Q
+ S %=^$J($J,"GLOBAL_VOL"),VOL=^$S("VOL",%,"NAME")
+ S UCI=^$S("VOL",%,"UCI",^$J($J,"GLOBAL"))
+ O 1:(FILE:"W") U 1 W "Saved by %GS from ["_UCI_","_VOL_"] on "
+ W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
+ S GLO="" F  S GLO=$O(^UTILITY(UI,GLO)) Q:GLO=""  S G="^"_GLO D
+ .U 0 W:$X>70 ! W GLO,?$X\10+1*10 U 1
+ .W G,!,$G(@G),! F  S G=$Q(@G) Q:G=""  W "("_$P(G,"(",2,999),!,@G,!
+ .W "*",!,"*",!
+ W "**",!,"**",! U 0
+EX C 1 W ! Q
+
 %BLKDMP
 %BLKDMP ;Dump a block to $IO formatted
- W:$X ! F  R "Block No: ",BLK,! Q:'BLK  D INT(BLK)
+ W:$X ! F  R "Block Number: ",BLK,! Q:'BLK  D INT(BLK)
  Q
+ ;
 INT(BLK,XX,%,F,I,G,LI,D,BUF,CCC,UCC,K,KET,DATA,ZR) N $ET
-;NOTE: If DO INT^%BLKDMP(0,"^GLOB") will set content to ^GLOB
+ ;NOTE: If DO INT^%BLKDMP(0,"^GLOB") will set content to ^GLOB
  S ZR="INT^%BLKDMP",BUF="",$ET="D EXIT^%BLKDMP"
+ N VARLEN,HDRSIZE,LONG S VARLEN=$G(^$S("NAME_LENGTH"),8),HDRSIZE=VARLEN+12,LONG=0
+ ;NOTE: If BLK ends in +, it will output the full data, not truncate it to 500
+ I $E(BLK,$L(BLK))="+" S LONG=32757,BLK=+BLK
  I BLK V -1:BLK ;Note: BLK=0 means BLK is already in View Buffer
  S %=$V(-1,0) I '% W "Block not in use",! V -1:0 G EXIT
  I '$D(XX) W "Block: ",$S(BLK:BLK,1:"")," belongs to UCI# ",%#64," "
  S F=^$S("VOL",1,"UCI",%#64) I '$D(XX) W:$L(F) "(",F,") "
- S D=%\64,G=$&E($V(-1,12,8),"C") I $D(XX),'D G EXIT
- I '$D(XX) W $S(D:"data",1:"pointer")," block",!
+ S D=%\64,G=$&E($V(-1,12,VARLEN),"C") I $D(XX),'D G EXIT
+ I '$D(XX) W $S(G="$GLOBAL":"global directory",D:"data",1:"pointer")," block",!
  S:G="$GLOBAL" D=0
  I '$D(XX) W "Right: ",$V(-1,4,4)," Global: ",G,! W "Index Contains",!
- S LI=$V(-1,8,2)*2,I=20
+ S LI=$V(-1,8,2)*2,I=HDRSIZE
  F  D  S I=I+2 Q:I>LI
- .S F=$V(-1,I,2)*4 I 'F W $J(I,5)_" ..." Q
- .S CCC=$V(-1,F+2),UCC=$V(-1,F+3),%=UCC S:%=1!(%=2) %=3 S:%=4 %=5
- .S:UCC $E(BUF,CCC+1,999)=$E($V(-1,F+4,%),1,UCC) S K=BUF,F=F+UCC+4
- .S KEY="" S:$L(BUF) KEY="(" F  S KEY=KEY_$$UNKEY() Q:'$L(K)  S KEY=KEY_","
- .S:$L(BUF) KEY=KEY_")"
- .I '$D(XX) W $J(I,5)_" "_KEY_"="
- .I 'D S:F#4 F=F\4+1*4 W:'$D(XX) $V(-1,F,4),! Q
- .S K=$V(-1,F,2),F=F+2 I 'K S DATA=""""""
- .E  D
- ..I K<5,K'=3 S DA="" F %=1:1:K S DA=DA_$C($V(-1,F+%-1))
- ..E  S DA=$V(-1,F,K)
- ..S DATA=$$DISP^%U(DA)
- .I '$D(XX) W """",DATA,"""",! Q
- .S @(XX_KEY_"=DATA")
+ . S F=$V(-1,I,2)*4 I 'F W $J(I,5)_" ..." Q
+ . S CCC=$V(-1,F+2),UCC=$V(-1,F+3),%=UCC S:%=1!(%=2) %=3 S:%=4 %=5
+ . S:UCC $E(BUF,CCC+1,999)=$E($V(-1,F+4,%),1,UCC) S K=BUF,F=F+UCC+4
+ . S KEY="" S:$L(BUF) KEY="(" F  S KEY=KEY_$$UNKEY() Q:'$L(K)  S KEY=KEY_","
+ . S:$L(BUF) KEY=KEY_")"
+ . I '$D(XX) W $J(I,5)_" "_KEY_"="
+ . I 'D S:F#4 F=F\4+1*4 W:'$D(XX) $V(-1,F,4),! Q
+ . S K=$V(-1,F,2),F=F+2 I 'K S DATA=""""""
+ . E  D
+ . . I K<5,K'=3 S DA="" F %=1:1:K S DA=DA_$C($V(-1,F+%-1))
+ . . E  S DA=$V(-1,F,K)
+ . . S DATA=$$DISP^%U(DA,LONG)
+ . I '$D(XX) W """",DATA,"""",! Q
+ . S @(XX_KEY_"=DATA")
 ;---
 EXIT I BLK V -1:0 ;Free the GBD if we allocated it
  Q
@@ -76,7 +153,7 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
  S ^%C("ERROR")="D ^%ETDISP"
  S ^%C("ERROR",1)="Display logged errors."
  S ^%C("EXIT")="internal %M command"
- S ^%C("EXIT",1)="Exit from MCL to either RSM> or shell."
+ S ^%C("EXIT",1)="Exit from MCL to either RSM> or Shell."
  S ^%C("GDIRECTORY")="D INT^%GD(0,CCL)"
  S ^%C("GDIRECTORY",1)="Global Directory spec"
  S ^%C("GEFFICIENCY")="D INT^%GE(CCL)"
@@ -89,8 +166,8 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
  S ^%C("HELP",1)="This text is displayed."
  S ^%C("LIST")="D INT^%GL(CCL,SW)"
  S ^%C("LIST",1)="List global /D=data only, /L=max level, /M=max lines"
- S ^%C("OS")="S:CCL="""" CCL=""exec $SHELL"" S %=$&%SPAWN(""stty onlcr""_$C(59)_CCL_$C(59)_""stty -onlcr"")"
- S ^%C("OS",1)="Execute O/S (unix) command - shell"
+ S ^%C("OS")="S:CCL="""" CCL=""exec $SHELL"" S %=$&%SPAWN(""stty onlcr echo""_$C(59)_CCL)"
+ S ^%C("OS",1)="Execute O/S (Unix) command - Shell"
  S ^%C("RDIRECTORY")="D INT^%RD($S(SW[""L"":1,SW[""U"":2,1:0),CCL)"
  S ^%C("RDIRECTORY",1)="Routine Directory /FL (first line) or /FU (full) spec"
  S ^%C("ROUCHECK")="D RC^%RD(CCL)"
@@ -102,7 +179,9 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
  S ^%C("SCAN")="D INT^%ED(CCL,1)"
  S ^%C("SCAN",1)="Scan a routine - read only"
  S ^%C("SHOW")="D INT^%SS(CCL)"
- S ^%C("SHOW",1)="Show LOCKS, SYS or job#"
+ S ^%C("SHOW",1)="Show LOCKS, SYS or Job#"
+ S ^%C("SHUTDOWN")="D ^SSD"
+ S ^%C("SHUTDOWN",1)="Shutdown the RSM environment"
  S ^%C("STATUS")="D INT^%STA(CCL)"
  S ^%C("STATUS",1)="Show system statistics, specify interval, eg. STA 15"
  S ^%C("SYSTAT")="D ^%SS"
@@ -158,7 +237,7 @@ CONT S %=$O(^%D(%D,0)),%V=$O(^(%)) I '%V S %V=%+1 D
  U 0 C 1
  S F=$&%GETENV("EDITOR") S:F="" F="vi" S F=F_" "_FILE
  I $E(F)="x",RO S F=F_"&"
- I $P(F," ")="vi" S F="stty onlcr;"_F_";stty -onlcr"
+ I $P(F," ")="vi" S F="stty onlcr; "_F_"; stty -onlcr"
  S %=$&%SPAWN(F)
  I RO H 4 O 1:(FILE:"W") C 1 Q
  W !,"Saving edit...",!
@@ -174,7 +253,8 @@ EXIT U 0 C 1 O 1:(FILE:"W") C 1 L -^%D(%D) Q
 %ED ;Edit a routine using $EDITOR
  R !,"Routine: ",ROU,! Q:ROU=""  D INT(ROU) Q
 INT(ROU,RO,UI,FILE,F,%,ZR) S ZR="^%ED",RO=$G(RO) I $G(ROU)="" Q
- G CONT:ROU?1A.7AN,CONT:ROU?1"%".7AN&(^$J($J,"ROUTINE")=1) Q
+ I $G(^$S("NAME_LENGTH"),8)=32 G CONT:ROU?1A.31AN,CONT:ROU?1"%".31AN&(^$J($J,"ROUTINE")=1) Q
+ E  G CONT:ROU?1A.7AN,CONT:ROU?1"%".7AN&(^$J($J,"ROUTINE")=1) Q
 CONT I 'RO L +^$R(ROU):1 E  W !,"?Can't lock routine "_ROU,! Q
  I RO,'$D(^$R(ROU)) W !,"?No such routine "_ROU,! Q
  S UI=$$UI^%U(),FILE=ROU_"-"_UI_".rsm" O 1:(FILE:"W")
@@ -184,7 +264,7 @@ CONT I 'RO L +^$R(ROU):1 E  W !,"?Can't lock routine "_ROU,! Q
  W !! U 0 C 1
  S F=$&%GETENV("EDITOR") S:F="" F="vi" S F=F_" "_FILE
  I $E(F)="x",RO S F=F_"&"
- I $P(F," ")="vi" S F="stty onlcr;"_F_";stty -onlcr"
+ I $P(F," ")="vi" S F="stty onlcr; "_F_"; stty -onlcr"
  S %=$&%SPAWN(F)
  I RO H 4 O 1:(FILE:"W") C 1 Q
  W !,"Saving edit...",!
@@ -299,7 +379,7 @@ CC(D,F,%,X) I D?.E1C.E S D=$$DISP^%U(D)
  Q """"_D_""""
 ;------------------------------------------------------------------------------
 S1 S TER=$O(@EG@(ER,"z"),-1),%DT=$G(@EG@(ER,TER,"$H"))
-;Summarise the error in ER
+;Summarize the error in ER
  W $J(ER,3),?4,$$D^%D(+%DT)_" "_$$T^%T($P(%DT,",",2)),?25
  S %=$G(@EG@(ER,TER,"$ECODE"))_": "_$G(^("$ZE")) W $E(%,1,55),! Q
 
@@ -395,7 +475,7 @@ S1    I %B(%L)'["E",%B(%L)=+%B(%L) Q
 S1ERR S ER=$P($EC,",",2) W "  "_$P($&%ERRMSG(ER),">")_"> in ",%B(%L) S %M=-2,$EC="" Q
 
 %GD
-%GD ;Do a global directory for current uci
+%GD ;Do a global directory for current UCI
  D INT(0,".E") Q
 INT(FL,PAT,UCI,ST,END,G,%,F,L,ZR) S ZR="INT^%GD"
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"GLOBAL"))
@@ -419,11 +499,11 @@ INT(G,%,UCI,B,NB,ALL,FRE,L,TA,TU,SIZ,ISD,ZR) S ZR="INT^%GE"
  S B=@% W "Global efficiency for ^",UCI,G," (",B,")",!
  F L=1:1 V -1:B S ISD=$V(-1,0)>64 D  Q:ISD  S B=NB
 ;Get all levels
- .I 'ISD S %=$V(-1,20,2)*4+2,%=$V(-1,%+1)+2+% S:%#4 %=%\4+1*4 S NB=$V(-1,%,4)
- .W "Level",$J(L,3),": " S FRE=0
- .F ALL=0:1 Q:'B  V -1:B S B=$V(-1,4,4),FRE=$V(-1,10,2)*2+1-$V(-1,8,2)*2+FRE
- .S ALL=ALL*SIZ,FRE=ALL-FRE W $J(FRE,8)," bytes used of ",$J(ALL,8)
- .W $J(FRE/ALL*100,7,2),"%",! S TA=TA+ALL,TU=TU+FRE
+ . I 'ISD S %=$V(-1,$G(^$S("NAME_LENGTH"),8)+12,2)*4+2,%=$V(-1,%+1)+2+% S:%#4 %=%\4+1*4 S NB=$V(-1,%,4)
+ . W "Level",$J(L,3),": " S FRE=0
+ . F ALL=0:1 Q:'B  V -1:B S B=$V(-1,4,4),FRE=$V(-1,10,2)*2+1-$V(-1,8,2)*2+FRE
+ . S ALL=ALL*SIZ,FRE=ALL-FRE W $J(FRE,8)," bytes used of ",$J(ALL,8)
+ . W $J(FRE/ALL*100,7,2),"%",! S TA=TA+ALL,TU=TU+FRE
  W "Total:    ",$J(TU,8)," bytes used of ",$J(TA,8),$J(TU/TA*100,7,2),"%",!
  Q
 
@@ -457,41 +537,6 @@ NA S GL=$NA(@GL,999)
  .S F=@GL S:F?.E1C.E&'NC F=$$DISP^%U(F) W:'DO GL,"=" W F,!
  .S CNT=CNT+1 I CNT=MAX S STOP=2
  W:CNT=MAX "** "_MAX_" nodes printed **",! Q
-
-%GR
-%GR ;Global Restore from file
- R "Restore from file: ",FILE,! Q:FILE=""
- D INT(FILE,0) Q
-INT(FILE,NOSAY,%,G,S,ZR) N $ET S ZR="INT^%GR",NOSAY=$G(NOSAY),$ET="D EX^%GR"
- O 1:(FILE:"R") U 1 R G,% U 0 S G=$TR(G,$C(13)),%=$TR(%,$C(13))
- I NOSAY<2 W !,G,!,%,!
- I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
- U 1 F  R G,% S G=$TR(G,$C(13)),%=$TR(%,$C(13)) Q:$E(G)="*"  D  Q:$A($K)=255
- .S @G=% I NOSAY<2 U 0 W:$X>70 ! W G,?$X\10+1*10 U 1
- .F  R S,% S S=$TR(S,$C(13)),%=$TR(%,$C(13)) Q:$E(S)="*"  S:$E(S)="^" G="" S @(G_S)=%
-EX U 0 W:NOSAY<2 ! C 1 Q
-
-%GS
-%GS ;Global Save
- R !,"Global(s):  ",GLO Q:GLO=""
- R !,"Filename:   ",FILE G %RS:FILE=""
- R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=GLO
- D INT(GLO,FILE,HEAD) Q
-INT(GLO,FILE,HEAD,%,VOL,UCI,G,ZR) N $ET S ZR="INT^%GS",$ET="D EX^%GS"
- S HEAD=$G(HEAD,GLO)
- S UI=$$UI^%U() K ^UTILITY(UI) S GLO=$$PAT^%U(GLO)
- D INT^%GD(3,GLO,^$J($J,"GLOBAL"),"","z","^UTILITY("_UI_")")
- I $O(^UTILITY(UI,""))="" W !,"?No globals selected.",! Q
- S %=^$J($J,"GLOBAL_VOL"),VOL=^$S("VOL",%,"NAME")
- S UCI=^$S("VOL",%,"UCI",^$J($J,"GLOBAL"))
- O 1:(FILE:"W") U 1 W "Saved by %GS from ["_UCI_","_VOL_"] on "
- W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
- S GLO="" F  S GLO=$O(^UTILITY(UI,GLO)) Q:GLO=""  S G="^"_GLO D
- .U 0 W:$X>70 ! W GLO,?$X\10+1*10 U 1
- .W G,!,$G(@G),! F  S G=$Q(@G) Q:G=""  W "("_$P(G,"(",2,999),!,@G,!
- .W "*",!,"*",!
- W "**",!,"**",! U 0
-EX C 1 W ! Q
 
 %LCSEND
 %LCSEND ;Local Controller - Send to ONE ; V 3.0 29 Sep 2004 07:09 AM
@@ -623,9 +668,9 @@ READ S PMT="MCL> ",WID=80,%PMT=$L(PMT),E=$C(27),K=E_"[K"
  N $ES W $&V(BL,1),!,PMT
  S CST=$G(CS)+1 R CMD S KEY=$K,P=$L(CMD)+%PMT+1 D KEY G K
 AD W $&V(BL+($L(CMD)+%PMT\WID-(P\WID)),P-1#80+1)
-RS R *A S KEY=$K I A=127!(A=8) S KEY=127,A=0
- I A,A<32 S KEY=$C(A),A=0
- I 'A D KEY G K
+RS R *A S KEY=$K I A=127!(A=8) S KEY=127,A=27
+ I A<32,A'=27 S KEY=$C(A),A=27
+ I A=27 D KEY G K
  I P>($L(CMD)+%PMT) W $C(A) S CMD=CMD_$C(A),P=P+1 G RS
  S CMD=$E(CMD,1,P-%PMT-1)_$C(A)_$E(CMD,P-%PMT,9999),KEY=55,P=P+1
 K I KEY=42!(KEY=45) G DOIT
@@ -648,9 +693,9 @@ DOIT W:P'>($L(CMD)+%PMT) $&V($L(CMD)+%PMT\WID+1+BL,1) W !
 INT S CMD=$&E(CMD,"B"),CCL=$P(CMD," ",2,999),C=$&E($P(CMD," ")) Q:C=""
  I $G(CS(+$G(CS)))'=CMD S CS=$G(CS)+1,CS(CS)=CMD
  I C?1U D:C="K"  X CMD Q
- .Q:CMD["("!($E(CCL)'="^")  I $&E(CCL)="^$J" W "Use ^SSD please.",! S CMD="Q" Q
- .W "KILL entire global: N> "
- .R %,! I $E($&E(%))'="Y" S CMD="Q"
+ . Q:CMD["("!($E(CCL)'="^")  I ($&E(CCL)="^$J")!($&E(CCL)="^$JOB") W "Use SHUTDOWN please.",! S CMD="Q" Q
+ . W "KILL entire global: N> "
+ . R %,! I $E($&E(%))'="Y" S CMD="Q"
  I C=$E("EXIT",1,$L(C)) S CMD="EXIT" Q
  I C=$E("HELP",1,$L(C)) G ^%MH
  S SW=$P(C,"/",2,9),C=$P(C,"/") S:$L(SW) SW="/"_SW
@@ -682,10 +727,11 @@ ERROR U 0 I $ES<2 S $EC="" G %M
  Q
 
 %RD
-%RD ;Do a routine directory for current uci or MGR %
+%RD ;Do a routine directory for current UCI or manager %
  D INT(0,".E") Q
 LIB D INT(0,"1""%"".E",1,"%","%") Q
 INT(FL,PAT,UCI,ST,END,G,%,F,R,ZR) S ZR="INT^%RD"
+ N BIG S BIG=$$BIGEND^%U
  S WEB=$P($D,",",2)=2
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"ROUTINE"))
  S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
@@ -694,21 +740,28 @@ INT(FL,PAT,UCI,ST,END,G,%,F,R,ZR) S ZR="INT^%RD"
  I FL-3 W "Routine Directory of ["_UCI_"] matching '"_PAT_"'.",!!
  I FL=2 W "Routine",?10," Size",?20,"Owner",?30,"Compiled",!!
  F  S R=$O(^[UCI]$R(R)) Q:R=""!($E(R)]END)  I R?@PAT D
- .I 'FL W:$X>70 ! W R,?$X\10+1*10 Q
- .I FL=1 W R,?10,^[UCI]$R(R,1),! Q
- .I FL=2 S F=^[UCI]$R(R,0),%=R D  Q
- ..I $E(R)="%" S %="%25"_$E(R,2,9)
- ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
- ..E  W R
- ..W ?10,$J($L(F),5),?20,$A(F,4)*256+$A(F,3),?30
- ..S %=$A(F,8)*256+$A(F,7)*256+$A(F,6)*256+$A(F,5) W $$D^%D(%)," at "
- ..S %=$A(F,12)*256+$A(F,11)*256+$A(F,10)*256+$A(F,9) W $$T^%T(%),!
- .I FL=3 S @G@(R)=""
+ . I 'FL W:$X>70 ! W R,?$X\10+1*10 Q
+ . I FL=1 W R,?10,^[UCI]$R(R,1),! Q
+ . I FL=2 S F=^[UCI]$R(R,0),%=R D  Q
+ . . I $E(R)="%" S %="%25"_$E(R,2,9)
+ . . I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
+ . . E  W R
+ . . W ?10,$J($L(F),5),?20
+ . . . I $G(BIG,0) W $A(F,3)*256+$A(F,4)
+ . . . E  W $A(F,4)*256+$A(F,3)
+ . . W ?30
+ . . I $G(BIG,0) S %=$A(F,5)*256+$A(F,6)*256+$A(F,7)*256+$A(F,8)
+ . . E  S %=$A(F,8)*256+$A(F,7)*256+$A(F,6)*256+$A(F,5)
+ . . W $$D^%D(%)," at "
+ . . I $G(BIG,0) S %=$A(F,9)*256+$A(F,10)*256+$A(F,11)*256+$A(F,12)
+ . . E  S %=$A(F,12)*256+$A(F,11)*256+$A(F,10)*256+$A(F,9)
+ . . W $$T^%T(%),!
+ . I FL=3 S @G@(R)=""
  Q
 DEL(CCL,SW,%,R,SEL,OK,ZR) S ZR="DEL^%RD",SW=$G(SW)["/NOQ"
  D INT(3,CCL) S R="",OK=1
  F  S R=$O(SEL(R)) Q:R=""  D:'SW  I OK K ^$R(R) I SW W:$X>70 ! W R,?$X\10+1*10
- .W "Delete "_R R " OK: N> ",%,! S OK=$E($&E(%))="Y"
+ . W "Delete "_R R " OK: N> ",%,! S OK=$E($&E(%))="Y"
  W ! Q
 RC(CCL,%,R,SEL,ZR) S ZR="RC^%RD"
  D INT(3,CCL) S R=""
@@ -721,41 +774,6 @@ RC(CCL,%,R,SEL,ZR) S ZR="RC^%RD"
  S R="" F  S R=$O(^$R(R)) Q:R=""  W:$X>70 ! W R,?$X\10+1*10 M ^$R(R)=^$R(R)
  W !,"Done",! Q
 
-%RR
-%RR ;Routine Restore from file
- R "Restore from file: ",FILE,! Q:FILE=""
- D INT(FILE,0) Q
-INT(FILE,NOSAY,%,A,R,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%RR"
- O 1:(FILE:"R") U 1 R A,R U 0 S A=$TR(A,$C(13)),R=$TR(R,$C(13))
- I NOSAY<2 W !,A,!,R,!
- I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
- U 1 F  R R S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
- .I NOSAY<2 U 0 W:$X>70 ! W R,?$X\10+1*10 U 1
- .K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)) Q:A(%)=""  Q:$A($K)=255
- .M ^$R(R)=A
-EX U 0 W:NOSAY<2 ! C 1 Q
-
-%RS
-%RS ;Routine Save
- R !,"Routine(s): ",ROU Q:ROU=""
- R !,"Filename:   ",FILE G %RS:FILE=""
- R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=ROU
- D INT(ROU,FILE,HEAD) Q
-INT(ROU,FILE,HEAD,%,VOL,UCI,R,ZR) N $ET S ZR="INT^%RS",$ET="D EX^%RS"
- S HEAD=$G(HEAD,ROU)
- S UI=$$UI^%U() K ^UTILITY(UI) S ROU=$$PAT^%U(ROU)
- D INT^%RD(3,ROU,^$J($J,"ROUTINE"),"","z","^UTILITY("_UI_")")
- I $O(^UTILITY(UI,""))="" W !,"?No routines selected.",! Q
- S %=^$J($J,"ROUTINE_VOL"),VOL=^$S("VOL",%,"NAME")
- S UCI=^$S("VOL",%,"UCI",^$J($J,"ROUTINE"))
- O 1:(FILE:"W") U 1 W "Saved by %RS from ["_UCI_","_VOL_"] on "
- W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
- S R="" F  S R=$O(^UTILITY(UI,R)) Q:R=""  D
- .U 0 W:$X>70 ! W R,?$X\10+1*10 U 1 W R,!
- .S %=0 F  S %=$O(^$R(R,%)) Q:%=""  W ^$R(R,%),!
- .W !
-EX W ! U 0 C 1 W ! Q
-
 %SS
 %SS ;System Status
  W "Job",?5,"Pid",?15,"User",?25,"Pri",?30,"Routine",?40,"Commands",?50
@@ -766,7 +784,8 @@ EX W ! U 0 C 1 W ! Q
  .W ?30,^$J(J,"ROUTINE_NAME"),?40,$J(^$J(J,"COMMANDS"),8),?50
  .W $J(^$J(J,"GREFS"),8),?60,$E(^$J(J,"$IO",0),1,20)
  W ! Q
-INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
+INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I J="" W "Show LOCKS, SYS or Job#",! Q
+ I $E("LOCKS",1,$L(J))=J D  Q
  .W "Job Count Reference",! S J=""
  .F  S J=$O(^$L(J)) Q:J=""  S %=^$L(J) W $J(+%,3),$J($P(%,",",2),6)," ",J,!
 ;End of SHOW LOCKS
@@ -776,7 +795,7 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 ;.Dump the UCIs
  .W "Max: ",^$J," jobs",!
  .W "Vol: ",^$S("VOL",1,"NAME")," in file ",^$S("VOL",1,"FILE"),!
- .W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")," kb Blocks, "
+ .W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")," KiB Blocks, "
  .W ^$S("VOL",1,"FREE")," Free.",!
  .S J=^$S("VOL",1,"LOGRD"),%=^$S("VOL",1,"PHYRD")
  .W "Database reads - Logical: ",J,"  Physical: ",%
@@ -811,7 +830,7 @@ PRT W $&V(1,1),"System Statistics - ",$$T^%T($P($H,",",2))
  W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
  W "Volume: ",^$S("VOL",1,"NAME")
  W " in file: ",^$S("VOL",1,"FILE"),!
- W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")/1024,"kb blocks - "
+ W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")/1024," KiB blocks - "
  W ^$S("VOL",1,"FREE")," available ("
  W $J(^$S("VOL",1,"FREE")/^$S("VOL",1,"SIZE")*100,0,2),"%)",!!
  W ?15,$J("Total",10),?30,$J("Increment",10),!
@@ -862,9 +881,10 @@ T(H,M,S,%,ZR) S ZR="T^%T" I H<0!(H>86399) Q ""
 %U ;General Utilities
 UI(%,ZR) S ZR="UI^%U"
  L +^%AUTH("ui") S %=$G(^%AUTH("ui"))+1,^("ui")=% L -^%AUTH("ui") Q %
-DISP(S,%,C,F,ZR) S ZR="DISP^%U",F=""
+DISP(S,L,%,C,F,ZR,LIM) S ZR="DISP^%U",F=""
+ S LIM=$S($G(L):L,1:500)
 ;Return S (which contains control characters) as displayable string
- F %=1:1:$L(S) S C=$A(S,%) D  I $L(F)>500 S F=F_"..." Q
+ F %=1:1:$L(S) S C=$A(S,%) D  I $L(F)>LIM S F=F_"..." Q
 ;Process each character in the input string
  .I C>31,C<127 S F=F_$C(C) Q
 ;.If it's a normal printable character, add to F and quit
@@ -891,14 +911,18 @@ CD(UCI,%,ZR) S ZR="CD^%U"
  F %="GLOBAL","LOCK","ROUTINE" S ^$J($J,%)=UCI
 ;Set all the bits
  Q
-CDE W "?Invalid uci specified",! Q
+CDE W "?Invalid UCI specified",! Q
+BIGEND() ;Is machine big-endian?
+ ;If od isn't here, default to little-endian
+ I $&%SPAWN("which od > /dev/null; echo $?",1) Q 0
+ Q $S($&E($&%SPAWN("printf '\1' | od -dAn",1))=256:1,1:0)
 
 %WWW
 %WWW ;WWW Stuff
  S $ET="D ^%ET",MJN=$J O 10:(80:"S=5") G READ
 ;Open the server port - allow for 5 jobs
-START(PORT) ;Pass in port
- S $ET="D ^%ET",MJN=$J O 10:($G(PORT,80):"S=5")
+START(PORT,JOBS) ;Pass in port and max jobs to fork
+ S $ET="D ^%ET",MJN=$J O 10:($G(PORT,80):"S="_$G(JOBS,5))
 ;Open the server port passed by user - allow for 5 jobs
 READ D RECV^%WWW1(.AA)
 ;Get a message
@@ -1236,13 +1260,13 @@ EXIT ; Clean up
 
 %ZRS
 %ZRS ;Routine Save
- N FILE,HEAD,%,VOL,UCI,R,ZR
+ N FILE,HEAD,%,VOL,UCI,UI,R,ZR
  D ^%ZRSEL
  I '$D(^%UTILITY($J,"ROUTINE")) W !,"?No routines selected.",! Q
  R !,"Filename:   ",FILE G %ZRS:FILE=""
  R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD="No Heading"
  D INT(FILE,HEAD) Q
-INT(FILE,HEAD,%,VOL,UCI,R,ZR) N $ET S ZR="INT^%RS",$ET="D EX^%RS"
+INT(FILE,HEAD,%,VOL,UCI,UI,R,ZR) N $ET S ZR="INT^%RS",$ET="D EX^%RS"
  S UI=$$UI^%U()
  M ^UTILITY(UI)=^%UTILITY($J,"ROUTINE")
  S %=^$J($J,"ROUTINE_VOL"),VOL=^$S("VOL",%,"NAME")
@@ -1449,46 +1473,52 @@ INT(G,%,LEV,ZR) N $ET S ZR="INT^COMPRESS",$ET="D ^%ET",LEV=15
 
 DECOMP
 DECOMP ;Decompile an RSM routine
- N  R !,"Rou: ",ROU,! Q:ROU=""
- S C=$G(^$R(ROU,0)) I C="" W "?No such rou as ",ROU,! Q
+ N  R !,"Routine: ",ROU,! Q:ROU=""
+ S C=$G(^$R(ROU,0)) I C="" W "?No such routine as ",ROU,! Q
  W "Decompile of ",ROU,! D INT(C) Q
 INT(C,%,V,USR,D,T,H,TAG,VAR,I,S,A) N $ET S $ET="D ^%ET"
+ N BIG,VARLEN S BIG=$$BIGEND^%U,VARLEN=$G(^$S("NAME_LENGTH"),8)
  S V=$$S(1) ;The compiler version
  S USR=$$S(3) ;The user
  S D=$$I(5),T=$$I(9) ;The Date and Time
  F %=1:1:6 S H(%)=$$S(%-1*2+13) ;Tag off, num; Var off, num; Code off, size
- W "Compver: ",V,"  usr: ",USR,"  when: ",$$D^%D(D)," ",$$T^%T(T),!
+ W "Compiler version: ",V,"  User: ",USR,"  When: ",$$D^%D(D)," ",$$T^%T(T),!
+ ;Load all tags into the TAG array
  F V=1:1:H(2) D
-;Load all tags into the TAG array
- .S T=V-1*12+H(1)+1 ;Offset to this tag
- .S D="" F %=0:1:7 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the tag name
- .S TAG($$S(T+8))=D ;Save the tag indexed by address
-;End of tag load code
- W !,"Tag",?10,"Offset",!
- S %="" F  S %=$O(TAG(%)) Q:%=""  W TAG(%),?10,$J(%,6),!
+ . S T=V-1*(VARLEN+2)+H(1)+1 ;Offset to this tag
+ . S D="" F %=0:1:(VARLEN-1) S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the tag name
+ . S TAG($$S(T+VARLEN))=D ;Save the tag indexed by address
+ ;End of tag load code
+ N COL,J S COL=10,J="" F  S J=$O(TAG(J)) Q:J=""  S COL=$S($L(TAG(J))+2>COL:$L(TAG(J))+2,1:COL)
+ W !,"Tag",?COL,"Offset",!
+ S %="" F  S %=$O(TAG(%)) Q:%=""  W TAG(%),?COL,$J(%,6),!
+ ;Load all variables
  F V=1:1:H(4) D
-;Load all variables
- .S T=V-1*8+H(3)+1 ;Offset to this variable
- .S D="" F %=0:1:7 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the variable name
- .S VAR(V-1)=D ;Save var name indexed by idx
+ . S T=V-1*VARLEN+H(3)+1 ;Offset to this variable
+ . S D="" F %=0:1:(VARLEN-1) S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the variable name
+ . S VAR(V-1)=D ;Save var name indexed by idx
  W !,"Variables by Index",!
  S %="" F  S %=$O(VAR(%)) Q:%=""  W:$X>70 ! W VAR(%),?$X\10+1*10
  W:$X ! W !,"Code at offset ",H(5)," for ",H(6)," bytes.",!
  S V=H(5)+1,T=V+H(6),A=""
 LIN G EXIT:V>T S D=$A(C,V),V=V+1 W ! I D=170 D
- .S I=$$S(V),S=$$S(V+2),V=V+4 S:S S=S-1
- .W "Line:",$J(I,5)," size ",S,!,?6 I $L(A) W A,!,?6 S A=""
- .F %=1:1:S W:$X>75 !,?6 W $J($A(C,V),4) S V=V+1
+ . S I=$$S(V),S=$$S(V+2),V=V+4 S:S S=S-1
+ . W "Line:",$J(I,5),"   Size ",S,!,?6 I $L(A) W A,!,?6 S A=""
+ . F %=1:1:S W:$X>75 !,?6 W $J($A(C,V),4) S V=V+1
  I D=171 S A="Formal: (" S I=$A(C,V),V=V+1 D
- .F %=1:1:I S A=A_VAR($A(C,V))_$S(I-%:",",1:")"),V=V+1
+ . I I=0 S A=A_")"
+ . E  F %=1:1:I S A=A_VAR($A(C,V))_$S(I-%:",",1:")"),V=V+1
  I D=2 S I=$$S(V) W ?6,"Error: ",I
  G LIN
 EXIT W ! Q
 ;---
-S(O) Q $A(C,O+1)*256+$A(C,O)
-;Extract a u_short from C at offset O
-I(O,%,N) S N=0 F %=3:-1:0 S N=N*256+$A(C,O+%)
-;Extract an u_int from C at offset O
+S(O) ;Extract a u_short from C at offset O
+ I $G(BIG,0) Q $A(C,O)*256+$A(C,O+1)
+ E  Q $A(C,O+1)*256+$A(C,O)
+I(O,%,N) ;Extract a u_int from C at offset O
+ S N=0
+ I $G(BIG,0) F %=0:1:3 S N=N*256+$A(C,O+%)
+ E  F %=3:-1:0 S N=N*256+$A(C,O+%)
  Q N
 
 FBENCH
@@ -1543,253 +1573,259 @@ B11B S L=$O(F(L)) G:L'="" B11B
  K A1,A,C1,C,F Q
 
 FIX
-FIX ;FIX Database
+FIX ;FIX Database ; V 3.1 26 Dec 2020 09:30 AM
+ ;New a few things, setup error trap - Valid Volume always -1 for now
  N DTYP,D,K,BLK,CMD,LCMD,BSIZ,I,VV,$ES,$ET S $ET="D ERR^FIX",VV=-1
-;New a few things, setup error trap - Valid Volume always -1 for now
+ N VARLEN,HDRSIZE,IDX,LONG S VARLEN=$G(^$S("NAME_LENGTH"),8),HDRSIZE=VARLEN+12,IDX=HDRSIZE/2
  S ^$S("VOL",1,"WRITELOCK")=1 W !,"Writelocking the database"
  F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ ;Get some input
 ASK W:$X ! W "FIX> " R CMD,! S LCMD=CMD,CMD=$&E(CMD) S:CMD="" CMD="?"
-;Get some input
- I CMD?1.N S BLK=CMD D BLK G ASK
-;Check for a block number
+ ;Check for a block number
+ ;NOTE: If BLK ends in +, it will output the full data, not truncate it to 500
+ I CMD?1.N.1"+" S BLK=CMD,LONG=0 S:$E(BLK,$L(BLK))="+" LONG=32757,BLK=+BLK D BLK G ASK
+ ;Look for Check
  I CMD="C" D  G ASK
-;Look for Check
- .I '$G(BLK) W "?No current block"_$C(7) Q
-;.Ensure we have a block
- .S %=$&%IC(-VV,BLK) W !,$S(%>1:%_" Errors",%:"1 Error",1:"No errors"),!
-;.Do it
+ . ;Ensure we have a block
+ . I '$G(BLK) W "?No current block"_$C(7) Q
+ . ;Do it
+ . S %=$&%IC(-VV,BLK) W !,$S(%>1:%_" Errors",%:"1 Error",1:"No errors"),!
+ ;Check for Dump
  I $E(CMD)="D" D  W ! G ASK
-;Check for Dump
- .W "Write enabling disk... " S ^$S("VOL",1,"WRITELOCK")=0
-;.Enable writes
- .D INT^%BLKDMP(0,"^%DUMP") W "dumped to ^%DUMP()",!
-;.Do it
- .S ^$S("VOL",1,"WRITELOCK")=1 W "Writelocking the database"
- .F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ . ;Enable writes
+ . W "Write enabling disk... " S ^$S("VOL",1,"WRITELOCK")=0
+ . ;Do it
+ . D INT^%BLKDMP(BLK_$S(LONG:"+",1:""),"^%DUMP") W "dumped to ^%DUMP()",!
+ . S ^$S("VOL",1,"WRITELOCK")=1 W "Writelocking the database"
+ . F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ ;Check for Environment (UCI)
  I $E(CMD)="E" D  G ASK
-;Check for Environment (UCI)
- .F %=2:1:$L(CMD) I $E(CMD,%)?1N S:+$E(CMD,%,9)<64&$E(CMD,%,9) D(0)=+$E(CMD,%,9) Q
-;.Do it
+ . ;Do it
+ . F %=2:1:$L(CMD) I $E(CMD,%)?1N S:+$E(CMD,%,9)<64&$E(CMD,%,9) D(0)=+$E(CMD,%,9) Q
+ ;Check for F or .
  I $E(CMD)="F"!(CMD=".") D SAVE^FIX2 G ASK
-;Check for F or .
+ ;Check for Global name change
  I $E(CMD)="G" S LCMD=$E(LCMD,2,99) D  G ASK
-;Check for Global name change
- .I LCMD?1"%"1.7AN!(LCMD?1A1.7AN) S K=LCMD Q
-;.Do it if OK
- .W "?Invalid global name '",LCMD,"'",$C(7),!
-;.Complain
+ . ;Do it if OK
+ . I VARLEN=32,LCMD?1"%"1.31AN!(LCMD?1A1.31AN) S K=LCMD Q
+ . I VARLEN=8,LCMD?1"%"1.7AN!(LCMD?1A1.7AN) S K=LCMD Q
+ . ;Complain
+ . W "?Invalid global name '",LCMD,"'",$C(7),!
+ ;Insert
  I $E(CMD)="I" D INSERT^FIX1 G ASK
-;Insert
+ ;Check for KILL
  I $E(CMD)="K" D  G ASK
-;Check for KILL
- .S I=0 F %=2:1:$L(CMD) I $E(CMD,%)?1N S I=+$E(CMD,%,99) Q
-;.Get the index
- .I '$D(K(I)) W "?No such index as ",I,$C(7),! Q
-;.Complain on error
- .I '$O(K(I)) K K(I)
-;.Check for last
- .E  F %=I:1 Q:'$D(K(%+1))  S K(%)=K(%+1),D(%)=D(%+1) K K(%+1),D(%+1)
-;.Else shuffle down
- .W "Killed.",!
-;.and say
+ . ;Get the index
+ . S I=0 F %=2:1:$L(CMD) I $E(CMD,%)?1N S I=+$E(CMD,%,99) Q
+ . ;Complain on error
+ . I '$D(K(I)) W "?No such index as ",I,$C(7),! Q
+ . ;Check for last
+ . I '$O(K(I)) K K(I)
+ . ;Else shuffle down
+ . E  F %=I:1 Q:'$D(K(%+1))  S K(%)=K(%+1),D(%)=D(%+1) K K(%+1),D(%+1)
+ . ;and say
+ . W "Killed.",!
+ ;Check for List
  I $E(CMD)="L" D LIST G ASK
-;Check for List
+ ;Check for a quit
  I $E(CMD)="Q" V:$G(BLK) VV:0 S ^$S("VOL",1,"WRITELOCK")=0 Q
-;Check for a quit
+ ;Check for RL change
  I $E(CMD)="R" D  G ASK
-;Check for RL change
- .F %=2:1:$L(CMD) I $E(CMD,%)?1N S D=+$E(CMD,%,99) Q
-;.Store it here
+ . ;Store it here
+ . F %=2:1:$L(CMD) I $E(CMD,%)?1N S D=+$E(CMD,%,99) Q
+ ;Check for UP
  I $E(CMD)="U" D UP^FIX2 G ASK
-;Check for UP
+ ;Check for Zot
  I $E(CMD)="Z" D  G ASK
-;Check for Zot
- .S BSIZ=^$S("VOL",1,"BLOCK") F I=0:4:BSIZ-1 S %=$V(VV,I,4,0)
-;.Zot the block
- .V VV:-BLK K BLK
-;.Write it back
+ . ;Zot the block
+ . S BSIZ=^$S("VOL",1,"BLOCK") F I=0:4:BSIZ-1 S %=$V(VV,I,4,0)
+ . ;Write it back
+ . V VV:-BLK K BLK
+ ;Locate
  I $E(CMD)="^" D LOCATE^FIX1 G ASK
-;Locate
+ ;Else give help
  D HELP^FIX2 G ASK
-;Else give help
-;---
-BLK V VV:BLK S RL=$V(VV,4,4) I RL D
+ ;---
 ;Get the block and right link (if any)
- .V VV:RL S R=$V(VV,20,2)*4,UCC=$V(VV,R+3,1),%=UCC S:%<3 %=3 S:%=4 %=5
-;.Get the block, addr of first record and size of same - adj for view
- .S RL1="^"_$P($V(VV,12,8),$C(0))_"("_$$FULLUNK^FIX1($E($V(VV,R+4,%),1,UCC))_")"
-;.Get the key into RL1
- .V VV:BLK
-;.Re-get the original block
+BLK V VV:BLK S RL=$V(VV,4,4) I RL D
+ . ;Get the block, addr of first record and size of same - adj for view
+ . V VV:RL S R=$V(VV,HDRSIZE,2)*4,UCC=$V(VV,R+3,1),%=UCC S:%<3 %=3 S:%=4 %=5
+ . ;Get the key into RL1
+ . S RL1="^"_$P($V(VV,12,VARLEN),$C(0))_"("_$$FULLUNK^FIX1($E($V(VV,R+4,%),1,UCC))_")"
+ . ;Re-get the original block
+ . V VV:BLK
+ ;Load the arrays
  D LOADA^FIX1
-;Load the arrays
- W "Block Numb: ",BLK,"  Typ: ",$S('D(0):"Unused",DTYP:"Data",1:"Pointer")
+ W "Block Number: ",BLK,"  Type: ",$S('D(0):"Unused",K="$GLOBAL":"Global Directory",DTYP:"Data",1:"Pointer")
  I 'D(0) W ! Q
- W "  Last idx: ",$V(VV,8,2),"  Last free: ",$V(VV,10,2),"  free: ",$V(VV,10,2)*2-$V(VV,8,2)*2+2,!
- W ", UCI# ",$V(VV,0,1)#64,".  Right ->",RL,! S %=$O(K(""),-1)
- W "First Node: ^",K,$S($L($G(K(10))):"("_$$FULLUNK^FIX1(K(10))_")",1:""),!
+ W "  Last Index: ",$V(VV,8,2),"  Last Free: ",$V(VV,10,2),"  Free: ",$V(VV,10,2)*2-$V(VV,8,2)*2+2,!
+ W ", UCI# ",$V(VV,0,1)#64," ["_^$S("VOL",1,"UCI",$V(VV,0,1)#64)_"]  Right -> ",RL,! S %=$O(K(""),-1)
+ W "First Node: ^",K,$S($L($G(K(IDX))):"("_$$FULLUNK^FIX1(K(IDX))_")",1:""),!
  W:$G(%) "Last  Node: ^",K,"(",$$FULLUNK^FIX1(K(%)),")",!
  I RL W "Right Link: "_RL1,!
  Q
-;---
-LIST I '$G(BLK) W "?No current block",$C(7),! Q
+ ;---
 ;Check for a current block
- S SRCH=$E(CMD,2,999)
+LIST I '$G(BLK) W "?No current block",$C(7),! Q
+ S SRCH=$E(LCMD,2,999)
  W $S($L(SRCH):"Search ",1:"Listing of block "),BLK," (local copy) Global: ",K
- W:$L(SRCH) " [",SRCH,"]" W "  UCI# ",D(0),"  Right: ",D,!
- W "Index Contains",! F I=10:1 Q:'$D(K(I))  D
- .S %=D(I) S:$L(%)>500 %=$E(%,1,500)_"..." S:%?.E1C.E %=$$DISP^%U(%)
-;.Get something we can display
- .I $L(SRCH),%'[SRCH Q
- .W $J(I,5)," ","(",$$FULLUNK^FIX1(K(I)),")=",% W:$D(DGD(I)) ?30,$J(DGD(I),10) W !
+ W:$L(SRCH) " [",SRCH,"]" W "  UCI# ",D(0)," ["_^$S("VOL",1,"UCI",D(0))_"]  Right: ",D,!
+ W "Index Contains",! F I=IDX:1 Q:'$D(K(I))  D
+ . ;Get something we can display
+ . S %=D(I) S:$L(%)>500 %=$E(%,1,500)_"..." S:%?.E1C.E %=$$DISP^%U(%,LONG)
+ . I $L(SRCH),%'[SRCH Q
+ . W $J(I,5)," ","(",$$FULLUNK^FIX1(K(I)),")=",% W:$D(DGD(I)) ?30,$J(DGD(I),10) W !
  Q
-;---
-ERR I $ES<2 S $EC="" V:$G(BLK) VV:0 Q
+ ;---
 ;Quit when done
+ERR I $ES<2 S $EC="" V:$G(BLK) VV:0 Q
  S ^$S("VOL",1,"WRITELOCK")=0 W !,"**ERROR BEING LOGGED**",! G ^%ET
 
 FIX1
-FIX1 ;FIX subroutine ; V 3.0 05 Jan 2000 01:45 PM
+FIX1 ;FIX subroutine ; V 3.1 26 Dec 2020 09:40 AM
  Q
-LOADA K D,K,DGD N KEY,%,I,R,UCC,CCC,DBC S KEY=""
+ ;
 ;Load Arrays D and K and set DTYP from the current block
- S K=$P($V(VV,12,8),$C(0)),D=$V(VV,4,4),D(0)=$V(VV,0,1)#64
-;Store global name in K and RL in D
+LOADA K D,K,DGD N KEY,%,I,R,UCC,CCC,DBC S KEY=""
+ ;Store global name in K and RL in D
+ S K=$P($V(VV,12,VARLEN),$C(0)),D=$V(VV,4,4),D(0)=$V(VV,0,1)#64
+ ;Set DTYP true for a data block
  S DTYP=$V(VV,0,1)>64&(K'="$GLOBAL")
-;Set DTYP true for a data block
- F I=10:1:$V(VV,8,2) D
-;Scan all indexes
- .S R=$V(VV,I*2,2)*4,CCC=$V(VV,R+2,1),UCC=$V(VV,R+3,1)
-;.Get the Record address, CCC and UCC
- .S %=UCC,K(I)="" S:%=1!(%=2) %=3 S:%=4 %=5
-;.Ensure we get a string return for the next $V()
- .I UCC D
-;.If there is a key
- ..S $E(KEY,CCC+1,CCC+UCC)=$E($V(VV,R+4,%),1,UCC)
-;..Copy uncommon key characters to the key buffer
- ..S K(I)=$E(KEY,1,CCC+UCC)
-;..Copy the key into the array
- .S R=R+UCC+4 I DTYP D
-;.Point at data - If it's a data block
- ..S DBC=$V(VV,R,2),D(I)=""
-;..Get the DBC, clear the data
- ..I DBC<5 F %=1:1:DBC S D(I)=D(I)_$C($V(VV,R+1+%,1))
-;..Do it this way if it would have been an int
- ..E  S D(I)=$V(VV,R+2,DBC)
-;..This way to get a string
- .E  S:R#4 R=R\4+1*4 S D(I)=$V(VV,R,4)
-;.Else it's a pointer (or directory), round up (if reqd) and get blk#
- .I K="$GLOBAL" S DGD(I)=$V(VV,R+4,4)
-;.If Global directory get DGD
+ ;Scan all indexes
+ F I=IDX:1:$V(VV,8,2) D
+ . ;Get the Record address, CCC and UCC
+ . S R=$V(VV,I*2,2)*4,CCC=$V(VV,R+2,1),UCC=$V(VV,R+3,1)
+ . ;Ensure we get a string return for the next $V()
+ . S %=UCC,K(I)="" S:%=1!(%=2) %=3 S:%=4 %=5
+ . ;If there is a key
+ . I UCC D
+ . . ;Copy uncommon key characters to the key buffer
+ . . S $E(KEY,CCC+1,CCC+UCC)=$E($V(VV,R+4,%),1,UCC)
+ . . ;Copy the key into the array
+ . . S K(I)=$E(KEY,1,CCC+UCC)
+ . ;Point at data - If it's a data block
+ . S R=R+UCC+4 I DTYP D
+ . . ;Get the DBC, clear the data
+ . . S DBC=$V(VV,R,2),D(I)=""
+ . . ;Do it this way if it would have been an int
+ . . I DBC<5 F %=1:1:DBC S D(I)=D(I)_$C($V(VV,R+1+%,1))
+ . . ;This way to get a string
+ . . E  S D(I)=$V(VV,R+2,DBC)
+ . ;Else it's a pointer (or directory), round up (if reqd) and get blk#
+ . E  S:R#4 R=R\4+1*4 S D(I)=$V(VV,R,4)
+ . ;If Global directory get DGD
+ . I K="$GLOBAL" S DGD(I)=$V(VV,R+4,4)
  Q
-;---
-LOCATE N UCI,GLO,TB,IK,I S UCI="MGR",LCMD=$E(LCMD,2,999)
+ ;---
 ;Locate a block
+LOCATE N UCI,GLO,TB,IK,I S UCI=^$S("VOL",1,"UCI",1),LCMD=$E(LCMD,2,999)
+ ;Check for a specified UCI
  I $E(LCMD)="[" S UCI=$P($E(LCMD,2,999),"]"),UCI=$TR(UCI,""""),LCMD=$P(LCMD,"]",2,999)
-;Check for a specified UCI
+ ;Setup the global and LCMD as the subscripts
  S GLO=$P(LCMD,"("),LCMD=$P(LCMD,"(",2,999),LCMD=$E(LCMD,1,$L(LCMD)-1)
-;Setup the global and LCMD as the subscripts
+ ;Attempt to get the top block
  S TB=$G(^[UCI]$G(GLO))
-;Attempt to get the top block
+ ;Complain if no such
  I 'TB W "?No such global as ^",GLO," in UCI: ",UCI,$C(7),! Q
-;Complain if no such
+ ;Make a key from it
  S IK=$$DOKEY(LCMD),BLK=TB
-;Make a key from it
-LOC1 V VV:BLK D LOADA I DTYP G BLK^FIX
+ ;---
 ;Get the block - done if it's data
- F I=10:1 Q:'$D(K(I))  I IK']K(I) Q
-;Look for it
+LOC1 V VV:BLK D LOADA I DTYP G BLK^FIX
+ ;Look for it
+ F I=IDX:1 Q:'$D(K(I))  I IK']K(I) Q
+ ;Backup if required
  I $G(K(I))'=IK S I=I-1
-;Backup if required
+ ;Loop again
  S BLK=D(I) G LOC1
-;Loop again
-;---
-INSERT N F,GLO,Q,%,S,I S LCMD=$E(LCMD,2,999)
+ ;---
 ;Remove the I from LCMD
+INSERT N F,GLO,Q,%,S,I S LCMD=$E(LCMD,2,999)
+ ;Scan looking for the =
  S Q=0 F %=1:1:$L(LCMD)+1 D  Q:Q<0
-;Scan looking for the =
- .I $E(LCMD,%)="""" S Q='Q Q
-;.Check for a quote
- .Q:Q  I $E(LCMD,%)="=" S Q=-1
-;.Check for the =
+ . ;Check for a quote
+ . I $E(LCMD,%)="""" S Q='Q Q
+ . ;Check for the =
+ . Q:Q  I $E(LCMD,%)="=" S Q=-1
+ ;Separate the source and destination
  S GLO=$E(LCMD,1,%-1),LCMD=$E(LCMD,%+1,999)
-;Separate the source and destination
+ ;Check for a block#
  I 'DTYP,LCMD'?1.N W "?Must specify a block# in a pointer block",$C(7) Q
-;Check for a block#
+ ;Remove any quotes
  I $E(LCMD)="""" S @("LCMD="_LCMD)
-;Remove any quotes
  S:$E(GLO)="^" GLO=$E(GLO,2,99)
+ ;Get subs into S
  S S=$P(GLO,"(",2,999),GLO=$P(GLO,"(")
-;Get subs into S
+ ;Check the global name (if any)
  I $L(GLO),GLO'=K W "?This block is ^",K," not ^",GLO,$C(7) Q
-;Check the global name (if any)
+ ;Check for a trailing )
  I $E(S,$L(S))'=")" W "?Junk subscript provided",$C(7) Q
-;Check for a trailing )
+ ;Get the KEY
  S S=$E(S,1,$L(S)-1),S=$$DOKEY(S)
-;Get the KEY
- I S']K(10) W "WARNING: Specified key is before first key",!
-;Check if before first
- F I=10:1 Q:'$D(K(I))  I S']K(I) Q
-;Look for insert point
+ ;Check if before first
+ I S']K(IDX) W "WARNING: Specified key is before first key",!
+ ;Look for insert point
+ F I=IDX:1 Q:'$D(K(I))  I S']K(I) Q
+ ;Check for end
  I '$D(K(I)) W "WARNING: Specified key is after last key",!
-;Check for end
+ ;See if it's already there
  E  I K(I)=S W "?That key exists",$C(7) Q
-;See if it's already there
+ ;Get last entry - copy down
  S F=$O(K(""),-1) F %=F:-1:I S K(%+1)=K(%),D(%+1)=D(%) S:$D(DGD(%)) DGD(%+1)=DGD(%)
-;Get last entry - copy down
+ ;Store the new values and quit
  S K(I)=S,D(I)=LCMD W "Inserted." Q
-;Store the new values and quit
-;---
-BLDKEY(K) Q:K="" "" I +K'=K Q $C(128)_K_$C(0)
+ ;---
 ;Build a key for K - check for null then a string
+BLDKEY(K) Q:K="" "" I +K'=K Q $C(128)_K_$C(0)
+ ;Check 0 - then positive numbers
  Q:K=0 $C(64,0)  I K>0 Q $C($L($P(K,"."))+64)_$TR(K,".")_$C(0)
-;Check 0 - then positive numbers
+ ;Finally the negative numbers
  Q $C(63-($L($P(K,"."))-1))_$TR(K,"0123456789.-","9876543210")_$C(255)
-;Finally the negative numbers
-;
-DOKEY(K,%,Q,F) S F="" F  Q:K=""  D
+ ;---
 ;Build a full key
- .S Q=0 F %=1:1:$L(K)+1 D  Q:Q<0
-;.Scan looking for first subscript
- ..I $E(K,%)="""" S Q='Q Q
-;..Check for a quote
- ..Q:Q  I $E(K,%)="," S Q=-1
-;..Check for a comma
- .S Q=$E(K,1,%-1),K=$E(K,%+1,999) I $E(Q)="""" S @("Q="_Q)
-;.Get this subs into Q, rest into K - remove quotes if reqd
- .S F=F_$$BLDKEY(Q)
-;.Add to the key
+DOKEY(K,%,Q,F) S F="" F  Q:K=""  D
+ . ;Scan looking for first subscript
+ . S Q=0 F %=1:1:$L(K)+1 D  Q:Q<0
+ . . ;Check for a quote
+ . . I $E(K,%)="""" S Q='Q Q
+ . . ;Check for a comma
+ . . Q:Q  I $E(K,%)="," S Q=-1
+ . ;Get this subs into Q, rest into K - remove quotes if reqd
+ . S Q=$E(K,1,%-1),K=$E(K,%+1,999) I $E(Q)="""" S @("Q="_Q)
+ . ;Add to the key
+ . S F=F_$$BLDKEY(Q)
+ ;Quit with the key
  Q F
-;Quit with the key
-;
-UNKEY(K,%,X,C) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q ""
+ ;---
 ;Get string from key - check null
+UNKEY(K,%,X,C) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q ""
+ ;Special case for top node
  I K="" Q ""
-;Special case for top node
+ ;Check for a string
  I $A(K)=128 S %=$P($E(K,2,999),$C(0)),K=$P(K,$C(0),2,999) Q %
-;Check for a string
+ ;Get count - Remove terminator and trailing rubish from K, reset K
  S C=$A(K),X=$P($P($E(K,2,999),$C(0)),$C(255)),K=$E(K,$L(X)+3,999)
-;Get count - Remove terminator and trailing rubish from K, reset K
+ ;Check for "0"
  I C=64&'X Q "0"
-;Check for "0"
+ ;If it's negative, do the complementing
  I C<64 S C=63-C,X=$TR(X,"0123456789","9876543210")
-;If it's negative, do the complementing
+ ;Quit with the number
  Q $S(C<64:"-",1:"")_$E(X,1,C#64)_$S($L(X)>(C#64):"."_$E(X,C#64+1,999),1:"")
-;Quit with the number
-;
-FULLUNK(K,A,%,F) S A="" F  S %=$$UNKEY(.K) D:+%'=%  S A=A_","_% Q:K=""
+ ;---
 ;Do a full unkey
- .I %'["""" S %=""""_%_"""" Q
-;.Simple (no embeded ")
- .S F="""" F  Q:%=""  S F=F_$S($E(%)="""":"""""",1:$E(%)),%=$E(%,2,999)
-;.Double the quotes
- .S %=F_""""
-;.Terminate it
+FULLUNK(K,A,%,F) S A="" F  S %=$$UNKEY(.K) D:+%'=%  S A=A_","_% Q:K=""
+ . ;Simple (no embedded ")
+ . I %'["""" S %=""""_%_"""" Q
+ . ;Double the quotes
+ . S F="""" F  Q:%=""  S F=F_$S($E(%)="""":"""""",1:$E(%)),%=$E(%,2,999)
+ . ;Terminate it
+ . S %=F_""""
  Q $E(A,2,999)
 
 FIX2
-FIX2 ;FIX subroutines ; V 3.0 05 Jan 2000 04:22 PM
+FIX2 ;FIX subroutines ; V 3.1 26 Dec 2020 09:45 AM
  Q
+ ;
 HELP W "Enter the number of the block to examine or one of:",!
  W ?8,"C to check the current block and its descendants",!
  W ?8,"D to Dump the content of the current block to ^%DUMP()",!
@@ -1806,80 +1842,81 @@ HELP W "Enter the number of the block to examine or one of:",!
  W ?8,"Z to Zot the block (mark unused) F or . are NOT required",!
  W ?8,"^spec to locate the block containing spec",!
  Q
-;---
-UP N KEY,GLO,TB,F,I,% S F=$V(VV,0,1)#64,F=^$S("VOL",1,"UCI",F)
+ ;---
 ;Move up from current block
- S KEY=K(10),GLO=K,TB=BLK,BLK=^[F]$G(GLO)
-;Save a few required values - get top of current global
+UP N KEY,GLO,TB,F,I,% S F=$V(VV,0,1)#64,F=^$S("VOL",1,"UCI",F)
+ ;Save a few required values - get top of current global
+ S KEY=K(IDX),GLO=K,TB=BLK,BLK=^[F]$G(GLO)
+ ;If already at top, select the directory and use that
  I BLK=TB S BLK=^[F]$G("$GLOBAL") G BLK^FIX
-;If already at top, select the directory and use that
-UP1 V VV:BLK D LOADA^FIX1
+ ;---
 ;Get the data into the arrays
+UP1 V VV:BLK D LOADA^FIX1
+ ;Check that we got the correct one
  I K'=GLO W "?Found incorrect global in UP",$C(7),! G BLK^FIX
-;Check that we got the correct one
+ ;Ensure still a pointer
  I DTYP W "?Got back to data level in UP",$C(7),! G BLK^FIX
-;Ensure still a pointer
- F I=10:1 Q:'$D(K(I))  I KEY']K(I) Q
-;Look for it
+ ;Look for it
+ F I=IDX:1 Q:'$D(K(I))  I KEY']K(I) Q
+ ;Backup if required
  I $G(K(I))'=KEY S I=I-1
-;Backup if required
+ ;If there, exit
  I TB=D(I) G BLK^FIX
-;If there, exit
+ ;Loop again
  S BLK=D(I) G UP1
-;Loop again
-;---
-SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
+ ;---
 ;Save current data
+SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
+ ;Get block size
  N BSIZ,CCC,UCC,I,R,%,F,CS,SZ S BSIZ=^$S("VOL",1,"BLOCK"),SZ=0
-;Get block size
- F I=10:1 Q:'$D(K(I))  D
-;Loop thru all keys
- .F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
-;.Locate common character count
- .S UCC=$L(K(I))-CCC,CS=4+UCC+$S(DTYP:$L(D(I))+2,1:4) S:CS#4 CS=CS\4+1*4
-;.Get UCC and Chunk Size - round up if reqd
- .S SZ=SZ+CS+2
-;.Add required space
+ ;Loop thru all keys
+ F I=IDX:1 Q:'$D(K(I))  D
+ . ;Locate common character count
+ . F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
+ . ;Get UCC and Chunk Size - round up if reqd
+ . S UCC=$L(K(I))-CCC,CS=4+UCC+$S(DTYP:$L(D(I))+2,1:4) S:CS#4 CS=CS\4+1*4
+ . ;Add required space
+ . S SZ=SZ+CS+2
+ ;Complain if it won't fit
  S SZ=(BSIZ-22)-SZ I SZ<0 W "?Doesn't fit by ",$TR(SZ,"-")," bytes",$C(7),! Q
-;Complain if it won't fit
+ ;Zot the block (except first 4 bytes)
  F I=4:4:BSIZ-1 S %=$V(VV,I,4,0)
-;Zot the block (except first 4 bytes)
+ ;Reset block type
  S %=$V(VV,0,1,K="$GLOBAL"!DTYP*64+D(0))
-;Reset block type
- S %=$V(VV,4,4,D),%=$V(VV,8,2,9),%=$V(VV,10,2,BSIZ/4-1)
-;Reset RL, last index, last free
- S I=K_$TR($J("",8-$L(K))," ",$C(0)),%=$V(VV,12,8,I)
-;Store the global name
- F I=10:1 Q:'$D(K(I))  D
-;Loop thru all keys
- .F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
-;.Locate common character count
- .S UCC=$L(K(I))-CCC,CS=4+UCC+$S(DTYP:$L(D(I))+2,1:4) S:CS#4 CS=CS\4+1*4
-;.Get UCC and Chunk Size - round up if reqd
- .I K="$GLOBAL" S CS=CS+4
-;.Allow for flags word
- .S R=$V(VV,10,2)-(CS/4),%=$V(VV,10,2,R),R=R+1,%=$V(VV,I*2,2,R),R=R*4
-;.Set last free and this index - make R = address
- .S %=$V(VV,8,2,I),%=$V(VV,R,2,CS),%=$V(VV,R+2,1,CCC),%=$V(VV,R+3,1,UCC)
-;.and last index, setup chunk size, CCC and UCC
- .I UCC<5 F F=1:1:UCC S %=$V(VV,R+3+F,1,$A(K(I),CCC+F))
-;.Store it this way for a small size
- .E  S %=$V(VV,R+4,UCC,$E(K(I),CCC+1,CCC+UCC))
-;.or this way for a longer string
- .S R=R+UCC+4
-;.Point at the DBC
- .I K="$GLOBAL",$P($SY,"V",2)<1.32 S DGD(I)=DGD(I)#3
-;.For version 1.31 (or earlier), trim flags word
- .I 'DTYP S:R#4 R=R\4+1*4 S %=$V(VV,R,4,D(I)) S:K="$GLOBAL" %=$V(VV,R+4,4,DGD(I)) Q
-;.Do a pointer or Global Directory this way
- .S %=$V(VV,R,2,$L(D(I)))
-;.Store the length
- .I $L(D(I))<5 F F=1:1:$L(D(I)) S %=$V(VV,R+1+F,1,$A(D(I),F))
-;.Store it this way for a small size
- .E  S %=$V(VV,R+2,$L(D(I)),D(I))
-;.or this way for a longer string
+ ;Reset RL, last index, last free
+ S %=$V(VV,4,4,D),%=$V(VV,8,2,IDX-1),%=$V(VV,10,2,BSIZ/4-1)
+ ;Store the global name
+ S I=K_$TR($J("",VARLEN-$L(K))," ",$C(0)),%=$V(VV,12,VARLEN,I)
+ ;Loop thru all keys
+ F I=IDX:1 Q:'$D(K(I))  D
+ . ;Locate common character count
+ . F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
+ . ;Get UCC and Chunk Size - round up if reqd
+ . S UCC=$L(K(I))-CCC,CS=4+UCC+$S(DTYP:$L(D(I))+2,1:4) S:CS#4 CS=CS\4+1*4
+ . ;Allow for flags word
+ . I K="$GLOBAL" S CS=CS+4
+ . ;Set last free and this index - make R = address
+ . S R=$V(VV,10,2)-(CS/4),%=$V(VV,10,2,R),R=R+1,%=$V(VV,I*2,2,R),R=R*4
+ . ;and last index, setup chunk size, CCC and UCC
+ . S %=$V(VV,8,2,I),%=$V(VV,R,2,CS),%=$V(VV,R+2,1,CCC),%=$V(VV,R+3,1,UCC)
+ . ;Store it this way for a small size
+ . I UCC<5 F F=1:1:UCC S %=$V(VV,R+3+F,1,$A(K(I),CCC+F))
+ . ;or this way for a longer string
+ . E  S %=$V(VV,R+4,UCC,$E(K(I),CCC+1,CCC+UCC))
+ . ;Point at the DBC
+ . S R=R+UCC+4
+ . ;For version 1.31 (or earlier), trim flags word
+ . I K="$GLOBAL",$P($SY,"V",2)<1.32 S DGD(I)=DGD(I)#3
+ . ;Do a pointer or Global Directory this way
+ . I 'DTYP S:R#4 R=R\4+1*4 S %=$V(VV,R,4,D(I)) S:K="$GLOBAL" %=$V(VV,R+4,4,DGD(I)) Q
+ . ;Store the length
+ . S %=$V(VV,R,2,$L(D(I)))
+ . ;Store it this way for a small size
+ . I $L(D(I))<5 F F=1:1:$L(D(I)) S %=$V(VV,R+1+F,1,$A(D(I),F))
+ . ;or this way for a longer string
+ . E  S %=$V(VV,R+2,$L(D(I)),D(I))
+ ;Do it and exit
  V VV:-BLK W "Filed.",! K BLK Q
-;Do it and exit
 
 IC
 IC ;Check Database
@@ -1887,75 +1924,66 @@ IC ;Check Database
  S ^$S("VOL",1,"WRITELOCK")=1 W !,"Writelocking the database"
  F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
  W !,"Checking Database",! S ER=$&%IC(1,0)
- W ! W:ER ER W $S(ER=0:"NO Errors",ER>1:" errors",1:" error")," found.",!
+ W ! W:ER ER W $S(ER=0:"NO errors",ER>1:" errors",1:" error")," found.",!
 ERR S ^$S("VOL",1,"WRITELOCK")=0 Q
 
 JOURNLST
-JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
-;Allow for 64 bit time_t in the file - rdn
-;JOURNLST ;List journal file
-;typedef struct JRNREC                                   // journal record
-;{ u_short size;                                         // size of following
-;  u_char action;                                        // what it is
-;  u_char uci;                                           // uci number
-;  time_t time;                                          // now
-;  var_u name;                                           // global name
-;  u_char slen;                                          // subs length
-;  u_char key[256];                                      // the key to 256 char
-;//short dbc;                                            // data byte count
-;//u_char data[32767];                                   // bytes to 32767
-;} jrnrec;                                               // end jrnrec struct
-;
-;#define JRN_CREATE      0                               // create file
-;#define JRN_START       1                               // start/mount environ
-;#define JRN_STOP        2                               // stop journaling
-;#define JRN_ESTOP       3                               // stop/dism environ
-;#define JRN_SET         4                               // Set global
-;#define JRN_KILL        5                               // Kill global
-;
- N $ET S $ET="D ^%ET"
-ASK R "Enter file: ",FILE,! Q:FILE=""
+JOURNLST ;List journal file ; V 3.1 26 Dec 2020 12:05 PM
+ N $ET S $ET="C 1 D ^%ET"
+ ;
+ASK N FILE,ANS,DATA,ACTION,UCI,SIZE,NAME,TIME,OFF,OFFSET,MAGIC,VARLEN,TIMELEN,SLEN,KEY,REF,DBC,LONG,BIG
+ S BIG=$$BIGEND^%U
+ S FILE=$G(^$S("VOL",1,"JOURNAL_FILE")),LONG=0
+ W "Enter file"_$S(FILE'="":" [<space> for "_FILE_"]",1:"")_": " R ANS S:ANS'=" " FILE=ANS W ! Q:FILE=""
+ ;NOTE: If FILE ends in +, it will output the full data, not truncate it to 500
+ I $E(FILE,$L(FILE))="+" S LONG=32757,FILE=$E(FILE,1,$L(FILE)-1)
  I '$&%FILE(FILE,"EXISTS") W "NO SUCH FILE",! G ASK
  C 1 O 1:(FILE:"R") U 1:("TERMINATOR=")
  R MAGIC#4,OFFSET#8 U 0
  S MAGIC=$$CVT(MAGIC),OFFSET=$$CVT(OFFSET)
  I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 G ASK
+ S (VARLEN,TIMELEN)=8
+ S OFF=12 U 1 R TIME#TIMELEN U 0 S SIZE=$$CVT($E(TIME,1,2)),ACTION=$A(TIME,3),UCI=$A(TIME,4)
+ ;Configure for new format journal, with 64 bit time_t and 32 character names
+ I SIZE=12 S VARLEN=32,TIMELEN=12 N EXT U 1 R EXT#4 U 0 S TIME=TIME_EXT W !,"Reference Standard M Journal Version 2",!
+ E  W !,"Reference Standard M Journal Version 1",!
  W "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
- S OFF=12 F  D  Q:OFF'<OFFSET
-;Scan the file
- .U 1 R TIME#8 U 0 S SIZE=$$CVT($E(TIME,1,2)),UCI=$A(TIME,4),ACTION=$A(TIME,3)
-;.Get the fixed fields
- .S TIME=$$CVT($E(TIME,5,8)),TIME=(TIME\86400+47117)_","_(TIME#86400)
-;.Convert time
- .S ACTION=$S(ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
-;.Setup ACTION
- .W $$D^%D(+TIME)," ",$$T^%T($P(TIME,",",2)),?24,ACTION W:UCI ?31,UCI
-;.Write the first bit
- .I SIZE=8 S OFF=OFF+SIZE W ! Q
-;.If a "small" one, that's all
- .S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-8) U 0
-;.Get the rest of the record
- .I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
-;.Check for a 64 bit time_t here
- .S NAME=$TR($E(DATA,1,8),$C(0)),SLEN=$A(DATA,9),DATA=$E(DATA,10,99999)
-;.Extract the name and key length
- .S KEY=$$FULLUNK^FIX1($E(DATA,1,SLEN)),DATA=$E(DATA,SLEN+1,99999)
-;.Get the key
- .S REF="^"_NAME_$S(SLEN:"("_KEY_")",1:"") W ?35,REF I ACTION'="SET" W ! Q
-;.Write the key - quit if not SET
- .S DBC=$$CVT($E(DATA,1,2)),DATA=$$DISP^%U($E(DATA,3,DBC+2))
-;.Extract the data
- .W "=",DATA,!
-;.Finally the data (if any)
+ ;Scan the file
+ F  D  Q:OFF'<OFFSET
+ . ;Get the fixed fields
+ . I OFF>12 U 1 R TIME#TIMELEN U 0 S SIZE=$$CVT($E(TIME,1,2)),ACTION=$A(TIME,3),UCI=$A(TIME,4)
+ . ;Convert time
+ . S TIME=$$CVT($E(TIME,5,TIMELEN)),TIME=(TIME\86400+47117)_","_(TIME#86400)
+ . ;Setup ACTION
+ . S ACTION=$S(ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
+ . ;Write the first bit
+ . W $$D^%D(+TIME)," ",$$T^%T($P(TIME,",",2)),?24,ACTION W:UCI ?31,UCI
+ . ;If a "small" one, that's all
+ . I SIZE=TIMELEN S OFF=OFF+SIZE W ! Q
+ . ;Get the rest of the record
+ . S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-TIMELEN) U 0
+ . ;Check for a 64 bit time_t here when listing an old format journal
+ . I TIMELEN=8,$E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
+ . ;Extract the name and key length
+ . S NAME=$TR($E(DATA,1,VARLEN),$C(0)),SLEN=$A(DATA,VARLEN+1),DATA=$E(DATA,VARLEN+2,99999)
+ . ;Get the key
+ . S KEY=$$FULLUNK^FIX1($E(DATA,1,SLEN)),DATA=$E(DATA,SLEN+1,99999)
+ . ;Write the key - quit if not SET
+ . S REF="^"_NAME_$S(SLEN:"("_KEY_")",1:"") W ?35,REF I ACTION'="SET" W ! Q
+ . ;Extract the data
+ . S DBC=$$CVT($E(DATA,1,2)),DATA=$$DISP^%U($E(DATA,3,DBC+2),LONG)
+ . ;Finally the data (if any)
+ . W "=",DATA,!
  C 1 Q
-;---
-CVT(BIN,I) S I=0 F  S I=I*256+$A(BIN,$L(BIN)),BIN=$E(BIN,1,$L(BIN)-1) Q:'$L(BIN)
-;Convert binary string to number
+ ;---
+CVT(BIN,I) ;Convert binary string to number
+ S I=0
+ I $G(BIG,0) F  S I=I*256+$A(BIN),BIN=$E(BIN,2,$L(BIN)) Q:'$L(BIN)
+ E  F  S I=I*256+$A(BIN,$L(BIN)),BIN=$E(BIN,1,$L(BIN)-1) Q:'$L(BIN)
  Q I
 
 LOG2
 LOG2 ;from MATH ; V 3.0 29 Oct 2009 11:37 AM
-;LOG2 ;from MATH ; ; V 3.0 29 Oct 2009 11:33 AM
  ;===
  ;
  ;
@@ -2015,6 +2043,91 @@ MATH ;
 ; then the corrected line appears, followed by a
 ; line containing three semicolons.
 ;
+; MATH dispatch and polyfill routine
+;
+ABS(X) G ABS^MATH1
+ARCCOS(X) G ARCCOS^MATH1
+ARCCOSX(X,PREC) G ARCCOSX^MATH1
+ARCCOSH(X,PREC) G ARCCOSH^MATH1
+ARCCOT(X,PREC) G ARCCOT^MATH1
+ARCCOTH(X,PREC) G ARCCOTH^MATH1
+ARCCSC(X,PREC) G ARCCSC^MATH1
+ARCSEC(X,PREC) G ARCSEC^MATH1
+ARCSIN(X) G ARCSIN^MATH1
+ARCSINX(X,PREC) G ARCSINX^MATH1
+ARCSINH(X,PREC) G ARCSINH^MATH1
+ARCTAN(X,PREC) G ARCTAN^MATH1
+ARCTANH(X,PREC) G ARCTANH^MATH1
+CABS(Z) G CABS^MATH2
+CADD(X,Y) G CADD^MATH2
+CCOS(Z,PREC) G CCOS^MATH2
+CDIV(X,Y) G CDIV^MATH2
+CEXP(Z,PREC) G CEXP^MATH2
+CLOG(Z,PREC) G CLOG^MATH2
+CMUL(X,Y) G CMUL^MATH2
+COMPLEX(X) G COMPLEX^MATH2
+CONJUG(Z) G CONJUG^MATH2
+COS(X) G COS^MATH2
+COSX(X,PREC) G COSX^MATH2
+COSH(X,PREC) G COSH^MATH2
+COT(X,PREC) G COT^MATH2
+COTH(X,PREC) G COTH^MATH2
+CPOWER(Z,N,PREC) G CPOWER^MATH2
+CSC(X,PREC) G CSC^MATH2
+CSCH(X,PREC) G CSCH^MATH2
+CSIN(Z,PREC) G CSIN^MATH2
+CSUB(X,Y) G CSUB^MATH2
+DECDMS(X,PREC) G DECDMS^MATH2
+DEGRAD(X) G DEGRAD^MATH2
+DMSDEC(X) G DMSDEC^MATH2
+E() G E^MATH3
+EXP(X,PREC) G EXP^MATH3
+LOG(X,PREC) G LOG^MATH3
+LOG10(X,PREC) G LOG10^MATH3
+MTXADD(A,B,R,ROWS,COLS) G MTXADD^MATH3
+MTXCOF(A,I,K,N) G MTXCOF^MATH3
+MTXCOPY(A,R,ROWS,COLS) G MTXCOPY^MATH3
+MTXDET(A,N) G MTXDET^MATH3
+MTXEQU(A,B,R,N,M) G MTXEQU^MATH3
+MTXINV(A,R,N) G MTXINV^MATH3
+MTXMUL(A,B,R,M,L,N) G MTXMUL^MATH3
+MTXSCA(A,R,ROWS,COLS,S) G MTXSCA^MATH3
+MTXSUB(A,B,R,ROWS,COLS) G MTXSUB^MATH3
+MTXTRP(A,R,M,N) G MTXTRP^MATH3
+MTXUNIT(R,N,SPARSE) G MTXUNIT^MATH3
+PI() G PI^MATH4
+PRODUCE(IN,SPEC,MAX) G PRODUCE^MATH4
+RADDEG(X) G RADDEG^MATH4
+REPLACE(IN,SPEC) G REPLACE^MATH4
+SEC(X,PREC) G SEC^MATH4
+SECH(X,PREC) G SECH^MATH4
+SIGN(X) G SIGN^MATH4
+SIN(X) G SIN^MATH4
+SINX(X,PREC) G SINX^MATH4
+SINH(X,PREC) G SINH^MATH4
+SQRT(X,PREC) G SQRT^MATH4
+TAN(X,PREC) G TAN^MATH5
+TANH(X,PREC) G TANH^MATH5
+FORMAT(V,S) G FORMAT^MATH5
+XOR(a,b,w) G XOR^MATH6
+CRC16(string,seed) G CRC16^MATH6
+CRC32(string,seed) G CRC32^MATH6
+CRCCCITT(string,seed) G CRCCCITT^MATH6
+LOWER(A,CHARMOD) G LOWER^MATH6
+PATCODE(A,PAT,CHARMOD) G PATCODE^MATH6
+UPPER(A,CHARMOD) G UPPER^MATH6
+;
+KVALUE(R,ROW,COL) ;KVALUE polyfill
+ N TMP M TMP=R K R
+ F I=1:1:ROW F J=1:1:COL I '((I=ROW)&(J=COL)) S R(I,J)=TMP(I,J)
+ Q
+;===
+;
+;
+
+MATH1
+MATH1 ;
+;
 ABS(X) Quit $Translate(+X,"-")
 ;===
 ;
@@ -2037,16 +2150,16 @@ ARCCOS(X) ;
  Set A(6)=0.0066700901,A(7)=-0.0012624911
  Set R=A(0),XX=1 For N=1:1:7 Set XX=XX*X,R=A(N)*XX+R
 ;
-;;; Set R=$%SQRT^MATH(1-X)*R ;                                        Number ~~
+;;; Set R=$$SQRT^MATH(1-X)*R ;                                        Number ~~
 ; Winfried Gerum (8 June 1995)
- Set R=$%SQRT^MATH(1-X,11)*R
+ Set R=$$SQRT^MATH(1-X,11)*R
 ;;;
 ;
  Quit R*SIGN
 ;===
 ;
 ;
-ARCCOS(X,PREC) ;
+ARCCOSX(X,PREC) ;
 ;
 ;;; New L,LIM,K,SIG,SIGS ;                                            Number ~~
 ; Winfried Gerum (8 June 1995)
@@ -2065,16 +2178,16 @@ ARCCOS(X,PREC) ;
 ;
  Set SIG=$Select(X<0:-1,1:1),VALUE=1-(X*X)
 ;
-;;; Set X=$%SQRT^MATH(VALUE) ;                                        Number ~~
+;;; Set X=$$SQRT^MATH(VALUE) ;                                        Number ~~
 ; Winfried Gerum (8 June 1995)
- Set X=$%SQRT^MATH(VALUE,PREC)
+ Set X=$$SQRT^MATH(VALUE,PREC)
 ;;;
 ;
 ;;; If $Translate(X,"-")=1 Do  Quit ;                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If $Translate(X,"-")=1 Do  Quit VALUE
- . Set VALUE=$%PI^MATH()/2*X
+ . Set VALUE=$$PI^MATH()/2*X
  . Quit
 ;
 ;;; If X>0.9 Do  Quit ;                                               Number ~~
@@ -2083,18 +2196,18 @@ ARCCOS(X,PREC) ;
  If X>0.9 Do  Quit VALUE
  . Set SIGS=$Select(X<0:-1,1:1)
  . Set VALUE=1/(1/X/X-1)
- . ;;; Set X=$%SQRT^MATH(VALUE) ;                                      Number ~~
+ . ;;; Set X=$$SQRT^MATH(VALUE) ;                                      Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set X=$%SQRT^MATH(VALUE,PREC)
- . ;;; Set VALUE=$%ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
+ . Set X=$$SQRT^MATH(VALUE,PREC)
+ . ;;; Set VALUE=$$ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set VALUE=$%ARCTAN^MATH(X,PREC)*SIGS
+ . Set VALUE=$$ARCTAN^MATH(X,PREC)*SIGS
  Set (VALUE,L)=X
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
  . Set L=L*X*X*(K-2)/(K-1)*(K-2)/K,VALUE=VALUE+L
  . Quit
- Quit $Select(SIG<0:$%PI^MATH()-VALUE,1:VALUE)
+ Quit $Select(SIG<0:$$PI^MATH()-VALUE,1:VALUE)
  ;===
  ;
  ;
@@ -2108,15 +2221,15 @@ ARCCOSH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set SQ=$%SQRT^MATH(X*X-1,PREC)
- Quit $%LOG^MATH(X+SQ,PREC)
+ Set SQ=$$SQRT^MATH(X*X-1,PREC)
+ Quit $$LOG^MATH(X+SQ,PREC)
 ;===
 ;
 ;
 ARCCOT(X,PREC) ;
  Set PREC=$Get(PREC,11)
  Set X=1/X
- Quit $%ARCTAN^MATH(X,PREC)
+ Quit $$ARCTAN^MATH(X,PREC)
 ;===
 ;
 ;
@@ -2129,8 +2242,8 @@ ARCCOTH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set L1=$%LOG^MATH(X+1,PREC)
- Set L2=$%LOG^MATH(X-1,PREC)
+ Set L1=$$LOG^MATH(X+1,PREC)
+ Set L2=$$LOG^MATH(X-1,PREC)
  Quit L1-L2/2
 ;===
 ;
@@ -2138,14 +2251,14 @@ ARCCOTH(X,PREC) ;
 ARCCSC(X,PREC) ;
  Set PREC=$Get(PREC,11)
  Set X=1/X
- Quit $%ARCSIN^MATH(X,PREC)
+ Quit $$ARCSINX^MATH(X,PREC)
 ;===
 ;
 ;
 ARCSEC(X,PREC) ;
  Set PREC=$Get(PREC,11)
  Set X=1/X
- Quit $%ARCCOS^MATH(X,PREC)
+ Quit $$ARCCOSX^MATH(X,PREC)
 ;===
 ;
 ;
@@ -2167,17 +2280,17 @@ ARCSIN(X) ;
  Set A(6)=0.0066700901,A(7)=-0.0012624911
  Set R=A(0),XX=1 For N=1:1:7 Set XX=XX*X,R=A(N)*XX+R
 ;
-;;; Set R=$%SQRT^MATH(1-X)*R ;                                        Number ~~
+;;; Set R=$$SQRT^MATH(1-X)*R ;                                        Number ~~
 ; Winfried Gerum (8 June 1995)
- Set R=$%SQRT^MATH(1-X,11)*R
+ Set R=$$SQRT^MATH(1-X,11)*R
 ;;;
 ;
- Set R=$%PI^MATH()/2-R
+ Set R=$$PI^MATH()/2-R
  Quit R*SIGN
 ;===
 ;
 ;
-ARCSIN(X,PREC) ;
+ARCSINX(X,PREC) ;
  New L,LIM,K,SIGS,VALUE
  Set PREC=$Get(PREC,11)
 ;
@@ -2185,19 +2298,19 @@ ARCSIN(X,PREC) ;
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If $Translate(X,"-")=1 Do  Quit VALUE
- . Set VALUE=$%PI^MATH()/2*X
+ . Set VALUE=$$PI^MATH()/2*X
 ;;; If X>0.99999 Do  Quit ;                                           Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If X>0.99999 Do  Quit VALUE
  . Set SIGS=$Select(X<0:-1,1:1)
  . Set VALUE=1/(1/X/X-1)
- . ;;; Set X=$%SQRT^MATH(VALUE) ;                                      Number ~~
+ . ;;; Set X=$$SQRT^MATH(VALUE) ;                                      Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set X=$%SQRT^MATH(VALUE,PREC)
- . ;;; Set VALUE=$%ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
+ . Set X=$$SQRT^MATH(VALUE,PREC)
+ . ;;; Set VALUE=$$ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set VALUE=$%ARCTAN^MATH(X,PREC)*SIGS
+ . Set VALUE=$$ARCTAN^MATH(X,PREC)*SIGS
  Set (VALUE,L)=X
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
@@ -2217,8 +2330,8 @@ ARCSINH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set SQ=$%SQRT^MATH(X*X+1,PREC)
- Quit $%LOG^MATH(X+SQ,PREC)
+ Set SQ=$$SQRT^MATH(X*X+1,PREC)
+ Quit $$LOG^MATH(X+SQ,PREC)
 ;===
 ;
 ;
@@ -2235,24 +2348,24 @@ ARCTAN(X,PREC) ;
 ;;;
 ;
  Set X=$Select(FOLD:1/X,1:X)
- Set L=X,VALUE=$%PI^MATH()/2-(1/X),SIGN=1
+ Set L=X,VALUE=$$PI^MATH()/2-(1/X),SIGN=1
 ;
 ;;; If X<1.3 Do  Quit ;                                               Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If X<1.3 Do  Quit VALUE
  . Set X=$Select(FOLD:1/X,1:X),VALUE=1/((1/X/X)+1)
- . ;;; Set $%SQRT^MATH(VALUE) ;                                        Number ~~
+ . ;;; Set $$SQRT^MATH(VALUE) ;                                        Number ~~
  . ; Winfried Gerum (8 June 1995)
  . ; Eli Reidler (28 June 1996)
- . Set X=$%SQRT^MATH(VALUE,PREC)
+ . Set X=$$SQRT^MATH(VALUE,PREC)
  . If $Translate(X,"-")=1 Do  Quit
- . . Set VALUE=$%PI^MATH()/2*X
+ . . Set VALUE=$$PI^MATH()/2*X
  . . Quit
  . If X>0.9 Do  Quit
  . . Set SIGS=$Select(X<0:-1,1:1)
  . . Set VALUE=1/(1/X/X-1)
- . . Set X=$%SQRT^MATH(VALUE)
+ . . Set X=$$SQRT^MATH(VALUE)
  . . Set VALUE=$$ARCTAN(X,10)
  . . Set VALUE=VALUE*SIGS
  . . Quit
@@ -2270,7 +2383,7 @@ ARCTAN(X,PREC) ;
  . Set L=L*X*X,VALUE=VALUE+(1/(K*L)*SIGN)
  . Set SIGN=SIGN*-1
  . Quit
- Set VALUE=$Select(FOLD:$%PI^MATH()/2-VALUE,1:VALUE)
+ Set VALUE=$Select(FOLD:$$PI^MATH()/2-VALUE,1:VALUE)
  Set VALUE=$Select(SIGT<1:-VALUE,1:VALUE)
  Quit VALUE
 ;===
@@ -2286,14 +2399,18 @@ ARCTANH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Quit $%LOG^MATH(1+X/(1-X),PREC)/2
+ Quit $$LOG^MATH(1+X/(1-X),PREC)/2
 ;===
 ;
 ;
+
+MATH2
+MATH2 ;
+ ;
 CABS(Z) ;
  New ZRE,ZIM
  Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
- Quit $%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM))
+ Quit $$SQRT^MATH(ZRE*ZRE+(ZIM*ZIM))
 ;===
 ;
 ;
@@ -2313,12 +2430,12 @@ CCOS(Z,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set IA=$%CMUL^MATH(Z,"0%1")
- Set E1=$%CEXP^MATH(IA,PREC)
+ Set IA=$$CMUL^MATH(Z,"0%1")
+ Set E1=$$CEXP^MATH(IA,PREC)
  Set IA=-IA_"%"_(-$Piece(IA,"%",2))
- Set E2=$%CEXP^MATH(IA,PREC)
- Set IA=$%CADD^MATH(E1,E2)
- Quit $%CMUL^MATH(IA,"0.5%0")
+ Set E2=$$CEXP^MATH(IA,PREC)
+ Set IA=$$CADD^MATH(E1,E2)
+ Quit $$CMUL^MATH(IA,"0.5%0")
 ;===
 ;
 ;
@@ -2342,8 +2459,8 @@ CEXP(Z,PREC) ;
 ;;;
 ;
  Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
- Set R=$%EXP^MATH(ZRE,PREC)
- Quit R*$%COS^MATH(ZIM,PREC)_"%"_(R*$%SIN^MATH(ZIM,PREC))
+ Set R=$$EXP^MATH(ZRE,PREC)
+ Quit R*$$COSX^MATH(ZIM,PREC)_"%"_(R*$$SINX^MATH(ZIM,PREC))
 ;===
 ;
 ;
@@ -2355,15 +2472,15 @@ CLOG(Z,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set ABS=$%CABS^MATH(Z)
+ Set ABS=$$CABS^MATH(Z)
  Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
 ;
-;;; Set ARG=$%ARCTAN^MATH(ZIM,ZRE,PREC) ;                             Number ~~
+;;; Set ARG=$$ARCTAN^MATH(ZIM,ZRE,PREC) ;                             Number ~~
 ; Alan Frank (October 1995)
- Set ARG=$%ARCTAN^MATH(ZIM/ZRE,PREC)
+ Set ARG=$$ARCTAN^MATH(ZIM/ZRE,PREC)
 ;;;
 ;
- Quit $%LOG^MATH(ABS,PREC)_"%"_ARG
+ Quit $$LOG^MATH(ABS,PREC)_"%"_ARG
 ;===
 ;
 ;
@@ -2386,28 +2503,6 @@ CONJUG(Z) ;
 ;===
 ;
 ;
-COS(X,PREC) ;
- New L,LIM,K,SIGN,VALUE
-;
-;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
-; Winfried Gerum (8 June 1995)
-;    Comment: The official description does not mention than
-;             the function may also be called with the first
-;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$%DMSDEC^MATH(X)
-;;;
-;
- Set PREC=$Get(PREC,11)
- Set X=X#(2*$%PI^MATH())
- Set (VALUE,L)=1,SIGN=-1
- Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
- For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
- . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
- . Quit
- Quit VALUE
-;===
-;
-;
 COS(X) ;
 ;;; ;                                                                 Number ~~
 ; Winfried Gerum (8 June 1995)
@@ -2424,7 +2519,7 @@ COS(X) ;
 ; This approximation only works for 0 <= x <= pi/2
 ; so reduce angle to correct quadrant.
 ;
- Set PI=$%PI^MATH(),X=X#(PI*2),SIGN=1
+ Set PI=$$PI^MATH(),X=X#(PI*2),SIGN=1
  Set:X>PI X=2*PI-X
  Set:X*2>PI X=PI-X,SIGN=-1
 ;
@@ -2432,6 +2527,28 @@ COS(X) ;
  Set A(3)=-0.0013888397,A(4)=0.0000247609,A(5)=-0.0000002605
  Set (X,R)=1 For N=1:1:5 Set X=X*XX,R=A(N)*X+R
  Quit R*SIGN
+;===
+;
+;
+COSX(X,PREC) ;
+ New L,LIM,K,SIGN,VALUE
+;
+;;; Set:X[":" X=$$DMSDEC^MATH(X,12) ;                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;    Comment: The official description does not mention than
+;             the function may also be called with the first
+;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+;;;
+;
+ Set PREC=$Get(PREC,11)
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=1,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
+ . Quit
+ Quit VALUE
 ;===
 ;
 ;
@@ -2453,12 +2570,12 @@ COSH(X,PREC) ;
 COT(X,PREC) ;
  New C,L,LIM,K,SIGN,VALUE
 ;
-;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+;;; Set:X[":" X=$$DMSDEC^MATH(X,12) ;                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ;    Comment: The official description does not mention than
 ;             the function may also be called with the first
 ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$%DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^MATH(X)
 ;;;
 ;
  Set PREC=$Get(PREC,11)
@@ -2468,7 +2585,7 @@ COT(X,PREC) ;
  . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
  . Quit
  Set C=VALUE
- Set X=X#(2*$%PI^MATH())
+ Set X=X#(2*$$PI^MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -2489,9 +2606,9 @@ COTH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set SINH=$%SINH^MATH(X,PREC)
+ Set SINH=$$SINH^MATH(X,PREC)
  If 'SINH Quit "INFINITE"
- Quit $%COSH^MATH(X,PREC)/SINH
+ Quit $$COSH^MATH(X,PREC)/SINH
 ;===
 ;
 ;
@@ -2512,18 +2629,18 @@ CPOWER(Z,N,PREC) ;
  If 'ZRE,'ZIM Quit "0%0"
 ;;;
 ;
- Set PI=$%PI^MATH()
+ Set PI=$$PI^MATH()
 ;
-;;; Set R=$%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM,PREC)) ;                       Number ~~
+;;; Set R=$$SQRT^MATH(ZRE*ZRE+(ZIM*ZIM,PREC)) ;                       Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
- Set R=$%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM),PREC)
+ Set R=$$SQRT^MATH(ZRE*ZRE+(ZIM*ZIM),PREC)
 ;;;
 ;
 ;
-;;; If ZRE Set TH=$%ARCTAN^MATH(ZIM,ZRE,PREC) ;                       Number ~~
+;;; If ZRE Set TH=$$ARCTAN^MATH(ZIM,ZRE,PREC) ;                       Number ~~
 ; Alan Frank (October 1995)
- If ZRE Set TH=$%ARCTAN^MATH(ZIM/ZRE,PREC)
+ If ZRE Set TH=$$ARCTAN^MATH(ZIM/ZRE,PREC)
 ;;;
 ;
 ;;; Else  Set TH=$SELECT(ZRE>0:PI/2,1:-PI/2) ;                        Number ~~
@@ -2531,22 +2648,22 @@ CPOWER(Z,N,PREC) ;
  Else  Set TH=$SELECT(ZIM>0:PI/2,1:-PI/2)
 ;;;
 ;
- Set RHO=$%LOG^MATH(R,PREC)
- Set AR=$%EXP^MATH(RHO*NRE-(TH*NIM),PREC)
+ Set RHO=$$LOG^MATH(R,PREC)
+ Set AR=$$EXP^MATH(RHO*NRE-(TH*NIM),PREC)
  Set PHI=RHO*NIM+(NRE*TH)
- Quit AR*$%COS^MATH(PHI,PREC)_"%"_(AR*$%SIN^MATH(PHI,PREC))
+ Quit AR*$$COSX^MATH(PHI,PREC)_"%"_(AR*$$SINX^MATH(PHI,PREC))
 ;===
 ;
 ;
 CSC(X,PREC) ;
  New L,LIM,K,SIGN,VALUE
 ;
-;;; Set:X[":" X=$%DMSDEC^MATH(X,12);                                 Number ~~
+;;; Set:X[":" X=$$DMSDEC^MATH(X,12);                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ;    Comment: The official description does not mention than
 ;             the function may also be called with the first
 ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$%DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^MATH(X)
 ;;;
 ;
 ;;; Set PREC=$Select($Data(PREC)#2:PREC,1:10) ;                       Number ~~
@@ -2554,7 +2671,7 @@ CSC(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set X=X#(2*$%PI^MATH())
+ Set X=X#(2*$$PI^MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -2566,10 +2683,10 @@ CSC(X,PREC) ;
 ;
 ;
 ;
-CSCH(X,PREC) ;;;Quit 1/$%SINH^MATH(X,PREC) ;                           Number ~~
+CSCH(X,PREC) ;;;Quit 1/$$SINH^MATH(X,PREC) ;                           Number ~~
  ; Winfried Gerum (8 June 1995)
  ; Alan Frank (October 1995)
- Quit 1/$%SINH^MATH(X,$Get(PREC,11))
+ Quit 1/$$SINH^MATH(X,$Get(PREC,11))
  ;;;
  ;
  ;===
@@ -2583,13 +2700,13 @@ CSIN(Z,PREC) ;
  Set PREC=$Get(PREC,11)
  ;;;
  ;
- Set IA=$%CMUL^MATH(Z,"0%1")
- Set E1=$%CEXP^MATH(IA,PREC)
+ Set IA=$$CMUL^MATH(Z,"0%1")
+ Set E1=$$CEXP^MATH(IA,PREC)
  Set IA=-IA_"%"_(-$Piece(IA,"%",2))
- Set E2=$%CEXP^MATH(IA,PREC)
- Set IA=$%CSUB^MATH(E1,E2)
- Set IA=$%CMUL^MATH(IA,"0.5%0")
- Quit $%CMUL^MATH("0%-1",IA)
+ Set E2=$$CEXP^MATH(IA,PREC)
+ Set IA=$$CSUB^MATH(E1,E2)
+ Set IA=$$CMUL^MATH(IA,"0.5%0")
+ Quit $$CMUL^MATH("0%-1",IA)
  ;===
  ;
  ;
@@ -2617,6 +2734,10 @@ DMSDEC(X) ;
  Quit $Piece(X,":")+($Piece(X,":",2)/60)+($Piece(X,":",3)/3600)
  ;===
  ;
+ ;
+
+MATH3
+MATH3 ;
  ;
 E() Quit 2.71828182845905
  ;===
@@ -2684,7 +2805,7 @@ MTXADD(A,B,R,ROWS,COLS) ;
  ;
  NEW ROW,COL,ANY
  FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
- . KVALUE R(ROW,COL) SET ANY=0
+ . DO KVALUE^MATH(.R,ROW,COL) SET ANY=0
  . SET:$DATA(A(ROW,COL))#2 ANY=1
  . SET:$DATA(B(ROW,COL))#2 ANY=1
  . SET:ANY R(ROW,COL)=$GET(A(ROW,COL))+$GET(B(ROW,COL))
@@ -2701,7 +2822,7 @@ MTXCOF(A,I,K,N) ;
  . SET CC=CC+1,RR=0
  . FOR R=1:1:N SET:R'=I RR=RR+1,T(RR,CC)=$GET(A(R,C))
  . QUIT
- QUIT $%MTXDET^MATH(.T,N-1)
+ QUIT $$MTXDET^MATH(.T,N-1)
  ;===
  ;
  ;
@@ -2713,7 +2834,7 @@ MTXCOPY(A,R,ROWS,COLS) ;
  ;
  NEW ROW,COL
  FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
- . KVALUE R(ROW,COL)
+ . DO KVALUE^MATH(.R,ROW,COL)
  . SET:$DATA(A(ROW,COL))#2 R(ROW,COL)=A(ROW,COL)
  . QUIT
  QUIT 1
@@ -2736,7 +2857,7 @@ MTXDET(A,N) ;
  ;
  SET DET=0,SIGN=1
  FOR I=1:1:N DO
- . SET DET=$GET(A(1,I))*$%MTXCOF^MATH(.A,1,I,N)*SIGN+DET
+ . SET DET=$GET(A(1,I))*$$MTXCOF^MATH(.A,1,I,N)*SIGN+DET
  . SET SIGN=-SIGN
  . QUIT
  QUIT DET
@@ -2747,15 +2868,15 @@ MTXEQU(A,B,R,N,M) ;
  ; Solve matrix equation A [M,M] * R [M,N] = B [M,N]
  IF $GET(M)<1 QUIT ""
  IF $GET(N)<1 QUIT ""
- ;;;IF '$%MTXDET^MATH(.A) QUIT 0
+ ;;;IF '$$MTXDET^MATH(.A) QUIT 0
  ; Ed de Moel, 29 August 1999
- IF '$%MTXDET^MATH(.A,M) QUIT 0
+ IF '$$MTXDET^MATH(.A,M) QUIT 0
  ;;;
  ;
  NEW I,I1,J,J1,J2,K,L,T,T1,T2,TEMP,X
  ;
- SET X=$%MTXCOPY^MATH(.A,.T,N,N)
- SET X=$%MTXCOPY^MATH(.B,.R,N,M)
+ SET X=$$MTXCOPY^MATH(.A,.T,N,N)
+ SET X=$$MTXCOPY^MATH(.B,.R,N,M)
  ;
  ; Reduction of matrix A
  ; Steps of reduction are counted by index K
@@ -2817,9 +2938,9 @@ MTXEQU(A,B,R,N,M) ;
  . . IF $GET(T(I,I)) SET R(I,J)=$GET(R(I,J))/$GET(T(I,I))
  . . QUIT
  . QUIT
- ;;;QUIT $%MTXDET^MATH(.R)
+ ;;;QUIT $$MTXDET^MATH(.R)
  ; Ed de Moel, 29 Aug 1999
- QUIT $SELECT(M=N:$%MTXDET^MATH(.R,M),1:1)
+ QUIT $SELECT(M=N:$$MTXDET^MATH(.R,M),1:1)
  ;;;
  ;===
  ;
@@ -2829,8 +2950,8 @@ MTXINV(A,R,N) ;
  IF $GET(N)<1 QUIT 0
  ;
  NEW T,X
- SET X=$%MTXUNIT^MATH(.T,N)
- QUIT $%MTXEQU^MATH(.A,.T,.R,N,N)
+ SET X=$$MTXUNIT^MATH(.T,N)
+ QUIT $$MTXEQU^MATH(.A,.T,.R,N,N)
  ;===
  ;
  ;
@@ -2845,7 +2966,7 @@ MTXMUL(A,B,R,M,L,N) ;
  NEW I,J,K,SUM,ANY
  FOR I=1:1:M FOR J=1:1:N DO
  . SET (SUM,ANY)=0
- . KVALUE R(I,J)
+ . DO KVALUE^MATH(.R,I,J)
  . FOR K=1:1:L DO
  . . SET:$DATA(A(I,K))#2 ANY=1
  . . SET:$DATA(B(K,J))#2 ANY=1
@@ -2867,7 +2988,7 @@ MTXSCA(A,R,ROWS,COLS,S) ;
  ;
  NEW ROW,COL
  FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
- . KVALUE R(ROW,COL)
+ . DO KVALUE^MATH(.R,ROW,COL)
  . SET:$DATA(A(ROW,COL))#2 R(ROW,COL)=A(ROW,COL)*S
  . QUIT
  QUIT 1
@@ -2884,7 +3005,7 @@ MTXSUB(A,B,R,ROWS,COLS) ;
  ;
  NEW ROW,COL,ANY
  FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
- . KVALUE R(ROW,COL) SET ANY=0
+ . DO KVALUE^MATH(.R,ROW,COL) SET ANY=0
  . SET:$DATA(A(ROW,COL))#2 ANY=1
  . SET:$DATA(B(ROW,COL))#2 ANY=1
  . ;
@@ -2909,13 +3030,13 @@ MTXTRP(A,R,M,N) ;
  . SET K=I-J+1
  . IF K=J DO  QUIT
  . . SET V1=$GET(A(J,J)),D1=$DATA(A(J,J))#2
- . . IF J'>N,J'>M KVALUE R(J,J) SET:D1 R(J,J)=V1
+ . . IF J'>N,J'>M DO KVALUE^MATH(.R,J,J) SET:D1 R(J,J)=V1
  . . QUIT
  . ;
  . SET V1=$GET(A(K,J)),D1=$DATA(A(K,J))#2
  . SET V2=$GET(A(J,K)),D2=$DATA(A(J,K))#2
- . IF K'>M,J'>N KVALUE R(K,J) SET:D2 R(K,J)=V2
- . IF J'>M,K'>N KVALUE R(J,K) SET:D1 R(J,K)=V1
+ . IF K'>M,J'>N DO KVALUE^MATH(.R,K,J) SET:D2 R(K,J)=V2
+ . IF J'>M,K'>N DO KVALUE^MATH(.R,J,K) SET:D1 R(J,K)=V1
  . QUIT
  QUIT 1
  ;===
@@ -2927,13 +3048,17 @@ MTXUNIT(R,N,SPARSE) ;
  ;
  NEW ROW,COL
  FOR ROW=1:1:N FOR COL=1:1:N DO
- . KVALUE R(ROW,COL)
+ . DO KVALUE^MATH(.R,ROW,COL)
  . IF $GET(SPARSE) QUIT:ROW'=COL
  . SET R(ROW,COL)=$SELECT(ROW=COL:1,1:0)
  . QUIT
  QUIT 1
  ;===
  ;
+ ;
+
+MATH4
+MATH4 ;
  ;
 PI() Quit 3.14159265358979
  ;===
@@ -2990,16 +3115,16 @@ REPLACE(IN,SPEC) ;
 SEC(X,PREC) ;
  New L,LIM,K,SIGN,VALUE
  ;
- ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ;;; Set:X[":" X=$$DMSDEC^MATH(X,12) ;                                 Number ~~
  ; Winfried Gerum (8 June 1995)
  ;    Comment: The official description does not mention than
  ;             the function may also be called with the first
  ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$%DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^MATH(X)
  ;;;
  ;
  Set PREC=$Get(PREC,11)
- Set X=X#(2*$%PI^MATH())
+ Set X=X#(2*$$PI^MATH())
  Set (VALUE,L)=1,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -3010,37 +3135,15 @@ SEC(X,PREC) ;
  ;===
  ;
  ;
-SECH(X,PREC) ;;;Quit 1/$%COSH^MATH(X,PREC) ;                           Number ~~
+SECH(X,PREC) ;;;Quit 1/$$COSH^MATH(X,PREC) ;                           Number ~~
  ; Winfried Gerum (8 June 1995)
  ; Alan Frank (October 1995)
- Quit 1/$%COSH^MATH(X,$Get(PREC,11))
+ Quit 1/$$COSH^MATH(X,$Get(PREC,11))
  ;;;
  ;===
  ;
  ;
 SIGN(X) Quit $SELECT(X<0:-1,X>0:1,1:0)
- ;===
- ;
- ;
-SIN(X,PREC) ;
- New L,LIM,K,SIGN,VALUE
- ;
- ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
- ; Winfried Gerum (8 June 1995)
- ;    Comment: The official description does not mention than
- ;             the function may also be called with the first
- ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$%DMSDEC^MATH(X)
- ;;;
- ;
- Set PREC=$Get(PREC,11)
- Set X=X#(2*$%PI^MATH())
- Set (VALUE,L)=X,SIGN=-1
- Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
- For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
- . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
- . Quit
- Quit VALUE
  ;===
  ;
  ;
@@ -3060,7 +3163,7 @@ SIN(X) ;
  ; This approximation only works for 0 <= x <= pi/2
  ; so reduce angle to correct quadrant.
  ;
- Set PI=$%PI^MATH(),X=X#(PI*2),SIGN=1
+ Set PI=$$PI^MATH(),X=X#(PI*2),SIGN=1
  Set:X>PI X=2*PI-X,SIGN=-1
  ;
  ;;; Set:X*2<PI X=PI-X Set X=-PI/2+2 ;                                 Number ~~
@@ -3073,6 +3176,28 @@ SIN(X) ;
  Set A(3)=-0.0013888397,A(4)=0.0000247609,A(5)=-0.0000002605
  Set (X,R)=1 For N=1:1:5 Set X=X*XX,R=A(N)*X+R
  Quit R*SIGN
+ ;===
+ ;
+ ;
+SINX(X,PREC) ;
+ New L,LIM,K,SIGN,VALUE
+ ;
+ ;;; Set:X[":" X=$$DMSDEC^MATH(X,12) ;                                 Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ;    Comment: The official description does not mention than
+ ;             the function may also be called with the first
+ ;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+ ;;;
+ ;
+ Set PREC=$Get(PREC,11)
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=X,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
+ . Quit
+ Quit VALUE
  ;===
  ;
  ;
@@ -3102,9 +3227,9 @@ SQRT(X,PREC) ;
  ;;;
  ;
  ;
- ;;; If X<1 Quit 1/$%SQRT^MATH(1/X) ;                                  Number ~~
+ ;;; If X<1 Quit 1/$$SQRT^MATH(1/X) ;                                  Number ~~
  ; Winfried Gerum (8 June 1995)
- If X<1 Quit 1/$%SQRT^MATH(1/X,PREC)
+ If X<1 Quit 1/$$SQRT^MATH(1/X,PREC)
  ;;;
  ;
  New P,R,E
@@ -3122,26 +3247,30 @@ SQRT(X,PREC) ;
  ;===
  ;
  ;
+
+MATH5
+MATH5 ;
+ ;
 TAN(X,PREC) ;
  New L,LIM,K,S,SIGN,VALUE
  ;
- ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ;;; Set:X[":" X=$$DMSDEC^MATH(X,12) ;                                 Number ~~
  ; Winfried Gerum (8 June 1995)
  ;    Comment: The official description does not mention than
  ;             the function may also be called with the first
  ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$%DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^MATH(X)
  ;;;
  ;
  Set PREC=$Get(PREC,11)
- Set X=X#(2*$%PI^MATH())
+ Set X=X#(2*$$PI^MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
  . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
  . Quit
  Set S=VALUE
- Set X=X#(2*$%PI^MATH())
+ Set X=X#(2*$$PI^MATH())
  Set (VALUE,L)=1,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -3159,7 +3288,7 @@ TANH(X,PREC) ;
  Set PREC=$Get(PREC,11)
  ;;;
  ;
- Quit $%SINH^MATH(X,PREC)/$%COSH^MATH(X,PREC)
+ Quit $$SINH^MATH(X,PREC)/$$COSH^MATH(X,PREC)
  ;===
  ;
  ;
@@ -3330,6 +3459,20 @@ FORMAT(V,S) ;
  ;===
  ;
  ;
+
+MATH6
+MATH6 ;
+ ;
+XOR(a,b,w) NEW I,M,R
+ SET R=b,M=1
+ FOR I=1:1:w DO
+ . SET:a\M#2 R=R+$SELECT(R\M#2:-M,1:M)
+ . SET M=M+M
+ . QUIT
+ QUIT R
+ ;===
+ ;
+ ;
 CRC16(string,seed) ;
  ;
  ; The code below was approved in document X11/1998-32
@@ -3345,13 +3488,6 @@ CRC16(string,seed) ;
  . . IF R#2 SET R=$$XOR(R\2,40961,16)
  . . ELSE  SET R=R\2
  . . QUIT
- . QUIT
- QUIT R
-XOR(a,b,w) NEW I,M,R
- SET R=b,M=1
- FOR I=1:1:w DO
- . SET:a\M#2 R=R+$SELECT(R\M#2:-M,1:M)
- . SET M=M+M
  . QUIT
  QUIT R
  ;===
@@ -3377,13 +3513,6 @@ CRC32(string,seed) ;
  . . QUIT
  . QUIT
  QUIT 4294967295-R
-XOR(a,b,w) NEW I,M,R
- SET R=b,M=1
- FOR I=1:1:w DO
- . SET:a\M#2 R=R+$SELECT(R\M#2:-M,1:M)
- . SET M=M+M
- . QUIT
- QUIT R
  ; ===
  ;
  ;
@@ -3405,13 +3534,6 @@ CRCCCITT(string,seed) ;
  . . QUIT
  . QUIT
  QUIT R
-XOR(a,b,w) NEW I,M,R
- SET R=b,M=1
- FOR I=1:1:w DO
- . SET:a\M#2 R=R+$SELECT(R\M#2:-M,1:M)
- . SET M=M+M
- . QUIT
- QUIT R
  ; ===
  ;
  ;
@@ -3428,7 +3550,7 @@ LOWER(A,CHARMOD) NEW lo,up,x,y
  . . SET x=$REVERSE($EXTRACT(x,2,$LENGTH(x)))
  . . SET y=$REVERSE($PIECE(x,"|",2,$LENGTH(x)+2))
  . . SET x=$REVERSE($PIECE(x,"|",1))
- . . SET x=$GET(^|y|$GLOBAL(x,"CHARACTER"))
+ . . SET x=$GET(^[y]$GLOBAL(x,"CHARACTER"))
  . . QUIT
  . ELSE  SET x=$GET(^$GLOBAL(x,"CHARACTER"))
  . QUIT
@@ -3451,7 +3573,7 @@ PATCODE(A,PAT,CHARMOD) NEW x,y
  . . SET x=$REVERSE($EXTRACT(x,2,$LENGTH(x)))
  . . SET y=$REVERSE($PIECE(x,"|",2,$LENGTH(x)+2))
  . . SET x=$REVERSE($PIECE(x,"|",1))
- . . SET x=$GET(^|y|$GLOBAL(x,"CHARACTER"))
+ . . SET x=$GET(^[y]$GLOBAL(x,"CHARACTER"))
  . . QUIT
  . ELSE  SET x=$GET(^$GLOBAL(x,"CHARACTER"))
  . QUIT
@@ -3476,7 +3598,7 @@ UPPER(A,CHARMOD) NEW lo,up,x,y
  . . SET x=$REVERSE($EXTRACT(x,2,$LENGTH(x)))
  . . SET y=$REVERSE($PIECE(x,"|",2,$LENGTH(x)+2))
  . . SET x=$REVERSE($PIECE(x,"|",1))
- . . SET x=$GET(^|y|$GLOBAL(x,"CHARACTER"))
+ . . SET x=$GET(^[y]$GLOBAL(x,"CHARACTER"))
  . . QUIT
  . ELSE  SET x=$GET(^$GLOBAL(x,"CHARACTER"))
  . QUIT
@@ -3540,7 +3662,7 @@ mumtris ;
         s mx=dw/2-(3*w/2)       ; matrix left coordinate
         s my=dh/2-(h/2)-1       ; matrix top coordinate
         s mt="3 5_9 8 2_9 .2_02 /5 \2 2_ 2_2 6_/2 |8_|2_| 6_0 /2 \ /2 \|2 |2 \/5 \3 2_\_2 2_ \2 |/2 3_/0/4 Y4 \2 |2 /2 Y Y2 \2 |2 |2 | \/2 |\3_ \0\4_|2_2 /4_/|2_|_|2 /2_|2 |2_|2 |2_/4_2 >08 \/9 3 \/9 9 2 \/0" ; Mumtris
-        ;u $p:noecho d cls
+        ;u $p:"noecho" d cls
         u $p d cls
         d intro
         d elements
@@ -3651,7 +3773,7 @@ exit ;
         n s
         s s=mt_"09  Piotr Koper <piotr.koper@gmail.com>09 8 h2tps:2/github.com/pkoper"
         d cls d write(.s,dh/2-3,dw/2-24) h 1 r *s:0 r *s:4
-        d cls u $p:echo
+        d cls u $p:"echo"
         q
 intro ;
         n s
@@ -3728,11 +3850,14 @@ matrix ;
         w "|",!
         q
 dev ;
-        I +$SY=50 S dw=80,dh=46 Q  ;Assume for now
-        n x,i
-        zsh "d":x
-        s i="" f  s i=$o(x("D",i)) q:i=""  d:(x("D",i)[$p)
-        . s dw=$p($p(x("D",i),"WIDTH=",2)," ",1),dh=$p($p(x("D",i),"LENG=",2)," ",1)
+        ;I +$SY=50 S dw=80,dh=24 Q  ;Assume for now
+        ;n x,i
+        ;zsh "d":x
+        ;s i="" f  s i=$o(x("D",i)) q:i=""  d:(x("D",i)[$p)
+        ;. s dw=$p($p(x("D",i),"WIDTH=",2)," ",1),dh=$p($p(x("D",i),"LENG=",2)," ",1)
+        n size
+        s size=$&e($&%spawn("stty size",1),"c")
+        s dh=$p(size," "),dw=$p(size," ",2)
         q
 elements ;
         ; e - elements
@@ -3805,7 +3930,7 @@ MUMTRIS2 ; ; V 3.0 11 Jun 2012 06:11 PM
 ;         the Mumtris and GT.M will be fully responsive. Take care when
 ;         running on production system ;-)
 ;
-mumtris
+mumtris ;
  n ansi,e,n,w,h,gr,fl,hl,sc,lv,lc,sb,st,ml,dh,dw,mx,my,mt,r,y,x,t10m,c,ne,i,q
  s ansi=1 ; use (faster) ANSI CSI instead of USE $P:X=x positioning
  s w=10  ; matrix width
@@ -3869,38 +3994,38 @@ key() ; 0 - timeout, 1 - exit, 2 - harddrop, 3 - other char
  . s:c=81!(c=113) (q,ex)=1
  . i c=32 d drop s hd=1
  q $s(ex:1,hd:2,d:3,1:0)
-redraw
+redraw ;
  d matrix
  d stack
  d draw(n,r,y,x)
  q
-ticks
+ticks ;
  n x,h,b,e,q
  s h=$h,(b,e,q)=0 f i=1:1:1000000000 r *x:0 i h'=$h s h=$h d  q:q
  . i 'b s b=i
  . e  s e=i,q=1
  s t10m=(e-b)\100
  q
-change
+change ;
  s n=ne
  s ne=$r(e)+1
  s x=0,y=0,r=1
  q
-new()
+new() ;
  s r=1,x=w/2-2,y=1-e(n,r)
  q:$q $$collision(r,y,x) q
-drop
+drop ;
  n i
  s i=0 f  q:$$fall  s i=i+2
  d score(i)
  q
-rotate
+rotate ;
  n k
  s k=r#e(n)+1
  q:$$collision(k,y,x)
  s r=k
  q
-fall(k)
+fall(k) ;
  n c
  i $$collision(r,y+1,x) q:$q 1 q
  s y=y+1
@@ -3908,16 +4033,16 @@ fall(k)
  q:$q 0 q
 right q:$$collision(r,y,x+1)  s x=x+1 q
 left q:$$collision(r,y,x-1)  s x=x-1 q
-collision(r,y,x)
+collision(r,y,x) ;
  n i,j,q
  s q=0
  f i=1:1:4 q:q  f j=1:1:4 q:q  s:$g(e(n,r,j,i))&($g(n(y+j,x+i))!(y+j>h!(x+i>w!(x+i<1)))) q=1
  q q
-lock
+lock ;
  n i,j
  f i=1:1:4 q:q  f j=1:1:4 q:q  s:$g(e(n,r,j,i)) n(y+j,x+i)=1
  q
-clear
+clear ;
  n c,i,j,q
  s c=0
  f j=h:-1:1 d
@@ -3932,13 +4057,13 @@ clear
  . s lc=lc+c
  . i lv*10'>lc d score(,1) s lc=0
  q
-exit
+exit ;
  n s
  s s=mt_"09  Piotr Koper <piotr.koper@gmail.com>09 8 h2tps:2/github.com/pkoper"
  d cls d write(.s,dh/2-3,dw/2-24) h 1 r *s:0 r *s:4
  d cls u $p:"echo"
  q
-intro
+intro ;
  n s
  s s=mt_"9 9 8 Mumtris for GT.M0"
  d cls h 1 d write(.s,dh/2-3,dw/2-24) h 1
@@ -3946,10 +4071,10 @@ intro
  d cls
  r s:0
  q
-cls
+cls ;
  d pos(0,0,1)
  q
-pos(y,x,c)
+pos(y,x,c) ;
  i ansi d
  . ; workaround for ANSI driver: NL in some safe place (1,1)
  . w $c(27)_"[1;1f",!,$c(27)_"["_(y\1+1)_";"_(x\1+1)_"f"
@@ -3958,12 +4083,12 @@ pos(y,x,c)
  . u $p:(x=x:y=y)
  . u:$g(c) $p:clearscreen
  q
-over
+over ;
  n s
  s s="2 8_9 9 6 8_0 /2 5_/5_4 5_3 4_3 \5_2 \3_2 2_ 9_2_0/3 \2 3_\2_2 \2 /5 \_/ 2_ \3 /3 |3 \2 \/ 2/ 2_ \_2 2_ \0\4 \_\2 \/ 2_ \|2 Y Y2 \2 3_/2 /4 |4 \3 /\2 3_/|2 | \/0 \6_2 (4_2 /2_|_|2 /\3_2 > \7_2 /\_/2 \3_2 >2_|08 \/5 \/6 \/5 \/9  \/9  \/0"
  d cls d write(.s,dh/2-3,dw/2-32) h 1 r *s:0 r *s:2
  q
-write(s,y,x)
+write(s,y,x) ;
  n i,j,l,c,d
  d pos(y,x)
  s l=$l(s) f i=1:1:l d
@@ -3975,34 +4100,34 @@ write(s,y,x)
  . e  w c
  d pos(0,0)
  q
-help
+help ;
  n i,x,l,j
  s i=9 f x="MOVE: LEFT, RIGHT","TURN: UP","DROP: SPACE","","FILL: F","GRID: G","HELP: H","","QUIT: Q" d pos(dh/2-(h/2)+i,dw/2+(3*w/2+3)) d  s i=i+1
  . i hl w x
  . e  s l=$l(x) f j=1:1:l w " "
  q
 fill() q $s(fl=1:"[#]",fl=2:"[+]",1:"[ ]")
-draw(n,r,y,x,o)
+draw(n,r,y,x,o) ;
  n i,j
  s x=3*x+mx+1,y=y+my
  f i=1:1:4 i y+i>my f j=1:1:4 d pos(y+i-1,3*(j-1)+x) w $s($g(e(n,r,i,j)):$$fill,$g(o):"   ",1:"")
  q
 step() q 0.85**lv*sb+(0.1*lv)
-score(s,l)
+score(s,l) ;
  s:$g(s) sc=sc+s
  i $g(l) s lv=lv+l,st=$$step
  d pos(dh/2-(h/2)+2,dw/2+(3*w/2+3)) w "SCORE: ",sc
  d pos(dh/2-(h/2)+3,dw/2+(3*w/2+3)) w "LEVEL: ",lv
  q
-preview
+preview ;
  d draw(ne,1,3,-5,1)
  q
-stack
+stack ;
  n i,j,x,y
  s x=mx+1,y=my
  f i=1:1:h f j=1:1:w i $g(n(i,j)) d pos(y+i-1,3*(j-1)+x) w $$fill
  q
-matrix
+matrix ;
  n i,j
  f i=0:1:h-1 d
  . d pos(my+i,mx) w "|" f j=1:1:w w $s(gr:" . ",1:"   ")
@@ -4010,13 +4135,13 @@ matrix
  d pos(my+h,mx) w "|" f j=1:1:w*3 w "~"
  w "|",!
  q
-dev
+dev ;
  n x,i
  s x=$&%GETENV("size") s:x dh=$p(x," ",1),dw=$p(x," ",2) s:x="" dh=25,dw=80
  s i="" f  s i=$o(x("D",i)) q:i=""  d:(x("D",i)[$p)
  . s dw=$p($p(x("D",i),"WIDTH=",2)," ",1),dh=$p($p(x("D",i),"LENG=",2)," ",1)
  q
-elements
+elements ;
  ; e - elements
  ; e(elemId) - rotateVersions
  ; e(elemId,rotateVersion) - bottom coordinate
@@ -4085,20 +4210,21 @@ MNUDSP ; Display menu
  . W !,?20,$P(MENU,";",3)
  . Q
  Q
-CREAT ; Create a UCI but not MGR
+CREAT ; Create a UCI but not UCI 1 (manager)
  N NUCI,X,FLG,VOL,UCI
  S VOL=1,UCI=""
  D DISP("Create a UCI...",.VOL,.UCI)
 CR1 ; Prompt
  R !!,"Enter new UCI name: ",NUCI Q:NUCI=""
- I NUCI'?3U W !,"INVALID UCI NAME??",*7 G CR1
+ I $G(^$S("NAME_LENGTH"),8)=32,NUCI'?1.32A W !,"INVALID UCI NAME??",*7 G CR1
+ I $G(^$S("NAME_LENGTH"),8)=8,NUCI'?1.8A W !,"INVALID UCI NAME??",*7 G CR1
  S FLG=0
  F X=1:1:UCI I UCI(X)=NUCI W !,"CAN NOT NAME UCI THE SAME AS EXISTING UCI.",*7 S FLG=1 Q
  I FLG G CR1
  S UCI=UCI+1,^$S("VOL",VOL,"UCI",UCI)=NUCI W !,NUCI," has been created..."
  D LIST^UCI
  Q
-EDIT ; Edit an existing UCI But not MGR
+EDIT ; Edit an existing UCI but not UCI 1 (manager)
  N HEAD,OUCI,NUCI,VOL,UCI,X,Y
  S VOL=1,UCI=""
  D DISP("Rename a UCI...",.VOL,.UCI)
@@ -4106,15 +4232,16 @@ ED1 ; Edit prompt
  R !,"Select UCI to Edit: ",OUCI Q:OUCI=""
  I '$D(UCI(OUCI)) W !,"INVALID UCI??",*7 G ED1
  I +OUCI=0 S UCI=UCI(OUCI)
- I UCI(UCI)="MGR" W !,"CANNOT EDIT MGR UCI",*7 G ED1
+ I UCI(OUCI)=^$S("VOL",1,"UCI",1) W !,"CANNOT EDIT UCI 1 (MANAGER)",*7 G ED1
 ED2 ; Edit Prompt
  R !,"Enter New UCI Name: ",NUCI
- I NUCI'?3U W !,"BAD UCI NAME??",*7 G ED2
+ I $G(^$S("NAME_LENGTH"),8)=32,NUCI'?1.32A W !,"BAD UCI NAME??",*7 G ED2
+ I $G(^$S("NAME_LENGTH"),8)=8,NUCI'?1.8A W !,"BAD UCI NAME??",*7 G ED2
  I $D(UCI(NUCI)) W !,"CANNOT USE NAME UCI ",NUCI," ALREADY EXISTS??",*7 G ED2
  S ^$S("VOL",VOL,"UCI",UCI)=NUCI W !,OUCI," has been renamed to ",NUCI,"..."
  D LIST
  Q
-DELETE ; Delete an existing UCI but not MGR
+DELETE ; Delete an existing UCI but not UCI 1 (manager)
  N DUCI,VOL,UCI
  S VOL=1,UCI=""
  D DISP("Delete a UCI...",.VOL,.UCI)
@@ -4122,7 +4249,7 @@ DE1 ; Select Prompt
  R !,"Select UCI to DELETE: ",DUCI Q:DUCI=""
  I '$D(UCI(DUCI)) W !,"INVALID UCI??",*7 G DE1
  I +DUCI=0 S DUCI=UCI(DUCI)
- I UCI(DUCI)="MGR" W !,"CANNOT DELETE MGR UCI",*7 G DE1
+ I UCI(DUCI)=^$S("VOL",1,"UCI",1) W !,"CANNOT DELETE UCI 1 (MANAGER)",*7 G DE1
  K ^$S("VOL",VOL,"UCI",DUCI)
  D LIST
  Q
@@ -4160,29 +4287,27 @@ MENU ; Menu List
 
 
 
-/*
- * Package:  Reference Standard M
- * File:     rsm/utils.rsm
- * Summary:  Impementation of the M Language and Database System
- *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License (AGPL) as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
- * General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
- */
+; Package:  Reference Standard M
+; File:     rsm/utils.rsm
+; Summary:  Impementation of the M Language and Database System
+;
+; David Wicksell <dlw@linux.com>
+; Copyright (c) 2020 Fourth Watch Software LC
+; https://gitlab.com/Reference-Standard-M/rsm
+;
+; Based on MUMPS V1 by Raymond Douglas Newman
+; Copyright (c) 1999-2018
+; https://gitlab.com/Reference-Standard-M/mumpsv1
+;
+; This program is free software: you can redistribute it and/or modify it
+; under the terms of the GNU Affero General Public License (AGPL) as
+; published by the Free Software Foundation, either version 3 of the
+; License, or (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful, but
+; WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+; General Public License for more details.
+;
+; You should have received a copy of the GNU Affero General Public License
+; along with this program. If not, see http://www.gnu.org/licenses/.

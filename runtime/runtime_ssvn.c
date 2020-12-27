@@ -38,7 +38,6 @@
 #include <strings.h>
 #include <ctype.h>
 #include <errno.h>                              // error stuff
-#include <time.h>                               // for $H
 #include <sys/time.h>				// for priority
 #include <sys/resource.h>			// ditto
 #include <termios.h>                            // for tcgetattr
@@ -58,21 +57,21 @@ extern struct termios tty_settings;             // man 3 termios
 //***********************************************************************
 
 int priv()					// return TRUE if job has priv
-{ return ((partab.jobtab->priv) ||
-   (partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[0] == '%'));
+{ return ((partab.jobtab->priv) || (partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[0] == '%'));
 			       			// is it priveleged ?
 }
 
 short SS_Norm(mvar *var)			// "normalize" ssvn
 { int i;					// for loops
 
-  for (i=0; i<8; i++)				// scan the supplied name
+  for (i = 0; i < VAR_LEN; i++)			// scan the supplied name
     var->name.var_cu[i] = toupper(var->name.var_cu[i]);	// copy to upper case
   switch (var->name.var_cu[1])			// check initial of name
   { case 'G':					// $GLOBAL
       if ((var->name.var_cu[2] == '\0')	||	// short form of name
           (bcmp("GLOBAL\0", &var->name.var_cu[1], 7) == 0)) // if OK
-      { bcopy("$GLOBAL\0", &var->name.var_cu[0], 8); // copy in full name
+      { VAR_CLEAR(var->name);
+        bcopy("$GLOBAL", &var->name.var_cu[0], 7); // copy in full name
 	if (var->uci == 0)
 	  var->uci = partab.jobtab->uci;	// ensure uci is set
 	if (var->volset == 0)
@@ -84,7 +83,8 @@ short SS_Norm(mvar *var)			// "normalize" ssvn
     case 'J':					// $JOB
       if ((var->name.var_cu[2] == '\0')	||	// short form of name
 	  (bcmp("JOB\0\0\0\0", &var->name.var_cu[1], 7) == 0)) // if OK
-      { bcopy("$JOB\0\0\0\0", &var->name.var_cu[0], 8);	// copy in full name
+      { VAR_CLEAR(var->name);
+        bcopy("$JOB", &var->name.var_cu[0], 4); // copy in full name
 	if (var->uci == 0)
 	  var->uci = 1;				// ensure uci is set
 	if (var->volset == 0)
@@ -98,7 +98,8 @@ short SS_Norm(mvar *var)			// "normalize" ssvn
     case 'L':					// $LOCK
       if ((var->name.var_cu[2] == '\0')	||	// short form of name
           (bcmp("LOCK\0\0\0", &var->name.var_cu[1], 7) == 0)) // if OK
-      { bcopy("$LOCK\0\0\0", &var->name.var_cu[0], 8); // copy in full name
+      { VAR_CLEAR(var->name);
+        bcopy("$LOCK", &var->name.var_cu[0], 5); // copy in full name
 	if (var->uci == 0)
 	  var->uci = 1;				// ensure uci is set
 	if (var->volset == 0)
@@ -111,7 +112,8 @@ short SS_Norm(mvar *var)			// "normalize" ssvn
     case 'R':					// $ROUTINE
       if ((var->name.var_cu[2] == '\0')	||	// short form of name
           (bcmp("ROUTINE", &var->name.var_cu[1], 7) == 0)) // if OK
-      { bcopy("$ROUTINE", &var->name.var_cu[0], 8); // copy in full name
+      { VAR_CLEAR(var->name);
+        bcopy("$ROUTINE", &var->name.var_cu[0], 8); // copy in full name
 	if (var->volset == 0)			// check volset
 	  var->volset = partab.jobtab->rvol;	// ensure non-zero
 	if (var->uci == 0)			// check uci
@@ -128,7 +130,8 @@ short SS_Norm(mvar *var)			// "normalize" ssvn
     case 'S':					// $SYSTEM
       if ((var->name.var_cu[2] == '\0')	||	// short form of name
           (bcmp("SYSTEM\0", &var->name.var_cu[1], 7) == 0)) // if OK
-      { bcopy("$SYSTEM\0", &var->name.var_cu[0], 8); // copy in full name
+      { VAR_CLEAR(var->name);
+        bcopy("$SYSTEM", &var->name.var_cu[0], 7); // copy in full name
 	if (var->uci == 0)
 	  var->uci = 1;				// ensure uci is set
 	if (var->volset == 0)
@@ -156,7 +159,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
   cstring *subs[4];				// where to put them
   mvar *vp;					// variable ptr
   while (i < var->slen)				// for all subs
-  { cnt = 0;					// flag no rabit ears quotes
+  { cnt = 0;					// flag no rabbit ears quotes
     if (nsubs > 3) return (-ERRM38);		// junk
     subs[nsubs] = (cstring *) &tmp[ptmp];	// point at the buffer
     s = UTIL_Key_Extract(&var->key[i],		// key from here
@@ -247,7 +250,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         if (strncasecmp((char *) subs[1]->buf, "routine_name\0", 13) == 0)
 	{ j = systab->jobtab[i].cur_do;		// get current do
 	  rounam = &systab->jobtab[i].dostk[j].rounam; // point at routine name
-	  for (s = 0; s < 8; s++)		// for each character
+	  for (s = 0; s < VAR_LEN; s++)		// for each character
 	    if ((buf[s] = rounam->var_cu[s]) == 0) break; // copy it
 	  buf[s] = '\0';			// null terminate
 	  return s;  				// return length
@@ -313,24 +316,20 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       return DB_Get(var, buf);			// let the database module doit
 
     case 'S':					// $SYSTEM
-      if ((nsubs == 1) &&
-	  (strncasecmp((char *) subs[0]->buf, "eok\0", 4) == 0))
-      { return itocstring(buf,
-      	       (systab->historic & HISTORIC_EOK)); // return the value
+      if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "eok\0", 4) == 0))
+      { return itocstring(buf, (systab->historic & HISTORIC_EOK)); // return the value
       }
-      if ((nsubs == 1) &&
-	  (strncasecmp((char *) subs[0]->buf, "offok\0", 6) == 0))
-      { return itocstring(buf,
-      	       (systab->historic & HISTORIC_OFFOK)); // return the value
+      if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "offok\0", 6) == 0))
+      { return itocstring(buf, (systab->historic & HISTORIC_OFFOK)); // return the value
       }
-      if ((nsubs == 1) &&
-	  (strncasecmp((char *) subs[0]->buf, "precision\0", 10) == 0))
+      if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "precision\0", 10) == 0))
       { return itocstring(buf, systab->precision); // return the value
       }
-      if ((nsubs == 1) &&
-	  (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0))
-      { return itocstring(buf,
-      	       (systab->historic & HISTORIC_DNOK)); // return the value
+      if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0))
+      { return itocstring(buf, (systab->historic & HISTORIC_DNOK)); // return the value
+      }
+      if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "name_length\0", 12) == 0))
+      { return itocstring(buf, VAR_LEN);
       }
       if (strncasecmp((char *) subs[0]->buf, "trantab\0", 8) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of entry#
@@ -354,8 +353,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if (strncasecmp((char *) subs[2]->buf, "block\0", 6) == 0)
 	  return uitocstring(buf, systab->vol[i]->vollab->block_size);
 	if (strncasecmp((char *) subs[2]->buf, "file\0", 5) == 0)
-	{ strcpy((char *)buf, systab->vol[i]->file_name); // copy it
-	  return strlen((char *)buf);			// return the length
+	{ strcpy((char *) buf, systab->vol[i]->file_name); // copy it
+	  return strlen((char *) buf);			// return the length
 	}
 	if (strncasecmp((char *) subs[2]->buf, "free\0", 5) == 0)
 	  return uitocstring(buf, DB_Free(i + 1)); // return free blocks
@@ -368,11 +367,11 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if (strncasecmp((char *) subs[2]->buf, "journal_size\0", 13) == 0)
 	  return itocstring(buf, systab->vol[i]->jrn_next);
 	if (strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0)
-	{ (void) strcpy((char *)buf, systab->vol[i]->vollab->journal_file);
-	  return strlen((char *)buf);
+	{ (void) strcpy((char *) buf, systab->vol[i]->vollab->journal_file);
+	  return strlen((char *) buf);
 	}
 	if (strncasecmp((char *) subs[2]->buf, "name\0", 5) == 0)
-	{ for (j = 0; j < 8; j++)
+	{ for (j = 0; j < VAR_LEN; j++)
 	    if ((buf[j] = systab->vol[i]->vollab->volnam.var_cu[j]) == 0)
 	      break;
 	  buf[j] = '\0';
@@ -385,7 +384,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  j = cstringtoi(subs[3]) - 1;		// make an int of uci#
 	  if ((!(j < UCIS)) || (j < 0))		// validate it
 	    return (-ERRM38);			// junk
-	  for (s = 0; s < 8; s++)
+	  for (s = 0; s < VAR_LEN; s++)
 	    if ((buf[s] = systab->vol[i]->vollab->uci[j].name.var_cu[s]) == 0)
 	      break;
 	  buf[s] = '\0';
@@ -445,7 +444,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
   trantab tt;					// for translations
 
   while (i < var->slen)				// for all subs
-  { cnt = 0;					// flag no rabit ears quotes
+  { cnt = 0;					// flag no rabbit ears quotes
     if (nsubs > 3) return (-ERRM38);		// junk
     subs[nsubs] = (cstring *) &tmp[ptmp];	// point at the buffer
     s = UTIL_Key_Extract(&var->key[i],		// key from here
@@ -462,7 +461,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
   { case 'G':					// $GLOBAL
       if (nsubs == 2)				// two sub case
       { if (strncasecmp((char *) subs[1]->buf, "journal\0", 8) == 0)
-        { var->slen = strlen((char *)var->key) + 1;	// first subscript only
+        { var->slen = strlen((char *) var->key) + 1; // first subscript only
 	  i = cstringtob(data);			// get value as 1/0
 	  if (!i)
 	  { i = -1;				// setup for a clear
@@ -490,12 +489,12 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  (priv()))				// and has privs
       { if (strncasecmp((char *) subs[1]->buf, "global\0", 7) == 0)
 	{ systab->jobtab[i].uci = j;		// set it
-	  systab->jobtab[i].last_ref.name.var_qu = 0; // clear $R
+	  VAR_CLEAR(systab->jobtab[i].last_ref.name); // clear $R
 	  return 0;				// and quit
 	}
 	if (strncasecmp((char *) subs[1]->buf, "global_vol\0", 11) == 0)
 	{ systab->jobtab[i].vol = j;		// set it
-	  systab->jobtab[i].last_ref.name.var_qu = 0; // clear $R
+	  VAR_CLEAR(systab->jobtab[i].last_ref.name); // clear $R
 	  return 0;				// and quit
 	}
         if (strncasecmp((char *) subs[1]->buf, "lock\0", 5) == 0)
@@ -634,9 +633,9 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	j = cstringtoi(subs[3]) - 1;		// and uci#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if ((j < 0) || (j >= UCIS)) return (-ERRM60); // out of range
-	if ((data->len < 1) || (data->len > 8))
+	if ((data->len < 1) || (data->len > VAR_LEN))
 	  return -(ERRMLAST+ERRZ12);		// syntx
-	n.var_qu = 0;				// clear name
+	VAR_CLEAR(n);				// clear name
 	for (s = 0; s < data->len; s++)
 	{ if (isalpha(data->buf[s]) == 0)
 	    return -(ERRMLAST+ERRZ12);		// syntx
@@ -695,17 +694,16 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    { return (-ERRM38);
 	    }
 	  }
-	  systab->vol[i]->vollab->volnam.var_qu = 0; // zot name
+	  VAR_CLEAR(systab->vol[i]->vollab->volnam); // zot name
 	  bcopy(data->buf, systab->vol[i]->vollab->volnam.var_cu, data->len);
 //	  (void) strcpy(systab->vol[i]->vollab->volnam.var_cu, data->buf);
 	  systab->vol[i]->map_dirty_flag = 1;	// tell them to write it
 	  return 0;
 	}
-	if ((strncasecmp((char *) subs[2]->buf, "size\0", 5) == 0) &&
-	    (systab->maxjob == 1))
+	if ((strncasecmp((char *) subs[2]->buf, "size\0", 5) == 0) && (systab->maxjob == 1))
 	{ u_int vsiz;				// for the size
 
-	  vsiz = (u_int) atol((char *)data->buf);	// get the new
+	  vsiz = (u_int) atol((char *) data->buf);	// get the new
 	  if (vsiz <= systab->vol[i]->vollab->max_block)
 	  { return (-ERRM38);
 	  }
@@ -713,7 +711,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  if (vsiz > MAX_DATABASE_BLKS)
 	  { return (-ERRM38);
 	  }
-	  if (vsiz > (((systab->vol[i]->vollab->header_bytes - 1024) * 8) | 7))
+	  if (vsiz > (((systab->vol[i]->vollab->header_bytes - sizeof(label_block)) * 8) | 7))
 	  { return (-ERRM38);
 	  }
 	  return DB_Expand(i, vsiz);		// do it
@@ -734,7 +732,7 @@ short SS_Data(mvar *var, u_char *buf)           // get $DATA()
   mvar *vp;					// variable ptr
   cstring *subs[4];				// where to put them
   while (i < var->slen)				// for all subs
-  { cnt = 0;					// flag no rabit ears quotes
+  { cnt = 0;					// flag no rabbit ears quotes
     if (nsubs > 3) return (-ERRM38);		// junk
     subs[nsubs] = (cstring *) &tmp[ptmp];	// point at the buffer
     s = UTIL_Key_Extract(&var->key[i],		// key from here
@@ -798,7 +796,7 @@ short SS_Kill(mvar *var)                        // remove sub-tree
   cstring *subs[4];				// where to put them
   struct shmid_ds sbuf;                         // for shmctl (shutdown)
   while (i < var->slen)				// for all subs
-  { cnt = 0;					// flag no rabit ears quotes
+  { cnt = 0;					// flag no rabbit ears quotes
     if (nsubs > 3) return (-ERRM38);		// junk
     subs[nsubs] = (cstring *) &tmp[ptmp];	// point at the buffer
     s = UTIL_Key_Extract(&var->key[i],		// key from here
@@ -878,15 +876,15 @@ short SS_Kill(mvar *var)                        // remove sub-tree
 	  ((partab.jobtab->ruci != var->uci) ||
 	   (partab.jobtab->rvol != var->volset)))
         return -(ERRM29);			// SET or KILL on ssvn not on
-      rou.var_qu = 0;				// clear routine name
-      for (i = 0; i < 8; i++)
+      VAR_CLEAR(rou);				// clear routine name
+      for (i = 0; i < VAR_LEN; i++)
         if ((rou.var_cu[i] = subs[0]->buf[i]) == '\0')
           break;
       s = SemOp(SEM_ROU, -systab->maxjob);	// lock it
       if (s < 0) return s;			// quit if no go
       s = DB_Kill(var);				// give it to the database
       if (s >= 0)				// if OK
-        Routine_Delete(rou.var_qu, var->uci);	// mark as deleted
+        Routine_Delete(rou, var->uci);		// mark as deleted
       i = SemOp(SEM_ROU, systab->maxjob);	// release the lock
       return s;					// exit
 
@@ -917,7 +915,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
   mvar *vp;					// variable ptr
   cstring *subs[4];				// where to put them
   while (i < var->slen)				// for all subs
-  { cnt = 0;					// flag no rabit ears quotes
+  { cnt = 0;					// flag no rabbit ears quotes
     if (nsubs > 3) return (-ERRM38);		// junk
     subs[nsubs] = (cstring *) &tmp[ptmp];	// point at the buffer
     s = UTIL_Key_Extract(&var->key[i],		// key from here
@@ -1018,14 +1016,14 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 	buf[0] = '\0';				// JIC
 	if (dir > 0)				// forward?
 	{ for (j = j + 1; j < UCIS; j++)
-	    if (systab->vol[i]->vollab->uci[j].name.var_qu != 0)
+	    if (!var_empty(systab->vol[i]->vollab->uci[j].name))
 	      break;
 	  if (j == UCIS) return 0;		// ran out
 	  return itocstring(buf, j + 1);	// return uci#
 	}
 	if (j == -1) j = UCIS;			// fix the seed
 	for (j = j-1; j >= 0; j--)
-	    if (systab->vol[i]->vollab->uci[j].name.var_qu != 0)
+	    if (!var_empty(systab->vol[i]->vollab->uci[j].name))
 	      break;
 	  if (j < 0) return 0;			// ran out
 	  return itocstring(buf, j + 1);	// return uci#

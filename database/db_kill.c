@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>                                  // leopard seems to want this
 #include "rsm.h"					// standard includes
@@ -54,7 +53,7 @@ short Kill_data()					// remove tree
   gbd *ptr;						// spare ptr
   int rlevel;						// level in rblk[]
   u_int blknum;						// for block numbers
-  u_char tmp[16];					// spare string
+  u_char tmp[VAR_LEN + 4];				// spare string
   int top;						// top in complex kill
   u_char *p;						// a handy ptr
   cstring *c;						// and another
@@ -71,7 +70,7 @@ start:
   j = 0;                                                // clear counter
   for (i = 0; i < NUM_GARB; i++)
   { if (systab->vol[volnum - 1]->garbQ[i] == 0)
-    { if (j++ >= NUM_GARB/2) goto cont;                 // ensure we have 1/2 table
+    { if (j++ >= (NUM_GARB / 2)) goto cont;                 // ensure we have 1/2 table
     }
   }
   SemOp(SEM_GLOBAL, -curr_lock);			// release current lock
@@ -85,13 +84,14 @@ cont:
   if ((s < 0) && (s != -ERRM7))				// error, not undef
   { return s;						// return it
   }
+
   if ((systab->vol[volnum - 1]->vollab->journal_available) &&
       (systab->vol[volnum - 1]->vollab->journal_requested) &&
       (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
   { jrnrec jj;						// jrn structure
     jj.action = JRN_KILL;				// doing kill
     jj.uci = db_var.uci;				// copy UCI
-    jj.name.var_qu = db_var.name.var_qu;		// global name
+    VAR_COPY(jj.name, db_var.name);			// global name
     jj.slen = db_var.slen;				// subs length
     bcopy(db_var.key, jj.key, jj.slen);			// copy key
     DoJournal(&jj, NULL);				// and do it
@@ -105,13 +105,13 @@ cont:
       level--;						// up a level
     }
     tmp[1] = 128;					// start string key
-    for (i=0; i<8; i++)					// for each char
+    for (i = 0; i < VAR_LEN; i++)			// for each char
     { if (db_var.name.var_cu[i] == '\0')		// check for null
       { break;						// break if found
       }
-      tmp[i+2] = db_var.name.var_cu[i];			// copy char
+      tmp[i + 2] = db_var.name.var_cu[i];		// copy char
     }
-    i +=2;						// correct count
+    i += 2;						// correct count
     tmp[i] = '\0';					// null terminate
     tmp[0] = (u_char) i;				// add the count
     s = Locate(tmp);					// search for it
@@ -161,7 +161,7 @@ cont:
   s = Get_data(-1);					// get left side
   if ((s < 0) && (s != -ERRM7))				// error, not undef
   { return s;						// return it
-  }				// WARNING: This leaves blocks reserved
+  }							// WARNING: This leaves blocks reserved
   if (rlevel != level)					// check this
   { panic("Kill_data: left level not equal right level"); // die
   }
@@ -175,8 +175,7 @@ cont:
   { i = Index;						// start here
     while (i <= blk[level]->mem->last_idx)		// while in block
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
-      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-            chunk->buf[1]);				// fix the key
+      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // fix the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
       if ((keybuf[0] < db_var.slen) ||			// new key too small
 	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
@@ -206,7 +205,7 @@ cont:
 // left edge -> blk[]           rblk[] <- right edge
 // the bottom level is [rlevel] in both trees
 // Note: it is possible that no killable nodes live in the left edge,
-//	 and we will never point at Index 10 in the left edge
+//	 and we will never point at Index IDX_START in the left edge
 //       BUT, the RL may have to be changed.
 
   top = level;						// save for ron
@@ -222,8 +221,7 @@ cont:
     }				// WARNING: This leaves blocks reserved
     for (i = Index; i <= blk[level]->mem->last_idx; i++) // scan block
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
-      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	    chunk->buf[1]);				// update the key
+      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
       if ((keybuf[0] < db_var.slen) ||			// new key too small
 	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
@@ -257,17 +255,16 @@ cont:
     blk[level] = rblk[level];				// get right one
     idx = (u_short *) blk[level]->mem;			// point at the block
     iidx = (int *) blk[level]->mem;			// point at the block
-    Index = 10;						// start at the start
+    Index = IDX_START;					// start at the start
     while (Index <= blk[level]->mem->last_idx)		// scan the block
     { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
-      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	    chunk->buf[1]);				// update the key
+      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
       if ((keybuf[0] < db_var.slen) ||			// new key too small
 	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
       { break;						// quit loop
       }
-      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
+      record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at the dbc
       if (level != rlevel)				// if a pointer blk
       { Align_record();					// align the pointer
 	j = *(int *) record;				// get blk#
@@ -295,7 +292,7 @@ cont:
 	(rblk[level + 1] != NULL))			// and is lower level
     { idx = (u_short *) rblk[level + 1]->mem;		// point at the block
       iidx = (int *) rblk[level + 1]->mem;		// point at the block
-      chunk = (cstring *) &iidx[idx[10]];		// point at first chunk
+      chunk = (cstring *) &iidx[idx[IDX_START]];	// point at first chunk
       p = &chunk->buf[1];				// point at the key
       s = Locate(p);					// see if it's there
       if (s == -ERRM7)					// if it isn't
@@ -313,20 +310,20 @@ cont:
       }							//
     }							// end of insert ptr
 
-    if (((((leftblk->mem->last_free*2 + 1 - leftblk->mem->last_idx)*2)
-        +((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2))
-	> (systab->vol[volnum-1]->vollab->block_size - 20)) // if will fit in 1
-	|| (blk[level]->mem->last_idx < 10))		// or empty blk
+    if (((((leftblk->mem->last_free * 2 + 1 - leftblk->mem->last_idx) * 2)
+        + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2))
+	> (systab->vol[volnum - 1]->vollab->block_size - sizeof(DB_Block))) // if will fit in 1
+	|| (blk[level]->mem->last_idx < IDX_START)) // or empty blk
     { ptr = blk[level];					// right edge
       blk[level] = leftblk;				// left edge
       idx = (u_short *) blk[level]->mem;		// point at the block
       iidx = (int *) blk[level]->mem;			// point at the block
-      if (ptr->mem->last_idx > 9)			// if any data
-      { Copy_data(ptr, 10);				// copy to left edge
+      if (ptr->mem->last_idx > (IDX_START - 1))		// if any data
+      { Copy_data(ptr, IDX_START);			// copy to left edge
       }
       blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy right ptr
       ptr->mem->type = 65;				// say type = data!!
-      ptr->last_accessed = time(0);			// clear last access
+      ptr->last_accessed = current_time(TRUE);		// clear last access
       Garbit(ptr->block);				// dump the block
       rblk[level] = NULL;				// mark gone
     }							// end move to one
@@ -337,7 +334,7 @@ cont:
   if (rblk[top + 1] != NULL)				// and there is level+1
   { idx = (u_short *) rblk[top + 1]->mem;		// point at the block
     iidx = (int *) rblk[top + 1]->mem;			// point at the block
-    chunk = (cstring *) &iidx[idx[10]];			// point at the chunk
+    chunk = (cstring *) &iidx[idx[IDX_START]];		// point at the chunk
     p = &chunk->buf[1];					// point at the key
     s = Locate(p);					// see if it's there
     if (s == -ERRM7)					// if it isn't

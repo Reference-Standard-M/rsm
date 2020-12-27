@@ -254,9 +254,11 @@ void CleanJob(int job)				// tidy up a job
     partab.src_var.volset = 0;			// clear vol
     partab.src_var.slen = 0;			// and slen
     partab.src_var.uci = UCI_IS_LOCALVAR;	// say - local variable
-    bcopy("$ETRAP\0\0", partab.src_var.name.var_cu, 8);
+    VAR_CLEAR(partab.src_var.name);
+    bcopy("$ETRAP", partab.src_var.name.var_cu, 6);
     i = ST_Kill(&partab.src_var);		// Kill $ETRAP
-    bcopy("$ECODE\0\0", partab.src_var.name.var_cu, 8);
+    VAR_CLEAR(partab.src_var.name);
+    bcopy("$ECODE", partab.src_var.name.var_cu, 6);
     i = ST_Kill(&partab.src_var);		// Kill $ECODE
   }
   for (i = 0; i < MAX_VOL; i++)			// scan view table

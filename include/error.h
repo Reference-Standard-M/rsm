@@ -175,7 +175,7 @@
 #define ERRZ69		69	// Unknown Signal received
 #define ERRZ70		70	// Offset not permitted in entryref
 #define ERRZ71		71	// No such host is known
-#define ERRZ72		72	// Type h_errno error has occured
+#define ERRZ72		72	// Type h_errno error has occurred
 #define ERRZ73		73	// Invalid database file specified
 #define ERRZLAST	200	// Must equal last implementation error
 

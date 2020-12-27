@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -57,7 +56,7 @@
 short Get_data(int dir)					// locate a record
 { int i;						// a handy int
   short s;						// for function returns
-  u_char tmp[15];					// spare string
+  u_char tmp[VAR_LEN + 4];				// spare string
   gbd *ptr;						// handy pointer
 
   if (!curr_lock)					// ensure locked
@@ -67,7 +66,7 @@ short Get_data(int dir)					// locate a record
     }
   }
 
-  if (systab->vol[db_var.volset-1] == NULL)		// vol still mounted?
+  if (systab->vol[db_var.volset - 1] == NULL)		// vol still mounted?
   { return (-ERRM26);					// no - error
   }
   if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
@@ -85,7 +84,7 @@ short Get_data(int dir)					// locate a record
       ptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)]; // get listhead
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
-        { if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
+        { if ((!var_equal(ptr->mem->global, db_var.name)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
 	      (ptr->last_accessed == (time_t) 0))	// not available
           { break;					// exit the loop
@@ -96,9 +95,9 @@ short Get_data(int dir)					// locate a record
 	  if ((s >= 0) ||				// if found or
 	      ((s = -ERRM7) &&				// not found and
 	       (Index <= blk[level]->mem->last_idx) &&	// still in block
-	       (Index > 10)))				// not at beginning
+	       (Index > IDX_START)))			// not at beginning
 	  { systab->vol[volnum-1]->stats.lastok++;	// count success
-	    blk[level]->last_accessed = time(0);	// accessed
+	    blk[level]->last_accessed = current_time(TRUE); // accessed
             for (i = 0; i < level; blk[i++] = NULL);	// zot these
 	    if (!s)					// if ok
 	    { s = record->len;				// get the dbc
@@ -143,13 +142,13 @@ short Get_data(int dir)					// locate a record
   }
 
   tmp[1] = 128;						// start string key
-  for (i=0; i<8; i++)					// for each char
+  for (i = 0; i < VAR_LEN; i++)				// for each char
   { if (db_var.name.var_cu[i] == '\0')			// check for null
     { break;						// break if found
     }
-    tmp[i+2] = db_var.name.var_cu[i];			// copy char
+    tmp[i + 2] = db_var.name.var_cu[i];			// copy char
   }
-  i +=2;						// correct count
+  i += 2;						// correct count
   tmp[i] = '\0';					// null terminate
   tmp[0] = (u_char) i;					// add the count
 
@@ -177,7 +176,7 @@ short Get_data(int dir)					// locate a record
   }
   while (blk[level]->mem->type < 65)			// while we have ptrs
   {
-    if (blk[level]->mem->global != db_var.name.var_qu)
+    if (!var_equal(blk[level]->mem->global, db_var.name))
     { return -(ERRMLAST+ERRZ61);			// database stuffed
     }
     s = Locate(&db_var.slen);				// locate the key
@@ -189,7 +188,7 @@ short Get_data(int dir)					// locate a record
     }
     else if (dir < 0)					// if found and want -
     { Index--;						// backup the Index
-      if (Index < 10)					// can't happen?
+      if (Index < IDX_START)				// can't happen?
       { panic("Get_data: Problem with negative direction");
       }
     }
@@ -208,15 +207,14 @@ short Get_data(int dir)					// locate a record
     }
   }							// end while ptr
 
-  if (blk[level]->mem->global != db_var.name.var_qu)
+  if (!var_equal(blk[level]->mem->global, db_var.name))
   { return -(ERRMLAST+ERRZ61);				// database stuffed
   }
   s = Locate(&db_var.slen);				// locate key in data
   if (dir < 1)						// if not a pointer
   { systab->last_blk_used[partab.jobtab - systab->jobtab] = i; // set last used
   }
-  if ((!db_var.slen) && (!s) &&
-      ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+  if ((!db_var.slen) && (!s) && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
   { if (!record->len)
     { s = -ERRM7;					// check for top node
     }

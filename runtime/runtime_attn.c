@@ -100,13 +100,13 @@ void DoInfo()
   char *p;					// a handy pointer
   mvar *var;					// and another
 
-  bcopy("\033\067\033[99;1H",ct,9);		// start off
+  bcopy("\033\067\033[99;1H", ct, 9);		// start off
   i = 9;					// next char
   i += sprintf(&ct[i],"%d", (int)(partab.jobtab - systab->jobtab) + 1);
   i += sprintf(&ct[i]," (%d) ", partab.jobtab->pid);
   p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam;
           					// point at routine name
-  for (j = 0; (j < 8) && (p[j]); ct[i++] = p[j++]); // copy it
+  for (j = 0; (j < VAR_LEN) && (p[j]); ct[i++] = p[j++]) ; // copy it
   i += sprintf(&ct[i]," Cmds: %d ", partab.jobtab->commands);
   i += sprintf(&ct[i],"Grefs: %d ", partab.jobtab->grefs);
   var = &partab.jobtab->last_ref;		// point at $R
@@ -125,7 +125,7 @@ void DoInfo()
 //
 //	cft = 0 JOB
 //	      1 FORK
-//	     -1 Just do a rfork() for the daemons, no file table
+//	     -1 Just do a fork()/rfork() for the daemons, no file table
 
 int ForkIt(int cft)				// Copy File Table True/False
 { int i;					// a handy int
@@ -180,17 +180,17 @@ int ForkIt(int cft)				// Copy File Table True/False
   }						// term settings on exit
 
   if (cft < 0)
-  {
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-    j = freopen("/dev/null", "w", stdin);	// redirect stdin
-    if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
-    j = freopen("/dev/null", "w", stdout);	// redirect stdout
-    if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
-    j = freopen("/dev/null", "w", stderr);	// redirect stderr
-    if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
-#endif
+  { if (!i)
+    { j = freopen("/dev/null", "w", stdin);	// redirect stdin
+      if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+      j = freopen("/dev/null", "w", stdout);	// redirect stdout
+      if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+      j = freopen("/dev/null", "w", stderr);	// redirect stderr
+      if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+    }
     return i;
   }
+
   if (i == 0)
     (void) setSignal(SIGINT, IGNORE);		// disable control C
 
@@ -244,7 +244,6 @@ int ForkIt(int cft)				// Copy File Table True/False
 }
 
 // SchedYield()
-//
 
 void SchedYield()				// do a sched_yield()
 {

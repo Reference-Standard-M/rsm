@@ -33,23 +33,22 @@
 #ifndef _RSM_RSM_H_                             // only do this once
 #define _RSM_RSM_H_
 
-//** general constant definitions ***/
+/** general constant definitions **/
 
 #define FALSE           0                       // nicer than using 0
 #define TRUE            1                       // or 1
 
-#define RSM_MAGIC       4155766917UL            // seems unique
+#define RSM_MAGIC       4155766917U             // seems unique
 #define RSM_SYSTEM      50                      // MDC assigned number
-#define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
+#define MAX_DATABASE_BLKS 2147483647U           // max of 2**31-1 unsigned for now
 #define VERSION_MAJOR   1                       // Major version number
-#define VERSION_MINOR   72                      // Minor version number
+#define VERSION_MINOR   73                      // Minor version number
 #define VERSION_PATCH   0                       // Patch version number
 #define VERSION_TEST	0                       // Test version number
 #define MBYTE           1048576                 // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
 #define MAX_DAEMONS     10                      // maximum of these
-#define STORAGE         1024                    // what $STORAGE returns
 #ifdef  __APPLE__
 #define PRVGRP          80                      // admin in OSX
 #else
@@ -60,6 +59,11 @@
 #define DEFAULT_PREC    12                      // number of decimal places
 #define MAX_NUM_BYTES	63                      // max size of a number
 #define MAX_STR_LEN     32767                   // max size of a string
+#if RSM_DBVER == 1
+#define VAR_LEN         8                       // length of var_u - must be multiple of 8
+#else
+#define VAR_LEN         32                      // length of var_u - must be multiple of 8
+#endif
 #define MAX_ECODE       1024                    // max len for $ECODE
 
 #define SECDAY          86400                   // seconds per day ($H)
@@ -73,7 +77,7 @@
 #define K2_GREATER      -1                      // ***
 
 #define MAX_DO_FRAMES   128                     // maximum permitted do_frame
-#define STM1_FRAME	MAX_DO_FRAMES-1             // where $ST(-1) data goes
+#define STM1_FRAME	(MAX_DO_FRAMES - 1)     // where $ST(-1) data goes
 #define MAX_SEQ_IO      16                      // maximum sequential io chans
 #define MAX_SEQ_NAME	256                     // max file name size
 #define MAX_SEQ_OUT     6                       // max output terminator size
@@ -121,8 +125,13 @@
 #define AVROUSIZ        3072                    // average compiled routine size
 #define MAXROUSIZ       32767                   // max compiled rou size
 #define MAXROULIN       32767                   // max rou lines
-#define COMP_VER        7                       // compiler version
+#if RSM_DBVER == 1
 #define DB_VER          1                       // database version
+#define COMP_VER        7                       // compiler version
+#else
+#define DB_VER          2                       // database version
+#define COMP_VER        8                       // compiler version
+#endif
 
 // Global flags (from Global Directory) follow
 #define GL_JOURNAL      1                       // Journal global flag
@@ -160,14 +169,14 @@
 #define SIG_U2          (1U << 31)              // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define MAX_VOL             2                   // max number of vols
-#define VOL_FILENAME_MAX	256             // max chars in stored filename
-#define JNL_FILENAME_MAX	226             // max chars in journal filenam
+#define MAX_VOL           2                     // max number of vols
+#define VOL_FILENAME_MAX  256                   // max chars in stored filename
+#define JNL_FILENAME_MAX  226                   // max chars in journal filename
 
 // systab->historic bit flag meanings
-#define	HISTORIC_EOK		1               // E syntax flag
-#define HISTORIC_OFFOK		2               // GO/DO with offset OK
-#define HISTORIC_DNOK		4               // $NEXT OK runtime/runtime_ssvn
+#define HISTORIC_EOK	1                       // E syntax flag
+#define HISTORIC_OFFOK	2                       // GO/DO with offset OK
+#define HISTORIC_DNOK	4                       // $NEXT OK runtime/runtime_ssvn
 
 // Semaphore defines
 // Semaphores are setup with a value equal to systab->maxjob
@@ -179,28 +188,29 @@
 #define SEM_GLOBAL      2                       // global database module
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
-
 #define SEM_MAX         5                       // total number of these
-
-#if defined(__sun__) || defined(__FreeBSD__) || defined(__NetBSD__)
-union semun {
-        int             val;            /* value for SETVAL */
-        struct semid_ds *buf;           /* buffer for IPC_STAT & IPC_SET */
-        unsigned short  *array;         /* array for GETALL & SETALL */
-};
-typedef union semun semun_t;
-
-#endif
 
 #define MAX_TRANTAB	8                       // total number of entries
 
-typedef unsigned long long      u_int64;        // unix unsigned quadword
+#if defined(linux) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun__) || defined(__CYGWIN__)
+typedef union semun {
+        int val;                                // value for SETVAL
+        struct semid_ds *buf;                   // buffer for IPC_STAT, IPC_SET
+        unsigned short int *array;              // array for GETALL, SETALL
+#if defined(linux) || defined(__CYGWIN__)
+        struct seminfo *__buf;                  // buffer for IPC_INFO
+#endif
+} semun_t;
+#else
+typedef union semun semun_t;
+#endif
 
-typedef u_int64 chr_q;                          // our quadword special
+typedef unsigned long long u_int64;             // unix unsigned quadword
 
 typedef union __attribute__ ((__packed__)) VAR_U // get at this two ways
-{ chr_q var_qu;                                 // variable name (quadword)
-  u_char var_cu[8];                             // variable name (as char[])
+{ u_int64 var_q;                                // variable name (quadword) for casting
+  u_int64 var_qu[VAR_LEN / 8];                  // variable name (quadword array)
+  u_char var_cu[VAR_LEN];                       // variable name (as char[])
 } var_u;                                        // variable name union
 
 typedef struct __attribute__ ((__packed__)) CSTRING // our string type
@@ -240,15 +250,23 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
   u_int max_block;                              // maximum block number
   int header_bytes;                             // bytes in label/map
   int block_size;                               // bytes per data block
-  var_u volnam;                                 // volume name (8 bytes)
+#if RSM_DBVER == 1
+  var_u volnam;                                 // volume name (VAR_LEN bytes)
   short db_ver;                                 // database version
+#else
+  u_int64 creation_time;                        // time database was created
+  short db_ver;                                 // database version
+  var_u volnam;                                 // volume name (VAR_LEN bytes)
+#endif
   u_char journal_available;                     // jrnl turned on at startup
   u_char journal_requested;                     // && journal_available = ON
   u_char clean;                                 // clean dismount flag
   char journal_file[JNL_FILENAME_MAX + 1];      // journal file name
-  uci_tab uci[UCIS];                            // current ucis (at 256!!!)
+  uci_tab uci[UCIS];                            // current ucis (at 256 + VAR_LEN - (VAR_LEN % 32)!!!)
 } label_block;         				// define the label block
-						// sizeof(label_block) = 1024
+						// sizeof(label_block) = 256 + VAR_LEN + ((VAR_LEN + 4) * 64) - (VAR_LEN % 32)
+
+#define MAX_MAP_SIZE ((u_int) (MAX_DATABASE_BLKS / 8 + sizeof(label_block)) / 1024 + 1) // Max size of label/map block
 
 typedef struct __attribute__ ((__packed__)) DB_STAT
 { u_int dbget;                                  // Global Gets
@@ -280,12 +298,12 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
 { label_block *vollab;                          // ptr to volset label block
   void *map;                                    // start of map area
   void *first_free;                             // first word with free bits
-  struct GBD *gbd_hash[GBD_HASH+1];             // gbd hash table
+  struct GBD *gbd_hash[GBD_HASH + 1];           // gbd hash table
   struct GBD *gbd_head;                         // head of global buffer desc
   int num_gbd;                                  // number of global buffers
   void *global_buf;                             // start of global buffers
   void *zero_block;                             // empty block in memory
-  struct RBD *rbd_hash[RBD_HASH+1];             // head of routine buffer desc
+  struct RBD *rbd_hash[RBD_HASH + 1];           // head of routine buffer desc
   void *rbd_head;                               // head of routine buffer desc
   void *rbd_end;                                // first addr past routine area
   int num_of_daemons;                           // number of daemons
@@ -349,9 +367,7 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN
   u_char options;                               // type specific options
   u_char mode;                                  // how object is opened
   int fid;                                      // os supplied file id
-
   servertab s;
-
   u_short dx;                                   // $X
   u_short dy;                                   // $Y
   u_char name[MAX_SEQ_NAME];                    // name of what was opened
@@ -359,7 +375,7 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN
   u_char dkey[MAX_DKEY_LEN+1];                  // stored $KEY (null term)
   short out_len;                                // length of output terminator
   u_char out_term[MAX_SEQ_OUT];                 // the output terminator
-  int in_term;                                  // input terminator bit mask
+  u_int64 in_term;                                // input terminator bit mask
   var_u namespace;                              // routine for namespace
 } SQ_Chan;                                      // define the $I stuff
 
@@ -465,5 +481,36 @@ extern partab_struct partab;                    // globalize partab
 extern u_char *addstk[];                        // address stack
 extern u_char strstk[];                         // string stack
 extern u_char *rsmpc;                           // RSM prog pointer
+
+// VAR_U macros and inline functions
+#define VAR_CLEAR(var) \
+    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) \
+        var.var_qu[var_i] = 0
+
+#define VAR_COPY(var_dst, var_src) \
+    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) \
+        var_dst.var_qu[var_i] = var_src.var_qu[var_i]
+
+static inline u_int var_empty(var_u var)
+{
+    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) {
+        if (var.var_qu[var_i] != 0) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static inline u_int var_equal(var_u var1, var_u var2)
+{
+    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) {
+        if (var1.var_qu[var_i] != var2.var_qu[var_i]) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
 
 #endif                                          // !_RSM_RSM_H_

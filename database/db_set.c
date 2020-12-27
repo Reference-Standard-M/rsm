@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -108,7 +107,7 @@ short Set_data(cstring *data)				// set a record
 { short s;						// for returns
   int i;						// a handy int
   u_int *ui;						// an int ptr
-  u_char tmp[16];					// spare string
+  u_char tmp[VAR_LEN + 4];				// spare string
   u_char cstr[8];					// and another
   u_char fk[260];					// for keys
   cstring *ptr;						// spare ptr
@@ -124,30 +123,18 @@ short Set_data(cstring *data)				// set a record
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
   { return s;						// return the error
-  }					// WARNING: Leaves GBDs reserved
-  if ((systab->vol[volnum - 1]->vollab->journal_available) &&
-      (systab->vol[volnum - 1]->vollab->journal_requested) &&
-      (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
-  { jrnrec jj;						// jrn structure
-    jj.action = JRN_SET;				// doing set
-    jj.uci = db_var.uci;				// copy UCI
-    jj.name.var_qu = db_var.name.var_qu;		// global name
-    jj.slen = db_var.slen;				// subs length
-    bcopy(db_var.key, jj.key, jj.slen);			// copy key
-    DoJournal(&jj, data);				// and do it
-  }
+  }							// WARNING: Leaves GBDs reserved
   if ((s == -ERRM7) && (!level))			// is global there
   { level++;						// no - where it goes
     s = New_block();					// get a new block
     if (s < 0)						// if that failed
     { return s;						// return error
     }
-    Index = 10;						// first one
+    Index = IDX_START;					// first one
     blk[level]->mem->type = db_var.uci + 64;		// data block
     blk[level]->mem->last_idx = Index;			// first Index
-    blk[level]->mem->last_free
-      = (systab->vol[volnum-1]->vollab->block_size >> 2) - 3; // use 2 words
-    bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, 8); // name
+    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 3; // use 2 words
+    bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, VAR_LEN); // name
     idx[Index] = blk[level]->mem->last_free + 1;	// the data
     chunk = (cstring *) &iidx[idx[Index]];		// point at it
     chunk->len = 8;					// used two words
@@ -162,13 +149,13 @@ short Set_data(cstring *data)				// set a record
     { panic("Set_data: Get_data() on non-ex global wrong!");
     }
     tmp[1] = 128;					// start string key
-    for (i=0; i<8; i++)					// for each char
+    for (i = 0; i < VAR_LEN; i++)			// for each char
     { if (db_var.name.var_cu[i] == '\0')		// check for null
       { break;						// break if found
       }
-      tmp[i+2] = db_var.name.var_cu[i];			// copy char
+      tmp[i + 2] = db_var.name.var_cu[i];		// copy char
     }
-    i +=2;						// correct count
+    i += 2;						// correct count
     tmp[i] = '\0';					// null terminate
     tmp[0] = (u_char) i;				// add the count
     ptr = (cstring *) cstr;				// point at spare
@@ -197,10 +184,22 @@ short Set_data(cstring *data)				// set a record
     level++;						// back to new block
     idx = (u_short *) blk[level]->mem;			// point at the block
     iidx = (int *) blk[level]->mem;			// point at the block
-    Index = 10;						// start at the start
+    Index = IDX_START;					// start at the start
     Queit();						// que for write
     s = -ERRM7;						// new node undefined
-  }				// end of create global code
+  }							// end of create global code
+
+  if ((systab->vol[volnum - 1]->vollab->journal_available) &&
+      (systab->vol[volnum - 1]->vollab->journal_requested) &&
+      (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
+  { jrnrec jj;						// jrn structure
+    jj.action = JRN_SET;				// doing set
+    jj.uci = db_var.uci;				// copy UCI
+    VAR_COPY(jj.name, db_var.name);			// global name
+    jj.slen = db_var.slen;				// subs length
+    bcopy(db_var.key, jj.key, jj.slen);			// copy key
+    DoJournal(&jj, data);				// and do it
+  }
 
   if (db_var.slen == 0)					// changing top node?
   { if ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)
@@ -216,13 +215,13 @@ short Set_data(cstring *data)				// set a record
       this_level = level;				// save level
       level = 0;					// point at GD
       tmp[1] = 128;					// start string key
-      for (i=0; i<8; i++)				// for each char
+      for (i = 0; i < VAR_LEN; i++)			// for each char
       { if (db_var.name.var_cu[i] == '\0')		// check for null
         { break;					// break if found
         }
-        tmp[i+2] = db_var.name.var_cu[i];		// copy char
+        tmp[i + 2] = db_var.name.var_cu[i];		// copy char
       }
-      i +=2;						// correct count
+      i += 2;						// correct count
       tmp[i] = '\0';					// null terminate
       tmp[0] = (u_char) i;				// add the count
       i = Locate(tmp);					// locate GD entry
@@ -241,7 +240,7 @@ short Set_data(cstring *data)				// set a record
     s = 0;						// actually a modify
     idx = (u_short *) blk[level]->mem;			// point at the block
     iidx = (int *) blk[level]->mem;			// point at the block
-    Index = 10;
+    Index = IDX_START;
     chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
   }
@@ -268,8 +267,7 @@ short Set_data(cstring *data)				// set a record
       }
       return data->len;					// and return length
     }
-  }			// end new node code
-
+  }							// end new node code
   else							// it's a replacement
   { i = chunk->len - chunk->buf[1] - 6;			// available size
     if (data->len <= i)					// if it will fit
@@ -294,7 +292,7 @@ short Set_data(cstring *data)				// set a record
       return data->len;					// and return length
     }
 
-    if (Index == 10)					// if it's 1st node
+    if (Index == IDX_START)				// if it's 1st node
     { if (blk[0] == NULL)				// was it a trylast?
       { if (blk[level]->dirty == (gbd *) 1)		// if we reserved it
         { blk[level]->dirty = NULL;			// clear that
@@ -328,7 +326,7 @@ short Set_data(cstring *data)				// set a record
       }
       return data->len;					// return length
     }
-  }			// end simple replace (original node missing)
+  }							// end simple replace (original node missing)
 
   if (blk[0] == NULL)					// was it a trylast?
   { if (blk[level]->dirty == (gbd *) 1)			// if we reserved it
@@ -363,7 +361,7 @@ short Set_data(cstring *data)				// set a record
   ts = 0;						// trail size zot
   trailings = Index;					// for ron
   if (trailings <= blk[level]->mem->last_idx)		// if any point
-  { for (i = 10; i < trailings; i++)			// scan front of blk
+  { for (i = IDX_START; i < trailings; i++)		// scan front of blk
     { chunk = (cstring *) &iidx[idx[i]];		// point at chunk
       bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
     }							// get fk[] correct
@@ -401,13 +399,12 @@ short Set_data(cstring *data)				// set a record
     bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size); // zot
     blk[level]->mem->type = cblk[3]->mem->type;		// copy type
     blk[level]->mem->right_ptr = cblk[3]->mem->right_ptr; // copy RL
-    blk[level]->mem->global = cblk[3]->mem->global;	// copy global name
-    blk[level]->mem->last_idx = 9;			// unused block
-    blk[level]->mem->last_free
-      = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+    VAR_COPY(blk[level]->mem->global, cblk[3]->mem->global); // copy global name
+    blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
 
-    if (((ts + rs) < rls) && (trailings != 10))		// if new record fits
+    if (((ts + rs) < rls) && (trailings != IDX_START))	// if new record fits
     { s = Insert(&db_var.slen, data);			// insert it
       if (s < 0)					// failed ?
       { panic("Set_data: Insert in new block (RL) failed");
@@ -419,7 +416,7 @@ short Set_data(cstring *data)				// set a record
     { Copy_data(cblk[0], trailings);			// copy trailings
     }
 
-    Copy_data(cblk[3], 10);				// and old RL
+    Copy_data(cblk[3], IDX_START);			// and old RL
 
     btmp = blk[level]->mem;				// save this
     blk[level]->mem = cblk[3]->mem;			// copy in this
@@ -437,7 +434,7 @@ short Set_data(cstring *data)				// set a record
       }
       Tidy_block();					// tidy it
     }
-    if (((ts + rs) < rls) && (trailings != 10))		// if new record done
+    if (((ts + rs) < rls) && (trailings != IDX_START))	// if new record done
     { goto fix_keys;					// exit **1**
     }
 
@@ -448,7 +445,7 @@ short Set_data(cstring *data)				// set a record
     else if (s != -(ERRMLAST+ERRZ62))
     { return s;						// error
     }
-    if (trailings == 10)				// if was first node
+    if (trailings == IDX_START)				// if was first node
     { return -(ERRMLAST+ERRZ61);			// stuffed
     }
 
@@ -459,8 +456,8 @@ short Set_data(cstring *data)				// set a record
 
     blk[level]->mem->type = cblk[0]->mem->type;		// copy type
     blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
-    blk[level]->mem->global = cblk[0]->mem->global;	// copy global name
-    blk[level]->mem->last_idx = 9;			// unused block
+    VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
+    blk[level]->mem->last_idx = IDX_START - 1;		// unused block
     blk[level]->mem->last_free
     = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
@@ -495,10 +492,9 @@ short Set_data(cstring *data)				// set a record
 
   blk[level]->mem->type = cblk[0]->mem->type;		// copy type
   blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
-  blk[level]->mem->global = cblk[0]->mem->global;	// copy global name
-  blk[level]->mem->last_idx = 9;			// unused block
-  blk[level]->mem->last_free
-    = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+  VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
+  blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+  blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
@@ -521,7 +517,7 @@ short Set_data(cstring *data)				// set a record
   else if (s != -(ERRMLAST+ERRZ62))
   { return s;						// error!
   }
-  if (trailings == 10)					// if was first node
+  if (trailings == IDX_START)				// if was first node
   { return -(ERRMLAST+ERRZ61);				// stuffed
   }
 
@@ -540,10 +536,9 @@ short Set_data(cstring *data)				// set a record
   }
   blk[level]->mem->type = cblk[0]->mem->type;		// copy type
   blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
-  blk[level]->mem->global = cblk[0]->mem->global;	// copy global name
-  blk[level]->mem->last_idx = 9;			// unused block
-  blk[level]->mem->last_free
-    = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+  VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
+  blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+  blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
@@ -554,7 +549,6 @@ short Set_data(cstring *data)				// set a record
   }							// exit **6**
 
 fix_keys:
-
   blk[level] = NULL;					// clear this
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
   { if (blk[i]->dirty == (gbd *) 2)			// if changed

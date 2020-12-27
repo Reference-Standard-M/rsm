@@ -49,11 +49,11 @@ short getvol(cstring *vol)			// get vol number for vol
 { int i;					// a handy int
   short s;					// for cstring length
   s = vol->len;					// get len
-  if (s < 8) s++;				// include term null if poss
+  if (s < VAR_LEN) s++;				// include term null if poss
   for (i = 0; i < MAX_VOL; i++)			// scan the volumes
   { if (systab->vol[i]->vollab == NULL) continue; // continue if none in slot
-    if (bcmp(&systab->vol[i]->vollab->volnam.var_cu[0],
-	     vol->buf, s) != 0) continue;	// if not the same continue
+    if (bcmp(&systab->vol[i]->vollab->volnam.var_cu[0], vol->buf, s) != 0)
+      continue;					// if not the same continue
     return (short) i + 1;			// return vol number
   }
   return (-ERRM26);				// complain - no such
@@ -63,12 +63,12 @@ short getuci(cstring *uci, int vol)		// get uci number
 { int i;					// for loops
   short s;					// for cstring length
   s = uci->len;					// get len
-  if (s < 8) s++;				// include term null if poss
+  if (s < VAR_LEN) s++;				// include term null if poss
   if (vol == 0) vol = partab.jobtab->vol;	// get current vol
   vol--;					// make internal reference
   for (i = 0; i < UCIS; i++)			// scan the ucis
-  { if (bcmp(&systab->vol[vol]->vollab->uci[i].name.var_cu[0],
-	     uci->buf, s) == 0) return (short) i + 1;
+  { if (bcmp(&systab->vol[vol]->vollab->uci[i].name.var_cu[0], uci->buf, s) == 0)
+      return (short) i + 1;
   }
   return (-ERRM26);				// complain - no such
 }
@@ -79,7 +79,7 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   int i;					// a handy int
   cstring *ptr;					// and a handy pointer
   short s;					// for returns
-  chr_q *vt;					// var table pointer
+  var_u *vt;					// var table pointer
   rbd *p;					// a handy pointer
   mvar *ind;					// ind mvar ptr
 
@@ -91,16 +91,14 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   else
     subs = *rsmpc++;				// get in line
   var->volset = 0;				// default vol set
-  var->uci = (type < TYPVARGBL) ?
-    UCI_IS_LOCALVAR : 0;			// assume local var or uci 0
+  var->uci = (type < TYPVARGBL) ?  UCI_IS_LOCALVAR : 0;	// assume local var or uci 0
   var->slen = 0;				// and no subscripts
   if (type == TYPVARNAKED)			// if it's a naked
-  { if (partab.jobtab->last_ref.name.var_qu == 0)
+  { if (var_empty(partab.jobtab->last_ref.name))
       return (-ERRM1); 				// say "Naked indicator undef"
     i = UTIL_Key_Last(&partab.jobtab->last_ref); // start of last key
     if (i < 0) return (-ERRM1); 		// say "Naked indicator undef"
-    bcopy(&(partab.jobtab->last_ref), var,
-            sizeof(var_u) + 5 + i);   		// copy naked naked
+    bcopy(&(partab.jobtab->last_ref), var, sizeof(var_u) + 5 + i); // copy naked naked
     var->slen = (u_char) i;			// stuff in the count
   }
   else if (type == TYPVARIND)			// it's an indirect
@@ -112,17 +110,17 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   { i = *rsmpc++;				// get the index
     if (i < 255)				// can't do the last one
     { var->volset = i + 1;			// save the index (+ 1)
-      var->name.var_qu = 0;			// clear the name
+      VAR_CLEAR(var->name);			// clear the name
     }
     else
     { p = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
-      vt = (chr_q *) (((u_char *) p) + p->var_tbl); // point at var table
-      var->name.var_qu = vt[i];			// get the var name
+      vt = (var_u *) (((u_char *) p) + p->var_tbl); // point at var table
+      VAR_COPY(var->name, vt[i]);		// get the var name
     }
   }
   else
-  { bcopy(rsmpc, &var->name, 8);
-    rsmpc += 8;
+  { bcopy(rsmpc, &var->name, VAR_LEN);
+    rsmpc += VAR_LEN;
     //var->name = *((var_u *)rsmpc)++;		// get the variable name
   }
 
@@ -131,8 +129,8 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
     if ((ptr->len == 0)	&&			// if it's a null
         ((!nul_ok) || (i != (subs-1))))		// not ok or not last subs
       return (-(ERRZ16+ERRMLAST));		// complain
-    s = UTIL_Key_Build(ptr,
-		       &var->key[var->slen]); 	// get one subscript
+    s = UTIL_Key_Build(ptr, &var->key[var->slen]); // get one subscript
+    if (s < 0) return s;			// die on error
     if ((s + var->slen) > 255)			// check how big
       return (-(ERRZ2+ERRMLAST));		// complain on error
     var->slen = s + var->slen; 			// add it in
@@ -144,16 +142,12 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
     if (s < 0) return s;			// die on error
     var->volset = (u_char) s;			// save the value
   }
-  if ((type == TYPVARGBLUCI) ||
-      (type == TYPVARGBLUCIENV))		// need uci?
-  { ptr = (cstring *)
-      addstk[asp-subs-1-(type == TYPVARGBLUCIENV)]; // point at the string
-    s = getuci(ptr, var->volset);		// get uci
+  if ((type == TYPVARGBLUCI) || (type == TYPVARGBLUCIENV)) // need UCI?
+  { ptr = (cstring *) addstk[asp - subs - 1 - (type == TYPVARGBLUCIENV)]; // point at the string
+    s = getuci(ptr, var->volset);		// get UCI
     if (s < 0) return s;			// die on error
     var->uci = (u_char) s;			// save the value
   }
   if (type == TYPVARIND) asp--;			// fixup asp for return
-  return asp - subs
-    - (type == TYPVARGBLUCI)
-    - ((type == TYPVARGBLUCIENV) * 2);		// all done
+  return asp - subs - (type == TYPVARGBLUCI) - ((type == TYPVARGBLUCIENV) * 2);	// all done
 }

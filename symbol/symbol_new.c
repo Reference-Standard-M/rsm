@@ -48,16 +48,14 @@ short ST_New(int count, var_u *list)
   newtab = malloc(sizeof(ST_newtab) + (count * sizeof(ST_locdata)));
   						// try to get enough memory
   if (newtab == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
-  newtab->fwd_link =				// setup for link in
-    (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab;
+  newtab->fwd_link = (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab; // setup for link in
   newtab->count_enn = 0;			// not applicable
   newtab->stindex = NULL;			// not needed
   newtab->count_new = count;			// how many we are to new
-  newtab->locdata = (ST_locdata *)
-		    (((u_char *) &(newtab->locdata)) + sizeof(ST_locdata *));
+  newtab->locdata = (ST_locdata *) (((u_char *) &(newtab->locdata)) + sizeof(ST_locdata *));
 						// point at next free address
   for (i = (count - 1); i >= 0; i--)		// for all vars in list
-  { s = ST_SymAtt(list[i].var_qu);		// attach to variable
+  { s = ST_SymAtt(list[i]);			// attach to variable
     if (s < 0)					// check for error
     { free(newtab);				// free memory
       return (s);
@@ -66,8 +64,7 @@ short ST_New(int count, var_u *list)
     newtab->locdata[i].data = symtab[s].data;	// and the data address
     symtab[s].data = ST_DATA_NULL;		// remove data link
   }
-  partab.jobtab->dostk[partab.jobtab->cur_do].newtab =
-    (u_char *) newtab;				// link it to the do stack
+  partab.jobtab->dostk[partab.jobtab->cur_do].newtab = (u_char *) newtab; // link it to the do stack
   return 0;					// finished OK
 }						// end function ST_New
 
@@ -85,7 +82,7 @@ short ST_NewAll(int count, var_u *list)
   ST_newtab *newtab;				// pointer to the new table
 
   for (k = 0; k < count; k++)			// for all supplied vars
-    (void)ST_Create(list[k].var_qu);		// Create if not existent
+    (void) ST_Create(list[k]);			// Create if not existent
 
   for (i = 0; i <= ST_MAX-1; i++)               // for each entry in ST
   { if (symtab[i].varnam.var_cu[0] == '$') continue; // ignore $ vars
@@ -93,7 +90,7 @@ short ST_NewAll(int count, var_u *list)
     if (count > 0)                              // if there are vars to keep
     { for (j = 0; j < count; j++)               // for all keep vars
       { new = 1;                                // init delete flag
-        if (symtab[i].varnam.var_qu == list[j].var_qu)
+        if (var_equal(symtab[i].varnam, list[j]))
         { new = 0;				// dont new it
           break;
         }
@@ -110,9 +107,7 @@ short ST_NewAll(int count, var_u *list)
     }                                           // end else new everything
   }                                             // end for all in symtab
 
-  newtab = malloc(sizeof(ST_newtab) +
-                 (cntnew * sizeof(ST_locdata)) +
-                 (cntnon * sizeof(short)));	// try allocate some memory
+  newtab = malloc(sizeof(ST_newtab) + (cntnew * sizeof(ST_locdata)) + (cntnon * sizeof(short))); // try allocate some memory
 
   if (newtab == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
   newtab->fwd_link =				// setup for link in
@@ -135,7 +130,7 @@ short ST_NewAll(int count, var_u *list)
     if (count > 0)                              // if there are vars to keep
     { for (j = 0; j < count; j++)               // for all keep vars
       { new = 1;                                // init delete flag
-        if (symtab[i].varnam.var_qu == list[j].var_qu)
+        if (var_equal(symtab[i].varnam, list[j]))
         { new = 0;				// dont new it
           break;
         }
@@ -193,8 +188,7 @@ void ST_Restore(ST_newtab *newtab)
 	    kill = -1;					// leave $...
 	  else
           { for (i = 0; i < ptr->count_enn; i++)	// for all enn vars
-            { if (symtab[chk].varnam.var_qu ==		// if an ENN var
-                  symtab[ptr->stindex[i]].varnam.var_qu)
+            { if (var_equal(symtab[chk].varnam, symtab[ptr->stindex[i]].varnam)) // if an ENN var
               { kill = -1; 				// DONT KILL
 	        break;					// and exit for
 	      }

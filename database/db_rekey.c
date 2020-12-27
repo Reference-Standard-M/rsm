@@ -30,7 +30,6 @@
 #include <string.h>					// for bcopy
 #include <strings.h>
 #include <unistd.h>					// for file reading
-#include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -51,7 +50,7 @@
 short Set_key(u_int ptr_blk, int this_level)		// set a block#
 { short s;						// for returns
   u_char tmp[8];					// some space
-  u_char gtmp[16];					// to find glob
+  u_char gtmp[VAR_LEN + 4];				// to find glob
   int i;						// a handy int
   u_int *ui;						// an int ptr
   cstring *ptr;						// spare ptr
@@ -71,13 +70,13 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   level = this_level;					// set current level
   if (!this_level)					// top level split
   { gtmp[1] = 128;					// start string key
-    for (i=0; i<8; i++)					// for each char
+    for (i = 0; i < VAR_LEN; i++)			// for each char
     { if (db_var.name.var_cu[i] == '\0')		// check for null
       { break;						// break if found
       }
-      gtmp[i+2] = db_var.name.var_cu[i];		// copy char
+      gtmp[i + 2] = db_var.name.var_cu[i];		// copy char
     }
-    i +=2;						// correct count
+    i += 2;						// correct count
     gtmp[i] = '\0';					// null terminate
     gtmp[0] = (u_char) i;				// add the count
     s=Get_block(systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].global);
@@ -98,12 +97,11 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     }
 
     blk[level]->mem->type = db_var.uci;			// pointer block
-    blk[level]->mem->last_idx = 10;			// first Index
-    blk[level]->mem->last_free
-      = (systab->vol[volnum-1]->vollab->block_size >> 2) - 3; // use 2 words
-    bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, 8);
-    idx[10] = blk[level]->mem->last_free + 1;		// the data
-    chunk = (cstring *) &iidx[idx[10]];			// point at it
+    blk[level]->mem->last_idx = IDX_START;		// first Index
+    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 3; // use 2 words
+    bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, VAR_LEN);
+    idx[IDX_START] = blk[level]->mem->last_free + 1;	// the data
+    chunk = (cstring *) &iidx[idx[IDX_START]];		// point at it
     chunk->len = 8;					// used two words
     chunk->buf[0] = 0;					// ccc
     chunk->buf[1] = 0;					// ucc
@@ -144,7 +142,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   Index++;						// point at insert
 							// see Get_data()
   trailings = Index;					// remember for later
-  if (trailings < 11)					// if junk
+  if (trailings < (IDX_START + 1))			// if junk
   { return -(ERRMLAST+ERRZ61);				// database stuffed
   }
 
@@ -204,10 +202,9 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     bzero(blk[level]->mem, systab->vol[(volnum)-1]->vollab->block_size); // zot
     blk[level]->mem->type = cblk[2]->mem->type;		// copy type
     blk[level]->mem->right_ptr = cblk[2]->mem->right_ptr; // copy RL
-    blk[level]->mem->global = cblk[2]->mem->global;	// copy global name
-    blk[level]->mem->last_idx = 9;			// unused block
-    blk[level]->mem->last_free
-      = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+    VAR_COPY(blk[level]->mem->global, cblk[2]->mem->global); // copy global name
+    blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
     if ((ts + rs) < rls)				// if new record fits
     { s = Insert(&db_var.slen, ptr);			// insert it
@@ -217,7 +214,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
       bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);	// save key
     }
     Copy_data(cblk[0], trailings);			// copy trailings
-    Copy_data(cblk[2], 10);				// and old RL
+    Copy_data(cblk[2], IDX_START);			// and old RL
 
     btmp = blk[level]->mem;				// save this
     blk[level]->mem = cblk[2]->mem;			// copy in this
@@ -253,10 +250,9 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
     blk[level]->mem->type = cblk[0]->mem->type;		// copy type
     blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
-    blk[level]->mem->global = cblk[0]->mem->global;	// copy global name
-    blk[level]->mem->last_idx = 9;			// unused block
-    blk[level]->mem->last_free
-    = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+    VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
+    blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
 
     cblk[0]->mem->right_ptr = blk[level]->block;	// point at it
@@ -294,10 +290,9 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
   blk[level]->mem->type = cblk[0]->mem->type;		// copy type
   blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
-  blk[level]->mem->global = cblk[0]->mem->global;	// copy global name
-  blk[level]->mem->last_idx = 9;			// unused block
-  blk[level]->mem->last_free
-    = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+  VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
+  blk[level]->mem->last_idx = IDX_START - 1;		// unused block
+  blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
@@ -432,7 +427,7 @@ short Re_key()						// re-key blocks
     if (s < 0)
     { return -(ERRMLAST+ERRZ61);			// database stuffed
     }
-    chunk = (cstring *) &iidx[idx[10]];			// point at first chunk
+    chunk = (cstring *) &iidx[idx[IDX_START]];		// point at first chunk
     bcopy(&chunk->buf[1], &db_var.slen, chunk->buf[1] + 1); // copy key
 
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
@@ -480,7 +475,7 @@ void Un_key()
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
-  chunk = (cstring *) &iidx[idx[10]];			// point at first chunk
+  chunk = (cstring *) &iidx[idx[IDX_START]];		// point at first chunk
   uptr = &(chunk->buf[1]);				// point at key
 
   for (level = level - 1; level; level--)		// for each above level
@@ -509,10 +504,10 @@ void Un_key()
       Tidy_block();					// and tidy the block
 
       if (level < (this_level - 1))			// if up > 1 level
-      { if (blk[level + 1]->mem->last_idx > 9)		// and if lower not mt
+      { if (blk[level + 1]->mem->last_idx > (IDX_START - 1)) // and if lower not mt
 	{ idx = (u_short *) blk[level + 1]->mem;	// point at the block
 	  iidx = (int *) blk[level + 1]->mem;		// point at the block
-	  chunk = (cstring *) &iidx[idx[10]];		// point at first chunk
+	  chunk = (cstring *) &iidx[idx[IDX_START]];	// point at first chunk
 	  lptr = &(chunk->buf[1]);			// point at key
 	  xptr = (cstring *) cstr;			// point at spare
 	  xptr->len = 4;				// one int
@@ -536,7 +531,7 @@ void Un_key()
 	    if (s != -ERRM7)				// if not - die
 	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
 	    }
-	    if (Index > 10)				// if not first node
+	    if (Index > IDX_START)			// if not first node
 	    { chunk = (cstring *) &iidx[idx[Index - 1]]; // point at prev
 	      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at it
 	      Align_record();				// align

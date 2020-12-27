@@ -1,0 +1,13 @@
+# Magic file for Reference Standard M
+# Install in ~/.magic and compile (in home directory) with `file -C -m ~/.magic`
+0      long  4155766917U  Reference Standard M
+>24   short            2  Database file, version 2
+!:mime application/x-rsm
+>24   short            1  Database file, version 1
+!:mime application/x-rsm
+
+0      long  4155766916U  Reference Standard M
+>12   short           12  Journal file, version 2
+!:mime application/x-rsm
+>12   short            8  Journal file, version 1
+!:mime application/x-rsm

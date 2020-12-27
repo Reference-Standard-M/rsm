@@ -108,7 +108,7 @@ short Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
   if ((stop < start)||(start > (int)expr->len))
     return 0;                                   // and return it
   i = stop-start+1;                             // bytes to copy
-  bcopy(&expr->buf[start-1],                    // copy from here
+  bcopy(&expr->buf[start - 1],                  // copy from here
         ret_buffer,                             // to here
         i);                                     // this many bytes
   ret_buffer[i] = '\0';                         // null terminate
@@ -228,7 +228,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
       tempc->len = nlen+1;
       ptr1 = &dest->buf[dest->len-1];		// copy all including
       while (*ptr1 != '.')				// the NULL term, up to
-      { bcopy(ptr1,&tempc->buf[nlen], 1);		// the decimal point
+      { bcopy(ptr1, &tempc->buf[nlen], 1);		// the decimal point
         nlen -= 1;					// but not including
         ptr1 -= 1;					// the decimal point
       }
@@ -295,7 +295,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
           tempc->len = dest->len;
         }
         else					// no + sign at front
-        { bcopy(&dest->buf[0],&tempc->buf[0],dest->len);
+        { bcopy(&dest->buf[0], &tempc->buf[0], dest->len);
           tempc->buf[dest->len] = '+';
           tempc->len = dest->len + 1;
         }
@@ -307,12 +307,12 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     }
     else					// negative number
     { if (b2 != NULL)				// - sign supress, tack a space
-      { bcopy(&dest->buf[1],&tempc->buf[0],dest->len-1);
+      { bcopy(&dest->buf[1], &tempc->buf[0], dest->len-1);
         tempc->buf[dest->len-1] = ' ';
         tempc->len = dest->len;
       }
       else					// force - sign at end
-      { bcopy(&dest->buf[1],&tempc->buf[0],dest->len-1);
+      { bcopy(&dest->buf[1], &tempc->buf[0], dest->len-1);
         tempc->buf[dest->len-1] = '-';
         tempc->len = dest->len;
       }
@@ -523,11 +523,11 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
       if (ret_buffer[ru] == ' ')
       { ret_buffer[ru] = '0';
       }
-      if ((ret_buffer[ru] == '-') && (ret_buffer[0] == ' '))	// Check for the 2016 case
-      { ret_buffer[ru--] = '1';									//
-        ret_buffer[ru] = '-';									//
-        break;													//
-      }															// end 2016 patch
+      if ((ret_buffer[ru] == '-') && (ret_buffer[0] == ' ')) // Check for the 2016 case
+      { ret_buffer[ru--] = '1';			//
+        ret_buffer[ru] = '-';			//
+        break;					//
+      }						// end 2016 patch
       if (ru >= j)
       { continue;
       }
@@ -767,8 +767,7 @@ short Dreverse(u_char *ret_buffer, cstring *expr)
 //
 
 short Dstack1(u_char *ret_buffer, int level)
-{ return Dstack1x(ret_buffer, level,
-		  (partab.jobtab - systab->jobtab));
+{ return Dstack1x(ret_buffer, level, (partab.jobtab - systab->jobtab));
 }
 
 short Dstack1x(u_char *ret_buffer, int level, int job)
@@ -797,8 +796,7 @@ short Dstack1x(u_char *ret_buffer, int level, int job)
 }
 
 short Dstack2(u_char *ret_buffer, int level, cstring *code)
-{ return Dstack2x(ret_buffer, level, code,
-		  (partab.jobtab - systab->jobtab));
+{ return Dstack2x(ret_buffer, level, code, (partab.jobtab - systab->jobtab));
 }
 
 short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
@@ -810,7 +808,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   int i;					// a handy int
   u_char *p;					// a handy pointer
   mvar *var;					// for ^$R()
-  u_char temp[20];				// ditto
+  u_char temp[VAR_LEN + 4];			// ditto
   cstring *cptr;				// ditto
   short s;					// ditto
 
@@ -828,7 +826,8 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   { ret_buffer[0] = '\0';			// assume nothing
     if (job != (partab.jobtab - systab->jobtab)) return (0); // can't find
     var = (mvar *) ret_buffer;			// use same space for mvar
-    bcopy("$ECODE\0\0", &var->name.var_cu[0], 8); // copy in $ECODE
+    VAR_CLEAR(var->name);
+    bcopy("$ECODE", &var->name.var_cu[0], 6);   // copy in $ECODE
     var->volset = 0;
     var->uci = UCI_IS_LOCALVAR;
     cptr = (cstring *) temp;			// some spare space
@@ -843,7 +842,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   if ((((systab->jobtab[job].dostk[level].type & 127) == TYPE_XECUTE) ||
        ((systab->jobtab[job].dostk[level].type & 127) == TYPE_RUN) ||
        ((systab->jobtab[job].dostk[level].type & 127) == TYPE_JOB)) &&
-       (systab->jobtab[job].dostk[level].rounam.var_qu == 0))
+       (var_empty(systab->jobtab[job].dostk[level].rounam)))
   { if (arg2 == 2)				// "MCODE"
     { ret_buffer[0] = '\0';			// JIC
       if (systab->jobtab[job].cur_do < level) return 0; // no can do
@@ -859,12 +858,13 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   line = systab->jobtab[job].dostk[level].line_num; // get line number
   if (arg2 == 2)				// "MCODE"
   { var = (mvar *) ret_buffer;			// use same space for mvar
+    VAR_CLEAR(var->name);
     bcopy("$ROUTINE", &var->name.var_cu[0], 8); // copy in $ROUTINE
     var->volset = systab->jobtab[job].rvol;	// vol number
     var->uci = systab->jobtab[job].ruci;	// uci number
     if (rounam->var_cu[0] == '%') var->uci = 1;	// check for a percent rou
     cptr = (cstring *) temp;			// some spare space
-    for (i = 0; i < 8; i++)			// copy name
+    for (i = 0; i < VAR_LEN; i++)		// copy name
     { if (rounam->var_cu[i] == 0) break;	// quit when done
       cptr->buf[i] = rounam->var_cu[i];		// copy
     }
@@ -886,7 +886,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   ret_buffer[i++] = '+';			// add plus
   i = i + itocstring(&ret_buffer[i], line);	// add the line number
   ret_buffer[i++] = '^';			// the name indicator
-  for (arg2 = 0; arg2 < 8; arg2++)		// copy name
+  for (arg2 = 0; arg2 < VAR_LEN; arg2++)	// copy name
     if ((ret_buffer[i++] = rounam->var_cu[arg2]) == 0) break;
   if (ret_buffer[i-1] == '\0') i--;		// back up over null
   ret_buffer[i] = '\0';				// null terminate
@@ -904,8 +904,8 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   u_char slen;					// saved length
   short s;					// for functions
   int off = 1;					// line offset
-  u_char rou[12];				// routine name
-  u_char tag[12];				// the tag
+  u_char rou[VAR_LEN + 4];			// routine name
+  u_char tag[VAR_LEN + 4];			// the tag
   cstring *cr;					// the rou
   cstring *ct;					// and the tag
 
@@ -916,17 +916,16 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   cr->len = 0;					// no routine for now
 
   if (bcmp("+0\0", str->buf, 3) == 0)		// $T(+0) ?
-  { for (i = 0; i < 8; i++)			// copy rou name
+  { for (i = 0; i < VAR_LEN; i++)		// copy rou name
     { if (!partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[i])
         break;					// quit when done
-      ret_buffer[i] =
-        partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[i]; // copy
+      ret_buffer[i] = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[i]; // copy
     }
     ret_buffer[i] = '\0';			// null terminate
     return (short) i;				// and exit
   }
   if ((str->buf[i] != '+') && (str->buf[i] != '^')) // is there a tag
-  { while (j < 8)
+  { while (j < VAR_LEN)
     { if ((i == 0) && (str->buf[i] == '%'))	// leading %
       { ct->buf[j++] = str->buf[i++];		// copy it
         continue;				// and go for more
@@ -952,7 +951,7 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   j = 0;					// clear rou ptr
   if (str->buf[i] == '^')			// routine name
   { i++;					// skip the ^
-    while (j < 8)
+    while (j < VAR_LEN)
     { if ((j == 0) && (str->buf[i] == '%'))	// leading %
       { cr->buf[j++] = str->buf[i++];		// copy it
         continue;				// and go for more
@@ -964,16 +963,16 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
     cr->len = j;				// save the length
   }
   else						// we need the current routine
-  { for (j = 0; j < 8; j++)
-      if ((cr->buf[j] =
-            partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[j])
-		== '\0') break;			// copy till done
+  { for (j = 0; j < VAR_LEN; j++)
+      if ((cr->buf[j] = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[j]) == '\0')
+        break;					// copy till done
     cr->buf[j] = '\0';				// null terminate rou
     cr->len = j;				// save the length
   }
   if (cr->len == 0) return 0;			// no routine supplied -> null
   if ((ct->len == 0) && (!off))			// just the name reqd?
     return mcopy(cr->buf, ret_buffer, cr->len);	// return the name
+  VAR_CLEAR(partab.src_var.name);
   bcopy("$ROUTINE", &partab.src_var.name.var_cu[0], 8); // setup for DB_Get
   partab.src_var.volset = partab.jobtab->rvol;	// vol
   partab.src_var.uci = partab.jobtab->ruci;	// uci
@@ -985,8 +984,7 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   slen = s;					// save key size
   if (ct->len == 0)				// no tag?
   { ct->len = itocstring(ct->buf, off);		// cstring off
-    s = UTIL_Key_Build(ct,
-		       &partab.src_var.key[slen]); // next key
+    s = UTIL_Key_Build(ct, &partab.src_var.key[slen]); // next key
     if (s < 0) return s;			// die on error
     partab.src_var.slen = s + slen;		// save key size
     s = DB_Get(&partab.src_var, ret_buffer);	// get it
@@ -1062,8 +1060,7 @@ short Dtranslate3(u_char *ret_buffer, cstring *expr1,
 //***********************************************************************
 // $VIEW(channel#,location[,size[,value]])
 //
-short Dview(u_char *ret_buffer, int chan, int loc,
-            int size, cstring *value)
+short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
 { int i;					// a handy int
   u_char *vb;					// view buffer address
 

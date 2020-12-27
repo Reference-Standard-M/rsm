@@ -1,6 +1,6 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/SQ_Device.c
+ * File:     rsm/seqio/sq_device.c
  * Summary:  module IO - sequential device I/O
  *
  * David Wicksell <dlw@linux.com>
@@ -56,7 +56,7 @@ int SQ_Device_Read_TTY(int fid, u_char *buf, int tout);
 // This function opens a device "device" for the specified operation "op" ( ie
 // writing, reading or reading and/or writing ). If successful, it returns a
 // non-negative integer, termed a descriptor. Otherwise, it returns a negative
-// integer to indicate the error that has occured.
+// integer to indicate the error that has occurred.
 
 int SQ_Device_Open (char *device, int op)
 {	int	flag;
@@ -77,8 +77,7 @@ int SQ_Device_Open (char *device, int op)
       return (getError(INT, ERRZ21));
   }
 
-// If device is busy, keep trying until a timeout ( ie alarm signal ) has been
-// received
+// If device is busy, keep trying until a timeout (ie alarm signal) has been received
 
   while (1)
   { did = open(device, flag, 0);
@@ -86,7 +85,7 @@ int SQ_Device_Open (char *device, int op)
     { if (errno != EBUSY)
       { return (getError(SYS, errno));
       }
-      else if (partab.jobtab->trap |= 16384)		// MASK[SIGALRM]
+      else if ((partab.jobtab->trap & 16384))		// MASK[SIGALRM]
       { return (-1);
       }
     }
@@ -101,7 +100,7 @@ int SQ_Device_Open (char *device, int op)
 // This function writes "nbytes" bytes from the buffer "writebuf" to the device
 // associated with the descriptor "did". Upon successful completion, the number
 // of bytes actually written is returned. Otherwise, it returns a negative
-// integer to indicate the error that has occured.
+// integer to indicate the error that has occurred.
 
 int SQ_Device_Write(int did, u_char *writebuf, int nbytes)
 { int	ret;
@@ -113,7 +112,7 @@ int SQ_Device_Write(int did, u_char *writebuf, int nbytes)
 // ************************************************************************* //
 // This function determines the type of device to read from. If it can not
 // determine the type of device, a negative integer value is returned to
-// indicate the error that has occured.
+// indicate the error that has occurred.
 //
 // Note, support is only implemented for terminal type devices.
 
@@ -135,7 +134,7 @@ int SQ_Device_Read(int did, u_char *readbuf, int tout)
 // the descriptor "did" into the buffer "readbuf". A pending read is not
 // satisfied until one byte or a signal has been received. Upon successful
 // completion, the number of bytes actually read is returned. Otherwise, a
-// negative integer is returned to indicate the error that has occured.
+// negative integer is returned to indicate the error that has occurred.
 
 int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
 { struct termios		settings;
