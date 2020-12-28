@@ -152,6 +152,7 @@ short Vy(u_char *ret_buffer)                    // $Y
 //	$EC[ODE]
 //	$ET[RAP]
 //	$K[EY]
+//	$R[EFERENCE]
 //	$X
 //	$Y
 
@@ -192,6 +193,23 @@ short Vset(mvar *var, cstring *cptr)		// set a special variable
 	  partab.jobtab->seqio[partab.jobtab->io].dkey, // to here
 	  cptr->len+1);				// this many (incl null)
     partab.jobtab->seqio[partab.jobtab->io].dkey_len = cptr->len;
+    return 0;
+  }
+  if ((strncasecmp( (char *) &var->name.var_cu[1], "r", 1) == 0) ||
+      (strncasecmp( (char *) &var->name.var_cu[1], "reference", 9) == 0)) // $R[EFERENCE]
+  { for (i = 0; i < cptr->len; i++)
+    { if (i == 0)
+      { if (cptr->buf[0] != '^')
+          return -(ERRZ74 + ERRMLAST);		// invalid global value
+      }
+      else if (i == 1)
+      { if ((cptr->buf[1] != '%') && (!isalpha(cptr->buf[1])))
+          return -(ERRZ74 + ERRMLAST);		// invalid global value
+      }
+      else if (!isalnum(cptr->buf[i]) && cptr->buf[i] != '(' && cptr->buf[i] != ')' && cptr->buf[i] != ',')
+        return -(ERRZ74 + ERRMLAST);		// invalid global value
+    }
+    UTIL_MvarFromCStr(cptr, &partab.jobtab->last_ref);
     return 0;
   }
   if (strncasecmp((char *)&var->name.var_cu[1], "x", 1) == 0)	// $X

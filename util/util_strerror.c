@@ -178,7 +178,8 @@ static struct
   {ERRZ70+ERRMLAST,	"Offset not permitted in entryref"},
   {ERRZ71+ERRMLAST,	"No such host is known"},
   {ERRZ72+ERRMLAST,	"Type h_errno error has occurred"},
-  {ERRZ73+ERRMLAST, "Invalid database file specified"},
+  {ERRZ73+ERRMLAST,	"Invalid database file specified"},
+  {ERRZ74+ERRMLAST,	"Invalid global name"},
   {0,         NULL}
 };                                                      // merrtab[]
 
