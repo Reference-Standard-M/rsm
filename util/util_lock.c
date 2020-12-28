@@ -438,7 +438,13 @@ static int failed(lck_add_ctx *pctx)          // common code
   }
 
   if (tryagain == 0)
-      partab.jobtab->test = 0;                // flag failure to lock
+  { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+    { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;// flag failure to lock
+    }
+    else
+    { partab.jobtab->test = 0;                // flag failure to lock
+    }
+  }
 
   if (partab.jobtab->attention)
   { if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP))
@@ -482,7 +488,13 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
  while (tryagain)                               // while we should give it a go
  {tryagain = 0;                                 // reset retry flag
   if (to > -1)
-    partab.jobtab->test = 1;                    // flag successful locking
+  { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+    { partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;// flag successful locking
+    }
+    else
+    { partab.jobtab->test = 1;                    // flag successful locking
+    }
+  }
   done = 0;                                     // init
   size = 0;                                     // these
   pos = 0;                                      // now

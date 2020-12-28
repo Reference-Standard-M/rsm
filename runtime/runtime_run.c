@@ -72,6 +72,7 @@ short run(int savasp, int savssp)		// run compiled code
   do_frame *curframe;				// a do frame pointer
   int asp;					// copy of asp
   int ssp;					// and ssp
+  u_char test;					// handy temp $TEST
   u_char temp[256];				// some temp storage
   for_stack *forx;				// point at a for stack
   var_u *vt;					// pointer for var tab
@@ -207,7 +208,9 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case OPIFN:				// if - no args
 	partab.jobtab->commands++;		// count a command
-	if (partab.jobtab->test == 0)		// check $TEST
+	test = partab.jobtab->dostk[partab.jobtab->cur_do].test != -1 ?
+	    partab.jobtab->dostk[partab.jobtab->cur_do].test : partab.jobtab->test;
+	if (test == 0)		                // check $TEST
 	{ if (infor)
 	  { i = 1;				// offset for standard FORs
 	    if ((((for_stack *) addstk[savasp-1])->type & 7) == FOR_TYP_0)
@@ -218,17 +221,26 @@ short run(int savasp, int savssp)		// run compiled code
 	    rsmpc = ((for_stack *) addstk[savasp-1])->quit - i;
 	  }
 	  else
-	  { rsmpc =
-	      partab.jobtab->dostk[partab.jobtab->cur_do].endlin;
+	  { rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].endlin;
 	  }
 	}
 	break;
       case OPIFA:				// if with args
       case OPIFI:				// if indirect
 	partab.jobtab->commands++;		// count a command
-	partab.jobtab->test = 1;		// set $TEST
-	if (cstringtob((cstring *)addstk[--asp]) == 0)
-	{ partab.jobtab->test = 0;		// clear $TEST
+	if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+        { partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;	// set $TEST
+        }
+        else
+        { partab.jobtab->test = 1;		// set $TEST
+        }
+	if (cstringtob((cstring *) addstk[--asp]) == 0)
+        { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+          { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;// clear $TEST
+          }
+          else
+	  { partab.jobtab->test = 0;		// clear $TEST
+          }
 	  if (opc == OPIFI)			// indirect
           { assert(sizeof(isp) == sizeof(long));
             bcopy(rsmpc, &isp, sizeof(isp));
@@ -255,7 +267,9 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case OPELSE:				// else
 	partab.jobtab->commands++;		// count a command
-	if (partab.jobtab->test != 0)		// check $TEST
+	test = partab.jobtab->dostk[partab.jobtab->cur_do].test != -1 ?
+            partab.jobtab->dostk[partab.jobtab->cur_do].test : partab.jobtab->test;
+	if (test != 0)				// check $TEST
 	{ if (infor)
 	  { i = 1;				// offset for standard FORs
 	    if ((((for_stack *) addstk[savasp-1])->type & 7) == FOR_TYP_0)
@@ -1236,7 +1250,9 @@ short run(int savasp, int savssp)		// run compiled code
       case VART:				// $T[EST]
 	cptr = (cstring *) &strstk[ssp];	// where we will put it
 	cptr->buf[0] = '0';			// assume zero
-	if (partab.jobtab->test != 0)		// but, if true
+	test = partab.jobtab->dostk[partab.jobtab->cur_do].test != -1 ?
+            partab.jobtab->dostk[partab.jobtab->cur_do].test : partab.jobtab->test;
+	if (test != 0)				// but, if true
 	{ cptr->buf[0] = '1';			// it's a one
 	}
 	cptr->buf[1] = '\0';
@@ -2007,7 +2023,12 @@ short run(int savasp, int savssp)		// run compiled code
 	if ((curframe->type & TYPE_EXTRINSIC) || // if it's extrinsic
 	    (curframe->level))			// or argless do
 	{ curframe->flags &= ~DO_FLAG_TEST;	// clear test bit
-	  curframe->flags |= partab.jobtab->test; // set $TEST
+	  if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+          { curframe->flags |= partab.jobtab->dostk[partab.jobtab->cur_do].test; // set $TEST
+          }
+          else
+          { curframe->flags |= partab.jobtab->test; // set $TEST
+          }
 	}
 	p = rsmpc;				// the new pc
 	if (!*p) p++;				// skip possible eol
@@ -2061,7 +2082,12 @@ short run(int savasp, int savssp)		// run compiled code
 	if (args & 128)				// timeout specified ?
 	{ j = cstringtoi((cstring *) addstk[--asp]); // get the timeout
 	  args &= 127;				// clear timeout flag
-	  partab.jobtab->test = 1;		// ALWAYS WORKS ???
+	  if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+          { partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;// ALWAYS WORKS ???
+          }
+          else
+          { partab.jobtab->test = 1;		// ALWAYS WORKS ???
+          }
 	}
 	i = ForkIt(0);				// fork with no file table
 	if (i > 0) break;			// check for ok (parent)
@@ -2278,6 +2304,7 @@ short run(int savasp, int savssp)		// run compiled code
 	partab.jobtab->dostk[partab.jobtab->cur_do].level = 0;
 	partab.jobtab->dostk[partab.jobtab->cur_do].estack = partab.jobtab->dostk[partab.jobtab->cur_do - 1].estack;
 	partab.jobtab->dostk[partab.jobtab->cur_do].flags = 0;
+	partab.jobtab->dostk[partab.jobtab->cur_do].test = -1;
 	partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
 	partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
 	partab.jobtab->dostk[partab.jobtab->cur_do].asp = asp;
@@ -2354,7 +2381,14 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 	if ((curframe->type == TYPE_EXTRINSIC) || // if it's extrinsic
 	    (curframe->level))			// or argless do
-	  partab.jobtab->test = (curframe->flags & DO_FLAG_TEST); // set $TEST
+	{ if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+	  { partab.jobtab->dostk[partab.jobtab->cur_do].test =
+	      (curframe->flags & DO_FLAG_TEST); // set $TEST
+	  }
+	  else
+	  { partab.jobtab->test = (curframe->flags & DO_FLAG_TEST); // set $TEST
+	  }
+	}
 	rsmpc = partab.jobtab->dostk[--partab.jobtab->cur_do].pc;
 	if ((partab.jobtab->error_frame > partab.jobtab->cur_do) &&
 	    (partab.jobtab->cur_do < partab.jobtab->etrap_at))
@@ -2421,11 +2455,17 @@ short run(int savasp, int savssp)		// run compiled code
 	      s = ST_GetAdd(var, &cptr);	// get address of current value
 	      if (s < 1) cptr = NULL;		// ignore junk
 	    }
-	    else
-	      if ((strncasecmp((const char *) &var->name.var_cu[0], "$es\0", 4) == 0) ||
+	    else if ((strncasecmp((const char *) &var->name.var_cu[0], "$es\0", 4) == 0) ||
 	          (strncasecmp((const char *) &var->name.var_cu[0], "$estack\0", 8) == 0))
 	    { partab.jobtab->dostk[partab.jobtab->cur_do].estack =
 		partab.jobtab->cur_do;		// set new estack value
+	      --args;				// decrease arg count
+	    }
+	    else if ((strncasecmp((const char *) &var->name.var_cu[0], "$t\0", 3) == 0) ||
+	             (strncasecmp((const char *) &var->name.var_cu[0], "$test\0", 6) == 0))
+	    { partab.jobtab->dostk[partab.jobtab->cur_do].test =
+	          partab.jobtab->cur_do > 0 && partab.jobtab->dostk[partab.jobtab->cur_do - 1].test != -1 ?
+	          partab.jobtab->dostk[partab.jobtab->cur_do - 1].test : partab.jobtab->test;		// set new test value
 	      --args;				// decrease arg count
 	    }
 	    else ERROR(-ERRM8)			// can't do that

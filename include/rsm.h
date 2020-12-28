@@ -44,7 +44,7 @@
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   73                      // Minor version number
 #define VERSION_PATCH   0                       // Patch version number
-#define VERSION_TEST	0                       // Test version number
+#define VERSION_TEST	2                       // Test version number
 #define MBYTE           1048576                 // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
@@ -339,6 +339,7 @@ typedef struct __attribute__ ((__packed__)) DO_FRAME
   u_char type;                                  // see TYPE_??? def
   u_char level;                                 // current argless do level
   u_char flags;                                 // flags for this frame
+  char test;                                    // current $TEST (0/1) if NEW'd
   long savasp;                                  // saved asp
   long savssp;                                  // saved ssp
   long asp;                                     // entry asp
