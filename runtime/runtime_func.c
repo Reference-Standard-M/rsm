@@ -170,6 +170,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   cstring *tempc;
   cstring *dest;
   int i;
+  int j;
   int z;
   int ndlen;
   int nlen;
@@ -197,6 +198,11 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   if (((a1 != NULL) || (a2 != NULL)) &&		// check for invalid
       ((b1 != NULL) || (b2 != NULL) || (c1 != NULL) || (c2 != NULL)))
     return -(ERRM2);				// invalid code, error
+  for (j = 0; j < code->len; j++)
+  { if (strcasecmp((const char *) &code->buf[j], "p") && strcasecmp((const char *) &code->buf[j], "t") &&
+        code->buf[j] != '+' && code->buf[j] != '-')
+      return -(ERRM2);				// invalid code, error
+  }
 
   if (numexp->len > 1)
   { for (z = 0; z <= numexp->len; z++)
