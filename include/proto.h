@@ -106,6 +106,8 @@ time_t current_time(short local);               // get current time with/without
 
 short run(int asp, int ssp);			// run compiled code
 short buildmvar(mvar *var, int nul_ok, int asp); // build an mvar
+short getvol(cstring *vol);			// get vol number for vol
+short getuci(cstring *uci, int vol);		// get uci number
 short patmat(cstring *str, cstring *pattern);	// pattern match
 short attention();				// process attention
 int ForkIt(int cft);				// Fork (copy file table)
@@ -156,6 +158,7 @@ short Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
 short Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3);
 short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value); // $VIEW()
 
+short DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i); // Set $QSUBSCRIPT()
 short DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2); // Set $PIECE()
 short DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2); // Set $EXTRACT()
 

@@ -70,40 +70,40 @@
 #define OPNFOL   36                              // not a follows b
 #define OPNSAF   37                              // not a sorts after b
 #define OPNPAT   38                              // not a pattern matches b
-#define OPFOLEQL 39                             // a follows, or is equal to, b
+#define OPFOLEQL 39                              // a follows, or is equal to, b
 
-#define OPSAFEQL 40                             // a sorts after, or is equal to, b
-#define CMSET    41                              // set
-#define CMSETE   42                              // set $E()
-#define CMSETP   43                              // set $P()
-#define OPNAKED  44                              // set NAKED from mvar on addstk
-#define CMFLUSH  45                              // flush inputs
-#define CMREADS  46                              // read star
-#define CMREADST 47                              // read star with timeout
-#define CMREAD   48                              // read variable
-#define CMREADT  49                              // read variable t/o
+#define OPSAFEQL 40                              // a sorts after, or is equal to, b
+#define CMSETQS  41                              // set $QS()
+#define CMSET    42                              // set
+#define CMSETE   43                              // set $E()
+#define CMSETP   44                              // set $P()
+#define OPNAKED  45                              // set NAKED from mvar on addstk
+#define CMFLUSH  46                              // flush inputs
+#define CMREADS  47                              // read star
+#define CMREADST 48                              // read star with timeout
+#define CMREAD   49                              // read variable
 
-#define CMREADC  50                              // read variable count
-#define CMREADCT 51                              // read variable count, t/o
-#define CMWRTST  52                              // write star
-#define CMWRTNL  53                              // write !
-#define CMWRTFF  54                              // write #
-#define CMWRTAB  55                              // write ?expr
-#define CMWRTEX  56                              // write expression
-#define CMUSE    57                              // use (args) ch, a1, a2, ...
-#define CMOPEN   58                              // open chan, p1, p2, timeout
-#define CMCLOSE  59                              // close channel
+#define CMREADT  50                              // read variable t/o
+#define CMREADC  51                              // read variable count
+#define CMREADCT 52                              // read variable count, t/o
+#define CMWRTST  53                              // write star
+#define CMWRTNL  54                              // write !
+#define CMWRTFF  55                              // write #
+#define CMWRTAB  56                              // write ?expr
+#define CMWRTEX  57                              // write expression
+#define CMUSE    58                              // use (args) ch, a1, a2, ...
+#define CMOPEN   59                              // open chan, p1, p2, timeout
 
-#define OPSTR    60                              // string follows in line
-#define OPVAR    61                              // eval var name follows
-#define OPMVAR   62                              // build mvar, name follows
-#define OPMVARN  63                              // build mvar, (null OK)
-#define OPMVARF  64                              // bld mvar, no null, full size
-#define INDEVAL  65                              // eval name indirection
-#define INDMVAR  66                              // mvar name indirection
-#define INDMVARN 67                              // mvar name ind (null ok)
-#define INDMVARF 68                              // mvar name ind, full size
-//spare          69
+#define CMCLOSE  60                              // close channel
+#define OPSTR    61                              // string follows in line
+#define OPVAR    62                              // eval var name follows
+#define OPMVAR   63                              // build mvar, name follows
+#define OPMVARN  64                              // build mvar, (null OK)
+#define OPMVARF  65                              // bld mvar, no null, full size
+#define INDEVAL  66                              // eval name indirection
+#define INDMVAR  67                              // mvar name indirection
+#define INDMVARN 68                              // mvar name ind (null ok)
+#define INDMVARF 69                              // mvar name ind, full size
 
 #define OPBRK0   70                              // argless break
 #define OPBRKN   71                              // break with arguments

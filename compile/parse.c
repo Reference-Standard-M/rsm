@@ -1004,7 +1004,7 @@ void parse_set()				// SET
   short s;                                      // for functions
   int i;					// a handy int
   int bracket;					// bracket flag
-  int args = 0;					// number of args
+  int type;					// type of pseudo function
   u_char *p;                                    // a handy pointer
 
   while (TRUE)
@@ -1045,8 +1045,10 @@ void parse_set()				// SET
     { if ((strncasecmp((char *) source_ptr, "$e(", 3) == 0) ||
 	  (strncasecmp((char *) source_ptr, "$extract(", 9) == 0) ||
 	  (strncasecmp((char *) source_ptr, "$p(", 3) == 0) ||
-	  (strncasecmp((char *) source_ptr, "$piece(", 7) == 0))
-      { args = (toupper(source_ptr[1]) == 'P'); // $P = 1, $E = 0
+	  (strncasecmp((char *) source_ptr, "$piece(", 7) == 0) ||
+	  (strncasecmp((char *) source_ptr, "$qs(", 4) == 0) ||
+	  (strncasecmp((char *) source_ptr, "$qsubscript(", 12) == 0))
+      { type = (toupper(source_ptr[1]) == 'P') ? CMSETP : (toupper(source_ptr[1]) == 'E') ? CMSETE : CMSETQS; // Set type
 	while ((*source_ptr != '(') && (*source_ptr))
 	  source_ptr++;				// skip to bracket
 	source_ptr++;				// skip opening bracket
@@ -1070,15 +1072,15 @@ void parse_set()				// SET
           p = &p[s];				// point at the OPVAR
           *p = OPMVAR;				// change to a OPMVAR
         }
-	if (args)				// $P ?
+	if (type == CMSETP)			// $P ?
 	{ if (*source_ptr != ',') SYNTX		// need a comma
 	  source_ptr++;				// skip comma
 	  eval();				// eval the delimiter
 	}
 	if (*source_ptr == ')')			// end of function?
 	{ *comp_ptr++ = OPSTR;            	// say string following
-      *comp_ptr++ = 1;
-      *comp_ptr++ = 0;
+          *comp_ptr++ = 1;
+          *comp_ptr++ = 0;
 	  //*((short *) comp_ptr)++ = 1;		// length 1
 	  *comp_ptr++ = '1';			// value 1
 	  *comp_ptr++ = '\0';			// null terminated
@@ -1088,16 +1090,18 @@ void parse_set()				// SET
 	  source_ptr++;				// skip comma
 	  eval();				// eval the first numeric arg
 	}
-	if (*source_ptr == ')')			// end of function?
-	{ *comp_ptr++ = OPDUPASP;		// same as last
-	}
-	else
-	{ if (*source_ptr != ',') SYNTX		// need a comma
-	  source_ptr++;				// skip comma
-	  eval();				// eval the second numeric arg
-	}
+        if (type != CMSETQS)
+        { if (*source_ptr == ')')		// end of function?
+	  { *comp_ptr++ = OPDUPASP;		// same as last
+	  }
+	  else
+	  { if (*source_ptr != ',') SYNTX	// need a comma
+	    source_ptr++;			// skip comma
+	    eval();				// eval the second numeric arg
+	  }
+        }
 	if (*source_ptr++ != ')') SYNTX		// ensure there is a )
-	*comp_ptr++ = args ? CMSETP : CMSETE; 	// set the opcode
+	*comp_ptr++ = type; 			// set the opcode
       }						// end SET $E/$P
       else if (*source_ptr == '@')		// indirection ?
       { source_ptr++;				// skip the @
@@ -1118,7 +1122,7 @@ void parse_set()				// SET
 	  *comp_ptr++ = CMSET;			// add opcode
 	}
       }						// end indirection
-      else					// not $P/$E or indirection
+      else					// not $P/$E/$QS or indirection
       { p = comp_ptr;				// save for opcode insert
         s = localvar();                   	// parse the variable
         if (s < 0)                        	// if we got an error
