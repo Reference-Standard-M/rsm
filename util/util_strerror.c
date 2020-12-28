@@ -99,6 +99,8 @@ static struct
   {ERRM75,  "String length exceeds implementation's limit"},
   {ERRM92,  "Mathematical overflow"},
   {ERRM93,  "Mathematical underflow"},
+  {ERRM94,  "Zero to the power of zero"},
+  {ERRM95,  "Complex result with imaginary part"},
   {ERRM99,  "Invalid operation for context"},
   {ERRM101, "Attempt to assign incorrect value to $ECODE"},
 

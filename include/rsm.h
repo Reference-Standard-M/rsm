@@ -44,7 +44,7 @@
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   73                      // Minor version number
 #define VERSION_PATCH   0                       // Patch version number
-#define VERSION_TEST	0                       // Test version number
+#define VERSION_TEST	8                       // Test version number
 #define MBYTE           1048576                 // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these

@@ -92,6 +92,8 @@
 #define ERRM75       75      // String length exceeds implementation's limit
 #define ERRM92       92      // Mathematical overflow
 #define ERRM93       93      // Mathematical underflow
+#define ERRM94       94      // Zero to the power of zero
+#define ERRM95       95      // Complex result with imaginary part
 #define ERRM99       99      // Invalid operation for context
 #define ERRM101      101     // Attempt to assign incorrect value to $ECODE
 #define ERRMLAST     200     // Must equal last MDC assigned error
