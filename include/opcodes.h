@@ -70,9 +70,9 @@
 #define OPNFOL   36                              // not a follows b
 #define OPNSAF   37                              // not a sorts after b
 #define OPNPAT   38                              // not a pattern matches b
-//spare          39
+#define OPFOLEQL 39                             // a follows, or is equal to, b
 
-//spare          40
+#define OPSAFEQL 40                             // a sorts after, or is equal to, b
 #define CMSET    41                              // set
 #define CMSETE   42                              // set $E()
 #define CMSETP   43                              // set $P()

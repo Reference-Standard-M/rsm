@@ -522,16 +522,34 @@ short run(int savasp, int savssp)		// run compiled code
 	addstk[asp++] = (u_char *) cptr;	// stack it
 	break;
 
+      case OPFOLEQL:				// follows or equals
+	cptr = (cstring *) &strstk[ssp];	// where we will put it
+	cptr->len = 1;				// the count
+	cptr->buf[0] = '0';			// assume false
+	cptr->buf[1] = '\0';			// null terminate
+	ptr2 = (cstring *) addstk[--asp];	// get second string ptr
+	ptr1 = (cstring *) addstk[--asp];	// get first string ptr
+	s = ptr1->len;				// length of first string
+	if (s > ptr2->len) s = ptr2->len;	// get the smallest
+	i = memcmp(ptr1->buf, ptr2->buf, s);	// compare them
+	if (i > 0) cptr->buf[0] = '1';		// true
+	if ((i == 0) && (ptr2->len < ptr1->len))
+	  cptr->buf[0] = '1';			// also true
+	if (ptr1->len == ptr2->len)		// if same length
+	  if (bcmp( ptr1->buf, ptr2->buf, ptr1->len) == 0)
+	    cptr->buf[0] = '1';			// they are the same
+	ssp = ssp + sizeof(short) + 2;		// point past it
+	addstk[asp++] = (u_char *) cptr;	// stack it
+	break;
+
       case OPSAF:				// sorts after
 	ptr2 = (cstring *) &strstk[ssp];	// where we put the second arg
-	s = UTIL_Key_Build((cstring *) addstk[--asp],
-			   ptr2->buf);		// make a key out of it
+	s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf); // make a key out of it
 	if (s < 0) ERROR(s)			// check for error
 	ptr2->len = s;				// save the length
 	ssp = ssp + s + sizeof(short) + 1;	// move ssp along
 	ptr1 = (cstring *) &strstk[ssp];	// where we put the first arg
-	s = UTIL_Key_Build((cstring *) addstk[--asp],
-			   ptr1->buf);		// make a key out of it
+	s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf); // make a key out of it
 	if (s < 0) ERROR(s)			// check for error
 	ptr1->len = s;				// save the length
 	ssp = ssp + s + sizeof(short) + 1;	// move ssp along
@@ -545,6 +563,34 @@ short run(int savasp, int savssp)		// run compiled code
 	if (i <= 0) cptr->buf[0] = '0';		// false
 	if ((i == 0) && (ptr2->buf > ptr1->buf))
 	  cptr->buf[0] = '0';			// also false
+	ssp = ssp + sizeof(short) + 2;		// point past it
+	addstk[asp++] = (u_char *) cptr;	// stack it
+	break;
+
+      case OPSAFEQL:				// sorts after or equals
+	ptr2 = (cstring *) &strstk[ssp];	// where we put the second arg
+	s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf); // make a key out of it
+	if (s < 0) ERROR(s)			// check for error
+	ptr2->len = s;				// save the length
+	ssp = ssp + s + sizeof(short) + 1;	// move ssp along
+	ptr1 = (cstring *) &strstk[ssp];	// where we put the first arg
+	s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf); // make a key out of it
+	if (s < 0) ERROR(s)			// check for error
+	ptr1->len = s;				// save the length
+	ssp = ssp + s + sizeof(short) + 1;	// move ssp along
+	cptr = (cstring *) &strstk[ssp];	// where we will put it
+	cptr->len = 1;				// the count
+	cptr->buf[0] = '1';			// assume true
+	cptr->buf[1] = '\0';			// null terminate
+	s = ptr1->len;				// length of first string
+	if (s < ptr2->len) s = ptr2->len;	// get the smallest
+	i = memcmp(ptr1->buf, ptr2->buf, s);	// compare them
+	if (i <= 0) cptr->buf[0] = '0';		// false
+	if ((i == 0) && (ptr2->buf > ptr1->buf))
+	  cptr->buf[0] = '0';			// also false
+	if (ptr1->len == ptr2->len)		// if same length
+	  if (bcmp( ptr1->buf, ptr2->buf, ptr1->len) == 0)
+	    cptr->buf[0] = '1';			// they are the same
 	ssp = ssp + sizeof(short) + 2;		// point past it
 	addstk[asp++] = (u_char *) cptr;	// stack it
 	break;
