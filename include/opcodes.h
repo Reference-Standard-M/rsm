@@ -108,7 +108,9 @@
 #define OPBRK0   70                              // argless break
 #define OPBRKN   71                              // break with arguments
 #define OPDUPASP 72                              // duplicate top of addstk
-//spare          73 -> 79
+#define OPXOR    73                              // a !! b (exclusive or)
+#define OPNXOR   74                              // not a !! b (exclusive or)
+//spare          75 -> 79
 
 #define VARD     80                              // $D[EVICE]
 #define VAREC    81                              // $EC[ODE]

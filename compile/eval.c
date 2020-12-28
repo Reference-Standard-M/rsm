@@ -247,6 +247,10 @@ int operator()                                  // extract an operator
     case '&':                                   // and
       return not ? OPNAND : OPAND;              // and or nand
     case '!':                                   // exclam
+      if (*source_ptr == '!')                   // if there is another
+      { source_ptr++;                           // advance the pointer
+        return not ? OPNXOR : OPXOR;            // xor or xnor
+      }
       return not ? OPNIOR : OPIOR;              // or or nor
     case '[':                                   // left square bracket
       return not ? OPNCON : OPCON;              // contains or not
