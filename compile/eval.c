@@ -231,8 +231,18 @@ int operator()                                  // extract an operator
     case '=':                                   // equal sign
       return not ? OPNEQL : OPEQL;              // equal or not
     case '<':                                   // less than
+      if (*source_ptr == '=')                   // if there is another
+      { source_ptr++;                           // advance the pointer
+        if (not) return 0;			// a not here is junk
+        return OPNGTR;                          // less than or equal
+      }
       return not ? OPNLES : OPLES;              // less than or not
     case '>':                                   // greater than
+      if (*source_ptr == '=')                   // if there is another
+      { source_ptr++;                           // advance the pointer
+        if (not) return 0;			// a not here is junk
+        return OPNLES;                          // greater than or equal
+      }
       return not ? OPNGTR : OPGTR;              // greater than or not
     case '&':                                   // and
       return not ? OPNAND : OPAND;              // and or nand
@@ -243,7 +253,17 @@ int operator()                                  // extract an operator
     case ']':                                   // right square bracket
       if (*source_ptr == ']')                   // if there is another
       { source_ptr++;                           // advance the pointer
+        if (*source_ptr == '=')                 // if there is another
+        { source_ptr++;                         // advance the pointer
+          if (not) return 0;			// a not here is junk
+          return OPSAFEQL;                      // greater than or equal
+        }
         return not ? OPNSAF : OPSAF;            // sorts after or not
+      }
+      if (*source_ptr == '=')                   // if there is another
+      { source_ptr++;                           // advance the pointer
+        if (not) return 0;			// a not here is junk
+        return OPFOLEQL;                        // greater than or equal
       }
       return not ? OPNFOL : OPFOL;              // follows or not
     case '?':                                   // question
