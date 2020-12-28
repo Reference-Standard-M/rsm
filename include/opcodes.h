@@ -236,7 +236,8 @@
 #define INDUSE   194                             // USE arg indir
 #define INDWRIT  195                             // WRITE arg indir
 #define INDXEC   196                             // XECUTE arg indir
-//spare          197 -> 199
+#define INDKILLB 197                             // KILL but() args indir
+//spare          198 -> 199
 
 //spare          200 -> 229
 

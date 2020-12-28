@@ -2826,6 +2826,7 @@ short run(int savasp, int savssp)		// run compiled code
       case INDIF:				// IF indirection
       case INDJOB:				// JOB indirection
       case INDKILL:				// KILL indirection
+      case INDKILLB:				// KILL but() indirection
       case INDLOCK:				// LOCK indirection
       case INDMERG:				// MERGE indirection
       case INDNEW:				// NEW indirection
@@ -2860,7 +2861,10 @@ short run(int savasp, int savssp)		// run compiled code
 	    parse_job(1);
 	    break;
 	  case INDKILL:				// KILL
-	    parse_kill();
+	    parse_kill(0);
+	    break;
+	  case INDKILLB:			// exclusive KILL
+	    parse_kill(1);
 	    break;
 	  case INDLOCK:				// LOCK
 	    parse_lock();

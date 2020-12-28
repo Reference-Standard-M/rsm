@@ -350,7 +350,7 @@ void parse_job(int runtime)			// JOB
 
 //***********************************************************************
 
-void parse_kill()				// KILL
+void parse_kill(int indkillb)			// KILL
 {
   short s;                                      // for functions
   int args = 0;					// number of args
@@ -361,15 +361,29 @@ void parse_kill()				// KILL
     source_ptr++;				// skip the (
     while (TRUE)				// now, get one or more args
     { ptr = comp_ptr;				// save for ron
-      s = localvar();				// get var
-      if (s < 0)                          	// if we got an error
-      { comperror(s);                     	// compile it
-        return;                           	// and exit
+      if (*source_ptr == '@')			// indirection ?
+      { atom();					// eval the string
+        if (*(comp_ptr - 1) == INDEVAL)		// if it was indirect
+        { *(comp_ptr - 1) = INDKILLB;		// say kill indirect
+        }
+	else					// experimantal for $O(@.@())
+	{ ptr -= 2;				// back up over subs to type
+	  if (*(comp_ptr - 3) == OPVAR)
+	    *(comp_ptr - 3) = OPMVAR;		// change to OPMVAR
+	}
       }
-      ptr[s++] = OPMVAR;			// build an mvar, point at type
-      if ((ptr[s] != TYPVARNAM) &&
-          (ptr[s] != TYPVARIDX)) SYNTX		// must be local unsubscripted
-      args++;					// count the arg
+      else
+      { ptr = comp_ptr;				// save posn
+        s = localvar();				// get var
+        if (s < 0)                          	// if we got an error
+        { comperror(s);                     	// compile it
+          return;                           	// and exit
+        }
+        ptr[s++] = OPMVAR;			// build an mvar, point at type
+        if ((ptr[s] != TYPVARNAM) &&
+            (ptr[s] != TYPVARIDX)) SYNTX	// must be local unsubscripted
+        args++;					// count the arg
+      }
       if (*source_ptr == ')')			// closing bracket?
       { source_ptr++;				// skip it
         break;					// and exit
@@ -377,7 +391,42 @@ void parse_kill()				// KILL
       if (*source_ptr != ',') break;		// do it elsewhere
       source_ptr++;				// skip the comma
     }						// end 'get one or more args'
-    *comp_ptr++ = CMKILLB;			// opcode
+    if (*(comp_ptr - 1) != INDKILLB)
+      *comp_ptr++ = CMKILLB;			// opcode
+    *comp_ptr++ = args;				// number of args
+  }
+  else if (indkillb)
+  { args = 0;					// argument count
+    while (TRUE)				// now, get one or more args
+    { ptr = comp_ptr;				// save for ron
+      if (*source_ptr == '@')			// indirection ?
+      { atom();					// eval the string
+        if (*(comp_ptr - 1) == INDEVAL)		// if it was indirect
+        { *(comp_ptr - 1) = INDKILLB;		// say kill indirect
+        }
+	else					// experimantal for $O(@.@())
+	{ ptr -= 2;				// back up over subs to type
+	  if (*(comp_ptr - 3) == OPVAR)
+	    *(comp_ptr - 3) = OPMVAR;		// change to OPMVAR
+	}
+      }
+      else
+      { ptr = comp_ptr;				// save posn
+        s = localvar();				// get var
+        if (s < 0)                          	// if we got an error
+        { comperror(s);                     	// compile it
+          return;                           	// and exit
+        }
+        ptr[s++] = OPMVAR;			// build an mvar, point at type
+        if ((ptr[s] != TYPVARNAM) &&
+            (ptr[s] != TYPVARIDX)) SYNTX	// must be local unsubscripted
+        args++;					// count the arg
+      }
+      if (*source_ptr != ',') break;		// do it elsewhere
+      source_ptr++;				// skip the comma
+    }						// end 'get one or more args'
+    if (*(comp_ptr - 1) != INDKILLB)
+      *comp_ptr++ = CMKILLB;			// opcode
     *comp_ptr++ = args;				// number of args
   }
   else
@@ -412,7 +461,7 @@ void parse_kill()				// KILL
   }						// end while
   if (*source_ptr == ',')			// stupid A,A),...
   { source_ptr++;				// point past comma
-    parse_kill();				// and re-enter
+    parse_kill(indkillb);			// and re-enter
   }
   return;
 }
@@ -1513,7 +1562,7 @@ void parse()                                    // MAIN PARSE LOOP
 	}
 	else
 	{ --source_ptr;				// backup pointer
-	  parse_kill();
+	  parse_kill(0);
 	}
         break;                                  // end of KILL code
 
