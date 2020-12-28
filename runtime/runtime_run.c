@@ -493,6 +493,30 @@ short run(int savasp, int savssp)		// run compiled code
 	addstk[asp++] = (u_char *) cptr;	// stack it
 	break;
 
+      case OPXOR:				// xor
+	ptr2 = (cstring *) addstk[--asp];	// get second string ptr
+	ptr1 = (cstring *) addstk[--asp];	// get first string ptr
+	i = cstringtob(ptr2);                   // get second arg
+	j = cstringtob(ptr1);                   // get first arg
+	cptr = (cstring *) &strstk[ssp];	// where we will put it
+	cptr->len = 1;				// the count
+	cptr->buf[0] = '0';			// assume false
+	cptr->buf[1] = '\0';			// null terminate
+	if ((i != 0) || (j != 0))
+	{ if (ptr1->len == ptr2->len)		// if same length
+	  { if (bcmp( ptr1->buf, ptr2->buf, ptr1->len) == 0)
+	      cptr->buf[0] = '0';		// they are the same
+            else
+              cptr->buf[0] = '1';		// result true
+          }
+          else
+          { cptr->buf[0] = '1';			// result true
+          }
+        }
+	ssp = ssp + sizeof(short) + 2;		// point past it
+	addstk[asp++] = (u_char *) cptr;	// stack it
+	break;
+
       case OPCON:				// contains
 	ptr2 = (cstring *) addstk[--asp];	// get second string ptr
 	ptr1 = (cstring *) addstk[--asp];	// get first string ptr
@@ -642,6 +666,30 @@ short run(int savasp, int savssp)		// run compiled code
 	cptr->buf[1] = '\0';			// null terminate
 	if ((i != 0) || (j != 0))
 	  cptr->buf[0] = '0';			// result false
+	ssp = ssp + sizeof(short) + 2;		// point past it
+	addstk[asp++] = (u_char *) cptr;	// stack it
+	break;
+
+      case OPNXOR:				// xnor
+	ptr2 = (cstring *) addstk[--asp];	// get second string ptr
+	ptr1 = (cstring *) addstk[--asp];	// get first string ptr
+	i = cstringtob(ptr2);                   // get second arg
+	j = cstringtob(ptr1);                   // get first arg
+	cptr = (cstring *) &strstk[ssp];	// where we will put it
+	cptr->len = 1;				// the count
+	cptr->buf[0] = '1';			// assume true
+	cptr->buf[1] = '\0';			// null terminate
+	if ((i != 0) || (j != 0))
+	{ if (ptr1->len == ptr2->len)		// if same length
+	  { if (bcmp( ptr1->buf, ptr2->buf, ptr1->len) == 0)
+	      cptr->buf[0] = '1';		// they are the same
+            else
+              cptr->buf[0] = '0';		// result true
+          }
+          else
+          { cptr->buf[0] = '0';			// result false
+          }
+        }
 	ssp = ssp + sizeof(short) + 2;		// point past it
 	addstk[asp++] = (u_char *) cptr;	// stack it
 	break;
