@@ -75,6 +75,7 @@ short Dascii2(u_char *ret_buffer, cstring *expr, int posn)
 //***********************************************************************
 // $CHAR(int1[,int2[,...]]) - return a string - we implement 1 char at a time
 //      called for each argument (valid range is 0 to 255)
+//
 short Dchar(u_char *ret_buffer, int i)
 { ret_buffer[0] = '\0';                         // assume nothing
   if ((i < 0) || (i > 255)) return 0;           // out of range
@@ -163,7 +164,7 @@ short Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start)
 //              (prefix and suffix) if the number is non-negative.
 //
 // NOTE: numexp MUST be a canonic number!!
-
+//
 short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
 {
   cstring *tempc;
@@ -586,8 +587,7 @@ int Dlength2x(cstring *expr, cstring *delim)
 }
 
 short Dlength2(u_char *ret_buffer, cstring *expr, cstring *delim)
-{ return itocstring(ret_buffer,
-  		    Dlength2x(expr, delim));	// copy to buf and ret len
+{ return itocstring(ret_buffer, Dlength2x(expr, delim)); // copy to buf and ret len
 }
 
 //***********************************************************************
@@ -765,7 +765,7 @@ short Dreverse(u_char *ret_buffer, cstring *expr)
 //                c) if $ST(int,"ECODE") is not empty, the last command to
 //                   start execution while $ST(int,"ECODE") was empty.
 //
-
+//
 short Dstack1(u_char *ret_buffer, int level)
 { return Dstack1x(ret_buffer, level, (partab.jobtab - systab->jobtab));
 }
@@ -1035,8 +1035,7 @@ short Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
   return Dtranslate3(ret_buffer, expr1, expr2, (cstring *) &s);
 }
 
-short Dtranslate3(u_char *ret_buffer, cstring *expr1,
-                 cstring *expr2, cstring *expr3)
+short Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3)
 { unsigned int i1;                              // for expr1
   unsigned int i2;                              // for expr2
   int p = 0;                                    // ptr to ret_buffer
@@ -1098,10 +1097,96 @@ short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
 }
 
 //***********************************************************************
+// set $QSUBSCRIPT
+//
+short DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i)
+{ cstring *vptr;				// where the variable goes
+  cstring temp;					// temp cstring
+  mvar var2;					// temp mvar
+  mvar var3;					// temp mvar
+  short s;					// for the functions
+  short num;
+  int args;					// for the functions
+  int args2;					// for the functions
+  int len;
+  int len2;
+
+  vptr = (cstring *) tmp;			// where it goes
+  s = Dget1(vptr->buf, var);			// get current value
+  if (s < 0) return s;				// die on error
+  vptr->len = s;				// save the size
+  s = UTIL_MvarFromCStr(vptr, &var2);		// convert to an mvar
+  if (s < 0) return s;				// die on error
+  if (i == -1)					// "environment" reqd
+  { if (cptr->len == 0)
+    { var2.volset = 0;
+      var2.uci = 255;
+    }
+    else
+    { var2.volset = 0;
+      var2.uci = getuci(cptr, var2.volset);
+      var2.volset = 0;
+    }
+    s = UTIL_String_Mvar(&var2, vptr->buf, s);	// do it elsewhere
+    if (s < 0) return s;			// die on error
+    vptr->len = s;
+  }						// end environment stuff
+  else if (i == 0)				// the name?
+  { num = s;
+    s = UTIL_MvarFromCStr(cptr, &var3);		// convert to an mvar
+    if (s < 0) return s;			// die on error
+    VAR_COPY(var2.name, var3.name);
+    var2.uci = var3.uci;
+    s = UTIL_String_Mvar(&var2, vptr->buf, num); // do it elsewhere
+    if (s < 0) return s;			// die on error
+    vptr->len = s;
+  }
+  else
+  { num = s > i ? s : i;
+    args = 0;					// clear ky index
+    args2 = 0;
+    len = 0;
+    len2 = 0;
+    var3.slen = 0;
+    i--;
+    for (int j = 0; j < num; j++)		// look for the subscript
+    { s = UTIL_Key_Extract(&var2.key[args], 	// get key from here
+                           temp.buf,	    	// to this string
+                           &len);		// return key bytes used
+      if (s < 0) return s;			// die on error
+      temp.len = s;
+      if (j == i)
+      { s = UTIL_Key_Build(cptr, &var3.key[args2]);
+        if (s < 0) return s;			// die on error
+        len2 = s;
+        args2 += len2;
+        var3.slen += len2;
+      }
+      else
+      { s = UTIL_Key_Build(&temp, &var3.key[args2]);
+        if (s < 0) return s;			// die on error
+        len2 = s;
+        args2 += len2;
+        var3.slen += len2;
+      }
+      args += len;				// add key bytes used
+    }
+    var3.name = var2.name;
+    var3.volset = var2.volset;
+    var3.uci = var2.uci;
+    s = UTIL_String_Mvar(&var3, vptr->buf, num); // do it elsewhere
+    if (s < 0) return s;			// die on error
+    vptr->len = s;
+  }
+  if (var->uci == UCI_IS_LOCALVAR)
+    return ST_Set(var, vptr);			// set it back and return
+  return DB_Set(var, vptr);			// set it back and return
+}
+
+//***********************************************************************
 // set $PIECE
 //
-short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
-		cstring *dptr, int i1, int i2)	// Set $PIECE()
+short DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2) // Set $PIECE()
 { cstring *vptr;				// where the variable goes
   short s;					// for the functions
   int beg = 0;                                  // start copy from
@@ -1187,8 +1272,7 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
 //***********************************************************************
 // set $EXTRACT
 //
-short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
-		  int i1, int i2)		// Set $EXTRACT()
+short DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2) // Set $EXTRACT()
 { cstring *vptr;				// where the variable goes
   short s;					// for the functions
   int i;					// a handy int

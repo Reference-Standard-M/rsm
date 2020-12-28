@@ -734,24 +734,32 @@ short run(int savasp, int savssp)		// run compiled code
 	if (s < 0) ERROR(s)			// complain on error
 	break;
 
-      case CMSETE:				// set $E() - 3 args
-      case CMSETP:				// set $P() - 4 args
+      case CMSETQS:				// set $QS() - 2 args
+      case CMSETE:				// set $E()  - 3 args
+      case CMSETP:				// set $P()  - 4 args
 	partab.jobtab->commands++;		// count a command
 	p = &strstk[ssp];			// some workspace
-	j = cstringtoi((cstring *) addstk[--asp]); // second numeric arg
+        if (opc != CMSETQS)
+        { j = cstringtoi((cstring *) addstk[--asp]); // second numeric arg
+	  if (j > 32767) ERROR(-ERRM75) 	// check for too long
+        }
 	i = cstringtoi((cstring *) addstk[--asp]); // first numeric arg
-	if ((i > 32767) || (j > 32767)) ERROR(-ERRM75) // check for too long
-	ptr1 = NULL;				// SET $EXTRACT
+	if (i > 32767) ERROR(-ERRM75) 		// check for too long
+	ptr1 = NULL;				// SET $EXTRACT or $QSUBSCRIPT
 	if (opc == CMSETP)
 	{ ptr1 = (cstring *) addstk[--asp];	// $PIECE delimiter
-          if (((ptr1->len)*i > 32767) || ((ptr1->len)*j > 32767))
+          if (((ptr1->len * i) > 32767) || ((ptr1->len * j) > 32767))
             ERROR(-ERRM75)
 	}
 	var = (mvar *) addstk[--asp];		// the variable
 	cptr = (cstring *) addstk[asp-1];	// source - leave asp alone
 	if (var->name.var_cu[0] == '$')		// can't do that
 	  ERROR(-ERRM8)				// complain
-	if (opc == CMSETP)			// need a delimiter?
+	if (opc == CMSETQS)			// set $QS()
+	{ if (i < -1) ERROR(-(ERRMLAST+ERRZ12))	// can't do that
+	  s = DSetqsubscript(p, cptr, var, i);  // do a SET $QS
+        }
+        else if (opc == CMSETP)			// set $P()
 	  s = DSetpiece(p, cptr, var, ptr1, i, j); // do a SET $P
 	else					// must be set $E()
 	  s = DSetextract(p, cptr, var,	i, j);	// do a SET $E

@@ -72,7 +72,7 @@
 #define OPNPAT   38                              // not a pattern matches b
 //spare          39
 
-//spare          40
+#define CMSETQS  40                              // set $QS()
 #define CMSET    41                              // set
 #define CMSETE   42                              // set $E()
 #define CMSETP   43                              // set $P()
