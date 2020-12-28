@@ -332,6 +332,16 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     { if ((numexp->buf[0] == '0') && (numexp->len ==1))
 	{ b1 = NULL; 				// Turn off + for 0 case
 	}
+        else
+        { short flag = 1;
+          for (int i = 0; i < numexp->len; i++)
+          { if ((numexp->buf[i] != '0') && (numexp->buf[i] != '.'))
+            { flag = 0;
+              break;
+            }
+          }
+          if (flag) b1 = NULL;
+        }
       if (b1 != NULL) // force + sign at front
       { if (dest->buf[0] != '+')
         { if (numexp->buf[0] != '-')
