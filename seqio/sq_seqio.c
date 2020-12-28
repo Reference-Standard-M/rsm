@@ -270,7 +270,12 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
   // Check for Opening $Principal. In RSM, this is a no-op. (See close code as well.)
   if (chan == STDCHAN)
   {  if (tout > UNLIMITED)				// if there is a timeout
-     {  partab.jobtab->test = 1;		// say that open succeeded
+     { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+       { partab.jobtab->dostk[partab.jobtab->cur_do].test = 1; // say that open succeeded
+       }
+       else
+       { partab.jobtab->test = 1;		// say that open succeeded
+       }
      }
      return 0;
   }
@@ -305,7 +310,12 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
 
   // Assume operation won't time out
   if (tout > UNLIMITED)
-  { partab.jobtab->test = 1;			// assume won't time out
+  { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+    { partab.jobtab->dostk[partab.jobtab->cur_do].test = 1; // assume won't time out
+    }
+    else
+    { partab.jobtab->test = 1;			// assume won't time out
+    }
   }
 
   // Determine object type and operation
@@ -364,7 +374,12 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
   if (oid < 0)
   { if (partab.jobtab->trap & MASK[SIGALRM])		// Timeout received
     { partab.jobtab->trap &= ~ (MASK[SIGALRM]);
-      partab.jobtab->test = 0;
+      if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+      { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+      }
+      else
+      { partab.jobtab->test = 0;
+      }
       return 0;
     }
     else if (partab.jobtab->trap & MASK[SIGINT])	// Caught SIGINT
@@ -769,7 +784,12 @@ short SQ_Read(u_char *buf, int tout, int maxbyt)
   { alarm(tout);
   }
   if ((tout > UNLIMITED) && (type != SQ_FILE))
-  { partab.jobtab->test = 1;				// assume won't time out
+  { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+    { partab.jobtab->dostk[partab.jobtab->cur_do].test = 1; // assume won't time out
+    }
+    else
+    { partab.jobtab->test = 1;				// assume won't time out
+    }
   }
 
   // Read from object
@@ -796,7 +816,12 @@ short SQ_Read(u_char *buf, int tout, int maxbyt)
   // Return bytes read or error
   if (ret >= 0)						// Read successfull
   { if ((ret == 0) && (tout == 0))			// no char and 0 t/o
-    {  partab.jobtab->test = 0;				// say failed
+    { if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+      {  partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;	// say failed
+      }
+      else
+      {  partab.jobtab->test = 0;				// say failed
+      }
     }
 
     buf[ret] = '\0';					// NULL terminate
@@ -1601,7 +1626,12 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
     { c->dkey_len = 0;
       c->dkey[0] = '\0';
       partab.jobtab->trap &= ~(MASK[SIGALRM]);
-      partab.jobtab->test = 0;
+      if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+      { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+      }
+      else
+      { partab.jobtab->test = 0;
+      }
       return 0;
     }
     else
@@ -1736,7 +1766,12 @@ int signalCaught(SQ_Chan *c)
   { c->dkey_len = 0;
     c->dkey[0] = '\0';
     partab.jobtab->trap &= ~(MASK[SIGALRM]);
-    partab.jobtab->test = 0;
+    if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+    { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+    }
+    else
+    { partab.jobtab->test = 0;
+    }
     return SIGALRM;
   }
   else
@@ -1784,7 +1819,12 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
       { c->dkey_len = 0;
 	c->dkey[0] = '\0';
 	partab.jobtab->trap &= ~(MASK[SIGALRM]);
-	partab.jobtab->test = 0;
+        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+        { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+        }
+        else
+        { partab.jobtab->test = 0;
+        }
 	return bytesread;
       }
       else
@@ -1833,7 +1873,12 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
           if (partab.jobtab->trap & MASK[SIGALRM])		// Operation timed out
           {
             partab.jobtab->trap &= (~MASK[SIGALRM]);
-            partab.jobtab->test = 0;
+            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1)
+            { partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+            }
+            else
+            { partab.jobtab->test = 0;
+            }
             return bytesread;
           }
           else return ret;					// Read error
