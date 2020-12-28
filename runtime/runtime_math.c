@@ -202,7 +202,7 @@ short runtime_add(char *a, char *b)		// add b to a
 	    j = lena;
 	    if ((i = (lena -= i)) > (MAX_NUM_BYTES - 2) /*was 253*/) {
 
-		return -(ERRM75);
+		return -(ERRM92);
 	    }
 	    ch = (sign >= 0 ? ZERO : NINE);
 	    while (j >= 0)
@@ -214,7 +214,7 @@ short runtime_add(char *a, char *b)		// add b to a
 	    j = lenb;
 	    if ((lenb = (i += lenb)) > (MAX_NUM_BYTES - 2)/*was 253*/) {
 
-		return -(ERRM75);
+		return -(ERRM92);
 	    }
 	    ch = (sign <= 0 ? ZERO : NINE);
 	    while (j >= 0)
@@ -243,7 +243,7 @@ short runtime_add(char *a, char *b)		// add b to a
 	if (carry) {
 	    if ((i = (++lena)) > (MAX_NUM_BYTES - 2)) {
 
-		return -(ERRM75);
+		return -(ERRM92);
 	    }
 	    while (i > 0) {
 		a[i] = a[i - 1];
@@ -368,7 +368,7 @@ multwo:     acur = 0;
             if (carry) {
                 acur = ccur;
                 if (acur > (MAX_NUM_BYTES - 1)) {
-                    return -(ERRM75);
+                    return -(ERRM92);
                 }
                 while (acur >= 0) {
                     a[acur + 1] = a[acur];
@@ -441,7 +441,7 @@ multwo:     acur = 0;
     carry += ccur;
     if (carry > (MAX_NUM_BYTES - 3)) {
         a[0] = EOL;
-        return -(ERRM75);
+        return -(ERRM92);
     }
     ccur = clen = alen + blen;
 /* init c to zero */
@@ -692,7 +692,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         d += partab.jobtab->precision;
     if ((d + ulen) > MAX_NUM_BYTES) {
         u[0] = EOL;
-        return -ERRM75;
+        return -ERRM92;
     }
     while (d > 0) {
         u[++ulen] = 0;
@@ -932,6 +932,8 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
     if (a[1] == EOL) {
 	if (a[0] == ZERO) {
 	    if (b[1] == EOL && b[0] == ZERO)
+		return -ERRM94;
+	    if (b[0] == MINUS)
 		return -ERRM9;
 	    return 1;
 	}				/* undef */
@@ -965,7 +967,7 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
     while (b[i] != EOL) {
 	if (b[i] == POINT) {
 	    if (a[0] == MINUS) {
-		return -ERRM9;
+		return -ERRM95;
 	    }				/* undefined case */
 	    if (b[i + 1] == FIVE && b[i + 2] == EOL) {	/* half-integer: extra solution */
 		if (i) {
