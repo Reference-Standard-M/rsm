@@ -7,7 +7,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 = Reference Standard M
 
-*Version 1.73.0 - 2020 Dec 26*
+*Version 1.73.1 - 2021 Mar 4*
 
 === Implementation of ANSI Standard M X11.1-1995 and ISO/IEC 11756:1999
 
@@ -16,7 +16,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ==== Copyright and License
 
 Developed and maintained by David Wicksell dlw@linux.com +
-Copyright © 2020 Fourth Watch Software LC +
+Copyright © 2020-2021 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 Based on MUMPS V1 by Raymond Douglas Newman +

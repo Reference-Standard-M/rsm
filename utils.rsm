@@ -10,6 +10,7 @@ INT(FILE,NOSAY,%,A,R,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%RR"
  I NOSAY<2 W !,A,!,R,!
  I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
  U 1 F  R R S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
+ . S R=$P(R,"^") ;Needed to support ISC Cache routine export format
  . I NOSAY<2 U 0 W:$X>70 ! W R,?$X\10+1*10 U 1
  . K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)) Q:A(%)=""  Q:$A($K)=255
  . M ^$R(R)=A
@@ -4292,7 +4293,7 @@ MENU ; Menu List
 ; Summary:  Impementation of the M Language and Database System
 ;
 ; David Wicksell <dlw@linux.com>
-; Copyright (c) 2020 Fourth Watch Software LC
+; Copyright (c) 2020-2021 Fourth Watch Software LC
 ; https://gitlab.com/Reference-Standard-M/rsm
 ;
 ; Based on MUMPS V1 by Raymond Douglas Newman
