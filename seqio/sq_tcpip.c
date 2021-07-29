@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential TCP/IP socket I/O
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -26,7 +26,7 @@
  *
  * Extended Summary:
  *
- * This module implements the following sequential input/output ( ie IO )
+ * This module implements the following sequential input/output (ie IO)
  * operations for TCP/IP sockets:
  *
  *	SQ_Tcpip_Open		Determines the type of socket to open
@@ -64,37 +64,33 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout);
 // This function determines the type of socket to open. If it can not determine
 // the type of socket, a negative integer value is returned to indicate the
 // error that has occurred.
-
 int SQ_Tcpip_Open(char *bind, int op)
 { switch (op)
   { case SERVER:
-      return (SQ_Tcpip_Open_Server(bind));
+      return SQ_Tcpip_Open_Server(bind);
     case TCPIP:
-      return (SQ_Tcpip_Open_Client(bind));
+      return SQ_Tcpip_Open_Client(bind);
     default:
-      return (getError(INT, ERRZ21));
+      return getError(INT, ERRZ21);
   }
 }
 
 // ************************************************************************* //
 // Refer to function SQ_Socket_Accept in the file sq_socket.c.
-
 int SQ_Tcpip_Accept(int sid, int tout)
-{ return (SQ_Socket_Accept(sid, tout));
+{ return SQ_Socket_Accept(sid, tout);
 }
 
 // ************************************************************************* //
 // Refer to function SQ_Socket_Write in the file sq_socket.c.
-
 int SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes)
-{ return (SQ_Socket_Write(sid, writebuf, nbytes));
+{ return SQ_Socket_Write(sid, writebuf, nbytes);
 }
 
 // ************************************************************************* //
 // Refer to function SQ_Socket_Read in the file sq_socket.c.
-
 int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout)
-{ return (SQ_Socket_Read(sid, readbuf, tout));
+{ return SQ_Socket_Read(sid, readbuf, tout);
 }
 
 // ************************************************************************* //
@@ -108,26 +104,25 @@ int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout)
 // "bind". If successful, it returns a non-negative integer, termed a
 // descriptor. Otherwise, it returns a negative integer to indicate the error
 // that has occurred.
-
 int SQ_Tcpip_Open_Server(char *bind)
-{ int	sid;
-  int	ret;
+{ int		sid;
+  int		ret;
   u_short	port;
 
-  sid = SQ_Socket_Create (1);
-  if (sid < 0) return (sid);
+  sid = SQ_Socket_Create(1);
+  if (sid < 0) return sid;
   port = atoi(bind);
   ret = SQ_Socket_Bind(sid, port);
   if (ret < 0)
   { (void) close(sid);
-    return (ret);
+    return ret;
   }
   ret = SQ_Socket_Listen(sid);
   if (ret < 0)
   { (void) close(sid);
-    return (ret);
+    return ret;
   }
-  return (sid);
+  return sid;
 }
 
 // ************************************************************************* //
@@ -135,23 +130,22 @@ int SQ_Tcpip_Open_Server(char *bind)
 // port "conn". If successful, it returns a non-negative integer, termed a
 // descriptor. Otherwise, it returns a negative integer to indicate the error
 // that has occurred.
-
 int SQ_Tcpip_Open_Client(char *conn)
-{ int	sid;
-  char	*portptr;
-  char	*addrptr;
+{ int		sid;
+  char		*portptr;
+  char		*addrptr;
   u_short	port;
   int	ret;
   char	xxxx[100];
 
   strcpy(xxxx, conn);
 
-  sid = SQ_Socket_Create (0);
-  if (sid < 0) return (sid);
-  portptr = strpbrk (xxxx, " ");
+  sid = SQ_Socket_Create(0);
+  if (sid < 0) return sid;
+  portptr = strpbrk(xxxx, " ");
   if (portptr == NULL)
   { (void) close(sid);
-    return (getError(INT, ERRZ28));
+    return getError(INT, ERRZ28);
   }
   *portptr = '\0';
   addrptr = xxxx;
@@ -160,7 +154,7 @@ int SQ_Tcpip_Open_Client(char *conn)
   ret = SQ_Socket_Connect(sid, addrptr, port);
   if (ret < 0)
   { (void) close(sid);
-    return (ret);
+    return ret;
   }
-  return (sid);
+  return sid;
 }

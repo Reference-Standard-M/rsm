@@ -4,7 +4,7 @@
 # Summary:  Makefile for FreeBSD, NetBSD, and OpenBSD
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020 Fourth Watch Software LC
+# Copyright © 2020-2021 Fourth Watch Software LC
 # https://gitlab.com/Reference-Standard-M/rsm
 #
 # Based on MUMPS V1 by Raymond Douglas Newman
@@ -31,7 +31,7 @@ FLAGS = -fsigned-char -fwrapv -Wall -std=gnu99 -Iinclude
 LIBS  = -lm -lcrypt
 
 .ifmake test
-EXTRA = -O0 -g
+EXTRA = -O0 -g3
 .else
 EXTRA = -O3
 .endif

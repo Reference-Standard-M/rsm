@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a routine ref
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -53,10 +53,9 @@
 // -2		Compiled routine and tag (VAR_LEN * 2 bytes)
 // -3		Compiled routine (no tag) (VAR_LEN bytes)
 // -4		Runtime only, routine, tag and offset (VAR_LEN * 2 + 2 bytes)
-
 short routine(int runtime)			// parse routine ref
 { char c;                                       // current character
-  int i = 0;					// a usefull int
+  int i = 0;					// a useful int
   int j;					// and another
   int dp = 0;					// dp in offset - blah
   var_u tag;                                    // to hold the tag
@@ -71,24 +70,19 @@ short routine(int runtime)			// parse routine ref
   VAR_CLEAR(rou);				// and the routine
 
   // If initial atom is an indirect string, evaluate it and put on strstk as a variable.
-
   c = *source_ptr++;				// get first character
   if (c == '@')					// if it's indirect
   { isinder = 1;				// say indirect
     atom();					// stack it
-    p1indirect = 1;        // piece 1 is indirect... make sure to concat later.
+    p1indirect = 1;                             // piece 1 is indirect... make sure to concat later.
     c = *source_ptr++;				// get the next
-    if ((c == ')') ||				// check for end of it all
-	(c == ',') ||
-	(c == ' ') ||
-	(c == '\0'))
+    if ((c == ')') || (c == ',') || (c == ' ') || (c == '\0')) // check for end of it all
     { source_ptr--;
       return 0;
     }
   }
 
   // If initial atom is a tag, extract first
-
   else
   { ntag = isdigit((int) c);			// check for a numeric tag
     for (i = 0; i < VAR_LEN; i++)
@@ -106,12 +100,12 @@ short routine(int runtime)			// parse routine ref
   // The following ONLY executes if we have a tag && $TEXT -->
   // append tag to stack as a string.
   if (runtime == -2)				// if $TEXT() compile
-  { if ((!isinder) && (!var_empty(tag)))        //if not indirected & tag is defined
+  { if (!isinder && !var_empty(tag))            // if not indirected & tag is defined
     { *comp_ptr++ = OPSTR;			// string follows
       s = (short) i;
-      bcopy(&s, comp_ptr, 2);
-      comp_ptr += 2;
-      //*((short *)comp_ptr)++ = (short) i;	// the size
+      bcopy(&s, comp_ptr, sizeof(short));
+      comp_ptr += sizeof(short);
+      //*((short *) comp_ptr)++ = (short) i;	// the size
       for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]); // copy tag
       *comp_ptr++ = '\0';			// and null terminate
     }
@@ -120,25 +114,21 @@ short routine(int runtime)			// parse routine ref
   }
   // <-- end execute only if tag
 
-  if ((c == ')') ||				// check for end of it all
-      (c == ',') ||
-      (c == ' ') ||
-      (c == '\0'))
+  if ((c == ')') || (c == ',') || (c == ' ') || (c == '\0')) // check for end of it all
   { source_ptr--;
     goto exit;
   }
 
   // The following is for a numeric offset -->
-
   if (c == '+')					// bloody offset
   { gotplus = 1;                                // flag it
     if (!runtime)				// if just compiling
     { if ((!isinder) && (!var_empty(tag)))
       { *comp_ptr++ = OPSTR;			// string follows
         s = (short) i;
-        bcopy(&s, comp_ptr, 2);
-        comp_ptr += 2;
-        //*((short *)comp_ptr)++ = (short) i;	// the size
+        bcopy(&s, comp_ptr, sizeof(short));
+        comp_ptr += sizeof(short);
+        //*((short *) comp_ptr)++ = (short) i;	// the size
         for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]); // copy tag
         *comp_ptr++ = '\0';			// and null terminate
       }
@@ -147,7 +137,7 @@ short routine(int runtime)			// parse routine ref
       *comp_ptr++ = OPSTR;			// string follows
       *comp_ptr++ = 1;                          // string size of 1
       *comp_ptr++ = 0;                          // pad byte for short variable
-      //*((short *)comp_ptr)++ = (short) 1;	// the size
+      //*((short *) comp_ptr)++ = (short) 1;	// the size
       *comp_ptr++ = '+';			// add the plus
       *comp_ptr++ = '\0';			// and null terminate
       if (!var_empty(tag) || p1indirect)	// if we have a tag or 1st piece is indirect
@@ -183,7 +173,7 @@ short routine(int runtime)			// parse routine ref
       }
       if (runtime == 1)				// if not $TEXT
       { if (!(systab->historic & HISTORIC_OFFOK)) // if offset not OK
-	    { comperror(-(ERRMLAST+ERRZ70));	// complain
+	    { comperror(-(ERRZ70 + ERRMLAST));	// complain
           return -1;				// so caller won't change it
         }
       }						// end runtime code
@@ -192,16 +182,12 @@ short routine(int runtime)			// parse routine ref
   }						// end offset junk
   // <-- end numeric offset
 
-  if ((c == ')') ||				// check for end of it all
-      (c == ',') ||
-      (c == ' ') ||
-      (c == '\0'))
+  if ((c == ')') || (c == ',') || (c == ' ') || (c == '\0')) // check for end of it all
   { source_ptr--;
     goto exit;
   }
 
   // The following resolves a routine name ^XYZ or ^@XYZ -->
-
   if (c == '^')					// if it's a routine
   { c = *source_ptr++;				// get next character
     if (c != '@')				// if not indirect
@@ -218,30 +204,28 @@ short routine(int runtime)			// parse routine ref
       if (isinder)				// is indirect already
       { *comp_ptr++ = OPSTR;			// string follows
         s = (short) (i + 1);                    // Routine Name Length plus ^
-        bcopy(&s, comp_ptr, 2);                 // Store short int
-        comp_ptr += 2;                          // Move past it
-        //*((short *)comp_ptr)++ = (short) (i + 1); // the size
+        bcopy(&s, comp_ptr, sizeof(short));     // Store short int
+        comp_ptr += sizeof(short);              // Move past it
+        //*((short *) comp_ptr)++ = (short) (i + 1); // the size
 	*comp_ptr++ = '^';			// store the caret
         for (j = 0; j < i; *comp_ptr++ = rou.var_cu[j++]); // copy rou
         *comp_ptr++ = '\0';			// and null terminate
-        if ((!var_empty(tag)) || (gotplus) || p1indirect)
+        if ((!var_empty(tag)) || gotplus || p1indirect)
         { *comp_ptr++ = OPCAT;			// concatenate
         }
       }
       source_ptr--;
     }
-
     else                                        // indirect (^@XYZ)
     {
-      if ((!isinder) && (!var_empty(tag)))      // if a $TEXT compile, this never executes b/c $T sets isinder to 1
+      if (!isinder && !var_empty(tag))          // if a $TEXT compile, this never executes b/c $T sets isinder to 1
                                                 // Therefore, it's only for D TAG^@XYZ
-        //SMH: NB: The code here is EXACTLY the same as for $Text (up above). We perhaps should merge them.
-      { // *comp_ptr++ = OPCAT;			// concatenate previous --SMH - WRONG - NO PREVIOUS FOR SURE IF THIS IS A TAG!
+      { //*comp_ptr++ = OPCAT;			// concatenate previous --SMH - WRONG - NO PREVIOUS FOR SURE IF THIS IS A TAG!
         *comp_ptr++ = OPSTR;			// string follows
         s = (short) i;
-        bcopy(&s, comp_ptr, 2);
-        comp_ptr += 2;
-        //*((short *)comp_ptr)++ = (short) i;	// the size
+        bcopy(&s, comp_ptr, sizeof(short));
+        comp_ptr += sizeof(short);
+        //*((short *) comp_ptr)++ = (short) i;	// the size
         for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]); // copy tag
         *comp_ptr++ = '\0';			// and null terminate
       }
@@ -251,7 +235,7 @@ short routine(int runtime)			// parse routine ref
       { *comp_ptr++ = OPSTR;			// string follows
         *comp_ptr++ = 1;
         *comp_ptr++ = 0;
-        //*((short *)comp_ptr)++ = (short) 1;	// the size
+        //*((short *) comp_ptr)++ = (short) 1;	// the size
         *comp_ptr++ = '+';			// add the plus
         *comp_ptr++ = '\0';			// and null terminate
         if (!var_empty(tag))			// if we have a tag
@@ -265,7 +249,7 @@ short routine(int runtime)			// parse routine ref
       *comp_ptr++ = OPSTR;			// string follows
       *comp_ptr++ = 1;
       *comp_ptr++ = 0;
-      //*((short *)comp_ptr)++ = 1;		// the size
+      //*((short *) comp_ptr)++ = 1;		// the size
       *comp_ptr++ = '^';			// the caret
       *comp_ptr++ = '\0';			// and null terminate
       if ((!var_empty(tag)) || (gotplus) || p1indirect)
@@ -275,7 +259,7 @@ short routine(int runtime)			// parse routine ref
       *comp_ptr++ = OPCAT;			// concatenate it
     }
   }						// end routineref
-  else        // no ^ has been found.
+  else        					// no ^ has been found.
   { source_ptr--;
   }
 
@@ -285,29 +269,29 @@ exit:
   }
 
   // Below if we are doing a DO sans indirection... we must copy tag and rou to comp_ptr.
-  if ((!var_empty(tag)) || (offset))		// if we have a tag
+  if ((!var_empty(tag)) || offset)		// if we have a tag
   { ntag = 1;					// assume just a tag
-    if ((!var_empty(rou)) || (offset))		// if we have a routine
+    if ((!var_empty(rou)) || offset)		// if we have a routine
     { ntag = 2;					// say both
       bcopy(&rou.var_qu, comp_ptr, VAR_LEN);
       comp_ptr += VAR_LEN;
-      //*((var_u)comp_ptr)++ = rou.var_qu;	// save the routine
+      //*((var_u) comp_ptr)++ = rou.var_qu;	// save the routine
     }
     bcopy(&tag.var_qu, comp_ptr, VAR_LEN);
     comp_ptr += VAR_LEN;
-    //*((var_u)comp_ptr)++ = tag.var_qu;	// save the tag
+    //*((var_u) comp_ptr)++ = tag.var_qu;	// save the tag
     if (offset)					// if we have an offset
     { s = (short) offset;
-      bcopy(&s, comp_ptr, 2);
-      comp_ptr += 2;
-      //*((short *)comp_ptr)++ = (short) offset;	// compile it in
+      bcopy(&s, comp_ptr, sizeof(short));
+      comp_ptr += sizeof(short);
+      //*((short *) comp_ptr)++ = (short) offset;	// compile it in
       return -4;				// and exit
     }
-    return -ntag;				// return saying 1 or 2
+    return (short) -ntag;			// return saying 1 or 2
   }
   bcopy(&rou.var_qu, comp_ptr, VAR_LEN);
   comp_ptr += VAR_LEN;
-  //*((var_u)comp_ptr)++ = rou.var_qu;		// save the routine
+  //*((var_u) comp_ptr)++ = rou.var_qu;		// save the routine
   return -3;					// say just the routine
 }
 
@@ -317,18 +301,18 @@ exit:
 // The name is checked first though...
 //
 // If rou == NULL, check the routine->src
-
-short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
+int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 { cstring *line;				// the source line
   u_char *code;					// the code
-  short s, ss;					// for returns
+  int s;					// for returns
+  short ss;					// for returns
   int cnt;					// count things
   int nsubs = 0;				// count subscripts
   u_char src_slen;				// key in source
   u_char rou_slen = 0;				// key in routine
   u_char temp[100];				// temp space
-  tags tag_tbl[256];				// space for the tags
-  var_u var_tbl[256];				// and the variables
+  tags tag_tbl[MAX_NUM_TAGS];			// space for the tags
+  var_u var_tbl[MAX_NUM_VARS];			// and the variables
   var_u var;					// for one var
   int num_tags = 0;				// count tags
   int num_vars = 0;				// and variables
@@ -347,11 +331,11 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   code = stack + sizeof(cstring);		// where the code goes
   cptr = (cstring *) temp;			// point at temp space
 
-  for (i = 0; i < 256; i++)
+  for (i = 0; i < MAX_NUM_VARS; i++)
     VAR_CLEAR(var_tbl[i]);			// clear var table
 
   if ((code + MAXROUSIZ) > partab.strstk_last)	// too big ?
-    return -(ERRMLAST+ERRZ8);			// yes - complain
+    return -(ERRZ8 + ERRMLAST);			// yes - complain
   if (rou != NULL)
   { s = SS_Norm(rou);				// normalize mvar
     if (s < 0) return s;			// quit on error
@@ -360,14 +344,14 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   if (rou != NULL)				// if it's real
   { while (i < rou->slen)			// for all subs
     { cnt = 0;					// flag no rabbit ears
-      if (nsubs > 0) return (-ERRM38);		// junk
-      if (rou->slen > (VAR_LEN + 2)) return (-ERRM38); // ditto
-      s = UTIL_Key_Extract(&rou->key[i],	// key from here
+      if (nsubs > 0) return -ERRM38;		// junk
+      if (rou->slen > (VAR_LEN + 2)) return -ERRM38; // ditto
+      ss = UTIL_Key_Extract(&rou->key[i],	// key from here
 			    temp,		// where to put it
 			    &cnt);		// the count
-      if (s < 0) return s;			// die on error
-      if ((s > VAR_LEN) || (s < 1))		// routine length (1 to VAR_LEN)
-        return (-ERRM38);			// junk
+      if (ss < 0) return ss;			// die on error
+      if ((ss > VAR_LEN) || (ss < 1))		// routine length (1 to VAR_LEN)
+        return -ERRM38;				// junk
       i = i + cnt;                              // count used bytes
       nsubs++;					// count it
     }
@@ -389,7 +373,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       { rounam.var_cu[i] = temp[i];		// copy it
         continue;				// and continue
       }
-      return (-ERRM38);				// junk
+      return -ERRM38;				// junk
     }						// destination now validated
   }						//
   else
@@ -402,7 +386,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   { s = SS_Norm(src);				// normalize mvar
     if (s < 0) return s;			// quit on error
     if (bcmp(src->name.var_cu, "$ROUTINE", 8))  // a routine?
-      return (-ERRM38);				// junk
+      return -ERRM38;				// junk
     if (!partab.checkonly)			// if it's real
       if (rou->volset == src->volset)		// same volset
         if (rou->uci == src->uci)		// same uci
@@ -411,15 +395,15 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	      same = 1;				// same rou and source
   }						// end source ssvn check
   if (!partab.checkonly)			// if it's a real compile
-  { s = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
-    if (s < 0) return s;			// if we got an error, quit
+  { ss = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
+    if (ss < 0) return ss;			// if we got an error, quit
     rou_slen = rou->slen;			// save routine key size
   }
   if (!same)					// if not the same
-  { s = DB_Kill(rou);				// dong it
-    if (s < 0)					// complain on error
+  { ss = DB_Kill(rou);				// dong it
+    if (ss < 0)					// complain on error
     { i = SemOp(SEM_ROU, systab->maxjob);	// release sem
-      return s;					// exit
+      return ss;				// exit
     }
     Routine_Delete(rounam, rou->uci);		// delete the routine
   }
@@ -428,14 +412,14 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   line->buf[0] = '0';				// seed the $O()
   line->buf[1] = '\0';				// null terminated
   line->len = 1;				// this long
-  s = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
-  src->slen = src_slen + s;			// store the new length
+  ss = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
+  src->slen = src_slen + ss;			// store the new length
   comp_ptr = code;				// setup the compiler ptr
   partab.varlst = var_tbl;			// for localvar()
   while (TRUE)					// for all lines
-  {
-    s = Dorder1(line->buf, src);		// get next in source
+  { s = Dorder1(line->buf, src);		// get next in source
     if (!s) break;				// all done
+    if (s < 0) return s;			// if we got an error, quit
     line->len = s;				// save length
     s = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
     src->slen = src_slen + s;			// store the new length
@@ -445,11 +429,11 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     source_ptr = line->buf;			// where the source is
     if (isalnum(*source_ptr) || (*source_ptr == '%')) // check for a tag
     { j = isdigit(*source_ptr);			// remember if digit
-      if (num_tags == 255)			// check number of tags
-      { comperror(-(ERRZ53+ERRMLAST));		// complain
+      if (num_tags == MAX_NUM_TAGS)		// check number of tags
+      { comperror(-(ERRZ53 + ERRMLAST));	// complain
         continue;				// ignore remainder of line
       }
-      tag_tbl[num_tags].code = (comp_ptr - code); // save code offset
+      tag_tbl[num_tags].code = comp_ptr - code; // save code offset
       VAR_CLEAR(tag_tbl[num_tags].name);	// zot the name
       tag_tbl[num_tags].name.var_cu[0] = *source_ptr++; // copy first char
       i = 1;					// init name index
@@ -462,10 +446,10 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       }
       for (i = 0; i < num_tags; i++)		// check for duplicate
         if (var_equal(tag_tbl[num_tags].name, tag_tbl[i].name)) // the same ?
-	  { comperror(-(ERRZ65+ERRMLAST));	// complain
+	  { comperror(-(ERRZ65 + ERRMLAST));	// complain
 	    p = comp_ptr;			// save
 	    comp_ptr = code + tag_tbl[i].code;	// point at other one
-	    comperror(-(ERRZ65+ERRMLAST));	// complain there too
+	    comperror(-(ERRZ65 + ERRMLAST));	// complain there too
 	    comp_ptr = p;			// restore comp pointer
             continue;				// ignore remainder of line
 	  }
@@ -483,30 +467,33 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	  }
 	  VAR_CLEAR(var);			// clear var name
 	  for (i = 0; i < VAR_LEN; i++)		// scan possible var name
-	  { if ((isalpha(*source_ptr)) || ((*source_ptr == '%') && (!i))) // first char alpha or %
+	  { if ((isalpha(*source_ptr)) || ((*source_ptr == '%') && !i)) // first char alpha or %
 	    { var.var_cu[i] = *source_ptr++;	// copy it
 	      continue;				// and go for more
 	    }
-	    if ((isalnum(*source_ptr)) && (i))	// the rest alpha/numeric
+	    if ((isalnum(*source_ptr)) && i)	// the rest alpha/numeric
 	    { var.var_cu[i] = *source_ptr++;	// copy it
 	      continue;				// and go for more
 	    }
-	    if ((*source_ptr == ',') && (i))	// end of name
+	    if ((*source_ptr == ',') && i)	// end of name
 	      break;				// exit
 	    if (*source_ptr == ')')		// end of name
 	      break;				// exit
-	    cnt = -(ERRMLAST+ERRZ13);		// else error
+	    cnt = -(ERRZ13 + ERRMLAST);		// else error
 	    break;				// and exit
 	  }
 	  if (cnt < 0) break;			// quit on error
-	  while (isalnum(*source_ptr)) source_ptr++; // skip long name
+          if (isalnum(*source_ptr))
+          { cnt = -ERRM56;                      // complain about name length
+            break;
+          }
 	  if (*source_ptr == ',')
 	    source_ptr++;			// skip the comma
 	  else if (*source_ptr != ')')		// check for )
-	  { cnt = -(ERRMLAST+ERRZ13);		// error
+	  { cnt = -(ERRZ13 + ERRMLAST);		// error
 	    break;				// exit
 	  }
-	  for (i = 0; i < 256; i++)		// scan var list
+	  for (i = 0; i < MAX_NUM_VARS; i++)	// scan var list
 	  { if (var_equal(var_tbl[i], var))
 	      break;				// quit on match
 	    if (var_empty(var_tbl[i]))
@@ -514,8 +501,8 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	      break;				// and exit
 	    }
 	  }
-	  if (i == 256)				// too many?
-	  { cnt = (-(ERRZ53+ERRMLAST));		// too many
+	  if (i == MAX_NUM_VARS)		// too many?
+	  { cnt = -(ERRZ74 + ERRMLAST);		// too many
 	    break;				// exit
 	  }
 	  *comp_ptr++ = (u_char) i;		// save index
@@ -526,7 +513,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	      break;				// exit
 	    }
 	}
-	if (cnt > 255) cnt = (-(ERRZ53+ERRMLAST)); // too many
+	if (cnt > MAX_NUM_ARGS) cnt = -(ERRZ75 + ERRMLAST); // too many
 	if (cnt < 0)				// got an error?
 	{ --p;					// back up the ptr
 	  comp_ptr = p;				// backup
@@ -539,7 +526,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     lino++;					// count a line
     if (!same)					// write if reqd
     { for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ')
-        ;                                       // convert leading tab to space
+        continue;                               // convert leading tab to space
       cptr->len = itocstring(cptr->buf, lino);	// convert to a cstring
       s = UTIL_Key_Build(cptr, &rou->key[rou_slen]); // build the key
       rou->slen = rou_slen + s;			// store the new length
@@ -551,24 +538,24 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       }
     }
     if (lino > MAXROULIN)
-    { comperror(-(ERRZ54+ERRMLAST));		// complain
+    { comperror(-(ERRZ54 + ERRMLAST));		// complain
       continue;					// ignore the rest
     }
     if (*source_ptr == ';') continue;		// ignore comment lines
     if (*source_ptr++ != ' ')
-    { comperror(-(ERRMLAST+ERRZ13));		// must be a space
+    { comperror(-(ERRZ13 + ERRMLAST));		// must be a space
       continue;					// ignore the rest
     }
     while (*source_ptr == ' ') source_ptr++;	// skip spare spaces
 
     *comp_ptr++ = LINENUM;			// mark new line
     s = (u_short) lino;
-    bcopy(&s, comp_ptr, 2);
-    comp_ptr += 2;
-    //*((u_short *)comp_ptr)++ = (u_short) lino;	// and the line number
+    bcopy(&s, comp_ptr, sizeof(u_short));
+    comp_ptr += sizeof(u_short);
+    //*((u_short *) comp_ptr)++ = (u_short) lino;	// and the line number
     p = comp_ptr;				// where the offset will go
     *comp_ptr++ = 0;				// these were
-    *comp_ptr++ = 0;				// *((short *)comp_ptr)++ = 0
+    *comp_ptr++ = 0;				// *((short *) comp_ptr)++ = 0
     j = 0;					// a dot counter
     if (*source_ptr == '.')			// any dots ?
     { for (i = 0; ; i++)			// scan them
@@ -585,7 +572,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       }
     }
     if (j > 255)				// too many dots
-    { comperror(-(ERRMLAST+ERRZ13));		// complain
+    { comperror(-(ERRZ13 + ERRMLAST));		// complain
       continue;					// go for more
     }
     if (j || last_dots)				// any dots (or on last line)
@@ -599,65 +586,66 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       parse();					// parse the line
     else
       *comp_ptr++ = ENDLIN;			// end of null line
-    *((u_short *)p) = (short) (comp_ptr - p) - 1; // offset to ENDLIN
+    *((u_short *) p) = (u_short) (comp_ptr - p - 1); // offset to ENDLIN
 
   }						// end main compile loop
   *comp_ptr++ = CMQUIT;				// mark end of routine
   *comp_ptr++ = ENDLIN;				// mark end of routine
   *comp_ptr++ = ENDLIN;				// mark end of routine
   partab.varlst = NULL;				// for localvar()
-  for (num_vars = 0; !var_empty(var_tbl[num_vars]); num_vars++); // count them
+  for (num_vars = 0; !var_empty(var_tbl[num_vars]); num_vars++) // count them
+    continue;
   p = line->buf;				// where we put it now
 
   cptr->len = Vhorolog(cptr->buf);		// get current date/time
   s = COMP_VER;
-  bcopy(&s, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = COMP_VER;			// compiler version
-  s = partab.jobtab->user;
-  bcopy(&s, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = partab.jobtab->user;	// user who compiled it
+  bcopy(&s, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = COMP_VER;		// compiler version
+  s = partab.jobtab->user;			// this is an int in jobtab
+  bcopy(&s, p, sizeof(u_short));		// but a u_short here for now
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = partab.jobtab->user;	// user who compiled it
   i = cstringtoi(cptr);
-  bcopy(&i, p, 4);
-  p += 4;
-  //*((int *)p)++ = cstringtoi(cptr);		// get the date
-  i = atoi((char *)&cptr->buf[6]);
-  bcopy(&i, p, 4);
-  p += 4;
-  //*((int *)p)++ = atoi((char *)&cptr->buf[6]);		// and the time
+  bcopy(&i, p, sizeof(int));
+  p += sizeof(int);
+  //*((int *) p)++ = cstringtoi(cptr);		// get the date
+  i = atoi((char *) &cptr->buf[6]);
+  bcopy(&i, p, sizeof(int));
+  p += sizeof(int);
+  //*((int *) p)++ = atoi((char *) &cptr->buf[6]); // and the time
   i = sizeof(tags) * num_tags;			// space for tags
   j = sizeof(var_u) * num_vars;			// space for vars
   s = (p - line->buf) + (6 * sizeof(u_short));	// offset for tags
   bcopy(tag_tbl, &line->buf[s], i);		// copy tag table
-  bcopy(&s, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = s;			// where it went
-  ss = (short)num_tags;
-  bcopy(&ss, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = num_tags;			// copy the count
+  bcopy(&s, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = s;			// where it went
+  ss = (u_short) num_tags;
+  bcopy(&ss, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = num_tags;		// copy the count
   s = s + i;					// wher vars go
   bcopy(var_tbl, &line->buf[s], j);		// copy var table
-  bcopy(&s, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = s;			// where it went
-  ss = (short) num_vars;
-  bcopy(&ss, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = num_vars;			// copy the count
+  bcopy(&s, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = s;			// where it went
+  ss = (u_short) num_vars;
+  bcopy(&ss, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = num_vars;		// copy the count
   s = s + j;					// where the code goes
   bcopy(code, &line->buf[s], comp_ptr - code);	// copy the code
-  bcopy(&s, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = s;			// where it went
-  s = (short) (comp_ptr - code);
-  bcopy(&s, p, 2);
-  p += 2;
-  //*((u_short *)p)++ = (comp_ptr - code);	// and the size
+  bcopy(&s, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = s;			// where it went
+  s = (u_short) (comp_ptr - code);
+  bcopy(&s, p, sizeof(u_short));
+  p += sizeof(u_short);
+  //*((u_short *) p)++ = (comp_ptr - code);	// and the size
   i = p - line->buf + (comp_ptr - code) + i + j; // total size
   if (i > MAX_STR_LEN)
-  { comperror(-(ERRZ54+ERRMLAST));		// complain
+  { comperror(-(ERRZ54 + ERRMLAST));		// complain
     if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
     return -ERRM75;				// ignore the rest
   }

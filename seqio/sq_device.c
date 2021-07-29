@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential device I/O
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -26,7 +26,7 @@
  *
  * Extended Summary:
  *
- * This module implements the following sequential input/output ( ie IO )
+ * This module implements the following sequential input/output (ie IO)
  * operations for devices:
  *
  *	SQ_Device_Open		Opens a file for read, write or read/write mode
@@ -74,26 +74,25 @@ int SQ_Device_Open (char *device, int op)
       flag = O_RDWR;
       break;
     default:
-      return (getError(INT, ERRZ21));
+      return getError(INT, ERRZ21);
   }
 
-// If device is busy, keep trying until a timeout (ie alarm signal) has been received
-
-  while (1)
+  // If device is busy, keep trying until a timeout (ie alarm signal) has been received
+  while (TRUE)
   { did = open(device, flag, 0);
     if (did == -1)
     { if (errno != EBUSY)
-      { return (getError(SYS, errno));
+      { return getError(SYS, errno);
       }
-      else if ((partab.jobtab->trap & 16384))		// MASK[SIGALRM]
-      { return (-1);
+      else if (partab.jobtab->trap & 16384)	// MASK[SIGALRM]
+      { return -1;
       }
     }
     else
-    { return (did);
+    { return did;
     }
-  }							// end while (1)
-  return (getError(INT, ERRZ20));
+  }						// end while (TRUE)
+  return getError(INT, ERRZ20);
 }
 
 // ************************************************************************* //
@@ -101,12 +100,11 @@ int SQ_Device_Open (char *device, int op)
 // associated with the descriptor "did". Upon successful completion, the number
 // of bytes actually written is returned. Otherwise, it returns a negative
 // integer to indicate the error that has occurred.
-
 int SQ_Device_Write(int did, u_char *writebuf, int nbytes)
 { int	ret;
   ret = write(did, writebuf, nbytes);
-  if (ret == -1) return (getError(SYS, errno));
-  return (ret);
+  if (ret == -1) return getError(SYS, errno);
+  return ret;
 }
 
 // ************************************************************************* //
@@ -115,12 +113,11 @@ int SQ_Device_Write(int did, u_char *writebuf, int nbytes)
 // indicate the error that has occurred.
 //
 // Note, support is only implemented for terminal type devices.
-
 int SQ_Device_Read(int did, u_char *readbuf, int tout)
 { int	ret;
   ret = isatty(did);
-  if (ret == 1) return (SQ_Device_Read_TTY(did, readbuf, tout));
-  else return (getError(INT, ERRZ24));
+  if (ret == 1) return SQ_Device_Read_TTY(did, readbuf, tout);
+  else return getError(INT, ERRZ24);
 }
 
 // ************************************************************************* //
@@ -135,39 +132,38 @@ int SQ_Device_Read(int did, u_char *readbuf, int tout)
 // satisfied until one byte or a signal has been received. Upon successful
 // completion, the number of bytes actually read is returned. Otherwise, a
 // negative integer is returned to indicate the error that has occurred.
-
 int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
-{ struct termios		settings;
-  int		ret;
-  int		rret;
+{ struct termios settings;
+  int		 ret;
+  int		 rret;
 
   if (tout == 0)
   { ret = tcgetattr(did, &settings);
-    if (ret == -1) return (getError(SYS, errno));
+    if (ret == -1) return getError(SYS, errno);
     settings.c_cc[VMIN] = 0;
     ret = tcsetattr(did, TCSANOW, &settings);
-    if (ret == -1) return (getError(SYS, errno));
+    if (ret == -1) return getError(SYS, errno);
   }
   rret = read(did, readbuf, 1);
   if (tout == 0)
   { ret = tcgetattr(did, &settings);
-    if (ret == -1) return (getError(SYS, errno));
+    if (ret == -1) return getError(SYS, errno);
     settings.c_cc[VMIN] = 1;
     ret = tcsetattr(did, TCSANOW, &settings);
-    if (ret == -1) return (getError(SYS, errno));
+    if (ret == -1) return getError(SYS, errno);
     if (rret == 0)				// zero timeout and no chars
     { partab.jobtab->trap |= 16384;		// MASK[SIGALRM]
-      return (-1);
+      return -1;
     }
   }
   if (rret == -1)
   { if (errno == EAGAIN)
     { ret = raise(SIGALRM);
-      if (ret == -1) return (getError(SYS, errno));
+      if (ret == -1) return getError(SYS, errno);
     }
-    return (getError(SYS, errno));
+    return getError(SYS, errno);
   }
   else
-  { return (rret);
+  { return rret;
   }
 }

@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, Integrity Check
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -50,7 +50,7 @@ u_char *dlnk;						// for down links
 u_char *used;						// for the map
 u_int volsiz;						// blocks in volume
 
-void ic_full();						// full check
+void ic_full(void);					// full check
 void ic_bits(u_int block, int flag, u_int points_at);	// check bits
 u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global); // check block
 void ic_map(int flag);					// check the map
@@ -71,10 +71,10 @@ int DB_ic(int vol, int block)                  		// integrity checker
   u_int b1;						// a block
 
   if (vol > MAX_VOL)					// within limits?
-  { return (-ERRM26);					// no - error
+  { return -ERRM26;					// no - error
   }
-  if (systab->vol[vol-1] == NULL)			// is it mounted?
-  { return (-ERRM26);					// no - error
+  if (systab->vol[vol - 1] == NULL)			// is it mounted?
+  { return -ERRM26;					// no - error
   }
   volnum = vol;						// save this
   curr_lock = 0;					// ensure this is clear
@@ -85,7 +85,8 @@ int DB_ic(int vol, int block)                  		// integrity checker
   used = ((u_char *) systab->vol[volnum - 1]->map);	// point at map
   volsiz = systab->vol[volnum - 1]->vollab->max_block;	// number of blocks
   gbd_expired = 0;					// clear this
-  for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL);
+  for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL)
+    continue;
 
   if (block == 0)					// full check?
   { level = 0;
@@ -118,7 +119,7 @@ int DB_ic(int vol, int block)                  		// integrity checker
 // Return:   none
 //
 
-void ic_full()						// full check
+void ic_full(void)					// full check
 { int i;						// a handy int
   int j;						// and another
   int uci;						// uci#
@@ -147,12 +148,10 @@ void ic_full()						// full check
     { continue;						// ignore it
     }
     if ((used[b1 / 8] & (1U << (b1 & 7))) == 0)		// if marked free
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d free (global directory for UCI %d) - skipped",
-        b1, uci + 1);					// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10u free (global directory for UCI %d) - skipped", b1, uci + 1); // error msg
       icerr++;						// count it
-      (void)SQ_Write(outc);				// output it
-      (void)SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
       continue;						// ignore it
     }
     ic_bits(b1, 3, 0);					// set link bits
@@ -174,22 +173,18 @@ void ic_full()						// full check
 	  else if ((dlnk[i] & off) != 0)		// if it has DL
 	  { bcopy("right pointer\0", msg, 14);		// say right
 	  }
-	  outc->len = sprintf((char *)&outc->buf[0],
-	    "%10d is used, missing %s",
-	    b1, msg);					// error msg
+	  outc->len = sprintf((char *) &outc->buf[0], "%10u is used, missing %s", b1, msg); // error msg
 	  icerr++;					// count it
-	  (void)SQ_Write(outc);				// output it
-	  (void)SQ_WriteFormat(SQ_LF);			// and a !
+	  (void) SQ_Write(outc);				// output it
+	  (void) SQ_WriteFormat(SQ_LF);			// and a !
 	}						// end error code
       }							// end used block
       else if (((rlnk[i] & off) != 0) ||		// there is a RL
 	       ((dlnk[i] & off) != 0))			// or a DL and NOT used
-      { outc->len = sprintf((char *)&outc->buf[0],
-      			    "%10d is UNUSED but is pointed to",
-			    b1);
+      { outc->len = sprintf((char *) &outc->buf[0], "%10u is UNUSED but is pointed to", b1);
 	icerr++;					// count it
-	(void)SQ_Write(outc);				// output it
-	(void)SQ_WriteFormat(SQ_LF);			// and a !
+	(void) SQ_Write(outc);				// output it
+	(void) SQ_WriteFormat(SQ_LF);			// and a !
       }
     }
   }
@@ -218,12 +213,10 @@ void ic_bits(u_int block, int flag, u_int points_at)	// check bits
 
   if (flag & 1)
   { if (rlnk[i] & off)					// check rlnk
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - Duplicate right pointer",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - duplicate right pointer", block, points_at); // error msg
       icerr++;						// count it
-      (void)SQ_Write(outc);				// output it
-      (void)SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
     else						// set the bit
     { rlnk[i] |= off;					// set
@@ -231,12 +224,10 @@ void ic_bits(u_int block, int flag, u_int points_at)	// check bits
   }
   if (flag & 2)
   { if (dlnk[i] & off)					// check dlnk
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - Duplicate down pointer",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - duplicate down pointer", block, points_at); // error msg
       icerr++;						// count it
-      (void)SQ_Write(outc);				// output it
-      (void)SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
     else						// set the bit
     { dlnk[i] |= off;					// set
@@ -245,12 +236,10 @@ void ic_bits(u_int block, int flag, u_int points_at)	// check bits
 
   if ((points_at) &&					// points_at supplied
       ((used[i] & off) == 0))				// marked free?
-  { outc->len = sprintf((char *)&outc->buf[0],
-      "%10d <- %10d - block is free",
-      block, points_at);				// error msg
+  { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - block is free", block, points_at); // error msg
     icerr++;						// count it
-    (void)SQ_Write(outc);					// output it
-    (void)SQ_WriteFormat(SQ_LF);				// and a !
+    (void) SQ_Write(outc);				// output it
+    (void) SQ_WriteFormat(SQ_LF);			// and a !
   }
   return;						// done
 }
@@ -273,39 +262,37 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check
   int Llast;						// local last_idx
   gbd *Lgbd;						// and gbd
   u_int b1;						// a block
-  u_char k[260];					// local key
+  u_char k[MAX_KEY_SIZE + 5];				// local key
   u_short *isx;						// a map
   u_int *iix;						// a map
-  u_char k1[260];					// for keys
-  u_char k2[260];					// for keys
+  u_char k1[MAX_KEY_SIZE + 5];				// for keys
+  u_char k2[MAX_KEY_SIZE + 5];				// for keys
   cstring *c;						// for chunk
   cstring *r;						// for record
   u_char *eob;						// end of block
   u_int lb;						// last block
   u_int brl;						// block rl
 
-  while (SemOp(SEM_GLOBAL, READ));			// get a read lock
+  while (SemOp(SEM_GLOBAL, READ))			// get a read lock
+    continue;
 
   s = Get_block(block);					// get it
   if (s < 0)						// if that failed
   { s = UTIL_strerror(s, emsg);				// decode message
-    outc->len = sprintf((char *)&outc->buf[0],
-      "%10d <- %10d - error getting - %s",
-      block, points_at, emsg);				// error msg
+    outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - error getting - %s", block, points_at, emsg); // error msg
     icerr++;						// count it
-    s = SQ_Write(outc);					// output it
-    s = SQ_WriteFormat(SQ_LF);				// and a !
+    (void) SQ_Write(outc);				// output it
+    (void) SQ_WriteFormat(SQ_LF);			// and a !
     s = SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
     return 0;						// and exit
   }
 
   if ((used[block / 8] & (1U << (block & 7))) == 0)	// if marked free
-  { outc->len = sprintf((char *)&outc->buf[0],
-      "%10d <- %10d marked free, type = %d",
-      block, points_at, blk[level]->mem->type);		// error msg
+  { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u marked free, type = %d", block, points_at, blk[level]->mem->type);
+                                                        // error msg
       icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
       return 0;						// give up
   }
 
@@ -322,33 +309,27 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check
 
   if (!var_empty(global))
   { if (!var_equal(global, blk[level]->mem->global))	// check global
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - global is wrong",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - global is wrong", block, points_at); // error msg
       icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
   }
 
   chunk = (cstring *) &iidx[idx[IDX_START]];		// point at 1st chunk
   left_edge = (!chunk->buf[1]);				// check for first
   if (chunk->buf[0])					// non-zero ccc
-  { outc->len = sprintf((char *)&outc->buf[0],
-      "%10d <- %10d - non-zero ccc on first key",
-      block, points_at);				// error msg
+  { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - non-zero ccc on first key", block, points_at); // error msg
     icerr++;						// count it
-    s = SQ_Write(outc);					// output it
-    s = SQ_WriteFormat(SQ_LF);				// and a !
+    (void) SQ_Write(outc);				// output it
+    (void) SQ_WriteFormat(SQ_LF);			// and a !
   }
   else if (kin != NULL)					// if key supplied
   { if (bcmp(kin, &chunk->buf[1], kin[0] + 1))		// if not the same
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - downlink differs from first key",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - down link differs from first key", block, points_at); // error msg
       icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
   }
 
@@ -376,22 +357,19 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check
       Align_record();					// ensure aligned
       b1 = *(u_int *) record;				// get blk#
       if ((b1 > volsiz) || (!b1))			// out of range
-      { outc->len = sprintf((char *)&outc->buf[0],
-          "%10d <- %10d - (%d) block %d outside vol - skipped",
-          block, points_at, Lidx, b1);			// error msg
+      { outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - (%d) block %u outside vol - skipped",
+                    block, points_at, Lidx, b1);	// error msg
         icerr++;					// count it
-        s = SQ_Write(outc);				// output it
-        s = SQ_WriteFormat(SQ_LF);			// and a !
+        (void) SQ_Write(outc);				// output it
+        (void) SQ_WriteFormat(SQ_LF);			// and a !
 	continue;					// ignore
       }
       for (i = 0; i < level; i++)			// scan above
       { if ((blk[level]) && (blk[level]->block == b1))	// check for loop
-	{ outc->len = sprintf((char *)&outc->buf[0],
-            "%10d <- %10d - points at itself",
-	    b1, block);					// error msg
+	{ outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - points at itself", b1, block); // error msg
 	  icerr++;					// count it
-	  s = SQ_Write(outc);				// output it
-	  s = SQ_WriteFormat(SQ_LF);			// and a !
+	  (void) SQ_Write(outc);			// output it
+	  (void) SQ_WriteFormat(SQ_LF);			// and a !
 	  b1 = 0;					// flag error
 	  break;					// quit
         }
@@ -404,19 +382,18 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check
       }
       if ((lb) && (level))				// if we have a lb
       { if (brl != b1)					// if not the same
-	{ outc->len = sprintf((char *)&outc->buf[0],
-            "%10d <- %10d - right is %10d next down is %10d",
-	    lb, block, brl, b1);			// error msg
+	{ outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - right is %10d next down is %10d", lb, block, brl, b1);
+                                                        // error msg
 	  icerr++;					// count it
-	  s = SQ_Write(outc);				// output it
-	  s = SQ_WriteFormat(SQ_LF);			// and a !
+	  (void) SQ_Write(outc);				// output it
+	  (void) SQ_WriteFormat(SQ_LF);			// and a !
 	}
       }
       lb = b1;						// save for next
       left_edge = 0;					// clear this
       level++;						// down a level
       if (level > 1)					// from a pointer
-      { brl = ic_block(b1, block, k, blk[level-1]->mem->global); // check block
+      { brl = ic_block(b1, block, k, blk[level - 1]->mem->global); // check block
       }
       else						// from GD
       { brl = ic_block(b1, block, k, (var_u) 0ull);	// check the block (DO BETTER LATER)
@@ -438,17 +415,16 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check
   if (blk[level]->mem->last_idx < IDX_START)
   { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - last_idx is too low", block, points_at); // error msg
     icerr++;						// count it
-    s = SQ_Write(outc);					// output it
-    s = SQ_WriteFormat(SQ_LF);				// and a !
+    (void) SQ_Write(outc);				// output it
+    (void) SQ_WriteFormat(SQ_LF);			// and a !
   }
 
   if (((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2) < 0)
-  { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - last_idx too high or last_free too low",
-        block, points_at);				// error msg
+  { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - last_idx too high or last_free too low", block, points_at);
+                                                        // error msg
     icerr++;						// count it
-    s = SQ_Write(outc);					// output it
-    s = SQ_WriteFormat(SQ_LF);				// and a !
+    (void) SQ_Write(outc);				// output it
+    (void) SQ_WriteFormat(SQ_LF);			// and a !
   }
   isdata = ((blk[level]->mem->type > 64) && (level));
   isx = (u_short *) blk[level]->mem;
@@ -458,53 +434,46 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)	// check
   for (i = IDX_START; i <= blk[level]->mem->last_idx; i++)
   { c = (cstring *) &iix[isx[i]];
     if (&c->buf[c->len - 3] > eob)
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - chunk size is too big - overflows block",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - chunk size is too big - overflows block", block, points_at);
+                                                        // error msg
       icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
     r = (cstring *) &c->buf[c->buf[1] + 2];
-    if ((isdata) && (r->len != -1))
-    { if (&r->buf[r->len - 1] > eob)
-      { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - dbc is too big - overflows block",
-        block, points_at);				// error msg
+    if (isdata && (r->len != NODE_UNDEFINED))
+    { if (&r->buf[(r->len == 0) ? 0 : (r->len - 1)] > eob)
+      { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - dbc is too big - overflows block", block, points_at);
+                                                        // error msg
         icerr++;					// count it
-        s = SQ_Write(outc);				// output it
-        s = SQ_WriteFormat(SQ_LF);			// and a !
+        (void) SQ_Write(outc);				// output it
+        (void) SQ_WriteFormat(SQ_LF);			// and a !
       }
     }
     if (c->buf[0] == 255)
     { continue;
     }
     if ((i == IDX_START) && (c->buf[0]))
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - non-zero ccc in first record",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - non-zero ccc in first record", block, points_at); // error msg
       icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
     if ((i > IDX_START) && (!c->buf[1]))
-    { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - zero ucc found",
-        block, points_at);				// error msg
+    { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - zero ucc found", block, points_at); // error msg
       icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
+      (void) SQ_Write(outc);				// output it
+      (void) SQ_WriteFormat(SQ_LF);			// and a !
     }
     bcopy(&c->buf[2], &k2[c->buf[0] + 1], c->buf[1]);
     k2[0] = c->buf[0] + c->buf[1];
     if ((k2[0]) || (i > IDX_START))
     { if (UTIL_Key_KeyCmp(&k1[1], &k2[1], k1[0], k2[0]) != K2_GREATER)
-      { outc->len = sprintf((char *)&outc->buf[0],
-        "%10d <- %10d - (%d) key does not follow previous",
-        block, points_at, i);				// error msg
+      { outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - (%d) key does not follow previous", block, points_at, i);
+                                                        // error msg
         icerr++;					// count it
-        s = SQ_Write(outc);				// output it
-        s = SQ_WriteFormat(SQ_LF);			// and a !
+        (void) SQ_Write(outc);				// output it
+        (void) SQ_WriteFormat(SQ_LF);			// and a !
       }
     }
     bcopy(k2, k1, k2[0] + 1);
@@ -532,14 +501,15 @@ void ic_map(int flag)					// check the map
   int status;						// block status
   u_char type_byte;					// for read
 
-  lock = (flag == -1) ? READ : WRITE;			// what we need
+  lock = ((flag == -1) ? READ : WRITE);			// what we need
   c = (u_char *) systab->vol[volnum - 1]->map;		// point at it
   e = &c[systab->vol[volnum - 1]->vollab->max_block >> 3]; // and the end
   off = 1;						// start at 1
   while (c <= e)					// scan the map
   { base = ((u_int) (c - (u_char *) systab->vol[volnum - 1]->map)) << 3;
 							// base block number
-    while (SemOp(SEM_GLOBAL, lock));			// grab a lock
+    while (SemOp(SEM_GLOBAL, lock))			// grab a lock
+      continue;
 
     for (; off < 8; off++)				// scan the byte
     { block = base + off;				// the block#
@@ -589,7 +559,7 @@ void ic_map(int flag)					// check the map
       { *c |= (u_char) (1U << off);			// set the bit
       }
       else						// free
-      { *c &= (u_char) (~(1U << off));			// clear it
+      { *c &= (u_char) ~(1U << off);			// clear it
       }
       systab->vol[volnum - 1]->map_dirty_flag = 1;	// map needs writing
     }							// end byte scan

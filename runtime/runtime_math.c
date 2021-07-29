@@ -4,7 +4,7 @@
  * Summary:  module runtime - decimal arithmetic
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -40,52 +40,51 @@
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
 
-#define PLUS	'+'
-#define MINUS	'-'
-#define POINT	'.'
-#define point	(POINT-ZERO)
-#define ZERO	'0'
-#define ONE	(ZERO+1)
-#define TWO	(ZERO+2)
-#define THREE	(ZERO+3)
-#define FIVE	(ZERO+(NUMBASE/2))
-#define NINE	(ZERO+NUMBASE-1)
-#define NUMBASE	10
-#define EOL ((char)'\000')
-#define toggle(A) (A^=01)
+#define NUMBASE	  10
+#define PLUS	  '+'
+#define MINUS	  '-'
+#define POINT	  '.'
+#define point	  (POINT - ZERO)
+#define ZERO	  '0'
+#define ONE	  (ZERO + 1)
+#define TWO	  (ZERO + 2)
+#define THREE	  (ZERO + 3)
+#define FIVE	  (ZERO + (NUMBASE / 2))
+#define NINE	  (ZERO + NUMBASE - 1)
+#define EOL       ((char) '\000')
+#define toggle(A) (A ^= 01)
 
 // The following sub-routines are called internally in this file only
-//
-short g_sqrt (char *a);                          /* square root */
-short root (char *a, int n);                     /* n.th root */
-void roundit (char *a, int digits);
+int g_sqrt(char *a);                            /* square root */
+int root(char *a, int n);                       /* n.th root */
+void roundit(char *a, int digits);
 
 short runtime_add(char *a, char *b)		// add b to a
 {
     if (b[0] == ZERO)
-	return strlen(a);
+	return (short) strlen(a);
     if (a[0] == ZERO) {
-	strcpy (a, b);
-	return strlen(a);
+	strcpy(a, b);
+	return (short) strlen(a);
     }
 
     {
-	short   dpa,			/* decimal point of 'a' */
-	        dpb,			/* decimal point of 'b' */
-	        lena,			/* length of 'a' */
-	        lenb;			/* length of 'b' */
-	int     mi;			/* minus flag */
-	short   sign;			/* sign flag  if a<0<b sign=-1; */
+	short dpa,			        /* decimal point of 'a' */
+	      dpb,			        /* decimal point of 'b' */
+	      lena,			        /* length of 'a' */
+	      lenb;			        /* length of 'b' */
+	int   mi;			        /* minus flag */
+	short sign;			        /* sign flag  if a < 0 < b sign = -1; */
 
-/*            if a>0>b sign=1;  */
-/*            else     sign=0;  */
+        /* if a > 0 > b sign = 1;  */
+        /* else     sign = 0;  */
 
 	int i;
 	int ch;
 	int j;
 	int carry;
 
-/* look at the signs */
+	/* look at the signs */
 	mi = 0;
 	sign = 0;
 	if (a[0] == b[0] && a[0] == MINUS) {
@@ -109,8 +108,8 @@ short runtime_add(char *a, char *b)		// add b to a
 	    b[--i]++;
 	}
 
-/* search decimal points and length */
-	dpa = dpb = (-1);
+	/* search decimal points and length */
+	dpa = dpb = -1;
 	i = 0;
 	while (a[i] != EOL) {
 	    if (a[i] == POINT)
@@ -120,7 +119,8 @@ short runtime_add(char *a, char *b)		// add b to a
 	lena = i;
 	if (dpa < 0)
 	    dpa = i;
-      again:;
+
+again:
 	i = 0;
 	while (b[i] != EOL) {
 	    if (b[i] == POINT)
@@ -131,8 +131,8 @@ short runtime_add(char *a, char *b)		// add b to a
 	if (dpb < 0)
 	    dpb = i;
 	if (i == 1) {
-	    if (b[0] == ONE && sign == 0 && dpa > 0) {
-	    /* frequent special case: add 1 */
+	    if ((b[0] == ONE) && (sign == 0) && (dpa > 0)) {
+		/* frequent special case: add 1 */
 		i = dpa - 1;
 		while (++a[i] > NINE) {
 		    a[i--] = ZERO;
@@ -150,10 +150,10 @@ short runtime_add(char *a, char *b)		// add b to a
 	    }
 	}
 
-/* copy additional trailing digits from b to a */
+	/* copy additional trailing digits from b to a */
 	if (lenb - dpb > lena - dpa) {
 	    j = dpa - dpb;
-	    if (lenb + j > MAX_NUM_BYTES) {	/* round off that monster ! */
+	    if ((lenb + j) > MAX_NUM_BYTES) {	/* round off that monster ! */
 		i = MAX_NUM_BYTES - j;
 		if (b[i] < FIVE) {
 		    b[i] = EOL;
@@ -163,8 +163,7 @@ short runtime_add(char *a, char *b)		// add b to a
 			lenb--;
 		    }
 		} else {
-		    for (;;)
-		    {
+		    for (;;) {
 			if (i >= dpb) {
 			    b[i] = EOL;
 			    lenb--;
@@ -187,24 +186,23 @@ short runtime_add(char *a, char *b)		// add b to a
 			}
 		    }
 		}
-		goto again;		/* look what's left from b */
+		goto again;		        /* look what's left from b */
 	    }
 	    lenb = i = lena - dpa + dpb;
 	    j = lena;
-	    while ((a[j++] = b[i++]) != EOL) ;
-	    lena = (--j);
+	    while ((a[j++] = b[i++]) != EOL) continue;
+	    lena = --j;
 	    b[lenb] = EOL;
 	}
 
-/* $justify a or b */
+	/* $justify a or b */
 	i = dpa - dpb;
 	if (i < 0) {
 	    j = lena;
-	    if ((i = (lena -= i)) > (MAX_NUM_BYTES - 2) /*was 253*/) {
-
-		return -(ERRM75);
+	    if ((i = (lena -= i)) > (MAX_NUM_BYTES - 2)) {
+		return -ERRM92;
 	    }
-	    ch = (sign >= 0 ? ZERO : NINE);
+	    ch = ((sign >= 0) ? ZERO : NINE);
 	    while (j >= 0)
 		a[i--] = a[j--];
 	    while (i >= 0)
@@ -212,11 +210,10 @@ short runtime_add(char *a, char *b)		// add b to a
 	    dpa = dpb;
 	} else if (i > 0) {
 	    j = lenb;
-	    if ((lenb = (i += lenb)) > (MAX_NUM_BYTES - 2)/*was 253*/) {
-
-		return -(ERRM75);
+	    if ((lenb = (i += lenb)) > (MAX_NUM_BYTES - 2)) {
+		return -ERRM92;
 	    }
-	    ch = (sign <= 0 ? ZERO : NINE);
+	    ch = ((sign <= 0) ? ZERO : NINE);
 	    while (j >= 0)
 		b[i--] = b[j--];
 	    while (i >= 0)
@@ -224,26 +221,26 @@ short runtime_add(char *a, char *b)		// add b to a
 	    dpb = dpa;
 	}
 
-/* now add */
+	/* now add */
 	carry = 0;
 
 	for (i = lenb - 1; i >= 0; i--) {
-	    if ((ch = a[i]) == POINT)
-		{ continue; }
+	    if ((ch = a[i]) == POINT) {
+                continue;
+            }
 	    ch += b[i] - ZERO + carry;
-	    if ((carry = (ch > NINE)))
-		{ ch -= NUMBASE; }
+	    if ((carry = (ch > NINE))) {
+                ch -= NUMBASE;
+            }
 
 	    a[i] = ch;
-
 	}
 
 	while (a[lena] != EOL)
 	    lena++;
 	if (carry) {
-	    if ((i = (++lena)) > (MAX_NUM_BYTES - 2)) {
-
-		return -(ERRM75);
+	    if ((i = ++lena) > (MAX_NUM_BYTES - 2)) {
+		return -ERRM92;
 	    }
 	    while (i > 0) {
 		a[i] = a[i - 1];
@@ -273,27 +270,26 @@ short runtime_add(char *a, char *b)		// add b to a
 	    }
 
 	    while (a[mi] == ZERO) {
-            /* VEN/SMH - libsystem.a on a mac complains that this fails bounds
-             * checks (but only in debug mode). I am substituting it. */
-            /* strcpy (&a[mi], &a[mi + 1]);  <- this fails */
-            int i = 0;
-            /* 002\0
-             * 0 -> a[0] 2nd 0
-             * 1 -> a[1] = 2
-             * 2 -> a[2] = \0
-             */
-            while (a[mi+i])
-            {
-                a[mi+i] = a[mi+i+1];
-                i++;
-            }
+                /* VEN/SMH - libsystem.a on a mac complains that this fails bounds
+                 * checks (but only in debug mode). I am substituting it. */
+                /* strcpy (&a[mi], &a[mi + 1]);  <- this fails */
+                int i = 0;
+                /* 002\0
+                 * 0 -> a[0] 2nd 0
+                 * 1 -> a[1] = 2
+                 * 2 -> a[2] = \0
+                 */
+                while (a[mi + i]) {
+                    a[mi + i] = a[mi + i + 1];
+                    i++;
+                }
 	    }
 
 	    if (dpa < 0)
 		dpa = 0;
 	}
 
-/* remove trailing zeroes */
+	/* remove trailing zeroes */
 	i = dpa;
 	while (a[i] != EOL)
 	    i++;
@@ -302,13 +298,13 @@ short runtime_add(char *a, char *b)		// add b to a
 		a[i--] = EOL;
 	}
 
-/* remove trailing point */
+	/* remove trailing point */
 	if (a[i] == POINT)
 	    a[i] = EOL;
 	if (mi) {
 	    if (a[0] != ZERO) {
 		i = 0;
-		while (a[i++] != EOL) ;
+		while (a[i++] != EOL) continue;
 		while (i > 0) {
 		    a[i] = a[i - 1];
 		    i--;
@@ -327,18 +323,18 @@ short runtime_add(char *a, char *b)		// add b to a
 
 short runtime_mul(char *a, char *b)             // multiply a by b
 {
-        char    c[2*(MAX_NUM_BYTES+1)];
-    short   alen,
-            blen,
-            clen,
-            mi,
-            tmpx;
-    int acur;
-    int bcur;
-    int ccur;
-    int carry;
+    char  c[(MAX_NUM_BYTES + 1) * 2];
+    short alen,
+          blen,
+          clen,
+          mi,
+          tmpx;
+    int   acur;
+    int   bcur;
+    int   ccur;
+    int   carry;
 
-/* if zero or one there's not much to do */
+    /* if zero or one there's not much to do */
     if (b[1] == EOL) {
         if (b[0] == ZERO) {
             a[0] = ZERO;
@@ -346,17 +342,19 @@ short runtime_mul(char *a, char *b)             // multiply a by b
             return 1;
         }
         if (b[0] == ONE) {
-            return strlen(a); }
+            return (short) strlen(a);
+        }
         if (b[0] == TWO) {
-multwo:     acur = 0;
-            while (a[++acur] != EOL) ;
+
+multwo:
+            acur = 0;
+            while (a[++acur] != EOL) continue;
             mi = (a[acur - 1] == FIVE);
             carry = 0;
             ccur = acur;
-/*            while (acur >= 0) {	*/
+	    /* while (acur >= 0) { */
             while (acur > 0) {
-                if ((bcur = a[--acur]) < ZERO)
-                    continue;
+                if ((bcur = a[--acur]) < ZERO) continue;
                 bcur = bcur * 2 - ZERO + carry;
                 carry = 0;
                 if (bcur > NINE) {
@@ -368,7 +366,7 @@ multwo:     acur = 0;
             if (carry) {
                 acur = ccur;
                 if (acur > (MAX_NUM_BYTES - 1)) {
-                    return -(ERRM75);
+                    return -ERRM92;
                 }
                 while (acur >= 0) {
                     a[acur + 1] = a[acur];
@@ -385,33 +383,34 @@ multwo:     acur = 0;
                         a[--ccur] = EOL;
                         if (acur == ccur) {
                             a[--ccur] = EOL;
-                        return strlen(a); }
+                            return (short) strlen(a);
+                        }
                     }
             }
-            return strlen(a);
+            return (short) strlen(a);
         }
     }
     if (a[1] == EOL) {
         if (a[0] == ZERO) {
-            return strlen(a);
+            return (short) strlen(a);
         }
         if (a[0] == ONE) {
-            strcpy (a, b);
-            return strlen(a);
+            strcpy(a, b);
+            return (short) strlen(a);
         }
         if (a[0] == TWO) {
-            strcpy (a, b);
+            strcpy(a, b);
             goto multwo;
         }
     }
-/* get length of strings and convert ASCII to decimal */
-/* have a look at the signs */
+    /* get length of strings and convert ASCII to decimal */
+    /* have a look at the signs */
     if ((mi = (a[0] == MINUS))) {
         a[0] = ZERO;
     }
     if (b[0] == MINUS) {
         b[0] = ZERO;
-        toggle (mi);
+        toggle(mi);
     }
     carry = 0;
     alen = 0;
@@ -420,7 +419,7 @@ multwo:     acur = 0;
         if (a[alen++] == point)
             carry = alen;
     }
-/* append a point on the right side if there was none */
+    /* append a point on the right side if there was none */
     if (--carry < 0) {
         carry = alen;
         a[alen++] = point;
@@ -441,10 +440,10 @@ multwo:     acur = 0;
     carry += ccur;
     if (carry > (MAX_NUM_BYTES - 3)) {
         a[0] = EOL;
-        return -(ERRM75);
+        return -ERRM92;
     }
     ccur = clen = alen + blen;
-/* init c to zero */
+    /* init c to zero */
     while (ccur >= 0)
         c[ccur--] = 0;
     c[carry] = point;
@@ -461,10 +460,8 @@ multwo:     acur = 0;
         acur = alen;
         ccur = clen--;
         while (acur > 0) {
-            if (a[--acur] == point)
-                continue;
-            if (c[--ccur] == point)
-                --ccur;
+            if (a[--acur] == point) continue;
+            if (c[--ccur] == point) --ccur;
             tmpx = a[acur] * b[bcur] + c[ccur] + carry;
             carry = tmpx / NUMBASE;
             c[ccur] = tmpx % NUMBASE;
@@ -479,7 +476,7 @@ multwo:     acur = 0;
                 carry = 0;
         }
     }
-/* copy result to a and convert it */
+    /* copy result to a and convert it */
     a[ccur = clen = acur = (alen += blen)] = EOL;
     while (--ccur >= 0) {
         if (c[ccur] < NUMBASE)
@@ -487,15 +484,14 @@ multwo:     acur = 0;
         else
             a[alen = ccur] = POINT;
     }
-/* oversize string */
+    /* oversize string */
     if (acur > MAX_NUM_BYTES) {
         if (a[alen = acur = MAX_NUM_BYTES] >= FIVE) {
-            int     l1;
+            int l1;
 
             l1 = MAX_NUM_BYTES;
             if (a[l1] >= FIVE) {
-                for (;;)
-                {
+                for (;;) {
                     if (a[--l1] == POINT)
                         l1--;
                     if (l1 < (a[0] == MINUS)) {
@@ -513,15 +509,15 @@ multwo:     acur = 0;
         }
         a[acur] = EOL;
     }
-/* remove trailing zeroes */
+    /* remove trailing zeroes */
     if (acur >= alen) {
         while (a[--acur] == ZERO)
             a[acur] = EOL;
     }
-/* remove trailing point */
+    /* remove trailing point */
     if (a[acur] == POINT)
         a[acur] = EOL;
-/* remove leading zeroes */
+    /* remove leading zeroes */
     while (a[mi] == ZERO) {
         acur = mi;
         while ((a[acur] = a[acur + 1]) != EOL)
@@ -542,43 +538,43 @@ multwo:     acur = 0;
         }
         a[0] = MINUS;
     }
-    return strlen(a);
+    return (short) strlen(a);
 }
 
-short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
-//        char   *uu,                     /* dividend and result */
-//               *v;                      /* divisor */
-//        short   typ;                    /* type: '/' or '\' or '#' */
-					/*     OPDIV, OPINT, OPMOD */
+short runtime_div(char *uu, char *v, short typ) /* divide string arithmetic */
+// char   *uu,                                  /* dividend and result */
+//        *v;                                   /* divisor */
+// short  typ;                                  /* type: '/' or '\' or '#' */
+					        /* OPDIV, OPINT, OPMOD */
 {
-    char    q[MAX_NUM_BYTES + 2];  	/* quotient */
-    char    u[2*(MAX_NUM_BYTES + 1)];	/* intermediate result */
-    char    vv[MAX_NUM_BYTES +1];
-    short   d,
-            d1,
-            k1,
-            m,
-            ulen,
-            vlen,
-            dpu,
-            dpv,
-            guess,
-            mi,
-            plus,
-            v1,
-            s;
-    int i;
-    int j;
-    int k;
-    int carry = 0;
+    char  q[MAX_NUM_BYTES + 2];  	        /* quotient */
+    char  u[(MAX_NUM_BYTES + 1) * 2];	        /* intermediate result */
+    char  vv[MAX_NUM_BYTES + 1];
+    short d,
+          d1,
+          k1,
+          m,
+          ulen,
+          vlen,
+          dpu,
+          dpv,
+          guess,
+          mi,
+          plus,
+          v1,
+          s;
+    int   i;
+    int   j;
+    int   k;
+    int   carry = 0;
 
     if (uu[0] == ZERO)
         return 1;
-    if ((v[0] == '0') && (!v[1]))
+    if ((v[0] == ZERO) && !v[1])
 	return -ERRM9;
 
-/* look at the signs */
-    strcpy (u, uu);
+    /* look at the signs */
+    strcpy(u, uu);
     mi = 0;
     plus = 0;
     if (typ != OPMOD) {
@@ -588,10 +584,10 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         }
         if (v[0] == MINUS) {
             v[0] = ZERO;
-            toggle (mi);
+            toggle(mi);
         }
     } else {
-        strcpy (vv, v);
+        strcpy(vv, v);
         if (u[0] == MINUS) {
             u[0] = ZERO;
             plus = 1;
@@ -599,12 +595,12 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         if (v[0] == MINUS) {
             v[0] = ZERO;
             mi = 1;
-            toggle (plus);
+            toggle(plus);
         }
     }
-/* convert from ASCII to 'number' */
+    /* convert from ASCII to 'number' */
     i = 0;
-    dpv = (-1);
+    dpv = -1;
     k = 0;
     while ((j = v[i]) != EOL) {
         j -= ZERO;
@@ -631,7 +627,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     d1 = 0;
 
     i = 0;
-    dpu = (-1);
+    dpu = -1;
     while (u[i] != EOL) {
         u[i] -= ZERO;
         if (u[i] == point)
@@ -641,11 +637,11 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     if (dpu < 0) {
         u[dpu = i++] = point;
     }
-/*      u[ulen=i]=0; u[i+1]=0; u[i+2]=0;        */
+    /* u[ulen=i]=0; u[i+1]=0; u[i+2]=0; */
     ulen = i;
-    while (i < (2*MAX_NUM_BYTES))
+    while (i < (MAX_NUM_BYTES * 2))
         u[i++] = 0;
-    i = ulen;            /* somehow that's necessary - sometimes I check why */
+    i = ulen;                                   /* somehow that's necessary - sometimes I check why */
     if (u[0] != 0) {
         while (i >= 0) {
             u[i + 1] = u[i];
@@ -656,15 +652,15 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     } else {
         ulen--;
     }
-    if ((vlen + partab.jobtab->precision) > MAX_NUM_BYTES && (dpv + partab.jobtab->precision) < vlen)
+    if (((vlen + partab.jobtab->precision) > MAX_NUM_BYTES) && ((dpv + partab.jobtab->precision) < vlen))
         vlen -= partab.jobtab->precision;
 
-    if (dpv > 0) {                      /* make v an integer *//* shift v */
+    if (dpv > 0) {                              /* make v an integer *//* shift v */
         d1 = vlen - dpv;
         for (i = dpv; i < vlen; i++)
             v[i] = v[i + 1];
         vlen--;
-/* remove leading zeroes */
+	/* remove leading zeroes */
         while (v[1] == 0) {
             for (i = 1; i <= vlen; i++)
                 v[i] = v[i + 1];
@@ -672,7 +668,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         }
         v[vlen + 1] = 0;
         v[vlen + 2] = 0;
-/* shift u */
+	/* shift u */
         i = dpu;
         for (j = 0; j < d1; j++) {
             if (i >= ulen) {
@@ -692,13 +688,13 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         d += partab.jobtab->precision;
     if ((d + ulen) > MAX_NUM_BYTES) {
         u[0] = EOL;
-        return -ERRM75;
+        return -ERRM92;
     }
     while (d > 0) {
         u[++ulen] = 0;
         d--;
     }
-/* normalize */
+    /* normalize */
     if ((d = NUMBASE / (v[1] + 1)) > 1) {
         i = ulen;
         carry = 0;
@@ -721,36 +717,35 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         }
         v[0] = carry;
     }
-/* initialize */
+    /* initialize */
     j = 0;
     m = ulen - vlen + 1;
     if (m <= dpu)
         m = dpu + 1;
-    for (i = 0; i <= m; q[i++] = ZERO) ;
+    for (i = 0; i <= m; q[i++] = ZERO) continue;
     if (typ == OPMOD) {
         m = dpu - vlen;
     }
     v1 = v[1];
 
     while (j < m) {
-        if (u[j] != point) {            /* calculate guess */
-        if ((k = u[j] * NUMBASE + (u[j + 1] == point ? u[j + 2] : u[j + 1]))
-            == 0) {
+        if (u[j] != point) {                    /* calculate guess */
+            if ((k = (u[j] * NUMBASE + ((u[j + 1] == point) ? u[j + 2] : u[j + 1]))) == 0) {
                 j++;
                 continue;
             }
-            k1 = (u[j + 1] == point || u[j + 2] == point ? u[j + 3] : u[j + 2]);
-            guess = (u[j] == v1 ? (NUMBASE - 1) : k / v1);
-            if (v[2] * guess > (k - guess * v1) * NUMBASE + k1) {
+            k1 = (((u[j + 1] == point) || (u[j + 2] == point)) ? u[j + 3] : u[j + 2]);
+            guess = ((u[j] == v1) ? (NUMBASE - 1) : (k / v1));
+            if ((v[2] * guess) > ((k - (guess * v1)) * NUMBASE + k1)) {
                 guess--;
-                if (v[2] * guess > (k - guess * v1) * NUMBASE + k1)
+                if ((v[2] * guess) > ((k - guess * v1) * NUMBASE + k1))
                     guess--;
             }
-/* multiply and subtract */
+	    /* multiply and subtract */
             i = vlen;
             carry = 0;
             k = j + i;
-            if (j < dpu && k >= dpu)
+            if ((j < dpu) && (k >= dpu))
                 k++;
             while (k >= 0) {
                 if (u[k] == point)
@@ -769,13 +764,13 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
                 }
                 k--;
             }
-/* test remainder / add back */
+	    /* test remainder / add back */
             if (carry) {
                 guess--;
                 i = vlen;
                 carry = 0;
                 k = j + i;
-                if (j < dpu && k >= dpu)
+                if ((j < dpu) && (k >= dpu))
                     k++;
                 while (k >= 0) {
                     if (u[k] == point)
@@ -798,7 +793,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             q[j++] = POINT;
         }
     }
-/* unnormalize */
+    /* unnormalize */
     if (typ != OPMOD) {
         i = 0;
         while (i <= m) {
@@ -810,7 +805,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         k1 = dpv;
         while (k-- > 0) {
             while (k1 <= 0) {
-                for (i = (++m); i > 0; i--)
+                for (i = ++m; i > 0; i--)
                     u[i] = u[i - 1];
                 k1++;
                 u[0] = ZERO;
@@ -820,7 +815,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             dpv = k1;
         }
         u[m] = EOL;
-/* rounding */
+	/* rounding */
 
         if (typ != OPDIV)
             u[dpv + 1] = EOL;
@@ -840,7 +835,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
                 } while (carry);
             }
         }
-    } else {                            /* return the remainder */
+    } else {                                    /* return the remainder */
         carry = 0;
         if (d > 1) {
             for (i = 0; i <= ulen; i++) {
@@ -871,9 +866,9 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             u[i] = POINT;
         }
     }
-/* remove trailing zeroes */
+    /* remove trailing zeroes */
     i = 0;
-    k = (-1);
+    k = -1;
     while (u[i] != EOL) {
         if (u[i] == POINT)
             k = i;
@@ -881,13 +876,13 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     }
     i--;
     if (k >= 0) {
-        while (u[i] == ZERO && i > k)
+        while ((u[i] == ZERO) && (i > k))
             u[i--] = EOL;
     }
-/* remove trailing point */
+    /* remove trailing point */
     if (u[i] == POINT)
         u[i] = EOL;
-/* remove leading zeroes */
+    /* remove leading zeroes */
     while (u[0] == ZERO) {
         i = 0;
         while ((u[i] = u[i + 1]) != EOL)
@@ -900,51 +895,52 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     }
     if ((mi || plus) && (u[0] != ZERO)) {
         if (mi != plus) {
-            i = strlen (u) + 1;
+            i = (int) strlen(u) + 1;
             do {
                 u[i] = u[i - 1];
                 i--;
             } while (i > 0);
             u[0] = MINUS;
         }
-        if (plus)
-        { s = runtime_add (u, vv);
-	  if (s < 0) return s;
+        if (plus) {
+            s = runtime_add(u, vv);
+	    if (s < 0) return s;
 	}
     }
-    strcpy (uu, u);
-    return strlen(uu);
-}                                       /* end runtime_div() */
+    strcpy(uu, u);
+    return (short) strlen(uu);
+}                                               /* end runtime_div() */
 
-short runtime_power (char *a, char *b)    /* raise a to the b-th power */
-{   short s;
-    char    c[MAX_NUM_BYTES + 2];
-    char    d[4*(MAX_NUM_BYTES + 1)];
-
-/* is a memory leak resulting in wrong results   */
-/* with fractional powers, e.g. 2**(3/7)         */
-/* even a value of 513 is too small              */
-    char    e[MAX_NUM_BYTES + 2];
+short runtime_power(char *a, char *b)           /* raise a to the b-th power */
+{
+    short    s;
+    char     c[MAX_NUM_BYTES + 2];
+    char     d[(MAX_NUM_BYTES + 1) * 4];
+    /* is a memory leak resulting in wrong results ? */
+    /* with fractional powers, e.g. 2**(3/7) ? */
+    /* even a value of 513 is too small ? */
+    /* DLW - test this soon, as we have more than 513 now */
+    char     e[MAX_NUM_BYTES + 2];
     register long i;
     register long j;
 
-/* if zero or one there's not much to do */
+    /* if zero or one there's not much to do */
     if (a[1] == EOL) {
 	if (a[0] == ZERO) {
-	    if (b[1] == EOL && b[0] == ZERO)
+	    if ((b[1] == EOL) && (b[0] == ZERO))
 		return -ERRM9;
 	    return 1;
-	}				/* undef */
+	}				        /* undef */
 	if (a[0] == ONE)
 	    return 1;
     }
     if (b[0] == MINUS) {
-	s = runtime_power (a, &b[1]);
+	s = runtime_power(a, &b[1]);
 	if (s < 0) return s;
-	strcpy (c, a);
+	strcpy(c, a);
 	a[0] = ONE;
 	a[1] = EOL;
-	s = runtime_div (a, c, OPDIV);
+	s = runtime_div(a, c, OPDIV);
 	return s;
     }
     if (b[1] == EOL) {
@@ -953,44 +949,44 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 	    a[0] = ONE;
 	    a[1] = EOL;
 	case ONE:
-	    return strlen(a);
+	    return (short) strlen(a);
 	case TWO:
-	    strcpy (c, a);
-	    return runtime_mul (a, c);
+	    strcpy(c, a);
+	    return runtime_mul(a, c);
 	}
     }
-/* look for decimal point */
+    /* look for decimal point */
     e[0] = EOL;
     i = 0;
     while (b[i] != EOL) {
 	if (b[i] == POINT) {
 	    if (a[0] == MINUS) {
 		return -ERRM9;
-	    }				/* undefined case */
-	    if (b[i + 1] == FIVE && b[i + 2] == EOL) {	/* half-integer: extra solution */
+	    }				        /* undefined case */
+	    if ((b[i + 1] == FIVE) && (b[i + 2] == EOL)) { /* half-integer: extra solution */
 		if (i) {
-		    strcpy (c, b);
-		    s = runtime_add (b, c);
+		    strcpy(c, b);
+		    s = runtime_add(b, c);
 		    if (s < 0) return s;
-		    s = runtime_power (a, b);
+		    s = runtime_power(a, b);
 		    if (s < 0) return s;
 		}
-		s = g_sqrt (a);
+		s = (short) g_sqrt(a);
 		return s;
 	    }
-	    strcpy (e, &b[i]);
+	    strcpy(e, &b[i]);
 	    b[i] = EOL;
 	    break;
 	}
 	i++;
     }
-    strcpy (d, a);
-    i = atoi (b);
+    strcpy(d, a);
+    i = atoi(b);
     if (i == INT_MAX) return -ERRM92;
 
-/* do it with a small number of multiplications                       */
-/* the number of multiplications is not optimum, but reasonably small */
-/* see donald e. knuth "The Art of Computer Programming" Vol.II p.441 */
+    /* do it with a small number of multiplications */
+    /* the number of multiplications is not optimum, but reasonably small */
+    /* see Donald E. Knuth "The Art of Computer Programming" Vol.II p.441 */
     if (i == 0) {
 	a[0] = ONE;
 	a[1] = EOL;
@@ -1006,43 +1002,42 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 	    j = j / 2;
 	j = j / 2;
 	while (j) {
-	    strcpy (c, a);
-	    s = runtime_mul (a, c);
+	    strcpy(c, a);
+	    s = runtime_mul(a, c);
 	    if (s < 0) return s;
 	    if (i & j) {
-		strcpy (c, d);
-		s = runtime_mul (a, c);
+		strcpy(c, d);
+		s = runtime_mul(a, c);
 		if (s < 0) return s;
 	    }
 	    j = j / 2;
 	}
 	if (e[0] == EOL)
-	    return strlen(a);
+	    return (short) strlen(a);
     }
-/* non integer exponent */
-/* state of computation at this point: */
-/* d == saved value of a */
-/* a == d^^int(b); *//* e == frac(b); */
+    /* non integer exponent */
+    /* state of computation at this point: */
+    /* d == saved value of a */
+    /* a == d^^int(b); */
+    /* e == frac(b); */
     {
-	char    Z[MAX_NUM_BYTES + 2];
+	char Z[MAX_NUM_BYTES + 2];
 
-/* is fraction the inverse of an integer? */
+	/* is fraction the inverse of an integer? */
 	Z[0] = ONE;
 	Z[1] = EOL;
-	strcpy (c, e);
-	s = runtime_div (Z, c, OPDIV);
+	strcpy(c, e);
+	s = runtime_div(Z, c, OPDIV);
 	if (s < 0) return s;
 	i = 0;
-	for (;;)
-	{
+	for (;;) {
 	    if ((j = Z[i++]) == EOL) {
-		j = atoi (Z);
+		j = atoi(Z);
 		if (j == INT_MAX) return -ERRM92;
 		break;
 	    }
-	    if (j != POINT)
-		continue;
-	    j = atoi (Z);
+	    if (j != POINT) continue;
+	    j = atoi(Z);
 	    if (j == INT_MAX) return -ERRM92;
 	    if (Z[i] == NINE)
 		j++;
@@ -1050,76 +1045,74 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 	}
 	Z[0] = ONE;
 	Z[1] = EOL;
-	s = itocstring((u_char *) c, j);
+	s = (short) itocstring((u_char *) c, j);
 	if (s < 0) return s;
-	s = runtime_div (Z, c, OPDIV);
-/* if integer */
+	s = runtime_div(Z, c, OPDIV);
+	/* if integer */
 
-	if (strcmp (Z, e) == 0) {
-	    strcpy (Z, d);
-	    s = root (Z, j);
+	if (strcmp(Z, e) == 0) {
+	    strcpy(Z, d);
+	    s = (short) root(Z, j);
 	    if (s < 0) {
-		s = runtime_mul (a, Z);
+		s = runtime_mul(a, Z);
 		return s;
-	    }				/* on error try other method */
+	    }				        /* on error try other method */
 	}
 	Z[0] = ONE;
 	Z[1] = EOL;
 	partab.jobtab->precision += 2;
-	for (;;)
-	{
-	    c[0] = TWO;
+	for (;;) {
+            c[0] = TWO;
 	    c[1] = EOL;
-	    s = runtime_mul (e, c);
+	    s = runtime_mul(e, c);
 	    if (s < 0) return s;
-	    s = g_sqrt (d);
+	    s = (short) g_sqrt(d);
 	    if (s < 0) return s;
 	    if (e[0] == ONE) {
 		e[0] = ZERO;
-//		numlit (e);		// not required !!
-		strcpy (c, d);
-		s = runtime_mul (Z, c);
+		//numlit(e);		        // not required !!
+		strcpy(c, d);
+		s = runtime_mul(Z, c);
 		if (s < 0) return s;
-		roundit (Z, partab.jobtab->precision);
+		roundit(Z, partab.jobtab->precision);
 	    }
-	    if (e[0] == ZERO)
-		break;
+	    //if (e[0] == ZERO) break;          // DLW - commenting out improves accuracy of fractional numbers - look at soon
 	    i = 0;
-	    j = (d[0] == ONE ? ZERO : NINE);
+	    j = ((d[0] == ONE) ? ZERO : NINE);
 	    for (;;) {
 		++i;
-		if (d[i] != j && d[i] != '.')
+		if ((d[i] != j) && (d[i] != POINT))
 		    break;
 	    }
-	    if (d[i] == EOL || (i > partab.jobtab->precision))
+	    if ((d[i] == EOL) || (i > partab.jobtab->precision))
 		break;
 	}
 	partab.jobtab->precision -= 2;
-	s = runtime_mul (a, Z);
+	s = runtime_mul(a, Z);
 	if (s < 0) return s;
-	roundit (a, partab.jobtab->precision + 1);
+	roundit(a, partab.jobtab->precision + 1);
     }
     return strlen(a);
-}                                       /* end power() */
+}                                               /* end power() */
 
-short runtime_comp (char *s, char *t)   /* s and t are strings representing */
-                                        /* M numbers. comp returns t>s  */
-{   int s1;
+short runtime_comp(char *s, char *t)            /* s and t are strings representing M numbers. comp returns t>s  */
+{
+    int s1;
     int t1;
     s1 = s[0];
     t1 = t[0];
 
     if (s1 != t1) {
-        if (s1 == '-')
-            return TRUE;                /* s<0<t */
-        if (t1 == '-')
-            return FALSE;               /* t<0<s */
-        if (s1 == POINT && t1 == '0')
-            return FALSE;               /* s>0; t==0 */
-        if (t1 == POINT && s1 == '0')
-            return TRUE;                /* t>0; s==0 */
+        if (s1 == MINUS)
+            return TRUE;                        /* s<0<t */
+        if (t1 == MINUS)
+            return FALSE;                       /* t<0<s */
+        if ((s1 == POINT) && (t1 == ZERO))
+            return FALSE;                       /* s>0; t==0 */
+        if ((t1 == POINT) && (s1 == ZERO))
+            return TRUE;                        /* t>0; s==0 */
     }
-    if (t1 == '-') {
+    if (t1 == MINUS) {
         char   *a;
 
         a = &t[1];
@@ -1128,7 +1121,7 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
     }
     s1 = 0;
     while (s[s1] > POINT)
-        s1++;                           /* Note: EOL<'.' */
+        s1++;                                   /* Note: EOL<'.' */
     t1 = 0;
     while (t[t1] > POINT)
         t1++;
@@ -1145,13 +1138,12 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
     if (*t > *s)
         return TRUE;
     return FALSE;
-
-}                                       /* end of runtime_comp() */
+}                                               /* end of runtime_comp() */
 
 /******************************************************************************/
-
-short g_sqrt (char *a)			/* square root */
-{   int i, ch;
+int g_sqrt(char *a)			        /* square root */
+{
+    int i, ch;
     short s;
     if (a[0] == ZERO)
 	return 1;
@@ -1159,13 +1151,13 @@ short g_sqrt (char *a)			/* square root */
 	return -ERRM9;
     }
     {
-	char    tmp1[MAX_NUM_BYTES +2 ],
-	        tmp2[MAX_NUM_BYTES +2 ],
-	        XX[MAX_NUM_BYTES +2 ],
-	        XXX[MAX_NUM_BYTES +2 ];
+	char tmp1[MAX_NUM_BYTES + 2],
+	     tmp2[MAX_NUM_BYTES + 2],
+	     XX[MAX_NUM_BYTES + 2],
+	     XXX[MAX_NUM_BYTES + 2];
 
-	strcpy (XX, a);
-/* look for good initial value */
+	strcpy(XX, a);
+	/* look for good initial value */
 	if (a[0] > ONE || (a[0] == ONE && a[1] != POINT)) {
 	    i = 0;
 	    while ((ch = a[i++]) != EOL) {
@@ -1178,29 +1170,30 @@ short g_sqrt (char *a)			/* square root */
 	    a[0] = ONE;
 	    a[1] = EOL;
 	}
-/* "Newton's" algorithm with quadratic convergence */
+	/* "Newton's" algorithm with quadratic convergence */
 	partab.jobtab->precision++;
 	do {
-	    strcpy (XXX, a);
-	    strcpy (tmp1, XX);
-	    strcpy (tmp2, a);
-	    s = runtime_div (tmp1, tmp2, OPDIV);
+	    strcpy(XXX, a);
+	    strcpy(tmp1, XX);
+	    strcpy(tmp2, a);
+	    s = runtime_div(tmp1, tmp2, OPDIV);
 	    if (s < 0) return s;
-	    s = runtime_add (a, tmp1);
+	    s = runtime_add(a, tmp1);
 	    if (s < 0) return s;
 	    tmp2[0] = TWO;
 	    tmp2[1] = EOL;
-	    s = runtime_div (a, tmp2, '/');
+	    s = runtime_div(a, tmp2, OPDIV);
 	    if (s < 0) return s;
-	} while (runtime_comp (a, XXX));
+	} while (runtime_comp(a, XXX));
 	partab.jobtab->precision--;
-	return strlen(a);
+	return (int) strlen(a);
     }
-}					/* end g_sqrt() */
-/******************************************************************************/
+}					        /* end g_sqrt() */
 
-short root (char *a, int n)		/* n.th root */
-{   int i, ch;
+/******************************************************************************/
+int root(char *a, int n)		        /* n.th root */
+{
+    int   i, ch;
     short s;
 
     if (a[0] == ZERO)
@@ -1209,17 +1202,17 @@ short root (char *a, int n)		/* n.th root */
 	return -ERRM9;
     }
     {
-	char    tmp1[MAX_NUM_BYTES +2],
-	        tmp2[MAX_NUM_BYTES +2],
-	        XX[MAX_NUM_BYTES +2],
-	        XXX[MAX_NUM_BYTES +2];
-	short   again;
+	char  tmp1[MAX_NUM_BYTES + 2],
+	      tmp2[MAX_NUM_BYTES + 2],
+	      XX[MAX_NUM_BYTES + 2],
+	      XXX[MAX_NUM_BYTES + 2];
+	short again;
 
-	strcpy (XX, a);
-/* look for good initial value */
-	if (a[0] > ONE || (a[0] == ONE && a[1] != POINT)) {
+	strcpy(XX, a);
+	/* look for good initial value */
+	if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
 	    i = 0;
-	    while ((ch = a[i++]) != EOL && ch != POINT) ;
+	    while (((ch = a[i++]) != EOL) && (ch != POINT)) continue;
 	    if ((i = (i + n - 2) / n) > 0) {
 		a[0] = THREE;
 		a[i] = EOL;
@@ -1228,39 +1221,40 @@ short root (char *a, int n)		/* n.th root */
 	    a[0] = ONE;
 	    a[1] = EOL;
 	}
-/* "Newton's" algorithm with quadratic convergence */
+	/* "Newton's" algorithm with quadratic convergence */
 
 	if (partab.jobtab->precision <= 3)
-	    again = 0;			/* speedup div with small zprec. */
+	    again = 0;			        /* speedup div with small zprec. */
 	else {
 	    again = partab.jobtab->precision;
 	    partab.jobtab->precision = 2;
 	}
-      second:;
+
+second:
 	partab.jobtab->precision++;
 	for (;;) {
-	    strcpy (XXX, a);
+	    strcpy(XXX, a);
 	    s = itocstring((u_char *) tmp1, n - 1);
 	    if (s < 0) return s;
-	    strcpy (tmp2, a);
-	    s = runtime_power (tmp2, tmp1);
+	    strcpy(tmp2, a);
+	    s = runtime_power(tmp2, tmp1);
 	    if (s < 0) return s;
-	    strcpy (tmp1, XX);
-	    s = runtime_div (tmp1, tmp2, OPDIV);
+	    strcpy(tmp1, XX);
+	    s = runtime_div(tmp1, tmp2, OPDIV);
 	    if (s < 0)
 		break;
 	    s = itocstring((u_char *) tmp2, n - 1);
 	    if (s < 0) return s;
-	    s = runtime_mul (a, tmp2);
+	    s = runtime_mul(a, tmp2);
 	    if (s < 0) return s;
-	    s = runtime_add (a, tmp1);
+	    s = runtime_add(a, tmp1);
 	    if (s < 0) return s;
 	    s = itocstring((u_char *) tmp2, n);
 	    if (s < 0) return s;
-	    s = runtime_div (a, tmp2, OPDIV);
+	    s = runtime_div(a, tmp2, OPDIV);
 	    if (s < 0) return s;
-	    strcpy (tmp2, a);
-	    s = runtime_div (XXX, tmp2, OPDIV);
+	    strcpy(tmp2, a);
+	    s = runtime_div(XXX, tmp2, OPDIV);
 	    if (s < 0) return s;
 	    tmp2[0] = ONE;
 	    if (partab.jobtab->precision <= 0)
@@ -1272,16 +1266,14 @@ short root (char *a, int n)		/* n.th root */
 		tmp2[i++] = FIVE;
 		tmp2[i] = EOL;
 	    }
-	    if (!runtime_comp (XXX, tmp2))
-		continue;
-	    if (partab.jobtab->precision <= 0)
-		break;
+	    if (!runtime_comp(XXX, tmp2)) continue;
+	    if (partab.jobtab->precision <= 0) break;
 	    tmp2[0] = POINT;
 	    for (i = 1; i < partab.jobtab->precision; i++)
 		tmp2[i] = NINE;
 	    tmp2[i - 1] = FIVE;
 	    tmp2[i] = EOL;
-	    if (runtime_comp (tmp2, XXX))
+	    if (runtime_comp(tmp2, XXX))
 		break;
 	}
 	partab.jobtab->precision--;
@@ -1290,20 +1282,20 @@ short root (char *a, int n)		/* n.th root */
 	    again = 0;
 	    goto second;
 	}
-	return strlen(a);
+	return (int) strlen(a);
     }
-}					/* end root() */
+}					        /* end root() */
 
 /******************************************************************************/
-        /* rounding */
-        /* 'a' is assumed to be a 'canonic' numeric string  */
-        /* it is rounded to 'digits' fractional digits      */
-void roundit (char *a, int digits)
+/* rounding
+*  'a' is assumed to be a 'canonic' numeric string
+*  it is rounded to 'digits' fractional digits */
+void roundit(char *a, int digits)
 {
-    int     ch,
-            i,
-            pointpos,
-            lena;
+    int ch,
+        i,
+        pointpos,
+        lena;
 
     pointpos = -1;
     i = 0;
@@ -1317,7 +1309,7 @@ void roundit (char *a, int digits)
     if (pointpos < 0)
         pointpos = i;
     if ((pointpos + digits + 1) >= i)
-        return;                         /* nothing to round */
+        return;                                 /* nothing to round */
     i = pointpos + digits + 1;
     if (a[i] < FIVE) {
         a[i] = EOL;
@@ -1330,8 +1322,7 @@ void roundit (char *a, int digits)
         }
         return;
     }
-    for (;;)
-    {
+    for (;;) {
         if (i >= pointpos)
             a[i] = EOL;
         else
@@ -1339,15 +1330,14 @@ void roundit (char *a, int digits)
         if (--i < (a[0] == MINUS)) {
             for (i = lena; i >= 0; i--)
                 a[i + 1] = a[i];
-            a[a[0] == '-'] = ONE;
+            a[a[0] == MINUS] = ONE;
             break;
         }
-        if ((ch = a[i]) == POINT)
-            continue;
+        if ((ch = a[i]) == POINT) continue;
         if (a[i] < NINE && ch >= ZERO) {
             a[i] = ++ch;
             break;
         }
     }
     return;
-}                                       /* end roundit */
+}                                               /* end roundit */

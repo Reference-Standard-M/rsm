@@ -4,7 +4,7 @@
  * Summary:  module runtime - build an mvar
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -38,41 +38,40 @@
 #include "opcodes.h"				// the op codes
 #include "compile.h"				// rbd structure
 
-// This module is the runtime code to build an mvar.
-// It is passed the addres of the mvar and reads from *rsmpc++.
-// see comments in rsm/compile/localvar.c for more info.
-// If nul_ok is true, a null subscript as the last is OK.
-// Returns new asp or -err
-//
-
-short getvol(cstring *vol)			// get vol number for vol
+short getvol(cstring *vol)			// get vol number for volume name
 { int i;					// a handy int
-  short s;					// for cstring length
+  u_short s;					// for cstring length
   s = vol->len;					// get len
-  if (s < VAR_LEN) s++;				// include term null if poss
+  if (s < VAR_LEN) s++;				// include term null if possible
   for (i = 0; i < MAX_VOL; i++)			// scan the volumes
   { if (systab->vol[i]->vollab == NULL) continue; // continue if none in slot
     if (bcmp(&systab->vol[i]->vollab->volnam.var_cu[0], vol->buf, s) != 0)
       continue;					// if not the same continue
-    return (short) i + 1;			// return vol number
+    return (short) (i + 1);			// return vol number
   }
-  return (-ERRM26);				// complain - no such
+  return -ERRM26;				// complain - no such
 }
 
-short getuci(cstring *uci, int vol)		// get uci number
+short getuci(cstring *uci, int vol)		// get UCI number
 { int i;					// for loops
-  short s;					// for cstring length
+  u_short s;					// for cstring length
   s = uci->len;					// get len
-  if (s < VAR_LEN) s++;				// include term null if poss
+  if (s < VAR_LEN) s++;				// include term null if possible
   if (vol == 0) vol = partab.jobtab->vol;	// get current vol
   vol--;					// make internal reference
-  for (i = 0; i < UCIS; i++)			// scan the ucis
+  for (i = 0; i < UCIS; i++)			// scan the UCIs
   { if (bcmp(&systab->vol[vol]->vollab->uci[i].name.var_cu[0], uci->buf, s) == 0)
-      return (short) i + 1;
+      return (short) (i + 1);
   }
-  return (-ERRM26);				// complain - no such
+  return -ERRM26;				// complain - no such
 }
 
+// This module is the runtime code to build an mvar.
+// It is passed the address of the mvar and reads from *rsmpc++.
+// see comments in rsm/compile/localvar.c for more info.
+// If nul_ok is true, a null subscript as the last is OK.
+// Returns new asp or -err
+//
 short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
 { u_char type;					// variable type
   int subs;					// subscript count
@@ -85,24 +84,23 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
 
   type = *rsmpc++;				// get the type
   if (type < TYPVARNAKED)			// subs in type
-  { subs = (type & TYPMAXSUB);			// the low bits
-    type = (type & ~TYPMAXSUB);			// and the type
+  { subs = type & TYPMAXSUB;			// the low bits
+    type = type & ~TYPMAXSUB;			// and the type
   }
-  else
-    subs = *rsmpc++;				// get in line
+  else subs = *rsmpc++;				// get in line
   var->volset = 0;				// default vol set
-  var->uci = (type < TYPVARGBL) ?  UCI_IS_LOCALVAR : 0;	// assume local var or uci 0
+  var->uci = ((type < TYPVARGBL) ?  UCI_IS_LOCALVAR : 0); // assume local var or UCI 0
   var->slen = 0;				// and no subscripts
   if (type == TYPVARNAKED)			// if it's a naked
   { if (var_empty(partab.jobtab->last_ref.name))
-      return (-ERRM1); 				// say "Naked indicator undef"
+      return -ERRM1; 				// say "Naked indicator undef"
     i = UTIL_Key_Last(&partab.jobtab->last_ref); // start of last key
-    if (i < 0) return (-ERRM1); 		// say "Naked indicator undef"
+    if (i < 0) return -ERRM1; 			// say "Naked indicator undef"
     bcopy(&(partab.jobtab->last_ref), var, sizeof(var_u) + 5 + i); // copy naked naked
     var->slen = (u_char) i;			// stuff in the count
   }
   else if (type == TYPVARIND)			// it's an indirect
-  { ind = (mvar *) addstk[asp-subs-1];		// point at mvar so far
+  { ind = (mvar *) addstk[asp - subs - 1];	// point at mvar so far
     bcopy(ind, var, ind->slen + sizeof(var_u) + 5); // copy it in
   }
   else if ((type & TYPVARIDX) &&		// if it's the index type
@@ -121,23 +119,22 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   else
   { bcopy(rsmpc, &var->name, VAR_LEN);
     rsmpc += VAR_LEN;
-    //var->name = *((var_u *)rsmpc)++;		// get the variable name
+    //var->name = *((var_u *) rsmpc)++;		// get the variable name
   }
 
   for (i = 0; i < subs; i++)			// for each subscript
-  { ptr = (cstring *) addstk[asp-subs+i];	// point at the string
-    if ((ptr->len == 0)	&&			// if it's a null
-        ((!nul_ok) || (i != (subs-1))))		// not ok or not last subs
-      return (-(ERRZ16+ERRMLAST));		// complain
+  { ptr = (cstring *) addstk[asp - subs + i];	// point at the string
+    if ((ptr->len == 0) && (!nul_ok || (i != (subs - 1)))) // if it's a null, not ok or not last subs
+      return -(ERRZ16 + ERRMLAST);		// complain
     s = UTIL_Key_Build(ptr, &var->key[var->slen]); // get one subscript
     if (s < 0) return s;			// die on error
     if ((s + var->slen) > 255)			// check how big
-      return (-(ERRZ2+ERRMLAST));		// complain on error
+      return -(ERRZ2 + ERRMLAST);		// complain on error
     var->slen = s + var->slen; 			// add it in
   }
 
   if (type == TYPVARGBLUCIENV)			// need vol?
-  { ptr = (cstring *) addstk[asp-subs-1];	// point at the string
+  { ptr = (cstring *) addstk[asp - subs - 1];	// point at the string
     s = getvol(ptr);				// get volume
     if (s < 0) return s;			// die on error
     var->volset = (u_char) s;			// save the value
@@ -149,5 +146,5 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
     var->uci = (u_char) s;			// save the value
   }
   if (type == TYPVARIND) asp--;			// fixup asp for return
-  return asp - subs - (type == TYPVARGBLUCI) - ((type == TYPVARGBLUCIENV) * 2);	// all done
+  return (asp - subs - (type == TYPVARGBLUCI) - ((type == TYPVARGBLUCIENV) * 2));	// all done
 }

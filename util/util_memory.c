@@ -4,7 +4,7 @@
  * Summary:  module util - memory subroutines
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -39,11 +39,11 @@
 
 // ** This function is used in place of bcopy() to trap strstk overflows
 //
-short mcopy(u_char *src, u_char *dst, int bytes) // copy bytes
+int mcopy(u_char *src, u_char *dst, int bytes)  // copy bytes
 { if ((dst >= partab.strstk_start) &&		// if dst is at or after strstk
-       (dst < partab.strstk_last)   &&		// and before the end of strstk
-       (&dst[bytes] > partab.strstk_last))	// and this will overflow strstk
-       	 return -(ERRMLAST+ERRZ8);		// complain
+      (dst < partab.strstk_last)   &&		// and before the end of strstk
+      (&dst[bytes] > partab.strstk_last))	// and this will overflow strstk
+    return -(ERRZ8 + ERRMLAST);			// complain
   if (bytes > MAX_STR_LEN)
   { return -ERRM75;
   }
@@ -55,11 +55,10 @@ short mcopy(u_char *src, u_char *dst, int bytes) // copy bytes
 // Convert string (**src) to canonic number at (*dst) returning length
 // The source pointer is left pointing at the terminating character.
 //
-
 short ncopy(u_char **src, u_char *dst)          // copy as number
 { u_char c;                                     // the character
   u_char *p;					// a pointer
-  int i = 0;                                    // a usefull int
+  int i = 0;                                    // a useful int
   int k = 0;                                    // and another
   int dp = 0;                                   // decimal place flag
   int minus = 0;                                // minus flag
@@ -69,11 +68,14 @@ short ncopy(u_char **src, u_char *dst)          // copy as number
   if ((dst >= partab.strstk_start) &&           // if dst is at or after strstk
       (dst < partab.strstk_last)   &&           // and before the end of strstk
       (&dst[MAX_NUM_BYTES] > partab.strstk_last)) // and this will overflow strstk
-  { return -(ERRMLAST+ERRZ8);			// complain
+  { return -(ERRZ8 + ERRMLAST);			// complain
   }
   p = *src;					// get pointer
   while (TRUE)                                  // scan the string
-  { c = *p++;					// get the character
+  { if (i > MAX_NUM_BYTES)			// if too big
+    { return -ERRM92;				// error
+    }
+    c = *p++;					// get the character
     if ((i == 0) && (k == 0))			// still on first char (no '0')
     { if (c == '+')				// check for a plus
         continue;                               // go for more
@@ -119,8 +121,7 @@ short ncopy(u_char **src, u_char *dst)          // copy as number
     dst[i++] = c;                               // copy the character
   }                                             // string now copied
   if (dp)                                       // if there was a dot
-  { for (k = 0; dst[i-k-1] == '0'; k++)
-      ;                                         // check for trailing zeroes
+  { for (k = 0; dst[i - k - 1] == '0'; k++) continue; // check for trailing zeroes
     i -= k;					// remove them (if any)
     if (dst[i - 1] == '.') i--;			// ensure last is not dot
   }
@@ -180,7 +181,7 @@ short ncopy(u_char **src, u_char *dst)          // copy as number
   }
   bcopy(&dst[minus + 1], &dst[minus + exp + 1], i); // move right exp places
   for (k = minus + 1; k <= (minus + exp); dst[k++] = '0'); // zero fill
-  i +=exp;					// add to the length
+  i += exp;					// add to the length
 
 exit:
   dp = 0;					// assume no dp
@@ -205,8 +206,7 @@ exit:
 
   dp = (dst[0] == '-');				// start point
   if (dst[dp] == '0')				// if leading zeroes
-  { for (k = dp; (k < i) && (dst[k] == '0'); k++)
-      ; 					// find first non-zero
+  { for (k = dp; (k < i) && (dst[k] == '0'); k++) continue; // find first non-zero
     bcopy(&dst[k], &dst[dp], i - k);		// copy down
     i -= (k - dp);				// adjust size
     if (i == dp)				// if nothing
@@ -225,7 +225,6 @@ exit:
 // It is called with zero (current job) or the job# (ie. internal job+1)
 // If not the current job, also free jobtab entry.
 //
-
 void CleanJob(int job)				// tidy up a job
 { int j;					// the job number
   int i;					// a handy int
@@ -239,10 +238,8 @@ void CleanJob(int job)				// tidy up a job
   { if (!job)					// called by ourselves ?
     { if (systab->jobtab[j].dostk[i].newtab != NULL)
 	ST_Restore((ST_newtab *) systab->jobtab[j].dostk[i].newtab);
-      if ((systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) &&
-	  (systab->jobtab[j].dostk[i].symbol != NULL))
-	ST_SymDet(((rbd *) systab->jobtab[j].dostk[i].routine)->num_vars,
-	            systab->jobtab[j].dostk[i].symbol);	// detach symbols
+      if ((systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) && (systab->jobtab[j].dostk[i].symbol != NULL))
+	ST_SymDet(((rbd *) systab->jobtab[j].dostk[i].routine)->num_vars, systab->jobtab[j].dostk[i].symbol); // detach symbols
     }
     if (systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) // if we attached
       Routine_Detach((rbd *) systab->jobtab[j].dostk[i].routine); // detach rou
@@ -250,16 +247,16 @@ void CleanJob(int job)				// tidy up a job
     i--;					// decrement do ptr
   }						// end routine detach while
   if (!job)					// called by ourselves ?
-  { i = ST_KillAll(0, NULL);			// kill all vars
+  { (void) ST_KillAll(0, NULL);			// kill all vars
     partab.src_var.volset = 0;			// clear vol
     partab.src_var.slen = 0;			// and slen
     partab.src_var.uci = UCI_IS_LOCALVAR;	// say - local variable
     VAR_CLEAR(partab.src_var.name);
     bcopy("$ETRAP", partab.src_var.name.var_cu, 6);
-    i = ST_Kill(&partab.src_var);		// Kill $ETRAP
+    (void) ST_Kill(&partab.src_var);		// Kill $ETRAP
     VAR_CLEAR(partab.src_var.name);
     bcopy("$ECODE", partab.src_var.name.var_cu, 6);
-    i = ST_Kill(&partab.src_var);		// Kill $ECODE
+    (void) ST_Kill(&partab.src_var);		// Kill $ECODE
   }
   for (i = 0; i < MAX_VOL; i++)			// scan view table
     if (systab->jobtab[j].view[i] != NULL)	// if buffer locked
@@ -270,7 +267,7 @@ void CleanJob(int job)				// tidy up a job
   systab->jobtab[j].cur_do = 0;			// in case we get back here
   if (!job)					// if current job
   { for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++))
-      ;						// close all io
+      continue;					// close all io
     partab.jobtab = NULL;			// clear jobtab
   }
   bzero(&systab->jobtab[j], sizeof(jobtab));	// zot all

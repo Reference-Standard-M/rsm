@@ -4,7 +4,7 @@
  * Summary:  module runtime - RunTime Variables
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -39,9 +39,11 @@
 // All variables use the following structure
 //
 // short Vname(u_char *ret_buffer)
+//   or
+// int Vname(u_char *ret_buffer)
 //
 // The argument is of type *u_char and is the destination
-// for the value returned by the function (max size is 32767).
+// for the value returned by the function (max size is MAX_STR_LEN).
 // The function returns a count of characters in the return string
 // or a negative error number (to be defined).
 // The function name is Vvarname where the variable call is $varname.
@@ -50,9 +52,9 @@
 //***********************************************************************
 // $ECODE
 //
-short Vecode(u_char *ret_buffer)                // $ECODE
+int Vecode(u_char *ret_buffer)                  // $ECODE
 { mvar *var;					// for ST_Get
-  short s;
+  int s;
   var = (mvar *) ret_buffer;			// use here for the mvar
   VAR_CLEAR(var->name);
   bcopy("$ECODE", &var->name.var_cu[0], 6);	// get the name
@@ -70,9 +72,9 @@ short Vecode(u_char *ret_buffer)                // $ECODE
 //***********************************************************************
 // $ETRAP
 //
-short Vetrap(u_char *ret_buffer)                // $ETRAP
+int Vetrap(u_char *ret_buffer)                // $ETRAP
 { mvar *var;					// for ST_Get
-  short s;
+  int s;
   var = (mvar *) ret_buffer;			// use here for the mvar
   VAR_CLEAR(var->name);
   bcopy("$ETRAP", &var->name.var_cu[0], 6);	// get the name
@@ -91,7 +93,7 @@ short Vhorolog(u_char *ret_buffer)              // $HOROLOG
 { time_t sec = current_time(TRUE);              // get secs from 1 Jan 1970 with local offset
   int day = sec / SECDAY + YRADJ;               // get number of days
   sec = sec % SECDAY;                           // and number of seconds
-  return sprintf((char *) ret_buffer, "%d,%d", day, (int) sec); // return count and $H
+  return (short) sprintf((char *) ret_buffer, "%d,%d", day, (int) sec); // return count and $H
 }
 
 //***********************************************************************
@@ -100,9 +102,9 @@ short Vhorolog(u_char *ret_buffer)              // $HOROLOG
 short Vkey(u_char *ret_buffer)                  // $KEY
 { SQ_Chan *ioptr;				// ptr to current $IO
   ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io]; // point at it
-  return mcopy(&ioptr->dkey[0],			// copy from here
-                ret_buffer,                     // to here
-		ioptr->dkey_len);		// this many bytes
+  return (short) mcopy(&ioptr->dkey[0],		// copy from here
+                       ret_buffer,              // to here
+		       ioptr->dkey_len);	// this many bytes
 }
 
 //***********************************************************************
@@ -113,7 +115,7 @@ short Vreference(u_char *ret_buffer)            // $REFERENCE
   var = &partab.jobtab->last_ref;		// point at $R
   ret_buffer[0] = '\0';				// null JIC
   if (var->name.var_cu[0] == '\0') return 0;	// return null string if null
-  return UTIL_String_Mvar(var, ret_buffer, 32767); // do it elsewhere
+  return UTIL_String_Mvar(var, ret_buffer, MAX_NUM_SUBS); // do it elsewhere
 }
 
 //***********************************************************************
@@ -124,7 +126,7 @@ short Vsystem(u_char *ret_buffer)               // $SYSTEM
   i = itocstring(ret_buffer, RSM_SYSTEM); 	// copy assigned #
   ret_buffer[i++] = ',';                        // and a comma
   i = i + rsm_version(&ret_buffer[i]);          // do it elsewhere
-  return i;                                     // return the count
+  return (short) i;                             // return the count
 }
 
 //***********************************************************************
@@ -133,8 +135,7 @@ short Vsystem(u_char *ret_buffer)               // $SYSTEM
 short Vx(u_char *ret_buffer)                    // $X
 { SQ_Chan *ioptr;				// ptr to current $IO
   ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io]; // point at it
-  return itocstring(ret_buffer,
-  		  ioptr->dx);			// return len with data in buf
+  return itocstring(ret_buffer, ioptr->dx);	// return len with data in buf
 }
 
 //***********************************************************************
@@ -143,8 +144,7 @@ short Vx(u_char *ret_buffer)                    // $X
 short Vy(u_char *ret_buffer)                    // $Y
 { SQ_Chan *ioptr;				// ptr to current $IO
   ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io]; // point at it
-  return itocstring(ret_buffer,
-  		  ioptr->dy);			// return len with data in buf
+  return itocstring(ret_buffer, ioptr->dy);	// return len with data in buf
 }
 
 //***********************************************************************
@@ -154,17 +154,17 @@ short Vy(u_char *ret_buffer)                    // $Y
 //	$K[EY]
 //	$X
 //	$Y
-
-short Vset(mvar *var, cstring *cptr)		// set a special variable
+//
+int Vset(mvar *var, cstring *cptr)		// set a special variable
 { int i;
   if (var->slen != 0) return -ERRM8;		// no subscripts permitted
   if ((strncasecmp((char *)&var->name.var_cu[1], "ec", 2) == 0) ||
       (strncasecmp((char *)&var->name.var_cu[1], "ecode", 5) == 0)) // $EC[ODE]
-  { if ((cptr->len > 1) && (cptr->buf[0] == ',')    // If it starts with a comma
-        && (cptr->buf[cptr->len - 1] == ','))        // and ends with a comma
+  { if ((cptr->len > 1) && (cptr->buf[0] == ',') // If it starts with a comma
+        && (cptr->buf[cptr->len - 1] == ','))   // and ends with a comma
     {  cptr->len--;
-       bcopy(&cptr->buf[1], &cptr->buf[0], cptr->len--);  // Ignore the commas
-       cptr->buf[cptr->len] = '\0';                     // and nul terminate
+       bcopy(&cptr->buf[1], &cptr->buf[0], cptr->len--); // Ignore the commas
+       cptr->buf[cptr->len] = '\0';             // and nul terminate
     }
     if ((cptr->len == 0) ||			// set to null ok
 	(cptr->buf[0] == 'U'))			// or Uanything
@@ -190,17 +190,17 @@ short Vset(mvar *var, cstring *cptr)		// set a special variable
   { if (cptr->len > MAX_DKEY_LEN) return -ERRM75; // too big
     bcopy(cptr->buf,				// copy this
 	  partab.jobtab->seqio[partab.jobtab->io].dkey, // to here
-	  cptr->len+1);				// this many (incl null)
+	  cptr->len + 1);			// this many (incl null)
     partab.jobtab->seqio[partab.jobtab->io].dkey_len = cptr->len;
     return 0;
   }
-  if (strncasecmp((char *)&var->name.var_cu[1], "x", 1) == 0)	// $X
+  if (strncasecmp((char *)&var->name.var_cu[1], "x", 1) == 0) // $X
   { i = cstringtoi(cptr);			// get val
     if (i < 0) i = 0;
     partab.jobtab->seqio[partab.jobtab->io].dx = (u_short) i;
     return 0;					// and return
   }
-  if (strncasecmp((char *)&var->name.var_cu[1], "y", 1) == 0)	// $Y
+  if (strncasecmp((char *)&var->name.var_cu[1], "y", 1) == 0) // $Y
   { i = cstringtoi(cptr);			// get val
     if (i < 0) i = 0;
     partab.jobtab->seqio[partab.jobtab->io].dy = (u_short) i;

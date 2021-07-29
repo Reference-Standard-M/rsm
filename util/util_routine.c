@@ -4,7 +4,7 @@
  * Summary:  module RSM util_routine - routine functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -39,10 +39,9 @@
 
 // The following is called ONLY from init_start.c
 //
-
-void Routine_Init()				// setup rdb for this vol
+void Routine_Init(void)				// setup rdb for this vol
 { rbd *rou;					// a routine pointer
-  int i;					// an int
+  u_int i;					// an int
 
   for (i = 0; i < RBD_HASH; i++)		// the hash table
     systab->vol[0]->rbd_hash[i] = NULL;		// clear it out
@@ -66,21 +65,20 @@ void Routine_Init()				// setup rdb for this vol
 }
 
 // The following are internal only (first called from $&DEBUG())
-//
-
-void Dump_rbd()					// dump rbds
+void Dump_rbd(void)				// dump rbds
 { int i;					// an int
+  short s;					// for function returns
   rbd *p;					// a pointer
   char tmp[VAR_LEN + 2];			// some space
   time_t t;					// for time
 
-  i = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
-  if (i < 0) return;				// exit on error
+  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
+  if (s < 0) return;				// exit on error
   p = (rbd *) systab->vol[0]->rbd_head;		// get the start
-  t = current_time(TRUE);
+  t = current_time(FALSE);
   printf("Dump of all Routine Buffer Descriptors on %s\r\n", ctime(&t));
   printf("Free at %10p\r\n", systab->vol[0]->rbd_hash[RBD_HASH]);
-  printf("   Address     fwd_link chunk_size attatch last_access UCI VOL routine_size routine_name\r\n");
+  printf("       Address     fwd_link chunk_size attach last_access UCI VOL routine_size routine_name\r\n");
   tmp[VAR_LEN] = '\0';				// null terminate temp
   while (TRUE)					// for all
   { for (i = 0; i < VAR_LEN; i++) tmp[i] = ' ';	// space fill tmp[]
@@ -88,12 +86,12 @@ void Dump_rbd()					// dump rbds
     { if (p->rnam.var_cu[i] == 0) break;
       tmp[i] = p->rnam.var_cu[i];
     }
-    printf("%10p %12p %10d %7d %11lld %3d %3d %12d %s\r\n",
+    printf("%10p %12p %10u %6d %11lld %3d %3d %12d %s\r\n",
       p, p->fwd_link, p->chunk_size, p->attached, (long long) p->last_access, p->uci, p->vol, p->rou_size, tmp);
     p = (rbd *) ((u_char *) p + p->chunk_size); // point at next
     if (p >= (rbd *) systab->vol[0]->rbd_end) break; // quit when done
   }
-  i = SemOp(SEM_ROU, systab->maxjob);		// release lock
+  s = SemOp(SEM_ROU, systab->maxjob);		// release lock
   return;					// and exit
 }
 
@@ -101,12 +99,10 @@ int Routine_Hash(var_u routine)			// return hash code
 { int hash = 0;					// for the return
   int i;					// a handy int
   int j;					// another handy int
-  int p[4][8] = {
-      {3, 5, 7, 11, 13, 17, 19, 23},
-      {29, 31, 37, 41, 43, 47, 53, 59},
-      {61, 67, 71, 73, 79, 83, 89, 97},
-      {101, 103, 107, 109, 113, 127, 131, 137}
-  }; // primes
+  int p[4][8] = {{3, 5, 7, 11, 13, 17, 19, 23},
+                 {29, 31, 37, 41, 43, 47, 53, 59},
+                 {61, 67, 71, 73, 79, 83, 89, 97},
+                 {101, 103, 107, 109, 113, 127, 131, 137}}; // odd primes
   for (i = 0; i < (VAR_LEN / 8); i++)
   { if (routine.var_qu[i] == 0) break;
     for (j = 0; j < 8; j++)                       // for each character
@@ -223,7 +219,7 @@ void Routine_Collect(time_t off)		// collect based on time
   return;					// all done
 }
 
-rbd *Routine_Find(int size)			// find int bytes
+rbd *Routine_Find(u_int size)			// find int bytes
 { rbd *ptr;					// a pointer
   rbd *p;					// and another
   ptr = systab->vol[0]->rbd_hash[RBD_HASH];	// get head of free list
@@ -272,12 +268,12 @@ rbd *Routine_Find(int size)			// find int bytes
 }
 
 // The following are called from the general M code
-
 rbd *Routine_Attach(var_u routine)		// attach to routine
 { int hash = 0;					// for rbd_hash[]
   int i;					// a handy int
-  int size;					// size required
-  short s;					// a usefull thing
+  u_int size;					// size required
+  short s;					// a useful thing
+  int t;					// a useful thing
   rbd *ptr;					// a pointer for this
   rbd *p;					// and another
   u_char tmp[VAR_LEN + 4];			// temp space
@@ -301,9 +297,7 @@ rbd *Routine_Attach(var_u routine)		// attach to routine
      vol = 1;
   }
   while (ptr != NULL)				// while we have something
-  { if ((var_equal(ptr->rnam, routine)) &&
-	(ptr->uci == uci) &&
-        (ptr->vol == vol))			// if this is the right one
+  { if (var_equal(ptr->rnam, routine) && (ptr->uci == uci) && (ptr->vol == vol)) // if this is the right one
     { ptr->attached++;				// count an attach
       s = SemOp(SEM_ROU, systab->maxjob);	// release the lock
       return ptr;				// and return the pointer
@@ -323,7 +317,7 @@ rbd *Routine_Attach(var_u routine)		// attach to routine
     cptr->buf[i] = routine.var_cu[i]; 		// copy a byte
   }
   cptr->buf[i] = '\0';				// terminate
-  cptr->len = (short) i;			// the count
+  cptr->len = (u_short) i;			// the count
   s = UTIL_Key_Build(cptr, rouglob.key);	// first subs
   rouglob.slen = s;				// save count so far
   cptr->buf[0] = '0';				// now the zero
@@ -331,17 +325,15 @@ rbd *Routine_Attach(var_u routine)		// attach to routine
   cptr->len = 1;				// and the length
   s = UTIL_Key_Build(cptr, &rouglob.key[s]);	// second subs
   rouglob.slen = rouglob.slen + s;		// save count so far
-  s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
-  if (s < 1) return NULL;			// no such
+  t = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
+  if (t < 1) return NULL;			// no such
   s = SemOp(SEM_ROU, -systab->maxjob);		// write lock & try again
   if (s < 0) return NULL;			// no such
 
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
   ptr = p;					// use it in ptr
   while (ptr != NULL)				// while we have something
-  { if ((var_equal(ptr->rnam, routine)) &&
-	(ptr->uci == uci) &&
-	(ptr->vol == vol))			// if this is the right one
+  { if (var_equal(ptr->rnam, routine) && (ptr->uci == uci) && (ptr->vol == vol)) // if this is the right one
     { ptr->attached++;				// count an attach
       s = SemOp(SEM_ROU, systab->maxjob);	// release the lock
       return ptr;				// and return the pointer
@@ -350,19 +342,19 @@ rbd *Routine_Attach(var_u routine)		// attach to routine
     ptr = ptr->fwd_link;			// point at the next one
   }						// end while loop
 
-  s = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
-  if (s < 1)					// if it's gone
-  { s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
+  t = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
+  if (t < 1)					// if it's gone
+  { t = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
     s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
     return NULL;				// say no such
   }
-  size = s + RBD_OVERHEAD + 1;			// space required
-  if (size & 7) size = (size & ~7) + 8;		// rount up to 8 byte boundary
+  size = t + RBD_OVERHEAD + 1;			// space required
+  if (size & 7) size = (size & ~7) + 8;		// round up to 8 byte boundary
   ptr = Routine_Find(size);			// find location
   if (ptr == NULL)				// no space mate!!
   { s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
-    s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
-    return (rbd *)(-1);				// say no space
+    t = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
+    return (rbd *) -1;				// say no space
   }
   if (p == NULL)				// listhead for this hash
     systab->vol[0]->rbd_hash[hash] = ptr;	// save it here
@@ -373,10 +365,10 @@ rbd *Routine_Attach(var_u routine)		// attach to routine
   VAR_COPY(ptr->rnam, routine);			// the routine name
   ptr->uci = uci;				// the uci
   ptr->vol = vol;				// current volume
-  ptr->rou_size = s;				// save the size
-  s = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
+  ptr->rou_size = (u_short) t;			// save the size
+  t = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
 
-  if (s != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
+  if (t != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
 
   ptr->tag_tbl += RBD_OVERHEAD;			// adjust for rbd junk
   ptr->var_tbl += RBD_OVERHEAD;			// adjust for rbd junk
@@ -385,7 +377,7 @@ rbd *Routine_Attach(var_u routine)		// attach to routine
   { ptr->attached--;				// decrement the count
     Routine_Free(ptr);				// free the space
     s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
-    return (rbd *)(-2);				// yet another *magic* number
+    return (rbd *) -2;				// yet another *magic* number
   }
   s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
   return ptr;					// success

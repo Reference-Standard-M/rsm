@@ -4,7 +4,7 @@
  * Summary:  module runtime - debug
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -43,7 +43,12 @@ u_char src[1024];				// some space for entered
 u_char cmp[1024];				// ditto compiled
 u_char *debug;					// a pointer to compiled code
 
-void Debug_off()				// turn off debugging
+extern char    history[MAX_HISTORY][MAX_STR_LEN]; // history buffer
+extern u_short hist_next;			// next history pointer
+extern u_short hist_curr;			// history entry pointer
+extern short   in_hist;				// are we in the history buffer
+
+void Debug_off(void)				// turn off debugging
 {
   VAR_CLEAR(dvar.name);
   bcopy("$ZBP", &dvar.name.var_cu[0], 4);
@@ -62,11 +67,10 @@ void Debug_off()				// turn off debugging
 //	Debug_ref:code		Add breakpoint with code to Xecute
 //	:code			Code to execute at QUIT n breakpoint
 //
-
 short Debug_on(cstring *param)			// turn on/modify debug
 { int i = 0;					// a handy int
   int j = 0;					// and another
-  short s;
+  int s;
   int off = 1;					// line offset
   cstring *ptr;					// string pointer
 
@@ -86,10 +90,9 @@ short Debug_on(cstring *param)			// turn on/modify debug
         off = (off * 10) + (param->buf[i++] - '0'); // convert
     }
     if (param->buf[i++] != '^')
-      return -(ERRZ9+ERRMLAST);			// we don't like it
+      return -(ERRZ9 + ERRMLAST);		// we don't like it
     for (j = 0; j < VAR_LEN; j++)		// copy the routine name
-    { if ((isalnum(param->buf[j + i]) == 0) &&
-	  ((param->buf[j + i] != '%') || (j != 0)))
+    { if ((isalnum(param->buf[j + i]) == 0) && ((param->buf[j + i] != '%') || (j != 0)))
         break;					// done
       dvar.key[j + 1] = param->buf[j + i];	// copy it
     }
@@ -99,7 +102,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
     if (isalnum(param->buf[j])) return -ERRM56;	// complain about long names
     if ((param->buf[j] != ':') &&		// not :
         (param->buf[j] != '\0'))		// and not eol
-	  return -(ERRZ9+ERRMLAST);		// we don't like it
+	  return -(ERRZ9 + ERRMLAST);		// we don't like it
     dvar.key[dvar.slen++] = 64;			// new key
     s = itocstring(&dvar.key[dvar.slen], off);	// copy offset
     dvar.key[dvar.slen - 1] |= s;		// fixup type byte
@@ -117,7 +120,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
     return ST_Set(&dvar, ptr);			// set and return
   }
   if ((param->len - j) > 255)
-    return -(ERRZ9+ERRMLAST);			// too bloody long
+    return -(ERRZ9 + ERRMLAST);			// too bloody long
   source_ptr = &param->buf[j];			// point at the source
   ptr = (cstring *) cmp;			// where it goes
   comp_ptr = ptr->buf;				// for parse
@@ -132,11 +135,10 @@ short Debug_on(cstring *param)			// turn on/modify debug
 //	  0 to check to see if we need to break
 //	  1 from a BREAK sp sp
 //
-
 short Debug(int savasp, int savssp, int dot)	// drop into debug
 { int i;					// a handy int
   int io;					// save current $IO
-  short s = 0;					// for calls
+  int s = 0;					// for calls
   short ts;					// for temp index
   do_frame *curframe;				// a do frame pointer
   cstring *ptr;					// a string pointer
@@ -177,7 +179,7 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     memcpy(cmp, &s, sizeof(short));		// save the length
   }
   if (partab.jobtab->cur_do >= MAX_DO_FRAMES)
-    return (-(ERRMLAST+ERRZ8));			// too many (perhaps ??????)
+    return -(ERRZ8 + ERRMLAST);			// too many (perhaps ??????)
   partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc; // save current
   if (s > 0)					// code to execute
   { partab.jobtab->cur_do++;			// increment do frame
@@ -202,7 +204,7 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
     partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
     s = run(savasp, savssp);			// do it
-    if (s == OPHALT) return s;			// just halt if reqd
+    if (s == OPHALT) return (short) s;		// just halt if reqd
     --partab.jobtab->cur_do;			// restore do frame
     rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc; // restore pc
     if (s & BREAK_QN)
@@ -213,7 +215,7 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
         s = 0;					// don't confuse the return
       }
     }
-    return s;					// return whatever
+    return (short) s;				// return whatever
   }
   io = partab.jobtab->io;			// save current $IO
   debug = NULL;					// clear code ptr
@@ -221,29 +223,36 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
   partab.jobtab->seqio[0].options |= 8;		// ensure echo on
   ptr = (cstring *) src;			// some space
   while (TRUE)					// see what they want
-  { if (partab.jobtab->seqio[0].dx)		// need a cr/lf
-      s = SQ_WriteFormat(SQ_LF);		// doit
-    if (var_empty(curframe->rounam))
-    { bcopy("Debug", ptr->buf, 5);
-      ptr->len = 5;
-    }
-    else
-    { ptr->len = 0;				// clear ptr
-      ptr->buf[ptr->len++] = '+';		// lead off
-      ptr->len = itocstring(&ptr->buf[ptr->len], curframe->line_num) + ptr->len; // setup line number
+  { if (in_hist == FALSE)
+    { if (partab.jobtab->seqio[0].dx)		// need a cr/lf
+        s = SQ_WriteFormat(SQ_LF);		// doit
+      if (var_empty(curframe->rounam))
+      { bcopy("Debug", ptr->buf, 5);
+        ptr->len = 5;
+        partab.debug = -1;			// reset debug state
+      }
+      else
+      { ptr->len = 0;				// clear ptr
+        ptr->buf[ptr->len++] = '+';		// lead off
+        ptr->len = (u_short) itocstring(&ptr->buf[ptr->len], curframe->line_num) + ptr->len; // setup line number
 
-      ptr->buf[ptr->len++] = '^';		// lead off routine
-      for (i = 0; i < VAR_LEN; i++)
-        if (!(ptr->buf[i + ptr->len] = curframe->rounam.var_cu[i]))
-          break;				// copy rou name
-      ptr->len += i;				// save length
+        ptr->buf[ptr->len++] = '^';		// lead off routine
+        for (i = 0; i < VAR_LEN; i++)
+          if (!(ptr->buf[i + ptr->len] = curframe->rounam.var_cu[i]))
+            break;				// copy rou name
+        ptr->len += i;				// save length
+      }
+      ptr->buf[ptr->len++] = '>';			// and that bit
+      ptr->buf[ptr->len++] = ' ';			// and that bit
+      ptr->buf[ptr->len] = '\0';			// null terminate
+      s = SQ_Write(ptr);				// write it
     }
-    ptr->buf[ptr->len++] = '>';			// and that bit
-    ptr->buf[ptr->len++] = ' ';			// and that bit
-    ptr->buf[ptr->len] = '\0';			// null terminate
-    s = SQ_Write(ptr);				// write it
     s = SQ_Read(ptr->buf, -1, 256);		// read something
     if (s < 1) continue;			// ignore nulls and errors
+    strcpy(history[hist_next], (char *) ptr->buf);
+    if (hist_next == (MAX_HISTORY - 1)) hist_next = 0;
+    else hist_next++;
+    hist_curr = hist_next;
     s = SQ_WriteFormat(SQ_LF);			// return
     source_ptr = ptr->buf;			// point at source
     comp_ptr = cmp;				// and where it goes
@@ -272,7 +281,7 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     partab.jobtab->dostk[partab.jobtab->cur_do].ssp = savssp;
     partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
     s = run(savasp, savssp);			// do it
-    if (s == OPHALT) return s;			// just halt if reqd
+    if (s == OPHALT) return (short) s;		// just halt if reqd
     --partab.jobtab->cur_do;			// restore do frame
     if (!partab.debug) break;			// go away if debug now off
     if (s & BREAK_QN)
@@ -288,7 +297,7 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     if (s == OPHALT)
     { partab.jobtab->io = io;			// restore io
       rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc; // restore pc
-      return s;
+      return (short) s;
     }
     var = (mvar *) &strstk[savssp];		// space to setup a var
     VAR_CLEAR(var->name);

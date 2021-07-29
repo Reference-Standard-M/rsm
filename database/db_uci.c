@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, UCI manipulation
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -52,17 +52,17 @@ short DB_UCISet(int vol, int uci, var_u name)	  	// set uci name
 { short s;						// for functions
 
   if ((vol > MAX_VOL) || (vol < 1))			// within limits?
-  { return (-ERRM26);					// no - error
+  { return -ERRM26;					// no - error
   }
   if ((uci > UCIS) || (uci < 1))
-  { return (-ERRM26);					// too big
+  { return -ERRM26;					// too big
   }
 
   volnum = vol;						// set this
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { (void) sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
     }
   }							// end writelock check
   writing = 1;						// writing
@@ -73,7 +73,7 @@ short DB_UCISet(int vol, int uci, var_u name)	  	// set uci name
   }
   if (systab->vol[vol - 1] == NULL)			// is it mounted?
   { SemOp(SEM_GLOBAL, -curr_lock);
-    return (-ERRM26);					// no - error
+    return -ERRM26;					// no - error
   }
   if (!systab->vol[vol - 1]->vollab->uci[uci-1].global)	// if no GD
   { s = New_block();					// get a new block
@@ -118,17 +118,17 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   u_int gb;						// block number
 
   if ((vol > MAX_VOL) || (vol < 1))			// within limits?
-  { return (-ERRM26);					// no - error
+  { return -ERRM26;					// no - error
   }
   if ((uci > UCIS) || (uci < 1))
-  { return (-ERRM26);					// too big
+  { return -ERRM26;					// too big
   }
 
   volnum = vol;						// set this
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { (void) sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
     }
   }							// end writelock check
   writing = 1;						// writing
@@ -139,7 +139,7 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   }
   if (systab->vol[vol - 1] == NULL)			// is it mounted?
   { SemOp(SEM_GLOBAL, -curr_lock);
-    return (-ERRM26);					// no - error
+    return -ERRM26;					// no - error
   }
   if (systab->vol[vol - 1]->vollab->uci[uci-1].name.var_cu[0] == '\0') // does uci exits?
   { SemOp(SEM_GLOBAL, -curr_lock);
@@ -156,7 +156,7 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   }
   if (blk[level]->mem->last_idx > IDX_START)		// if any globals
   { SemOp(SEM_GLOBAL, -curr_lock);
-    return -(ERRM29);					// no can do
+    return -ERRM29;					// no can do
   }
   systab->vol[vol - 1]->vollab->uci[uci - 1].global = 0; // clear this
   VAR_CLEAR(systab->vol[vol - 1]->vollab->uci[uci - 1].name); // and this

@@ -3,7 +3,7 @@
 # upgrade - Upgrade an RSM or MV1 database from version 1 to 2
 #
 # Written by David Wicksell <dlw@linux.com>
-# Copyright © 2020 Fourth Watch Software LC
+# Copyright © 2020-2021 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License (AGPL)
@@ -43,10 +43,10 @@ function error_off
 error_on
 
 echo -e "${LOG}Reference Standard M Database Upgrade Utility${DEF}\n"
-echo -e "Upgrades an RSM or Mumps V1 (MV1) database from version 1 to 2\n"
+echo -e "Upgrades an RSM or MUMPS V1 (MV1) database from version 1 to 2\n"
 echo -e "${ERR}WARNING:${DEF} This script is experimental.\n"
 echo "David Wicksell <dlw@linux.com>"
-echo "Copyright (c) 2020 Fourth Watch Software LC"
+echo "Copyright (c) 2020-2021 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 
 [[ $1 == "-h" ]] && echo -e "\n${LOG}Usage:${DEF}\t$0 [<database file to upgrade>]\n\t$0 -h" && exit 0
@@ -54,7 +54,7 @@ echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 [[ -n $1 && ! -f $1 ]] && echo -e "\n${ERR}File does not exist or is not a regular file${DEF}"
 [[ ! -f $1 ]] && echo && read -ep "Enter the name of the database file to upgrade: " DBFILE || DBFILE="$1"
 
-DBFILE="${DBFILE/\~\//~/}"
+DBFILE="$(pwd)/${DBFILE/\~\//~/}"
 
 [[ -z $DBFILE ]] && echo -e "\n${ERR}No file was entered, aborting${DEF}" && exit 1
 [[ ! -f $DBFILE ]] && echo -e "\n${ERR}File does not exist or is not a regular file, aborting${DEF}" && exit 2
@@ -74,14 +74,14 @@ cd $REPO
 
 echo -e "\n${LOG}Building RSM for database version 1 ...${DEF}"
 
-make clean 2>/dev/null
-make dbver=1 2>/dev/null
+make clean 2> /dev/null
+make dbver=1 2> /dev/null
 
 echo -e "\n${LOG}Making sure the $DBFILE environment is shut down for the database backup ...${DEF}"
 
 error_off
 
-$REPO/rsm -x 'kill ^$job' $DBFILE 2>/dev/null
+$REPO/rsm -k $DBFILE 2> /dev/null
 if [[ $? == 0 ]]
 then
     echo -e "\n${LOG}The $DBFILE environment is now shut down${DEF}"
@@ -157,7 +157,7 @@ do
     fi
 done
 
-if [[ $RTNMAX -lt 32768 && $RTNMAX -gt $(($BLKSIZE * 1024)) ]]
+if [[ $RTNMAX -lt $($REPO/rsm -x 'write $get(^$system("string_max"),32767)+1' $DBFILE) && $RTNMAX -gt $(($BLKSIZE * 1024)) ]]
 then
     RTNMAX=$(($RTNMAX / 1024 + 1))
 
@@ -173,12 +173,12 @@ fi
 
 echo -e "\n${LOG}Shutting down the old $DBFILE environment ...${DEF}"
 
-$REPO/rsm -x 'kill ^$job' $DBFILE
+$REPO/rsm -k $DBFILE
 
 echo -e "\n${LOG}Building RSM for database version 2 ...${DEF}"
 
-make clean 2>/dev/null
-make 2>/dev/null
+make clean 2> /dev/null
+make 2> /dev/null
 
 echo -e "\n${LOG}Removing the old $DBFILE database ...${DEF}"
 
@@ -242,9 +242,9 @@ do
     fi
 done
 
-$REPO/rsm -x 'kill ^$job' $DBFILE
+$REPO/rsm -k $DBFILE
 
-while fuser $DBFILE &>/dev/null
+while fuser $DBFILE &> /dev/null
 do
     sleep 1
 done
@@ -259,7 +259,7 @@ $REPO/rsm -x "open 1:(\"$REPO/utils.rsm\":\"r\") use 1 read code xecute code" $D
 
 echo -e "\n${LOG}Shutting down the new $DBFILE environment ...${DEF}"
 
-$REPO/rsm -x 'kill ^$job' $DBFILE
+$REPO/rsm -k $DBFILE
 
 echo -e "\n${LOG}Removing the temporary routine and global export files ...${DEF}"
 
@@ -267,7 +267,7 @@ rm -f $DBFILE-*.[rg]o
 
 echo -e "\n${LOG}Cleaning the build environment ...${DEF}"
 
-make clean 2>/dev/null
+make clean 2> /dev/null
 
 cd $CWD
 

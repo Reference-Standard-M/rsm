@@ -9,23 +9,22 @@ We are dedicated to keeping the M language and database alive.
 
 === Site Directory:
 * link:../README.adoc[README]
-* link:../release-notes.adoc[Release Notes]
+* link:../CHANGELOG.adoc[CHANGELOG]
 * link:database.adoc[Database Management]
 * link:language.adoc[Language Guide]
 * link:seqio.adoc[Sequential IO Interface]
 * link:xcall.adoc[External Call Interface]
 * link:util.adoc[Supplemental Utilities]
 * link:web.adoc[Web Server]
-* link:upgrade.adoc[Upgrade Instructions]
+* link:upgrade.adoc[Database Upgrade Instructions]
 
-=== Other sites that may be of interest are:
+=== Other implementations that may be of interest:
 * https://sourceforge.net/projects/fis-gtm/[GT.M]
 * https://yottadb.com[YottaDB]
 * https://freem.coherent-logic.com[FreeM]
-* http://minimdb.com/[MiniM]
-* https://mumps.org[Mumps Site]
-* https://www.mumpster.org[Mumpster Site]
-* http://www.hardhats.org[Hardhats Site]
 
 === For more information on M:
 * http://71.174.62.16/Demo/AnnoStd?Frame=Main&Page=a100006[MUMPS by Example]
+* https://mumps.org[Mumps Site]
+* https://www.mumpster.org[Mumpster Site]
+* http://www.hardhats.org[Hardhats Site]

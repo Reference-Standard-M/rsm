@@ -4,7 +4,7 @@
  * Summary:  module runtime - RunTime Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -92,18 +92,15 @@ int cstringtob(cstring *str)                    // convert cstring to boolean
 { int ret = 0;                                  // return value
   int i;                                        // for loops
   int dp = 0;					// decimal place flag
-  for (i=0; (i < (int)str->len)&&
-            ((str->buf[i] == '-') ||
-            (str->buf[i] == '+')); i++);        // check leading characters
-  for (; i < (int)str->len; i++)                // for each character
+  for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++); // check leading characters
+  for (; i < (int) str->len; i++)               // for each character
   { if (str->buf[i] == '0') continue;		// ignore zeroes
     if (str->buf[i] == '.')			// check for a dot
     { if (dp) break;				// quit if not the first
       dp = 1;					// flag it
       continue;					// go for next
     }
-    if ((str->buf[i] >= '1') &&
-        (str->buf[i] <= '9'))			// check for digit
+    if ((str->buf[i] >= '1') && (str->buf[i] <= '9')) // check for digit
       ret = 1;					// got a true value
     break;
   }                                             // end convert loop
@@ -121,7 +118,7 @@ short itocstring(u_char *buf, int n)		// convert int to string
   }
   while (n)					// while there is a value
   { a[i++] = n % 10;				// get low decimal digit
-    n = n/10;					// reduce number
+    n = n / 10;					// reduce number
   }
   while (i) buf[p++] = a[--i] + 48;		// copy digits backwards
   if (!p) buf[p++] = '0';			// ensure we have something
@@ -136,7 +133,7 @@ short uitocstring(u_char *buf, u_int n)		// convert u_int to string
   a[0] = 0;					// ensure first is zero
   while (n)					// while there is a value
   { a[i++] = n % 10;				// get low decimal digit
-    n = n/10;					// reduce number
+    n = n / 10;					// reduce number
   }
   while (i) buf[p++] = a[--i] + 48;		// copy digits backwards
   if (!p) buf[p++] = '0';			// ensure we have something
@@ -145,9 +142,9 @@ short uitocstring(u_char *buf, u_int n)		// convert u_int to string
 }
 
 // Set data into $ECODE
-// Returns 0 if no previous error at this level
-short Set_Error(int err, cstring *user, cstring *space)
-{ short t;					// for function calls
+// Returns 0 if no previous error at this level, or length of error data if there is
+int Set_Error(int err, cstring *user, cstring *space)
+{ int t;					// for function calls
   int j;					// a handy int
   int flag;					// to remember
   mvar *var;					// a handy mvar
@@ -156,7 +153,7 @@ short Set_Error(int err, cstring *user, cstring *space)
 
   var = &partab.src_var;			// a spare mvar
   var->slen = 0;				// no subs
-  // note - the uci and volset were setup by the caller
+  // note - the UCI and volset were setup by the caller
 
   VAR_CLEAR(var->name);
   bcopy("$ECODE", &var->name.var_cu[0], 6);	// get the name
@@ -164,7 +161,7 @@ short Set_Error(int err, cstring *user, cstring *space)
   if (t < 0) t = 0;				// ignore undefined
   flag = t;					// remember if some there
   if (t < MAX_ECODE)				// if not too big
-  { if ((t == 0) || (space->buf[t-1] != ','))
+  { if ((t == 0) || (space->buf[t - 1] != ','))
       space->buf[t++] = ',';			// for new $EC
     j = -err;					// copy the error (-ve)
     if (err == USRERR)				// was it a SET $EC
@@ -185,13 +182,13 @@ short Set_Error(int err, cstring *user, cstring *space)
     space->len = t;
     t = ST_Set(var, space);			// set it
     tmp = (cstring *) temp;			// temp space
-    tmp->len = itocstring(tmp->buf, partab.jobtab->cur_do);
-    var->slen = UTIL_Key_Build(tmp, var->key);
+    tmp->len = (u_short) itocstring(tmp->buf, partab.jobtab->cur_do);
+    var->slen = (u_char) UTIL_Key_Build(tmp, var->key);
     if (flag)					// if not first one
     { t = ST_Get(var, space->buf);		// get it
       if (t < 0) t = 0;				// ignore undefined
       flag = t;					// remember for the return
-      if ((t == 0) || (space->buf[t-1] != ','))
+      if ((t == 0) || (space->buf[t - 1] != ','))
         space->buf[t++] = ',';			// for new $EC
       j = -err;					// copy the error (-ve)
       if (err == USRERR)			// was it a SET $EC
@@ -213,7 +210,7 @@ short Set_Error(int err, cstring *user, cstring *space)
     }
     t = ST_Set(var, space);			// set it
   }						// end "TOO BIG" test
-  return (short) flag;				// done
+  return flag;					// done
 }
 
 int rsm_version(u_char *ret_buffer)             // return version string
@@ -221,16 +218,14 @@ int rsm_version(u_char *ret_buffer)             // return version string
   int j = 0;                                    // for returned strings
   struct utsname uts;                           // struct for uname
   i = uname(&uts);                              // get system info
-  if (i == -1) return (-1);                     // exit on error
+  if (i == -1) return -1;                       // exit on error
   bcopy("Reference Standard M V", ret_buffer, 22); // copy in Reference Standard M V
   i = 22;					// point past it
   if (VERSION_TEST)				// if an internal version
-  { i += sprintf((char *) &ret_buffer[i], "%d.%d.%d T%d for ",
-		 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TEST);
+  { i += sprintf((char *) &ret_buffer[i], "%d.%d.%d T%d for ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TEST);
   }
   else						// else normal release
-  { i += sprintf((char *) &ret_buffer[i], "%d.%d.%d for ",
-		 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+  { i += sprintf((char *) &ret_buffer[i], "%d.%d.%d for ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
   }
   j = 0;                                        // clear src ptr
   while ((ret_buffer[i++] = uts.sysname[j++])); // copy name

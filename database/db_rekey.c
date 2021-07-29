@@ -4,7 +4,7 @@
  * Summary:  module database - Database keying functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -49,6 +49,7 @@
 
 short Set_key(u_int ptr_blk, int this_level)		// set a block#
 { short s;						// for returns
+  int t;						// for returns
   u_char tmp[8];					// some space
   u_char gtmp[VAR_LEN + 4];				// to find glob
   int i;						// a handy int
@@ -79,7 +80,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     i += 2;						// correct count
     gtmp[i] = '\0';					// null terminate
     gtmp[0] = (u_char) i;				// add the count
-    s=Get_block(systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].global);
+    s = Get_block(systab->vol[db_var.volset - 1]->vollab->uci[db_var.uci - 1].global);
     if (s < 0)						// failed?
     { return s;						// return error
     }
@@ -98,19 +99,19 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
     blk[level]->mem->type = db_var.uci;			// pointer block
     blk[level]->mem->last_idx = IDX_START;		// first Index
-    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 3; // use 2 words
+    blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 3; // use 2 words
     bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, VAR_LEN);
     idx[IDX_START] = blk[level]->mem->last_free + 1;	// the data
     chunk = (cstring *) &iidx[idx[IDX_START]];		// point at it
     chunk->len = 8;					// used two words
     chunk->buf[0] = 0;					// ccc
     chunk->buf[1] = 0;					// ucc
-    record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// setup record ptr
+    record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // setup record ptr
 
     *((u_int *) record) = tgb;				// first entry
-    s = Insert(&db_var.slen, ptr);			// insert this one
-    if (s < 0)						// failed?
-    { return s;						// return error
+    t = Insert(&db_var.slen, ptr);			// insert this one
+    if (t < 0)						// failed?
+    { return (short) t;					// return error
     }
     level = 0;						// point at GD
     s = Locate(gtmp);					// search for it
@@ -129,25 +130,25 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     return 0;						// end of level == 0
   }
 
-  s = Get_data(this_level);				// get the key blk
-  if (s >= 0)						// if found
-  { return -(ERRMLAST+ERRZ61);				// database problem
+  t = Get_data(this_level);				// get the key blk
+  if (t >= 0)						// if found
+  { return -(ERRZ61 + ERRMLAST);			// database problem
   }
-  if (s != -ERRM7)					// any other error
-  { return s;						// give up
+  if (t != -ERRM7)					// any other error
+  { return (short) t;					// give up
   }
   if (blk[level]->block == ptr_blk)
-  { return -(ERRMLAST+ERRZ61);				// database problem
+  { return -(ERRZ61 + ERRMLAST);			// database problem
   }
   Index++;						// point at insert
 							// see Get_data()
   trailings = Index;					// remember for later
   if (trailings < (IDX_START + 1))			// if junk
-  { return -(ERRMLAST+ERRZ61);				// database stuffed
+  { return -(ERRZ61 + ERRMLAST);			// database stuffed
   }
 
-  s = Insert(&db_var.slen, ptr);			// attempt to insert
-  if (s == 0)						// if that worked
+  t = Insert(&db_var.slen, ptr);			// attempt to insert
+  if (t == 0)						// if that worked
   { if (blk[level]->dirty == (gbd *) 1)
     { blk[level]->dirty = blk[level];			// hook to self
       Queit();						// and que
@@ -161,8 +162,8 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     }
     return 0;						// exit **0**
   }
-  else if (s != -(ERRMLAST+ERRZ62))
-  { return s;						// error!
+  else if (t != -(ERRZ62 + ERRMLAST))
+  { return (short) t;					// error!
   }
 
   ts = 0;						// none yet
@@ -199,16 +200,16 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   { Un_key();						// unlink RL key
 
     Get_GBD();						// get another gbd
-    bzero(blk[level]->mem, systab->vol[(volnum)-1]->vollab->block_size); // zot
+    bzero(blk[level]->mem, systab->vol[volnum - 1]->vollab->block_size); // zot
     blk[level]->mem->type = cblk[2]->mem->type;		// copy type
     blk[level]->mem->right_ptr = cblk[2]->mem->right_ptr; // copy RL
     VAR_COPY(blk[level]->mem->global, cblk[2]->mem->global); // copy global name
     blk[level]->mem->last_idx = IDX_START - 1;		// unused block
-    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+    blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
     if ((ts + rs) < rls)				// if new record fits
-    { s = Insert(&db_var.slen, ptr);			// insert it
-      if (s < 0)					// failed ?
+    { t = Insert(&db_var.slen, ptr);			// insert it
+      if (t < 0)					// failed ?
       { panic("Set_key: Insert in new block (RL) failed");
       }
       bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);	// save key
@@ -226,7 +227,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     iidx = (int *) blk[level]->mem;			// point at it
     for (i = trailings; i <= blk[level]->mem->last_idx; i++)
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
-      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
+      record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at the dbc
       Align_record();					// align
       *(int *) record = PTR_UNDEFINED;			// mark as junk
     }
@@ -235,12 +236,12 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     { goto fix_keys;					// exit **1**
     }
 
-    s = Insert(&db_var.slen, ptr);			// attempt to insert
-    if (s >= 0)						// if OK
+    t = Insert(&db_var.slen, ptr);			// attempt to insert
+    if (t >= 0)						// if OK
     { goto fix_keys;					// exit **2**
     }
-    else if (s != -(ERRMLAST+ERRZ62))
-    { return s;						// error!
+    else if (t != -(ERRZ62 + ERRMLAST))
+    { return (short) t;					// error!
     }
 
     s = New_block();					// new blk for insert
@@ -252,12 +253,12 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
     VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
     blk[level]->mem->last_idx = IDX_START - 1;		// unused block
-    blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+    blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
 
     cblk[0]->mem->right_ptr = blk[level]->block;	// point at it
-    s = Insert(&db_var.slen, ptr);			// insert it
-    if (s < 0)						// failed ?
+    t = Insert(&db_var.slen, ptr);			// insert it
+    if (t < 0)						// failed ?
     { panic("Set_key: Insert in new block (insert) failed");
     }
     cblk[1] = blk[level];				// remember this one
@@ -267,15 +268,14 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   if ((rs < rls) && (!ts))				// if will fit in RL
   { blk[level] = cblk[2];				// point at RL
     Un_key();						// delete current key
-    s = Insert(&db_var.slen, ptr);			// insert it
-    if (s >= 0)						// if OK
+    t = Insert(&db_var.slen, ptr);			// insert it
+    if (t >= 0)						// if OK
     { goto fix_keys;					// exit **5**
     }
-    else if (s != -(ERRMLAST+ERRZ62))
-    { return s;						// error!
+    else if (t != -(ERRZ62 + ERRMLAST))
+    { return (short) t;					// error!
     }
   }
-
   else if (cblk[2] != NULL)				// if RL allocated
   { if (cblk[2]->dirty == (gbd *) 1)			// if reserved
     { cblk[2]->dirty = NULL;				// clear it
@@ -292,7 +292,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
   VAR_COPY(blk[level]->mem->global, cblk[0]->mem->global); // copy global name
   blk[level]->mem->last_idx = IDX_START - 1;		// unused block
-  blk[level]->mem->last_free = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
+  blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
@@ -306,34 +306,33 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     iidx = (int *) blk[level]->mem;			// point at it
     for (i = trailings; i <= blk[level]->mem->last_idx; i++)
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
-      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
+      record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at the dbc
       Align_record();					// align
       *(int *) record = PTR_UNDEFINED;			// mark as junk
     }
     Tidy_block();					// tidy it
 
-    s = Insert(&db_var.slen, ptr);			// attempt to insert
-    if (s >= 0)						// if OK
+    t = Insert(&db_var.slen, ptr);			// attempt to insert
+    if (t >= 0)						// if OK
     { goto fix_keys;					// exit **4**
     }
-    else if (s != -(ERRMLAST+ERRZ62))
-    { return s;						// error!
+    else if (t != -(ERRZ62 + ERRMLAST))
+    { return (short) t;					// error!
     }
     blk[level] = cblk[1];				// new blk again
     idx = (u_short *) blk[level]->mem;			// point at it
     iidx = (int *) blk[level]->mem;			// point at it
   }
-  s = Insert(&db_var.slen, ptr);			// attempt to insert
-  if (s >= 0)						// if OK
+  t = Insert(&db_var.slen, ptr);			// attempt to insert
+  if (t >= 0)						// if OK
   { goto fix_keys;					// exit **5**
   }
-  else if (s != -(ERRMLAST+ERRZ62))
-  { return s;						// error!
+  else if (t != -(ERRZ62 + ERRMLAST))
+  { return (short) t;					// error!
   }
   panic("Set_key: Options 0->5 didn't work");		// die
 
 fix_keys:
-
   blk[level] = NULL;					// clear this
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
   { if (blk[i]->dirty == (gbd *) 2)			// if changed
@@ -369,7 +368,7 @@ fix_keys:
   }
   for (i = 1; i < 3; i++)				// scan cblk[] again
   { if (cblk[i] != NULL)				// if there
-    { s = Add_rekey(cblk[i]->block, this_level);	// que a fix
+    { (void) Add_rekey(cblk[i]->block, this_level);	// que a fix
     }
   }							// end fix key loop
   return 0;						// done
@@ -402,7 +401,7 @@ short Add_rekey(u_int block, int level)			// add to re-key table
 // Return:   0 or negative M error
 //
 
-short Re_key()						// re-key blocks
+short Re_key(void)					// re-key blocks
 { int i;						// a handy int
   short s;						// for functions
   int low_level;					// lowest found
@@ -425,7 +424,7 @@ short Re_key()						// re-key blocks
     level = 0;						// clear level
     s = Get_block(rekey_blk[low_index]);		// get the block
     if (s < 0)
-    { return -(ERRMLAST+ERRZ61);			// database stuffed
+    { return -(ERRZ61 + ERRMLAST);			// database stuffed
     }
     chunk = (cstring *) &iidx[idx[IDX_START]];		// point at first chunk
     bcopy(&chunk->buf[1], &db_var.slen, chunk->buf[1] + 1); // copy key
@@ -457,12 +456,12 @@ short Re_key()						// re-key blocks
 // Return:   none
 //
 
-void Un_key()
-
+void Un_key(void)
 { u_int this_level;
   u_int save_level;
   u_int xxx_level;
   short s;						// for returns
+  int t;						// for returns
   u_char cstr[8];					// and another
   u_int *xui;						// an int ptr
   cstring *xptr;					// spare ptr
@@ -513,16 +512,15 @@ void Un_key()
 	  xptr->len = 4;				// one int
 	  xui = (u_int *) xptr->buf;			// point the int here
 	  *xui = blk[level + 1]->block;			// get the block#
-	  s = Insert(lptr, xptr);			// insert that
-	  if (s == -(ERRMLAST+ERRZ62))
-	  { s = Add_rekey(blk[level + 1]->block, level + 1); // do it later
+	  t = Insert(lptr, xptr);			// insert that
+	  if (t == -(ERRZ62 + ERRMLAST))
+	  { (void) Add_rekey(blk[level + 1]->block, level + 1); // do it later
 	  }
-	  else if (s < 0)
+	  else if (t < 0)
 	  { panic("Un_Key: Insert returned fatal value");
 	  }
 	}
 	else						// lower level is empty
-
 	{ save_level = level;				// remember where we at
 	  blkno = 0;					// clear block#
 

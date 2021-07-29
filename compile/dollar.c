@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate functions, vars etc
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -40,7 +40,7 @@
 #include "opcodes.h"				// and the opcodes
 #include "compile.h"				// compiler stuff
 
-void dodollar()					// parse var, funct etc
+void dodollar(void)				// parse var, func etc
 { int len;					// length of name
   short s;
   int i = 0;					// a handy int
@@ -51,9 +51,9 @@ void dodollar()					// parse var, funct etc
   u_char *selj[256];				// a heap of them for $S()
   char name[20];				// where to put the name
   char c;					// current character
-  u_char save[1024];                            // a usefull save area
+  u_char save[1024];                            // a useful save area
   int savecount;                                // number of bytes saved
-  short errm4 = -ERRM4;                         // usefull error number
+  short errm4 = -ERRM4;                         // useful error number
   c = toupper(*source_ptr++);			// get the character in upper
   if (c == '$')					// extrinsic
   { ptr = comp_ptr;				// save compile pointer
@@ -65,8 +65,8 @@ void dodollar()					// parse var, funct etc
       return;					// and exit
     }
     args = 129;					// number of args (128=$$)
-    if (i == -2) *ptr = CMDORT;			// just a routine
-    if (i == -3) *ptr = CMDOROU;		// both
+    if (i == -2) *ptr = CMDORT;			// tag and routine
+    if (i == -3) *ptr = CMDOROU;		// just a routine
     if (*source_ptr == '(')			// any args?
     { args--;					// back to 128
       savecount = comp_ptr - ptr;		// bytes that got compiled
@@ -80,12 +80,10 @@ void dodollar()					// parse var, funct etc
 	{ source_ptr++;				// skip the )
 	  break;				// and exit
 	}
-	if ((*source_ptr == ',') ||
-	    (*source_ptr == ')'))		// if empty argument
+	if ((*source_ptr == ',') || (*source_ptr == ')')) // if empty argument
 	{ *comp_ptr++ = VARUNDF;		// flag it
 	}
-        else if ((*source_ptr == '.') &&	// by reference?
-	         (isdigit(source_ptr[1]) == 0))	// and not .numeric
+        else if ((*source_ptr == '.') && (isdigit(source_ptr[1]) == 0)) // by reference and not .numeric?
 	{ source_ptr++;				// skip the dot
 	  if (*source_ptr == '@')		// if indirection
 	  { source_ptr++;			// skip the @
@@ -142,13 +140,13 @@ void dodollar()					// parse var, funct etc
       }						// end of args loop
     else source_ptr--;				// else backup the source ptr
     if (args > 2)				// all xcalls take 2 args
-    { comperror(-(ERRZ18+ERRMLAST));		// junk
+    { comperror(-(ERRZ18 + ERRMLAST));		// junk
       return;
     }
     for (i = args; i < 2; i++)			// force two arguments
     { *comp_ptr++ = OPSTR;			// say string follows
       *comp_ptr++ = 0;				// these were
-      *comp_ptr++ = 0;				// *((short *)comp_ptr)++ = 0
+      *comp_ptr++ = 0;				// *((short *) comp_ptr)++ = 0
       *comp_ptr++ = '\0';			// null terminated
     }
     if (strcmp(name, "%DIRECTORY") == 0)	// $&%DIRECTORY()
@@ -196,7 +194,7 @@ void dodollar()					// parse var, funct etc
     else if (strcmp(name, "%COMPRESS") == 0)	// $&%COMPRESS()
       *comp_ptr++ = XCCOMP;			// save the opcode
     else
-      comperror(-(ERRZ18+ERRMLAST));		// junk
+      comperror(-(ERRZ18 + ERRMLAST));		// junk
     return;					// end of xcalls
   }
   name[0] = c;					// save first char
@@ -209,100 +207,115 @@ void dodollar()					// parse var, funct etc
   switch (name[0])				// dispatch on initial
   { case 'D':					// $D[EVICE]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "device", 6) != 0) UNVAR
+        if (strncasecmp(name, "device\0", 7) != 0) UNVAR
       *comp_ptr++ = VARD;			// add the opcode
       return;					// and exit
-    case 'E':					// $EC[ODE], $ES[TACK],
-    						// $ET[RAP]
+
+    case 'E':					// $EC[ODE], $ES[TACK], and $ET[RAP]
       if (len < 2) UNVAR			// must be 2 for this one
-      switch (toupper((int)name[1]))		// switch on second char
+      switch (toupper((int) name[1]))		// switch on second char
       { case 'C':				// $EC[ODE]
 	  if (len > 2)				// check for extended name
-	    if (strncasecmp(name, "ecode", 5) != 0) UNVAR
+	    if (strncasecmp(name, "ecode\0", 6) != 0) UNVAR
         *comp_ptr++ = VAREC;			// add the opcode
         return;					// and exit
+
 	case 'S':				// $ES[TACK]
 	  if (len > 2)				// check for extended name
-	    if (strncasecmp(name, "estack", 6) != 0) UNVAR
+	    if (strncasecmp(name, "estack\0", 7) != 0) UNVAR
         *comp_ptr++ = VARES;			// add the opcode
         return;					// and exit
+
 	case 'T':				// $ET[RAP]
 	  if (len > 2)				// check for extended name
-	    if (strncasecmp(name, "etrap", 5) != 0) UNVAR
+	    if (strncasecmp(name, "etrap\0", 6) != 0) UNVAR
         *comp_ptr++ = VARET;			// add the opcode
         return;					// and exit
+
 	default:				// junk
 	  UNVAR
       }						// end of $E... switch
+
     case 'H':					// $H[OROLOG]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "horolog", 7) != 0) UNVAR
+        if (strncasecmp(name, "horolog\0", 8) != 0) UNVAR
       *comp_ptr++ = VARH;			// add the opcode
       return;					// and exit
+
     case 'I':					// $I[O]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "io", 2) != 0) UNVAR
+        if (strncasecmp(name, "io\0", 3) != 0) UNVAR
       *comp_ptr++ = VARI;			// add the opcode
       return;					// and exit
+
     case 'J':					// $J[OB]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "job", 3) != 0) UNVAR
+        if (strncasecmp(name, "job\0", 4) != 0) UNVAR
       *comp_ptr++ = VARJ;			// add the opcode
       return;					// and exit
+
     case 'K':					// $K[EY]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "key", 3) != 0) UNVAR
+        if (strncasecmp(name, "key\0", 4) != 0) UNVAR
       *comp_ptr++ = VARK;			// add the opcode
       return;					// and exit
+
     case 'P':					// $P[RINCIPAL]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "principal", 9) != 0) UNVAR
+        if (strncasecmp(name, "principal\0", 10) != 0) UNVAR
       *comp_ptr++ = VARP;			// add the opcode
       return;					// and exit
+
     case 'Q':					// $Q[UIT]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "quit", 2) != 0) UNVAR
+        if (strncasecmp(name, "quit\0", 5) != 0) UNVAR
       *comp_ptr++ = VARQ;			// add the opcode
       return;					// and exit
+
     case 'R':					// $R[EFERENCE]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "reference", 9) != 0) UNVAR
+        if (strncasecmp(name, "reference\0", 10) != 0) UNVAR
       *comp_ptr++ = VARR;			// add the opcode
       return;					// and exit
-    case 'S':					// $ST[ACK], $S[TORAGE],
-						// $SY[STEM]
-      if ((len == 1) ||
-	  (strncasecmp(name, "storage", 7) == 0)) // $S[TORAGE]
+
+    case 'S':					// $ST[ACK], $S[TORAGE], and $SY[STEM]
+      if ((len == 1) || (strncasecmp(name, "storage\0", 8) == 0)) // $S[TORAGE]
       { *comp_ptr++ = VARS;			// add the opcode
         return;					// and exit
       }
-      switch (toupper((int)name[1]))		// switch on second char
+      switch (toupper((int) name[1]))		// switch on second char
       { case 'T':				// $ST[ACK]
 	  if (len > 2)				// check for extended name
-	    if (strncasecmp(name, "stack", 5) != 0) UNVAR
+	    if (strncasecmp(name, "stack\0", 6) != 0) UNVAR
         *comp_ptr++ = VARST;			// add the opcode
         return;					// and exit
+
 	case 'Y':				// $SY[STEM]
 	  if (len > 2)				// check for extended name
-	    if (strncasecmp(name, "system", 6) != 0) UNVAR
+	    if (strncasecmp(name, "system\0", 7) != 0) UNVAR
         *comp_ptr++ = VARSY;			// add the opcode
         return;					// and exit
+
 	default:				// junk
 	  UNVAR
       }						// end of $S... switch
+
     case 'T':					// $T[EST]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "test", 4) != 0) UNVAR
+        if (strncasecmp(name, "test\0", 5) != 0) UNVAR
       *comp_ptr++ = VART;			// add the opcode
       return;					// and exit
+
     case 'X':					// $X
       if (len > 1) UNVAR			// check for extended name
       *comp_ptr++ = VARX;			// add the opcode
       return;					// and exit
+
     case 'Y':					// $Y
       if (len > 1) UNVAR			// check for extended name
       *comp_ptr++ = VARY;			// add the opcode
       return;					// and exit
+
     default:					// an error
       UNVAR
   }						// end of vars switch
@@ -323,9 +336,7 @@ function:					// function code starts here
       { atom();					// eval it
 	ptr = comp_ptr - 1;			// remember where this goes
 	if (*ptr == INDEVAL)			// if it's going to eval it
-	{ if ((name[0] == 'N') ||
-	      (name[0] == 'O') ||
-	      (name[0] == 'Q'))			// $NAME, $ORDER or $QUERY
+	{ if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q'))	// $NAME, $ORDER or $QUERY
 	    *ptr = INDMVARN;			// allow null subs
 	  else
 	    *ptr = INDMVAR;			// make an mvar from it
@@ -333,16 +344,13 @@ function:					// function code starts here
 	else					// experimantal for $O(@.@())
 	{ ptr -= 2;				// back up over subs to type
 	  if (*ptr == OPVAR)
-	  { if ((name[0] == 'N') ||
-	        (name[0] == 'O') ||
-	        (name[0] == 'Q'))		// $NAME, $ORDER or $QUERY
+	  { if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) // $NAME, $ORDER or $QUERY
 	        *ptr = OPMVARN;			// allow null subs
 	      else
 	        *ptr = OPMVAR;			// change to OPMVAR
 	  }
 	}
       }
-
       else
       { s = localvar();				// we need a var
         if (s < 0)
@@ -350,9 +358,7 @@ function:					// function code starts here
 	  return;				// and exit
         }
         ptr = &ptr[s];				// point at the OPVAR
-	if ((name[0] == 'N') ||
-	    (name[0] == 'O') ||
-	    (name[0] == 'Q'))			// $NAME, $ORDER or $QUERY
+	if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) // $NAME, $ORDER or $QUERY
 	    *ptr = OPMVARN;			// allow null subs
 	else
           *ptr = OPMVAR;			// change to a OPMVAR
@@ -374,7 +380,7 @@ function:					// function code starts here
     if (c == ')') break;			// all done if closing )
     if (sel)					// if in a $SELECT()
     { if (c != ((args & 1) ? ':' : ',')) EXPRE	// must be colon or comma
-      *comp_ptr++ = (args & 1) ? JMP0 : JMP;	// the opcode
+      *comp_ptr++ = ((args & 1) ? JMP0 : JMP);	// the opcode
       selj[args] = comp_ptr;			// remember for offset
       comp_ptr = comp_ptr + sizeof(short);	// leave space for it
     }						// end special $SELECT() stuff
@@ -384,7 +390,7 @@ function:					// function code starts here
   switch (name[0])				// dispatch on initial
   { case 'A':					// $A[SCII]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "ascii", 5) != 0) EXPRE
+        if (strncasecmp(name, "ascii\0", 6) != 0) EXPRE
       if (args == 1)
 	{ *comp_ptr++ = FUNA1;			// one arg form
 	  return;				// and exit
@@ -394,22 +400,25 @@ function:					// function code starts here
 	  return;				// and exit
 	}
       EXPRE
+
     case 'C':					// $C[HARACTER]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "char", 4) != 0) EXPRE
+        if (strncasecmp(name, "char\0", 5) != 0) EXPRE
       if (args > 255) EXPRE			// check number of args
       *comp_ptr++ = FUNC;			// push the opcode
       *comp_ptr++ = (u_char) args;		// number of arguments
       return;                             	// and give up
+
     case 'D':					// $D[ATA]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "data", 4) != 0) EXPRE
+        if (strncasecmp(name, "data\0", 5) != 0) EXPRE
       if (args > 1) EXPRE			// check number of args
       *comp_ptr++ = FUND;			// set the opcode
       return;                             	// and give up
+
     case 'E':					// $E[XTRACT]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "extract", 7) != 0) EXPRE
+        if (strncasecmp(name, "extract\0", 8) != 0) EXPRE
       if (args == 1)
 	{ *comp_ptr++ = FUNE1;			// one arg form
 	  return;				// and exit
@@ -423,9 +432,9 @@ function:					// function code starts here
 	  return;				// and exit
 	}
       EXPRE
+
     case 'F':					// $F[IND] and $FN[UMBER]
-      if ((len == 1) ||
-	  (strncasecmp(name, "find", 4) == 0))	// $F[IND]
+      if ((len == 1) || (strncasecmp(name, "find\0", 5) == 0)) // $F[IND]
       { if (args == 2)
 	{ *comp_ptr++ = FUNF2;			// two arg form
 	  return;				// and exit
@@ -436,8 +445,7 @@ function:					// function code starts here
 	}
 	EXPRE
       }						// end $FIND
-      if (((len == 2) && (toupper((int) name[1]) == 'N')) ||
-	  (strncasecmp(name, "fnumber", 7) == 0)) // $FNUMBER
+      if (((len == 2) && (toupper((int) name[1]) == 'N')) || (strncasecmp(name, "fnumber\0", 8) == 0)) // $FNUMBER
       { if (args == 2)
 	{ *comp_ptr++ = FUNFN2;			// two arg form
 	  return;				// and exit
@@ -449,9 +457,10 @@ function:					// function code starts here
 	EXPRE
       }						// end $FIND
       EXPRE
+
     case 'G':					// $G[ET]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "get", 3) != 0) EXPRE
+        if (strncasecmp(name, "get\0", 4) != 0) EXPRE
       if (args == 1)
         *comp_ptr++ = FUNG1;			// one arg form
       else if (args == 2)
@@ -459,63 +468,68 @@ function:					// function code starts here
       else
         EXPRE					// all others junk
       return;					// done
+
     case 'J':					// $J[USTIFY]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "justify", 7) != 0) EXPRE
+        if (strncasecmp(name, "justify\0", 8) != 0) EXPRE
       if (args == 2)
 	*comp_ptr++ = FUNJ2;			// two arg form
       else if (args == 3)
 	*comp_ptr++ = FUNJ3;			// three arg form
       else EXPRE				// all else is junk
       return;					// and exit
+
     case 'L':					// $L[ENGTH]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "length", 6) != 0) EXPRE
+        if (strncasecmp(name, "length\0", 7) != 0) EXPRE
       if (args == 1)
 	*comp_ptr++ = FUNL1;			// one arg form
       else if (args == 2)
 	*comp_ptr++ = FUNL2;			// two arg form
       else EXPRE
       return;
+
     case 'N':					// $NA[ME] or $N[EXT]
-      if (toupper((int)name[1]) != 'A')		// check second letter
+      if (toupper((int) name[1]) != 'A')	// check second letter
       { if (len > 1)
-	{ if (strncasecmp(name, "next", 4) != 0) EXPRE
+	{ if (strncasecmp(name, "next\0", 5) != 0) EXPRE
 	}
 	if (!(systab->historic & HISTORIC_DNOK)) EXPRE
 	if (args != 1) EXPRE
 	*comp_ptr++ = OPSTR;
         *comp_ptr++ = 1;
         *comp_ptr++ = 0;
-        //*((short *)comp_ptr)++ = 1;		// string length
+        //*((short *) comp_ptr)++ = 1;		// string length
 	*comp_ptr++ = '2';			// $N kludge
         *comp_ptr++ = '\0';			// null terminated
 	*comp_ptr++ = FUNO2;			// 2 arg form of $O()
 	return;
       }
       if (len > 2)				// check for extended name
-        if (strncasecmp(name, "name", 4) != 0) EXPRE
+        if (strncasecmp(name, "name\0", 5) != 0) EXPRE
       if (args == 1)
 	*comp_ptr++ = FUNNA1;			// one arg form
       else if (args == 2)
 	*comp_ptr++ = FUNNA2;			// 2 arg opcode
       else EXPRE				// all else is junk
       return;					// and exit
+
     case 'O':					// $O[RDER]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "order", 5) != 0) EXPRE
+        if (strncasecmp(name, "order\0", 6) != 0) EXPRE
       if (args == 1)
 	*comp_ptr++ = FUNO1;			// 1 arg form
       else if (args == 2)
 	*comp_ptr++ = FUNO2;			// 2 arg form
       else EXPRE
       return;
+
     case 'P':					// $P[IECE]
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "piece", 5) != 0)
-          { comperror(-(ERRMLAST+ERRZ12));	// compile an error
-            return;                             // and give up
-          }
+        if (strncasecmp(name, "piece\0", 6) != 0)
+        { comperror(-(ERRZ12 + ERRMLAST));	// compile an error
+          return;                               // and give up
+        }
       if (args == 2)
 	*comp_ptr++ = FUNP2;			// two arg form
       else if (args == 3)
@@ -524,10 +538,9 @@ function:					// function code starts here
 	*comp_ptr++ = FUNP4;			// four arg form
       else EXPRE
       return;
-    case 'Q':					// $Q[UERY], $QS[UBSCRIPT]
-						// $QL[ENGTH]
-      if ((len == 1) ||
-	  (strncasecmp(name, "query", 5) == 0))	// $Q[UERY]
+
+    case 'Q':					// $Q[UERY], $QS[UBSCRIPT], and $QL[ENGTH]
+      if ((len == 1) || (strncasecmp(name, "query\0", 6) == 0)) // $Q[UERY]
       { if (args == 1)
 	  *comp_ptr++ = FUNQ1;			// one arg form
 	else if (args == 2)
@@ -535,16 +548,14 @@ function:					// function code starts here
 	else EXPRE
 	return;					// and exit
       }						// end $Q[UERY]
-      if (((len == 2) && (toupper((int) name[1]) == 'L')) ||
-	  (strncasecmp(name, "qlength", 7) == 0)) // $QLENGTH
+      if (((len == 2) && (toupper((int) name[1]) == 'L')) || (strncasecmp(name, "qlength\0", 8) == 0)) // $QLENGTH
       { if (args == 1)
 	{ *comp_ptr++ = FUNQL;
 	  return;				// and exit
 	}
 	EXPRE
       }						// end $FIND
-      if (((len == 2) && (toupper((int) name[1]) == 'S')) ||
-	  (strncasecmp(name, "qsubscript", 10) == 0)) // $QSUBSCRIPT
+      if (((len == 2) && (toupper((int) name[1]) == 'S')) || (strncasecmp(name, "qsubscript\0", 11) == 0)) // $QSUBSCRIPT
       { if (args == 2)
 	{ *comp_ptr++ = FUNQS;
 	  return;				// and exit
@@ -552,17 +563,16 @@ function:					// function code starts here
 	EXPRE
       }						// end $FIND
       EXPRE
+
     case 'R':					// $R[ANDOM], $RE[VERSE]
-      if ((len == 1) ||
-	  (strncasecmp(name, "random", 6) == 0)) // $R[ANDOM]
+      if ((len == 1) || (strncasecmp(name, "random\0", 7) == 0)) // $R[ANDOM]
       { if (args == 1)
 	{ *comp_ptr++ = FUNR;			// one arg form
 	  return;				// and exit
 	}
 	EXPRE
       }
-      if (((len == 2) && (toupper((int) name[1]) == 'E')) ||
-	  (strncasecmp(name, "reverse", 7) == 0)) // $REVERSE
+      if (((len == 2) && (toupper((int) name[1]) == 'E')) || (strncasecmp(name, "reverse\0", 8) == 0)) // $REVERSE
       { if (args == 1)
 	{ *comp_ptr++ = FUNRE;
 	  return;				// and exit
@@ -570,9 +580,9 @@ function:					// function code starts here
 	EXPRE
       }
       EXPRE
+
       case 'S':					// $S[ELECT], $ST[ACK]
-	if ((len == 1) ||
-	  (strncasecmp(name, "select", 6) == 0)) // $S[ELECT]
+	if ((len == 1) || (strncasecmp(name, "select\0", 7) == 0)) // $S[ELECT]
 	{ if (args & 1)				// must be even number
 	  { comp_ptr = ptr;			// start of this
 	    EXPRE				// and error it
@@ -580,23 +590,20 @@ function:					// function code starts here
 	  *comp_ptr++ = JMP;			// for the last expr
 	  selj[args] = comp_ptr;		// remember for offset
 	  comp_ptr = comp_ptr + sizeof(short);	// leave space for it
-	  selj[args+1] = comp_ptr;		// for the last JMP0
+	  selj[args + 1] = comp_ptr;		// for the last JMP0
 	  *comp_ptr++ = OPERROR;		// no tve is an error
           bcopy(&errm4, comp_ptr, 2);
           comp_ptr += 2;
-	  //*((short *)comp_ptr)++ = -ERRM4;	// and the error#
+	  //*((short *) comp_ptr)++ = -ERRM4;	// and the error#
 	  for (i = 1; i <= args; i++)		// scan the addr array
 	  { if (i & 1)
-	      *((short *) (selj[i])) =
-	        (short) (selj[i+1] - selj[i]);
+	      *((short *) selj[i]) = (short) (selj[i + 1] - selj[i]);
 	    else
-	      *((short *) (selj[i])) =
-	        (short) (comp_ptr - selj[i]) - sizeof(short);
+	      *((short *) selj[i]) = (short) (comp_ptr - selj[i]) - sizeof(short);
 	  }
 	  return;				// end of $SELECT()
 	}
-	if (((len == 2) && (toupper((int) name[1]) == 'T')) ||
-	    (strncasecmp(name, "stack", 5) == 0)) // $ST[ACK]
+	if (((len == 2) && (toupper((int) name[1]) == 'T')) || (strncasecmp(name, "stack\0", 6) == 0)) // $ST[ACK]
 	{ if (args == 1)
 	  { *comp_ptr++ = FUNST1;
 	    return;				// and exit
@@ -607,17 +614,16 @@ function:					// function code starts here
 	  }
 	  EXPRE
         }
+
       case 'T':					// $T[EXT], $TR[ANSLATE]
-	if ((len == 1) ||
-	  (strncasecmp(name, "text", 4) == 0))	// $T[EXT]
+	if ((len == 1) || (strncasecmp(name, "text\0", 5) == 0)) // $T[EXT]
 	{ if (args == 1)
 	  { *comp_ptr++ = FUNT;			// one arg form
 	    return;				// and exit
 	  }
 	  EXPRE
 	}
-	if (((len == 2) && (toupper((int) name[1]) == 'R')) ||
-	    (strncasecmp(name, "translate", 9) == 0)) // $TR[ANSLATE]
+	if (((len == 2) && (toupper((int) name[1]) == 'R')) || (strncasecmp(name, "translate\0", 10) == 0)) // $TR[ANSLATE]
 	{ if (args == 2)
 	  { *comp_ptr++ = FUNTR2;
 	    return;				// and exit
@@ -628,9 +634,10 @@ function:					// function code starts here
 	  }
 	  EXPRE
         }
+
       case 'V':					// $VIEW
       if (len > 1)				// check for extended name
-        if (strncasecmp(name, "view", 4) != 0) EXPRE
+        if (strncasecmp(name, "view\0", 5) != 0) EXPRE
       if (args == 2)
 	{ *comp_ptr++ = FUNV2;			// two arg form
 	  return;				// and exit

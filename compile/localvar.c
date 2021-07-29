@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a local variable
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -48,38 +48,60 @@
 //
 // Following the OPVAR is a byte indicating type of
 // variable as per the following:
-//	TYPMAXSUB       63                      // max subscripts
-//	TYPVARNAM       0                       // name only (VAR_LEN bytes)
-//	TYPVARLOCMAX    TYPVARNAM+TYPMAXSUB     // local is 1->63 subs
-//	TYPVARIDX       64                      // 1 byte index (+ #subs)
-//	TYPVARGBL       128                     // first global
-//	TYPVARGBLMAX    TYPVARGBL+TYPMAXSUB     // global 128->191 subs
-//	TYPVARNAKED	252			// global naked reference
-//	TYPVARGBLUCI	253			// global with uci
-//	TYPVARGBLUCIENV	254			// global with uci and env
-//	TYPVARIND	255			// indirect
+//	TYPMAXSUB        63                     // max subscripts
+//	TYPVARNAM        0                      // name only (VAR_LEN bytes)
+//	TYPVARLOCMAX     TYPVARNAM+TYPMAXSUB    // local is 1->63 subs
+//	TYPVARIDX        64                     // 1 byte index (+ #subs)
+//	TYPVARGBL        128                    // first global
+//	TYPVARGBLMAX     TYPVARGBL+TYPMAXSUB    // global 128->191 subs
+//	TYPVARNAKED	 252			// global naked reference
+//	TYPVARGBLUCI	 253			// global with uci
+//	TYPVARGBLUCIENV	 254			// global with uci and env
+//	TYPVARIND	 255			// indirect
 //
-//  For TYPVARNAM: 	OPVAR TYPVARNAM (var_u) name
-//	TYPVARLOC: 	subscripts OPVAR TYPVARNAM+#subs (var_u) name
-//	TYPVARIDX:	subscripts OPVAR TYPVARIDX+#subs (u_char) idx
-//	TYPVARGBL:	subscripts OPVAR TYPVARGBL+#subs (var_u) name
-//	TYPVARNAKED:	subscripts OPVAR TYPVARNAKED #subs
-//	TYPVARGBLUCI:	subscripts uci OPVAR TYPVARGBLUCI #subs (var_u) name
+//  For TYPVARNAM: 	 OPVAR TYPVARNAM (var_u) name
+//	TYPVARLOC: 	 subscripts OPVAR TYPVARNAM+#subs (var_u) name
+//	TYPVARIDX:	 subscripts OPVAR TYPVARIDX+#subs (u_char) idx
+//	TYPVARGBL:	 subscripts OPVAR TYPVARGBL+#subs (var_u) name
+//	TYPVARNAKED:	 subscripts OPVAR TYPVARNAKED #subs
+//	TYPVARGBLUCI:	 subscripts uci OPVAR TYPVARGBLUCI #subs (var_u) name
 //	TYPVARGBLUCIENV: subs uci env OPVAR TYPVARGBLUCIENV #subs (var_u) name
-//	TYPVARIND:	(str on addstk[]) [subs] OPVAR TYPEVARIND #subs
-
-short localvar()                                // evaluate local variable
+//	TYPVARIND:	 (str on addstk[]) [subs] OPVAR TYPEVARIND #subs
+short localvar(void)                            // evaluate local variable
 { char c;                                       // current character
   u_char idx = 0;				// index
-  int i;                                        // a usefull int
+  int i;                                        // a useful int
   int count = 0;				// count subscripts
   var_u var;                                    // to hold variable names
+  u_char *sptr;					// to save source_ptr
   u_char *ptr;					// to save comp_ptr
   short type = TYPVARNAM;			// the type code
   short ret;					// the return
 
   ptr = comp_ptr;				// save comp_ptr
   c = *source_ptr++;                            // get a character
+  if (c == '@')					// indirect ?
+  { if (*source_ptr == '(')
+    { type = TYPVARIND;				// yes @...@ ... on addstk[]
+      goto subs;		 		// go do subscripts
+    }
+    sptr = source_ptr;				// save source_ptr
+    atom();
+    if (*source_ptr == '@' && *(source_ptr + 1) == '(')
+    { *comp_ptr++ = INDMVAR;                    // make an mvar out of it
+      type = TYPVARIND;				// yes @...@ ... on addstk[]
+      source_ptr++;
+      goto subs;		 		// go do subscripts
+    }
+    else if (*source_ptr == '(' || *source_ptr == '\0')
+    { source_ptr = sptr;			// reset source_ptr
+      comp_ptr = ptr;				// reset comp_ptr
+      c = *source_ptr++;                        // get a character
+    }
+    else
+    { return -(ERRZ12 + ERRMLAST);		// else it's junk
+    }
+  }
   if (c == '^')					// if it's global
   { type = TYPVARGBL;				// say it's global
     c = *source_ptr++;				// point past it
@@ -92,7 +114,7 @@ short localvar()                                // evaluate local variable
 	atom();					// eval the argument
 	c = *source_ptr++; 			// get next
       }
-      if (c != ']') return (-(ERRZ12+ERRMLAST)); // that's junk
+      if (c != ']') return -(ERRZ12 + ERRMLAST); // that's junk
       c = *source_ptr++; 			// get next
     }
     else if (c == '(')				// naked reference ?
@@ -101,21 +123,17 @@ short localvar()                                // evaluate local variable
       goto subs;
     }
   }
-  else if (c == '@')				// indirect ?
-  { type = TYPVARIND;				// yes @...@ ... on addstk[]
-    if (*source_ptr == '(') goto subs;		// go do subscripts
-    return (-(ERRZ12+ERRMLAST));		// else it's junk
-  }
-  if ((isalpha((int)c) == 0) && (c != '%') && (c != '$')) // check for a variable
-    return (-(ERRZ12+ERRMLAST));                // return the error
+  if ((isalpha((int) c) == 0) && (c != '%') && (c != '$')) // check for a variable
+    return -(ERRZ12 + ERRMLAST);                // return the error
   if ((c == '$') && (type == TYPVARNAM))	// check $...
   { if (isalpha(*source_ptr) == 0)		// next must be alpha
-    { return (-(ERRZ12+ERRMLAST));              // return the error
+    { return -(ERRZ12 + ERRMLAST);              // return the error
     }
     i = toupper(*source_ptr);			// get the next character
-    // TODO: Add check for real intrinsic (special) variables, not just their first letter
-    //     $device, $ecode, $estack, $etrap, $horolog, $io, $job, $key, $principal,
-    //     $quit, $reference, $storage, $stack, $system, $test, $x, $y, $zbp,
+    // TODO: Add check for real intrinsic variables, not just their first letter
+    //       $device, $ecode, $estack, $etrap, $horolog, $io, $job, $key, $principal,
+    //       $quit, $reference, $storage, $stack, $system, $test, $x, $y, $zbp
+    //       cf. dodollar() in compile/dollar.c
     if (strchr("DEHIJKPQRSTXYZ", i) == NULL)	// if letter is invalid
     { return -ERRM8;				// complain
     }
@@ -131,6 +149,7 @@ short localvar()                                // evaluate local variable
     var.var_cu[i] = c;                          // save in the variable
   }
   if (isalnum(*source_ptr) != 0) return -ERRM56; // complain about name length
+
 subs:
   if (*source_ptr == '(')                       // see if it's subscripted
   { source_ptr++;				// skip the bracket
@@ -139,18 +158,18 @@ subs:
       count++;					// count it
       c = *source_ptr++;			// get next character
       if (c == ')') break;			// quit when done
-      if (c != ',') return (-(ERRZ12+ERRMLAST)); // return the error
+      if (c != ',') return -(ERRZ12 + ERRMLAST); // return the error
     }
   }
   if (count > TYPMAXSUB)			// too many
-    return -(ERRZ15+ERRMLAST);			// error
+    return -(ERRZ15 + ERRMLAST);		// error
   ret = comp_ptr - ptr;				// remember here
   *comp_ptr++ = OPVAR;				// opcode
   if ((type < TYPVARGBL) &&			// candidate for index?
       (partab.varlst != NULL) &&		// and in a routine compile
       (var.var_cu[0] != '$'))			// and it's not $...
   { for (i = 0; ; i++)				// scan list
-    { if (i == 256) break;			// too many
+    { if (i == (MAX_KEY_SIZE + 1)) break;	// too many
       if (var_equal(partab.varlst[i], var))
         break;					// found it
       if (var_empty(partab.varlst[i]))
@@ -158,7 +177,7 @@ subs:
 	break;
       }
     }
-    if (i != 256)
+    if (i != (MAX_KEY_SIZE + 1))
     { type |= TYPVARIDX;			// change the type
       idx = i;					// save index
     }

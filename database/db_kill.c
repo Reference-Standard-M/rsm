@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, Kill
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -44,8 +44,8 @@
 // Return:   0 -> Ok, negative M error
 //
 
-short Kill_data()					// remove tree
-{ short s;						// for functs
+short Kill_data(void)					// remove tree
+{ int s;						// for funcs
   int i;						// a handy int
   int j;						// and another
   gbd *rblk[MAXTREEDEPTH];				// right side tree
@@ -70,7 +70,7 @@ start:
   j = 0;                                                // clear counter
   for (i = 0; i < NUM_GARB; i++)
   { if (systab->vol[volnum - 1]->garbQ[i] == 0)
-    { if (j++ >= (NUM_GARB / 2)) goto cont;                 // ensure we have 1/2 table
+    { if (j++ >= (NUM_GARB / 2)) goto cont;             // ensure we have 1/2 table
     }
   }
   SemOp(SEM_GLOBAL, -curr_lock);			// release current lock
@@ -82,7 +82,7 @@ cont:
   level = 0;						// reset level
   s = Get_data(0);					// attempt to get it
   if ((s < 0) && (s != -ERRM7))				// error, not undef
-  { return s;						// return it
+  { return (short) s;					// return it
   }
 
   if ((systab->vol[volnum - 1]->vollab->journal_available) &&
@@ -148,7 +148,7 @@ cont:
   db_var.key[db_var.slen++] = 255;			// modify key
   s = Get_data(0);					// attempt to get it
   if (s != -ERRM7)					// must be undefined
-  { return -(ERRMLAST+ERRZ61);				// database stuffed
+  { return -(ERRZ61 + ERRMLAST);			// database stuffed
   }
   db_var.slen--;					// put count back
 
@@ -160,7 +160,7 @@ cont:
   systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
   s = Get_data(-1);					// get left side
   if ((s < 0) && (s != -ERRM7))				// error, not undef
-  { return s;						// return it
+  { return (short) s;					// return it
   }							// WARNING: This leaves blocks reserved
   if (rlevel != level)					// check this
   { panic("Kill_data: left level not equal right level"); // die
@@ -217,8 +217,8 @@ cont:
   for (level = top; level <= rlevel; level++)		// scan left edge
   { s = Locate(&db_var.slen);				// locate the record
     if ((s < 0) && (s != -ERRM7))			// error?
-    { return s;						// give up
-    }				// WARNING: This leaves blocks reserved
+    { return (short) s;					// give up
+    }							// WARNING: This leaves blocks reserved
     for (i = Index; i <= blk[level]->mem->last_idx; i++) // scan block
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]); // update the key
@@ -301,11 +301,11 @@ cont:
         ui = (u_int *) c->buf;				// point the int here
         *ui = rblk[level + 1]->block;			// get the block#
         s = Insert(p, c);				// insert the node
-	if (s == -(ERRMLAST+ERRZ62))
+	if (s == -(ERRZ62 + ERRMLAST))
 	{ s = Add_rekey(rblk[level + 1]->block, level + 1); // do it later
 	}
 	else if (s < 0)
-	{ return s;					// error!
+	{ return (short) s;				// error!
 	}
       }							//
     }							// end of insert ptr
@@ -330,7 +330,7 @@ cont:
     blk[level] = leftblk;				// restore left edge
   }							// end right edge scan
 
-// Now ensure that the right edge has a pointer in [top] - (level == top)
+  // Now ensure that the right edge has a pointer in [top] - (level == top)
   if (rblk[top + 1] != NULL)				// and there is level+1
   { idx = (u_short *) rblk[top + 1]->mem;		// point at the block
     iidx = (int *) rblk[top + 1]->mem;			// point at the block
@@ -343,15 +343,15 @@ cont:
       ui = (u_int *) c->buf;				// point the int here
       *ui = rblk[level + 1]->block;			// get the block#
       s = Insert(p, c);					// insert the node
-      if (s == -(ERRMLAST+ERRZ62))
+      if (s == -(ERRZ62 + ERRMLAST))
       { s = Add_rekey(rblk[level + 1]->block, level + 1); // do it later
       }
       else if (s < 0)
-      { return s;					// error!
+      { return (short) s;					// error!
       }
     }							// end of insert ptr
   }							// end ptr level
-  level = MAXTREEDEPTH - 1;				// a usefull level
+  level = MAXTREEDEPTH - 1;				// a useful level
   blk[level] = NULL;					// clear this
   for (i = top; i <= rlevel; i++)			// scan left list
   { if (blk[i]->dirty == (gbd *) 1)			// reserved?

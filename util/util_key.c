@@ -4,7 +4,7 @@
  * Summary:  module database - Key Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -39,15 +39,15 @@
 //**  Key is in order: NEGATIVE NUMBER -> ZERO -> POSITIVE NUMBER -> STRING
 //*************************************************************************
 short UTIL_Key_Build(cstring *src,              // locn of source string
-                      u_char *dest)             // where to put it
+                     u_char *dest)              // where to put it
 { int minus = 0;                                // minus flag
   int dp = -1;                                  // decimal point flag
   int to = 0;					// for dst[]
   int idx = 0;					// for src->buf[]
   int i;                                        // for loops
 
-  if ((src->len < 0) || (src->len > 127))       // neg or > 127 is illegal
-  { return -(ERRZ1+ERRMLAST);			// complain
+  if (src->len > MAX_SUB_LEN)                   // > MAX_SUB_LEN is illegal
+  { return -(ERRZ1 + ERRMLAST);			// complain
   }
 
   if (src->len == 0)                            // test for null string
@@ -85,10 +85,10 @@ short UTIL_Key_Build(cstring *src,              // locn of source string
     { goto string;                              // exit if not numeric
     }
   }                                             // end numeric check
-  if ((dp != -1) && (src->buf[src->len-1] == '0'))
+  if ((dp != -1) && (src->buf[src->len - 1] == '0'))
   { goto string;				// check trailing 0 after dp
   }
-  if (dp == (src->len-1))
+  if (dp == (src->len - 1))
   { goto string;          			// or dp is last char in str
   }
   if (dp == -1)
@@ -99,7 +99,7 @@ short UTIL_Key_Build(cstring *src,              // locn of source string
   }
 
   if (!minus)                                   // do a positive number
-  { dest[to++] = (u_char)(dp + 64);             // copy in the count + flag
+  { dest[to++] = (u_char) (dp + 64);            // copy in the count + flag
     for (i = 0; i < dp; i++)
     { dest[to++] = src->buf[i];  		// copy up to dp
     }
@@ -111,10 +111,10 @@ short UTIL_Key_Build(cstring *src,              // locn of source string
     return (short) to;                 		// return the count
   }                                             // end of positive code
 
-  dest[to++] = (u_char)(63 - dp);               // copy in 1s comp of count
+  dest[to++] = (u_char) (63 - dp);              // copy in 1s comp of count
   for (i = idx; i < src->len; i++)              // go thru the string
   { if (src->buf[i] != '.')                     // ignore the dp
-    { dest[to++] = (u_char)(57 - src->buf[i] + 48); // nines complement
+    { dest[to++] = (u_char) (57 - src->buf[i] + 48); // nines complement
     }
   }
   dest[to++] = 255;                             // trailing -1
@@ -124,11 +124,10 @@ short UTIL_Key_Build(cstring *src,              // locn of source string
 // The following is the string code
 
 string:						// do a string key
-
   dest[to++] = (u_char) 128;                	// copy in the flag
   for (i = 0; i < src->len; i++)   		// for each char in string
   { if ((dest[to++] = src->buf[i]) == 0)	// copy it
-    { return -(ERRZ5+ERRMLAST);			// complain if null
+    { return -(ERRZ5 + ERRMLAST);		// complain if null
     }
   }
   dest[to++] = '\0';				// trailing null
@@ -142,9 +141,7 @@ string:						// do a string key
 short UTIL_Key_Extract(u_char *key,             // where the key is
                         u_char *str,            // locn of dest string
                         int *cnt)               // addr of count of chars used
-
-	// NOTE: if cnt is passed in non-zero, double the quotes(")
-
+	                                        // NOTE: if cnt is passed in non-zero, double the quotes(")
 { int s;                                        // size
   int i = 0;					// index
   int j = 0;					// string count
@@ -152,8 +149,7 @@ short UTIL_Key_Extract(u_char *key,             // where the key is
   int flg;					// flag for quotes in string
   flg = *cnt;					// get the flag
   s = *key++;                                   // get first char
-  if (((s == 0) || (s == 255)) &&
-      (*key == 0))				// check for null str
+  if (((s == 0) || (s == 255)) && (*key == 0))	// check for null str
   { *cnt = 2;					// used 2 bytes
     str[0] = '\0';				// nul term
     return 0;
@@ -161,11 +157,11 @@ short UTIL_Key_Extract(u_char *key,             // where the key is
   if (s & 128)                                  // if it's a string
   { for (i = 0; key[i] != 0; i++)		// loop thru
     { str[j++] = key[i];			// copy till done
-      if ((key[i] == '"') && (flg)) str[j++] = '"'; // double quote if reqd
-      if (i > 127) return -(ERRZ1+ERRMLAST);	// check size
+      if ((key[i] == '"') && flg) str[j++] = '"'; // double quote if reqd
+      if (i > MAX_SUB_LEN) return -(ERRZ1 + ERRMLAST); // check size
     }
     str[j] = 0;					// null terminate
-    *cnt = i+2;					// store bytes used
+    *cnt = i + 2;				// store bytes used
     return (short) j;				// return string count
   }                                             // end of string processing
 
@@ -179,12 +175,12 @@ short UTIL_Key_Extract(u_char *key,             // where the key is
     }
     for (i = 0; i < s; i++) str[idx++] = *key++; // copy to dp
     str[idx] = 0;				// null term (in case)
-    *cnt = s+2;	                                // assume no dp, save count
+    *cnt = s + 2;	                        // assume no dp, save count
     if (*key == '\0') return (short) idx;       // if char 0, all done
     str[idx++] = '.';                           // add the dp
     while ((str[idx++] = *key++)) s++;          // move to NULL, counting
     --idx;					// back to point at NULL
-    if (s > 127) return -(ERRZ1+ERRMLAST);      // check size
+    if (s > MAX_SUB_LEN) return -(ERRZ1 + ERRMLAST); // check size
     *cnt = s + 2;                               // update count
     return (short) idx;                         // return string count
   }                                             // end of positive number
@@ -192,7 +188,7 @@ short UTIL_Key_Extract(u_char *key,             // where the key is
   s = 63 - s;                                   // get negative count
   str[idx++] = '-';                             // save minus sign
   for (i = 0; i < s; i++)                       // copy to dp
-    str[idx++] = ('9' + '0' -*key++);           // doing a 9's complement
+    str[idx++] = ('9' + '0' - *key++);          // doing a 9's complement
   str[idx] = 0;					// null term (in case)
   *cnt = s + 2;                                 // update the count
   if (*key == 255) return (short) idx;          // if char 255, all done
@@ -200,9 +196,9 @@ short UTIL_Key_Extract(u_char *key,             // where the key is
   while (TRUE)                                  // loop for end
   { if (*key == 255) break;                     // check for end of string
     s++;                                        // count character
-    str[idx++] = ('9' + '0' -*key++);           // copy a 9's complement
+    str[idx++] = ('9' + '0' - *key++);          // copy a 9's complement
   }                                             // end while
-  if (s > 127) return -(ERRZ1+ERRMLAST);        // check size
+  if (s > MAX_SUB_LEN) return -(ERRZ1 + ERRMLAST); // check size
   str[idx] = 0;					// null term
   *cnt = s + 2;                                 // update count
   return (short) idx;                           // return new key pointer
@@ -227,7 +223,7 @@ short UTIL_String_Key(u_char *key,              // where the key is -> count
     { string = 1;				// flag it
       str[clen++] = '"';			// add leading quote
     }
-    ret = UTIL_Key_Extract(&key[idx], &str[clen], &count); //get one key
+    ret = UTIL_Key_Extract(&key[idx], &str[clen], &count); // get one key
     if (ret < 0) return ret;			// die on error
     if (ret == 0)				// nul key
     { string = 1;				// flag it as a string
@@ -235,7 +231,7 @@ short UTIL_String_Key(u_char *key,              // where the key is -> count
     }
     clen = clen + (int) ret;			// add to string length
     if (string == 1) str[clen++] = '"';		// add trailing quote
-    len = len-count;				// subtract used bytes
+    len = len - count;				// subtract used bytes
     idx = idx + count;				// adjust key index
     str[clen++] = ',';				// add a comma
     max_subs--;					// count subscript
@@ -243,7 +239,7 @@ short UTIL_String_Key(u_char *key,              // where the key is -> count
   }
   clen--;					// last comma
   str[clen++] = ')';				// replace with )
-  str[clen] = 0;				// null terminate
+  str[clen] = '\0';				// null terminate
   return (short) clen;				// and return the length
 }
 
@@ -255,17 +251,17 @@ int UTIL_Key_Last(mvar *var)			// point at last subs in mvar
   while (i < var->slen)				// while any there
   { last = i;					// save beginning
     if (var->key[i++] < 64)			// negative number
-      while ((var->key[i++] != 255) && (i < var->slen)); // scan to end
+      while ((var->key[i++] != 255) && (i < var->slen)) continue; // scan to end
     else					// positive or string
-      while ((var->key[i++] != 0) && (i < var->slen));	// scan to end
+      while ((var->key[i++] != 0) && (i < var->slen)) continue;	// scan to end
   }
   return last;					// return the index
 }
 
 //****************************************************************
 short UTIL_String_Mvar(mvar *var,            	// address of mvar
-                        u_char *str,            // locn of dest string
-                        int max_subs)		// max number of subscripts
+                       u_char *str,             // locn of dest string
+                       int max_subs)		// max number of subscripts
 { int i;					// for loops
   int p = 0;					// string pointer
   int vol;					// for volset
@@ -281,7 +277,7 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
       str[p++] = '"';				// a leading quote
       vol = var->volset;			// get vol
       if (vol == 0) vol = partab.jobtab->vol;	// if none, get default
-      up = systab->vol[vol-1]->vollab->uci[var->uci-1]; // uci tab pointer
+      up = systab->vol[vol - 1]->vollab->uci[var->uci - 1]; // uci tab pointer
       for (i = 0; i < VAR_LEN; i++)		// for each possible character
       { if (up.name.var_cu[i] == '\0') break;	// done if we hit a null
         str[p++] = up.name.var_cu[i];		// copy the character
@@ -290,7 +286,7 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
       if (var->volset != 0)			// volset specified?
       { str[p++] = ',';				// copy in a comma
         str[p++] = '"';				// a leading quote
-	ptr = systab->vol[var->volset-1]->vollab->volnam.var_cu;
+	ptr = systab->vol[var->volset - 1]->vollab->volnam.var_cu;
         for (i = 0; i < VAR_LEN; i++)		// for each possible character
         { if (ptr[i] == '\0') break;		// done if we hit a null
           str[p++] = ptr[i];			// copy the character
@@ -300,9 +296,8 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
       str[p++] = ']';				// closing bracket
     }						// end environment stuff
   }						// end global specific stuff
-  if ((var->uci == UCI_IS_LOCALVAR) &&
-      (var->volset))				// special index type
-  { r = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+  if ((var->uci == UCI_IS_LOCALVAR) && var->volset) // special index type
+  { r = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
     vt = (var_u *) (((u_char *) r) + r->var_tbl); // point at var table
     VAR_COPY(var->name, vt[var->volset - 1]);	// get the var name
     var->volset = 0;				// clear the volset
@@ -314,8 +309,8 @@ short UTIL_String_Mvar(mvar *var,            	// address of mvar
   }
 
   if ((var->slen != 0) && (max_subs > 0))	// if there are subscripts
-  { i = UTIL_String_Key(&var->slen, &str[p], max_subs); //do the subscripts
-    if (i < 0) return i;			// quit on error
+  { i = UTIL_String_Key(&var->slen, &str[p], max_subs); // do the subscripts
+    if (i < 0) return (short) i;		// quit on error
     p = p + i;					// add to length
   }
   str[p] = '\0';				// null terminate
@@ -335,7 +330,7 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
   cstring *kb;					// for key builds
   var_u nam;					// for name comparisons
   var_u vol;					// ditto
-  u_char tmp[260];				// temp area for subscripts
+  u_char tmp[MAX_KEY_SIZE + 5];			// temp area for subscripts
 
   kb = (cstring *) tmp;				// make it a cstring
   var->volset = 0;				// clear volset
@@ -351,11 +346,11 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
     { ptr++;					// skip the [
       VAR_CLEAR(nam);				// clear quadword
       if (*ptr++ != '"')			// must be a quote
-        return -(ERRMLAST+ERRZ12);		// complain
+        return -(ERRZ12 + ERRMLAST);		// complain
       i = 0;					// clear an index
       while (*ptr != '"')			// scan to end of literal
       { if (i == VAR_LEN)			// check for too many
-          return -(ERRMLAST+ERRZ12);		// complain
+          return -(ERRZ12 + ERRMLAST);		// complain
         nam.var_cu[i++] = *ptr++;		// copy a byte
       }
       ptr++;					// go past closing "
@@ -364,11 +359,11 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
       { ptr++;					// skip the ,
         VAR_CLEAR(vol);				// clear quadword
         if (*ptr++ != '"')			// must be a quote
-          return -(ERRMLAST+ERRZ12);		// complain
+          return -(ERRZ12 + ERRMLAST);		// complain
         i = 0;					// clear an index
         while (*ptr != '"')			// scan to end of literal
         { if (i == VAR_LEN)			// check for too many
-            return -(ERRMLAST+ERRZ12);		// complain
+            return -(ERRZ12 + ERRMLAST);		// complain
           vol.var_cu[i++] = *ptr++;		// copy a byte
         }
         ptr++;					// go past closing "
@@ -381,7 +376,7 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
       }
       if (var->volset == 0) var->volset = partab.jobtab->vol; // default
       for (i = 0; i < UCIS; i++)		// scan uci list (vol 0)
-        if (var_equal(systab->vol[var->volset-1]->vollab->uci[i].name, nam))
+        if (var_equal(systab->vol[var->volset - 1]->vollab->uci[i].name, nam))
 	  break;				// quit if found
       if (i == UCIS) return -ERRM26;		// no such, complain
       var->uci = i + 1;				// store the uci#
@@ -396,34 +391,34 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
   }
   if (*ptr == '\0') return 0;			// end of string - all done
   if (*ptr++ != '(')				// must be a (
-    return -(ERRMLAST+ERRZ12);			// complain
+    return -(ERRZ12 + ERRMLAST);		// complain
   while (TRUE)					// till we run out of subs
-  { if (*ptr == '\0') return -(ERRMLAST+ERRZ12); // junk
+  { if (*ptr == '\0') return -(ERRZ12 + ERRMLAST); // junk
     q = (*ptr == '"');				// check for quotes
     if (q) ptr++;				// skip the quote
     i = 0;					// init index
     while (TRUE)				// move 1 subs
-    { if (*ptr == '\0') return -(ERRMLAST+ERRZ12); // junk
+    { if (*ptr == '\0') return -(ERRZ12 + ERRMLAST); // junk
       if (*ptr == '"' && q)			// quote
       { ptr++;					// skip it
         if (*ptr != '"')			// next not a quote
 	{ if (*ptr == ',') break;		// done
 	  if (*ptr == ')') break;		// also done
-          return (-(ERRMLAST+ERRZ12));		// junk
+          return -(ERRZ12 + ERRMLAST);		// junk
 	}
       }						// end quote processing
-      if (i == 255) return -(ERRMLAST+ERRZ12);	// junk
+      if (i == 255) return -(ERRZ12 + ERRMLAST); // junk
       if ((!q) && ((*ptr == ',') || (*ptr == ')'))) // end numeric subs
         break;					// done with this one
       kb->buf[i++] = *ptr++;			// copy one character
     }						// end copy 1 subs
     kb->buf[i] = '\0';				// null terminate
-    kb->len = i;				// save the length
+    kb->len = (u_short) i;			// save the length
     s = UTIL_Key_Build(kb, &var->key[var->slen]); // do one key
     if (s < 0) return s;			// got an error
-    if ((s + var->slen) > 255) return -(ERRMLAST+ERRZ12); // junk
+    if ((s + var->slen) > 255) return -(ERRZ12 + ERRMLAST); // junk
     if ((var->key[var->slen] == 128) && (!q))	// got a string + no quotes
-      return -(ERRMLAST+ERRZ12);		// junk
+      return -(ERRZ12 + ERRMLAST);		// junk
     subs++;					// count a subscript
     var->slen = s + var->slen;			// save new length
     if (*ptr == ',')				// comma?
@@ -434,10 +429,10 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
     { ptr++;					// skip it
       break;					// and quit
     }
-    return -(ERRMLAST+ERRZ12);			// junk
+    return -(ERRZ12 + ERRMLAST);		// junk
   }
-  if (*ptr != '\0') return -(ERRMLAST+ERRZ12);	// junk
-  return subs;					// all OK
+  if (*ptr != '\0') return -(ERRZ12 + ERRMLAST); // junk
+  return (short) subs;				// all OK
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -448,21 +443,20 @@ short UTIL_MvarFromCStr(cstring *src,		// the string
 int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2)
 { int cmpvar;					// comparison variable
 
-  cmpvar = memcmp(key1, key2,
-           (kleng1 < kleng2) ? kleng1: kleng2); // compare keys
+  cmpvar = memcmp(key1, key2, ((kleng1 < kleng2) ? kleng1: kleng2)); // compare keys
   if (!cmpvar)					// if start of keys is same
   { if (kleng1 == kleng2)			// and the lengths are equal
-    { return (KEQUAL);				// ...keys are the same
+    { return KEQUAL;				// ...keys are the same
     }
     if (kleng1 > kleng2)			// if length of key 1 if bigger
-    { return (K2_LESSER);			// ...key1 sorts after key2
+    { return K2_LESSER;				// ...key1 sorts after key2
     }
-    return (K2_GREATER);			// ...key2 sorts after key1
+    return K2_GREATER;				// ...key2 sorts after key1
   }
   if (cmpvar > 0)				// if value of key1 is greater
-  { return (K2_LESSER);				// ...key1 sorts after key2
+  { return K2_LESSER;				// ...key1 sorts after key2
   }
-  return (K2_GREATER);				// ...key2 sorts after key1
+  return K2_GREATER;				// ...key2 sorts after key1
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -472,22 +466,18 @@ int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2)
 //			if either (int *) or last (char *) is not NULL.
 // Return Values:	Number of chars in subscripts counted.
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs,
-                                                        char *KeyBuffer)
+int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *KeyBuffer)
 { int cnt, i;						// subs & char counts
   cnt = 0;						// initialize
   i = 0;						// these two
   while ((i < keylen) && (cnt < maxsubs))		// while still in key
-  { if ((Key[i]&128) || (Key[i]&64))			// if +ve no. or string
-    { for (i++; Key[i]; i++)
-			;				// loop til find NULL
-        i++;						// skip NULL char
+  { if ((Key[i] & 128) || (Key[i] & 64))		// if +ve no. or string
+    { for (i++; Key[i]; i++) continue;			// loop til find NULL
+      i++;						// skip NULL char
     }
     else						// else if -ve
-    { for (i++; (Key[i] != -1); i++)
-			;				// loop til find $C(255)
-        i++;						// skip past 255
+    { for (i++; (Key[i] != -1); i++) continue;		// loop til find $C(255)
+      i++;						// skip past 255
     }
     cnt++;						// increment subs count
   }
@@ -495,5 +485,5 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs,
     *subs = cnt;					// subs, then copy
   if (KeyBuffer != NULL)				// if we want the chars
     bcopy(Key, KeyBuffer, i);				// then copy them
-  return (i);						// return no. of chars
+  return i;						// return no. of chars
 }

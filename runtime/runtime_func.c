@@ -4,7 +4,7 @@
  * Summary:  module runtime - RunTime Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -46,9 +46,11 @@
 // All functions use the following structure
 //
 // short Dfunc(u_char *ret_buf, ...
+//     or
+// int   Dfunc(u_char *ret_buf, ...
 //
 // The first argument is of type u_char* and is the destination
-// for the value returned by the function (max size is 32767).
+// for the value returned by the function (max size is MAX_STR_LEN).
 // The subsequent arguments are all read only and are the passed in values.
 // The function returns a count of characters in the return string
 // or a negative error number (M error).
@@ -65,11 +67,9 @@ short Dascii1(u_char *ret_buffer, cstring *expr)
 
 short Dascii2(u_char *ret_buffer, cstring *expr, int posn)
 { int asc = -1;                                 // default to -1
-  int i;                                        // for loops
-  if ((posn > 0)&&(posn <= (int)expr->len))     // if within range
-    asc = (int)expr->buf[posn-1];               // get from string
-  i = itocstring(ret_buffer, asc);          	// convert answer to string
-  return i;                                     // return the count
+  if ((posn > 0) && (posn <= (int) expr->len))  // if within range
+    asc = (int) expr->buf[posn - 1];            // get from string
+  return itocstring(ret_buffer, asc);		// convert answer to string and return count
 }
 
 //***********************************************************************
@@ -97,17 +97,21 @@ short Ddata(u_char *ret_buffer, mvar *var)
 //***********************************************************************
 // $EXTRACT(expr[,start[,stop]])
 //
-short Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
+int Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
 { int i;                                        // for loops
+  /* DLW - support negative offsets
+  if (start < 0) start = expr->len + start + 1; // support negative arguments
+  if (stop < 0) stop = expr->len + stop + 1;    // support negative arguments
+  */
   if ((start < 1) && (stop > 0))
     start = 1;                     		// ensure sensible
   ret_buffer[0] = '\0';                       	// setup null string
   if (start < 1) return 0;			// that's a null
-  if (stop > (int)expr->len)                    // if past end of string
-    stop = (int)expr->len;                      // point at the end
-  if ((stop < start)||(start > (int)expr->len))
+  if (stop > (int) expr->len)                   // if past end of string
+    stop = (int) expr->len;                     // point at the end
+  if ((stop < start) || (start > (int) expr->len))
     return 0;                                   // and return it
-  i = stop-start+1;                             // bytes to copy
+  i = stop - start + 1;                         // bytes to copy
   bcopy(&expr->buf[start - 1],                  // copy from here
         ret_buffer,                             // to here
         i);                                     // this many bytes
@@ -118,8 +122,14 @@ short Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
 //***********************************************************************
 // $FIND(expr1,expr2[,int])
 //
-short Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
+int Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
 { return Dfind3(ret_buffer, expr1, expr2, 1);
+}
+
+int Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start)
+{ int ret = 0;                                  // return value
+  ret = itocstring(ret_buffer, Dfind3x(expr1, expr2, start)); // eval into buffer
+  return ret;					// and return length
 }
 
 int Dfind3x(cstring *expr1, cstring *expr2, int start)
@@ -129,22 +139,15 @@ int Dfind3x(cstring *expr1, cstring *expr2, int start)
   if (start < 1) start = 1;                     // ensure sensible
   if (expr2->len == 0)                          // if expr2 is null str
     return start;				// just return start
-  for (i=start-1; i < (int)expr1->len; i++)     // scan expr1
-  { for (j=0; j != (int)expr2->len; j++)        // scan expr2
-    { if (expr1->buf[i+j] != expr2->buf[j]) break; // quit if not the same
-      if ((j + 1) == (int)expr2->len)           // if at end of expr2
-        ret = i + j +2;                         // remember where we are
+  for (i = start - 1; i < (int) expr1->len; i++) // scan expr1
+  { for (j = 0; j != (int) expr2->len; j++)     // scan expr2
+    { if (expr1->buf[i + j] != expr2->buf[j]) break; // quit if not the same
+      if ((j + 1) == (int) expr2->len)            // if at end of expr2
+        ret = i + j + 2;                        // remember where we are
     }                                           // end compare loop
     if (ret != 0) break;                        // quit if found
   }                                             // end of expr
   return ret;                                   // and return it
-}
-
-short Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start)
-{ int ret = 0;                                  // return value
-  ret = itocstring(ret_buffer,
-                 Dfind3x(expr1, expr2, start));	// eval into buffer
-  return (short) ret;				// and return length
 }
 
 //***********************************************************************
@@ -163,8 +166,7 @@ short Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start)
 //              (prefix and suffix) if the number is non-negative.
 //
 // NOTE: numexp MUST be a canonic number!!
-
-short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
+int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
 {
   cstring *tempc;
   cstring *dest;
@@ -185,17 +187,17 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   char *dp = NULL;				// decimal point pos
 
   ret_buffer[0] = '\0';
-  a1 = strchr((const char *) &code->buf[0],'p');		// in code string ??
-  a2 = strchr((const char *) &code->buf[0],'P');		// in code string ??
-  b1 = strchr((const char *) &code->buf[0],'+');		// in code string ??
-  b2 = strchr((const char *) &code->buf[0],'-');		// in code string ??
-  c1 = strchr((const char *) &code->buf[0],'t');		// in code string ??
-  c2 = strchr((const char *) &code->buf[0],'T');		// in code string ??
-  d1 = strchr((const char *) &code->buf[0],',');		// in code string ??
-  dp = strchr((const char *) &numexp->buf[0],'.');		// decimal pos in number *|Null
+  a1 = strchr((const char *) &code->buf[0], 'p'); // in code string ??
+  a2 = strchr((const char *) &code->buf[0], 'P'); // in code string ??
+  b1 = strchr((const char *) &code->buf[0], '+'); // in code string ??
+  b2 = strchr((const char *) &code->buf[0], '-'); // in code string ??
+  c1 = strchr((const char *) &code->buf[0], 't'); // in code string ??
+  c2 = strchr((const char *) &code->buf[0], 'T'); // in code string ??
+  d1 = strchr((const char *) &code->buf[0], ','); // in code string ??
+  dp = strchr((const char *) &numexp->buf[0], '.'); // decimal pos in number *|Null
   if (((a1 != NULL) || (a2 != NULL)) &&		// check for invalid
       ((b1 != NULL) || (b2 != NULL) || (c1 != NULL) || (c2 != NULL)))
-    return -(ERRM2);				// invalid code, error
+    return -ERRM2;				// invalid code, error
 
   if (numexp->len > 1)
   { for (z = 0; z <= numexp->len; z++)
@@ -215,7 +217,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   bcopy(&numexp->buf[z], dest->buf, numexp->len);
   if (d1 != NULL)				// add in commas
   { if (dp != NULL) // contains a decimal point
-    { for (i = 0; i <= dest->len-1; i++)
+    { for (i = 0; i <= dest->len - 1; i++)
       { if (dest->buf[i] == '.') break;
       }
       ndlen = i;					// save this pos
@@ -224,9 +226,9 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
       }
       nc = ndlen / 3;					// num commas reqd
       if (((ndlen % 3) == 0) && (i > 0)) nc -= 1;	// if *3 need one less,
-      nlen = dest->len+nc-1;				// orig+num commas-idx
-      tempc->len = nlen+1;
-      ptr1 = &dest->buf[dest->len-1];		// copy all including
+      nlen = dest->len + nc - 1;			// orig+num commas-idx
+      tempc->len = nlen + 1;
+      ptr1 = &dest->buf[dest->len - 1];			// copy all including
       while (*ptr1 != '.')				// the NULL term, up to
       { bcopy(ptr1, &tempc->buf[nlen], 1);		// the decimal point
         nlen -= 1;					// but not including
@@ -246,16 +248,16 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
         }
       }
     }
-    else // no decimal point
+    else						// no decimal point
     { ndlen = numexp->len;				// save this start pos
       if (numexp->buf[0] == '-')
       { ndlen -= 1;					// dont count "-"
       }
       nc = ndlen / 3;					// num commas reqd
       if ((ndlen % 3) == 0) nc -= 1;			// if *3 need one less,
-      nlen = numexp->len+nc-1;				// orig+num commas-idx
-      tempc->len = nlen+1;
-      ptr1 = &dest->buf[dest->len-1];
+      nlen = numexp->len + nc - 1;			// orig+num commas-idx
+      tempc->len = nlen + 1;
+      ptr1 = &dest->buf[dest->len - 1];
       while (nlen >= 0)					// copy the rest
       { cd += 1;					// of the string
         bcopy(ptr1, &tempc->buf[nlen], 1);		// to the destination
@@ -279,7 +281,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     }						// no further action reqd
     if (numexp->buf[0] == '-')
     { tempc->buf[0] = '(';			// prefix a '('
-      bcopy(&dest->buf[1], &tempc->buf[1], dest->len-1); // copy original data
+      bcopy(&dest->buf[1], &tempc->buf[1], dest->len - 1); // copy original data
       tempc->buf[dest->len] = ')';		// suffix a ')'
       tempc->len = dest->len + 1;
     }						// no further action reqd
@@ -288,10 +290,10 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   }
   if ((c1 != NULL) || (c2 != NULL))		// trailing signs
   { if (numexp->buf[0] != '-')
-    { if (b1 != NULL) // force + sign at end
+    { if (b1 != NULL)				// force + sign at end
       { if (dest->buf[0] == '+')		// if + sign already at front
-        { bcopy(&dest->buf[1], &tempc->buf[0], dest->len-1);
-          tempc->buf[dest->len-1] = '+';
+        { bcopy(&dest->buf[1], &tempc->buf[0], dest->len - 1);
+          tempc->buf[dest->len - 1] = '+';
           tempc->len = dest->len;
         }
         else					// no + sign at front
@@ -307,13 +309,13 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     }
     else					// negative number
     { if (b2 != NULL)				// - sign supress, tack a space
-      { bcopy(&dest->buf[1], &tempc->buf[0], dest->len-1);
-        tempc->buf[dest->len-1] = ' ';
+      { bcopy(&dest->buf[1], &tempc->buf[0], dest->len - 1);
+        tempc->buf[dest->len - 1] = ' ';
         tempc->len = dest->len;
       }
       else					// force - sign at end
-      { bcopy(&dest->buf[1], &tempc->buf[0], dest->len-1);
-        tempc->buf[dest->len-1] = '-';
+      { bcopy(&dest->buf[1], &tempc->buf[0], dest->len - 1);
+        tempc->buf[dest->len - 1] = '-';
         tempc->len = dest->len;
       }
     }
@@ -322,7 +324,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   }
   else						// non trailing signs
   { if (numexp->buf[0] != '-')
-    { if ((numexp->buf[0] == '0') && (numexp->len ==1))
+    { if ((numexp->buf[0] == '0') && (numexp->len == 1))
 	{ b1 = NULL; 				// Turn off + for 0 case
 	}
       if (b1 != NULL) // force + sign at front
@@ -343,9 +345,9 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
         tempc->len = dest->len;
       }
     }
-    else // negative number
-    { if (b2 != NULL) // - sign supressed
-      { bcopy(&dest->buf[1], tempc->buf, dest->len-1);
+    else					// negative number
+    { if (b2 != NULL)				// - sign supressed
+      { bcopy(&dest->buf[1], tempc->buf, dest->len - 1);
         tempc->len = dest->len - 1;
       }
       else
@@ -362,9 +364,9 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   return dest->len;
 }						// end function $FNUMBER
 
-short Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
+int Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
 { cstring *change;
-  short s;
+  int s;
 
   s = Djustify3(ret_buffer, numexp, 0, rnd);
   if (s < 0)
@@ -379,7 +381,7 @@ short Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
 //***********************************************************************
 // $GET(variable[,expr])
 //
-short Dget1(u_char *ret_buffer, mvar *var)
+int Dget1(u_char *ret_buffer, mvar *var)
 { u_char tmp[8];				// some space
   cstring *cptr;				// for the call
   cptr = (cstring *) tmp;			// point at the space
@@ -388,54 +390,53 @@ short Dget1(u_char *ret_buffer, mvar *var)
   return Dget2(ret_buffer, var, cptr); 		// do it below
 }
 
-short Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
-{ short s;					// for return values
+int Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
+{ int s;					// for return values
   if (var->uci == UCI_IS_LOCALVAR)		// for a local var
   { s = ST_Get(var, ret_buffer);		// attempt to get the data
     if (s >= 0) return s;			// if we got data, return it
-    if (s == -(ERRM6)) s = 0;			// flag undefined local var
+    if (s == -ERRM6) s = 0;			// flag undefined local var
   }
   else if (var->name.var_cu[0] == '$') 		// ssvn?
   { s = SS_Get(var, ret_buffer);		// attempt to get the data
     if (s >= 0) return s;			// if we got data, return it
-    if ((s == -(ERRM38)) || (s == -(ERRM7)))
+    if ((s == -ERRM38) || (s == -ERRM7))
       s = 0;					// flag undefined ssvn
   }
   else						// for a global var
   { bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
     s = DB_Get(var, ret_buffer);		// attempt to get the data
     if (s >= 0) return s;			// if we got data, return it
-    if (s == -(ERRM7)) s = 0;			// flag undefined global var
+    if (s == -ERRM7) s = 0;			// flag undefined global var
   }
   if (s != 0) return s;				// if an error, return it
   bcopy(&expr->buf[0],                          // copy from here
         &ret_buffer[0],                      	// to here
         expr->len);                             // this many bytes
   ret_buffer[expr->len] = '\0';			// ensure null terminated
-  return (expr->len);				// and return the length
+  return expr->len;				// and return the length
 }
 
 //***********************************************************************
 // $JUSTIFY(expr,int1[,int2])
 //
-short Djustify2(u_char *ret_buffer, cstring *expr, int size)
+int Djustify2(u_char *ret_buffer, cstring *expr, int size)
 { int adj;                                      // adjust reqd
   int i;                                        // for loops
-  adj = size - (int)expr->len;                  // get number of spaces
+  adj = size - (int) expr->len;                 // get number of spaces
   if (adj < 0) adj = 0;                         // ensure positive
-    for (i=0; i<adj; i++)                       // for each required space
-      ret_buffer[i] = ' ';                      // copy in a space
+  for (i = 0; i < adj; i++)                     // for each required space
+    ret_buffer[i] = ' ';                        // copy in a space
   bcopy(&expr->buf[0],                          // copy from here
-         &ret_buffer[adj],                      // to here
-         expr->len);                            // this many bytes
-  i = expr->len+adj;                            // get the new size
+        &ret_buffer[adj],                       // to here
+        expr->len);                             // this many bytes
+  i = expr->len + adj;                          // get the new size
   ret_buffer[i] ='\0';                          // nul terminate it
   return i;                                     // and return it
-}                                               // end no 2 arg $J()
+}                                               // end 2 arg $J()
 
-short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 // NOTE: We must have been passed a canonic number
-
+int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 { int i;
   int j = 0;
   int spc;					// leading space count
@@ -446,7 +447,7 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
   int cop;
 
   if (round < 0)
-  { return -(ERRM28);				// that's an error
+  { return -ERRM28;				// that's an error
   }
   if (size < 0)					// if negative size
   { size = 0;					// make it zero
@@ -458,8 +459,7 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
       break;
     }
   }
-  if ((!dp) ||
-      ((dp == 1) && (expr->buf[0] == '-')))
+  if (!dp || ((dp == 1) && (expr->buf[0] == '-')))
   { zer = 1;					// need to add a zero
   }
   if (!round)
@@ -544,7 +544,7 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 	{ break;
 	}
       }
-      if (j == len)				// found nothing usefull
+      if (j == len)				// found nothing useful
       { if ((i != 0) || (len == size))
         { ret_buffer[i] = ' ';			// remove the minus
 	  break;
@@ -557,7 +557,7 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
     { break;
     }
   }
-  return (short) len;
+  return len;
 }
 
 //***********************************************************************
@@ -567,16 +567,20 @@ short Dlength1(u_char *ret_buffer, cstring *expr)
 { return itocstring(ret_buffer, expr->len); 	// just do it
 }
 
+short Dlength2(u_char *ret_buffer, cstring *expr, cstring *delim)
+{ return itocstring(ret_buffer, Dlength2x(expr, delim)); // copy to buf and ret len
+}
+
 int Dlength2x(cstring *expr, cstring *delim)
 { int i;                                        // temp
   int j;                                        // index for delim
   int pce = 1;                                  // for version 2
   if (delim->len == 0)                          // special case
     return 0;                                   // return zero
-  for (i=0; i < (int)expr->len; i++)            // scan expr
-  { for (j=0; j != (int)delim->len; j++)
-    { if (expr->buf[i+j] != delim->buf[j]) break; // quit if not the same
-      if ((j + 1) == (int)delim->len)           // if at end of delim
+  for (i = 0; i < (int) expr->len; i++)         // scan expr
+  { for (j = 0; j != (int) delim->len; j++)
+    { if (expr->buf[i + j] != delim->buf[j]) break; // quit if not the same
+      if ((j + 1) == (int) delim->len)          // if at end of delim
       { pce++;                                  // count a piece
         i = i + j;                              // move i on a bit
       }                                         // end 'piece matches'
@@ -585,20 +589,15 @@ int Dlength2x(cstring *expr, cstring *delim)
   return pce;                                   // and return count
 }
 
-short Dlength2(u_char *ret_buffer, cstring *expr, cstring *delim)
-{ return itocstring(ret_buffer,
-  		    Dlength2x(expr, delim));	// copy to buf and ret len
-}
-
 //***********************************************************************
 // $NAME(variable[,int])
 //
 short Dname1(u_char *ret_buffer, mvar *var)
-{ return Dname2(ret_buffer, var, 99999);        // use Dname2()
+{ return Dname2(ret_buffer, var, MAX_NUM_SUBS);  // use Dname2()
 }
 
 short Dname2(u_char *ret_buffer, mvar *var, int sub)
-{ if (sub < 0) return -(ERRM39);		// Invalid $NAME argument
+{ if (sub < 0) return -ERRM39;			// Invalid $NAME argument
   return UTIL_String_Mvar(var, ret_buffer, sub); // do it elsewhere
 }
 
@@ -614,17 +613,15 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
   short s;
   int realdir;
 
-  if ((dir != 1) && (dir != -1)			// validate direction
-    && ((dir != 2) && (systab->historic & HISTORIC_DNOK))) // for $NEXT
-    return -(ERRMLAST+ERRZ12);			// complain on error
+  if ((dir != 1) && (dir != -1) && ((dir != 2) && (systab->historic & HISTORIC_DNOK))) // validate direction for $NEXT
+    return -(ERRZ12 + ERRMLAST);		// complain on error
   realdir = dir;
   if (dir == 2)
   { realdir = 1;
   }
   if (dir == -1)				// is it backwards?
-    if ((var->key[var->slen-1] == '\0') &&
-        (var->key[var->slen-2] == '\0'))	// is it a nul?
-    { i = var->slen-2;				// posn of first 0
+    if ((var->key[var->slen - 1] == '\0') && (var->key[var->slen - 2] == '\0'))	// is it a nul?
+    { i = var->slen - 2;			// posn of first 0
       var->key[i] = '\377';			// change to 255
     }
   if (var->uci == UCI_IS_LOCALVAR)
@@ -648,22 +645,29 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
 //***********************************************************************
 // $PIECE(expr1,expr2[,int1[,int2]])
 //
-short Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim)
+int Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim)
 { return Dpiece4(ret_buffer, expr, delim, 1, 1); // use Dpiece4()
 }
 
-short Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1)
+int Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1)
 { return Dpiece4(ret_buffer, expr, delim, i1, i1); // use Dpiece4()
 }
 
-short Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
+int Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
 { int beg = 0;                                  // start copy from
   int end;                                      // copy to
   int pce = 1;                                  // current piece
   int f;                                        // found flag
   int j;                                        // for delim scan
+  // DLW - support negative offsets
+  //int np;					// number of pieces
   ret_buffer[0] = '\0';                         // just in case
   if (delim->len == 0) return 0;                // null delimiter -> nul str
+  /* DLW - support negative offsets
+  np = Dlength2x(expr, delim);			// get number of pieces
+  if (i1 < 0) i1 = np + i1 + 1;                 // support negative arguments
+  if (i2 < 0) i2 = np + i2 + 1;                 // support negative arguments
+  */
   if (i1 < 0) i1 = 0;                           // minus makes no sense
   if (i2 < 0) i2 = 0;                           // minus makes no sense
   if ((i1 == 0) && (i2 == 0)) return 0;         // piece 0 is null str
@@ -672,7 +676,7 @@ short Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
   { if (expr->buf[end] == delim->buf[0])        // if first char matches
     { f = 1;                                    // set found flag
       for (j = 1; j < delim->len; j++)          // scan rest of delimiter
-      { if (expr->buf[end+j] != delim->buf[j])  // if we have a mismatch
+      { if (expr->buf[end + j] != delim->buf[j]) // if we have a mismatch
         { f = 0;                                // clear found flag
           break;                                // and quit
         }
@@ -708,17 +712,16 @@ short Dquery1(u_char *ret_buffer, mvar *var)
 short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 { int i = -1;					// dir patch flag
   if ((dir != 1) && (dir != -1))		// validate direction
-    return -(ERRMLAST+ERRZ12);			// complain on error
+    return -(ERRZ12 + ERRMLAST);		// complain on error
   if (dir == -1)				// is it backwards?
-    if ((var->key[var->slen-1] == '\0') &&
-        (var->key[var->slen-2] == '\0'))	// is it a nul?
-    { i = var->slen-2;				// posn of first 0
+    if ((var->key[var->slen - 1] == '\0') && (var->key[var->slen - 2] == '\0')) // is it a nul?
+    { i = var->slen - 2;			// posn of first 0
       var->key[i] = '\377';			// change to 255
     }
   if (var->uci == UCI_IS_LOCALVAR)
     return ST_Query(var, ret_buffer, dir); 	// for local var
   if (var->name.var_cu[0] == '$') 		// ssvn?
-    return (-ERRM38);				// no such
+    return -ERRM38;				// no such
   bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
   if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
   return DB_Query(var, ret_buffer, dir);	// else it's global
@@ -728,7 +731,7 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 // $RANDOM(int)
 //
 short Drandom(u_char *ret_buffer, int seed)
-{ if (seed < 1) return (-ERRM3);                // an error
+{ if (seed < 1) return -ERRM3;                  // an error
   seed = random() % seed;                       // get a random number
   return itocstring(ret_buffer, seed);      	// convert answer to string
 }
@@ -736,10 +739,10 @@ short Drandom(u_char *ret_buffer, int seed)
 //***********************************************************************
 // $REVERSE(expr)
 //
-short Dreverse(u_char *ret_buffer, cstring *expr)
+int Dreverse(u_char *ret_buffer, cstring *expr)
 { int i;                                        // for the loop
   int j = 0;                                    // destination
-  for (i = (int)expr->len-1; i >= 0; i--)       // for each character
+  for (i = (int) expr->len - 1; i >= 0; i--)    // for each character
     ret_buffer[j++] = expr->buf[i];             // copy it
   ret_buffer[j] = '\0';                         // terminate it
   return expr->len;                             // and return count
@@ -765,13 +768,12 @@ short Dreverse(u_char *ret_buffer, cstring *expr)
 //                c) if $ST(int,"ECODE") is not empty, the last command to
 //                   start execution while $ST(int,"ECODE") was empty.
 //
-
 short Dstack1(u_char *ret_buffer, int level)
 { return Dstack1x(ret_buffer, level, (partab.jobtab - systab->jobtab));
 }
 
 short Dstack1x(u_char *ret_buffer, int level, int job)
-{ int i;					// a usefull int
+{ int i;					// a useful int
   ret_buffer[0] = '\0';				// null terminate
   if (level < -1) return 0;			// junk
   i = systab->jobtab[job].cur_do;		// default
@@ -782,24 +784,24 @@ short Dstack1x(u_char *ret_buffer, int level, int job)
     return itocstring(ret_buffer, i);		// return the number
   if (level == 0)
   { if (systab->jobtab[job].dostk[0].type == TYPE_JOB)
-      return mcopy((u_char *) "JOB", ret_buffer, 3);	// for a JOB command
-    return mcopy((u_char *) "RUN", ret_buffer, 3);		// normal run
+      return (short) mcopy((u_char *) "JOB", ret_buffer, 3); // for a JOB command
+    return (short) mcopy((u_char *) "RUN", ret_buffer, 3); // normal run
   }
   if (level == systab->jobtab[job].error_frame) level = STM1_FRAME; // err frame
   i = systab->jobtab[job].dostk[level].type & 127; // get the type
-  if (i == TYPE_RUN) return mcopy((u_char *) "BREAK", ret_buffer, 5);
-  if (i == TYPE_DO) return mcopy((u_char *) "DO", ret_buffer, 2);
-  if (i == TYPE_EXTRINSIC) return mcopy((u_char *) "$$", ret_buffer, 2);
-  if (i == TYPE_XECUTE) return mcopy((u_char *) "XECUTE", ret_buffer, 6);
+  if (i == TYPE_RUN) return (short) mcopy((u_char *) "BREAK", ret_buffer, 5);
+  if (i == TYPE_DO) return (short) mcopy((u_char *) "DO", ret_buffer, 2);
+  if (i == TYPE_EXTRINSIC) return (short) mcopy((u_char *) "$$", ret_buffer, 2);
+  if (i == TYPE_XECUTE) return (short) mcopy((u_char *) "XECUTE", ret_buffer, 6);
   ret_buffer[0] = '\0';
   return 0;					// else nothing
 }
 
-short Dstack2(u_char *ret_buffer, int level, cstring *code)
+int Dstack2(u_char *ret_buffer, int level, cstring *code)
 { return Dstack2x(ret_buffer, level, code, (partab.jobtab - systab->jobtab));
 }
 
-short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
+int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
 { int arg2 = 0;					// arg 2 1 = ECODE
 						//       2 = MCODE
 						//	 3 = PLACE
@@ -810,7 +812,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   mvar *var;					// for ^$R()
   u_char temp[VAR_LEN + 4];			// ditto
   cstring *cptr;				// ditto
-  short s;					// ditto
+  int s;					// ditto
 
   ret_buffer[0] = '\0';				// null terminate
   if (level < 0) return 0;			// junk
@@ -821,10 +823,10 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   if (strncasecmp((const char *) code->buf, "ecode\0", 6) == 0) arg2 = 1;
   else if (strncasecmp((const char *) code->buf, "mcode\0", 6) == 0) arg2 = 2;
   else if (strncasecmp((const char *) code->buf, "place\0", 6) == 0) arg2 = 3;
-  else return (-(ERRZ50+ERRMLAST));		// junk
+  else return -(ERRZ50 + ERRMLAST);		// junk
   if (arg2 == 1)				// "ECODE"
   { ret_buffer[0] = '\0';			// assume nothing
-    if (job != (partab.jobtab - systab->jobtab)) return (0); // can't find
+    if (job != (partab.jobtab - systab->jobtab)) return 0; // can't find
     var = (mvar *) ret_buffer;			// use same space for mvar
     VAR_CLEAR(var->name);
     bcopy("$ECODE", &var->name.var_cu[0], 6);   // copy in $ECODE
@@ -837,8 +839,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
     if (s == -ERRM6) s = 0;			// allow for not there
     return s;
   }
-  if ((level == systab->jobtab[job].error_frame) &&
-      (level)) level = STM1_FRAME; 		// err frame adjust
+  if ((level == systab->jobtab[job].error_frame) && level) level = STM1_FRAME; // err frame adjust
   if ((((systab->jobtab[job].dostk[level].type & 127) == TYPE_XECUTE) ||
        ((systab->jobtab[job].dostk[level].type & 127) == TYPE_RUN) ||
        ((systab->jobtab[job].dostk[level].type & 127) == TYPE_JOB)) &&
@@ -846,13 +847,14 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   { if (arg2 == 2)				// "MCODE"
     { ret_buffer[0] = '\0';			// JIC
       if (systab->jobtab[job].cur_do < level) return 0; // no can do
-      if (job != (partab.jobtab - systab->jobtab)) return (0); // can't find
-      p = (u_char *)systab->jobtab[job].dostk[level].routine;
+      if (job != (partab.jobtab - systab->jobtab)) return 0; // can't find
+      p = (u_char *) systab->jobtab[job].dostk[level].routine;
       if (p == NULL) return 0;			// nothing there
-      for (i = 0; ((ret_buffer[i] = p[i])); i++); // copy it
+      for (i = 0; (ret_buffer[i] = p[i]); i++)  // copy it
+        continue;
       return i;					// return the count
     }
-    return mcopy((u_char *) "XECUTE", ret_buffer, 6);	// "PLACE"
+    return mcopy((u_char *) "XECUTE", ret_buffer, 6); // "PLACE"
   }
   rounam = &(systab->jobtab[job].dostk[level].rounam); // point at routine name
   line = systab->jobtab[job].dostk[level].line_num; // get line number
@@ -888,7 +890,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   ret_buffer[i++] = '^';			// the name indicator
   for (arg2 = 0; arg2 < VAR_LEN; arg2++)	// copy name
     if ((ret_buffer[i++] = rounam->var_cu[arg2]) == 0) break;
-  if (ret_buffer[i-1] == '\0') i--;		// back up over null
+  if (ret_buffer[i - 1] == '\0') i--;		// back up over null
   ret_buffer[i] = '\0';				// null terminate
   return i;  					// return length
 }
@@ -898,11 +900,11 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
 //
 // the entire string "entryref" is passed in one variable, eval it here
 //
-short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
+int Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
 { int i = 0;					// a handy int
   int j = 0;					// and another
   u_char slen;					// saved length
-  short s;					// for functions
+  int s;					// for functions
   int off = 1;					// line offset
   u_char rou[VAR_LEN + 4];			// routine name
   u_char tag[VAR_LEN + 4];			// the tag
@@ -922,7 +924,7 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
       ret_buffer[i] = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[i]; // copy
     }
     ret_buffer[i] = '\0';			// null terminate
-    return (short) i;				// and exit
+    return i;					// and exit
   }
   if ((str->buf[i] != '+') && (str->buf[i] != '^')) // is there a tag
   { while (j < VAR_LEN)
@@ -947,7 +949,7 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
       off = (off * 10) + (str->buf[i++] - '0');	// extract the offset
   }						// end offset stuff
   if ((str->buf[i] != '^') && (str->buf[i] != '\0'))
-    return -(ERRMLAST + ERRZ12);		// complain
+    return -(ERRZ12 + ERRMLAST);		// complain
   j = 0;					// clear rou ptr
   if (str->buf[i] == '^')			// routine name
   { i++;					// skip the ^
@@ -970,8 +972,6 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
     cr->len = j;				// save the length
   }
   if (cr->len == 0) return 0;			// no routine supplied -> null
-  if ((ct->len == 0) && (!off))			// just the name reqd?
-    return mcopy(cr->buf, ret_buffer, cr->len);	// return the name
   VAR_CLEAR(partab.src_var.name);
   bcopy("$ROUTINE", &partab.src_var.name.var_cu[0], 8); // setup for DB_Get
   partab.src_var.volset = partab.jobtab->rvol;	// vol
@@ -992,12 +992,13 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
     { ret_buffer[0] = '\0';			// nothing
       s = 0;					// zero length
     }
+    else if (!off)				// just the name reqd?
+      return mcopy(cr->buf, ret_buffer, cr->len); // return the name
     return s;					// and return it
   }
   for (j = 1; ; j++)				// need to read all lines
   { cr->len = itocstring(cr->buf, j);		// cstring j
-    s = UTIL_Key_Build(cr,
-		       &partab.src_var.key[slen]); // next key
+    s = UTIL_Key_Build(cr, &partab.src_var.key[slen]); // next key
     if (s < 0) return s;			// die on error
     partab.src_var.slen = s + slen;		// save key size
     s = DB_Get(&partab.src_var, ret_buffer);	// get it
@@ -1014,8 +1015,7 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
     if (off == 0) return s;			// no offset - all done
     j = j + off;				// add the offset
     cr->len = itocstring(cr->buf, j);		// cstring j
-    s = UTIL_Key_Build(cr,
-		       &partab.src_var.key[slen]); // next key
+    s = UTIL_Key_Build(cr, &partab.src_var.key[slen]); // next key
     if (s < 0) return s;			// die on error
     partab.src_var.slen = s + slen;		// save key size
     s = DB_Get(&partab.src_var, ret_buffer);	// get it
@@ -1030,20 +1030,19 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
 //***********************************************************************
 // $TRANSLATE(expr1,expr2[,expr3])
 //
-short Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
-{ short s = 0;                                  // arg 3
+int Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
+{ int s = 0;                                    // arg 3
   return Dtranslate3(ret_buffer, expr1, expr2, (cstring *) &s);
 }
 
-short Dtranslate3(u_char *ret_buffer, cstring *expr1,
-                 cstring *expr2, cstring *expr3)
+int Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3)
 { unsigned int i1;                              // for expr1
   unsigned int i2;                              // for expr2
   int p = 0;                                    // ptr to ret_buffer
   short found;                                  // did we find that one
-  for (i1=0; i1 != expr1->len; i1++)            // scan expr1
+  for (i1 = 0; i1 != expr1->len; i1++)          // scan expr1
   { found = FALSE;                              // assume no match
-    for (i2=0; i2 != expr2->len; i2++)          // scan expr2 for char
+    for (i2 = 0; i2 != expr2->len; i2++)        // scan expr2 for char
     { if (expr1->buf[i1] == expr2->buf[i2])     // if we have a match
       { found = TRUE;                           // say so
         if (i2 < expr3->len)                    // if there is a match in expr3
@@ -1060,19 +1059,17 @@ short Dtranslate3(u_char *ret_buffer, cstring *expr1,
 //***********************************************************************
 // $VIEW(channel#,location[,size[,value]])
 //
-short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
+int Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
 { int i;					// a handy int
   u_char *vb;					// view buffer address
 
-  if (chan > -1) return -(ERRMLAST+ERRZ63);	// must be negative for now
+  if (chan > -1) return -(ERRZ63 + ERRMLAST);	// must be negative for now
   chan = (-chan) - 1;				// negate it and 0 base
   if (partab.jobtab->view[chan] == NULL)	// got a block
-    return -(ERRMLAST+ERRZ63);			// no - die
+    return -(ERRZ63 + ERRMLAST);		// no - die
   vb = (u_char *) partab.jobtab->view[chan]->mem; // get block mem address
-  if ((loc < 0) ||
-      (size < 1) ||
-      ((loc + size) > systab->vol[chan]->vollab->block_size))
-    return -(ERRMLAST+ERRZ63);			// out of range - die
+  if ((loc < 0) || (size < 1) || ((loc + size) > systab->vol[chan]->vollab->block_size))
+    return -(ERRZ63 + ERRMLAST);		// out of range - die
   vb = vb + loc;				// offset to locn
   if (value == NULL)				// a read?
   { if (size == 1)
@@ -1091,7 +1088,7 @@ short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
     else *((u_int *) vb) = i;			// set some int type
   }
   else
-  { if (size != value->len) return -(ERRMLAST+ERRZ63); // junk
+  { if (size != value->len) return -(ERRZ63 + ERRMLAST); // junk
     bcopy(value->buf, vb, size);		// copy whatever
   }
   return 0;					// return OK
@@ -1100,10 +1097,9 @@ short Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
 //***********************************************************************
 // set $PIECE
 //
-short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
-		cstring *dptr, int i1, int i2)	// Set $PIECE()
+int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2) // Set $PIECE()
 { cstring *vptr;				// where the variable goes
-  short s;					// for the functions
+  int s;					// for the functions
   int beg = 0;                                  // start copy from
   int end;                                      // copy to
   int pce = 1;                                  // current piece
@@ -1131,10 +1127,11 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
     for (j = 0; j < f; j++)			// for each required delimiter
     { s = mcopy(dptr->buf, &vptr->buf[vptr->len], dptr->len); // copy 1 delim
       if (s < 0) return s;			// check for overflow
-      if ((vptr->len+s)>MAX_STR_LEN) return -ERRM75;
+      if ((vptr->len + s) > MAX_STR_LEN) return -ERRM75;
       vptr->len += s;				// add to length
     }
     s = mcopy(cptr->buf, &vptr->buf[vptr->len], cptr->len); // copy in source
+    if ((vptr->len + s) > MAX_STR_LEN) return -ERRM75;
     vptr->len += s;				// add to length
     if (var->uci == UCI_IS_LOCALVAR)
       return ST_Set(var, vptr);			// set it back and return
@@ -1187,10 +1184,9 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
 //***********************************************************************
 // set $EXTRACT
 //
-short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
-		  int i1, int i2)		// Set $EXTRACT()
+int DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2) // Set $EXTRACT()
 { cstring *vptr;				// where the variable goes
-  short s;					// for the functions
+  int s;					// for the functions
   int i;					// a handy int
 
   if (i1 < 1) i1 = 1;				// ensure i1 positive

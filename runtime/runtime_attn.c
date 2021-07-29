@@ -4,7 +4,7 @@
  * Summary:  module runtime - look after attention conditions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,6 +28,8 @@
 #include <stdio.h>                              // always include
 #include <stdlib.h>                             // these two
 #include <sys/types.h>                          // for u_char def
+#include <sys/ioctl.h>                          // for ioctl
+#include <termios.h>                            // for ioctl
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
@@ -45,30 +47,32 @@
 
 extern int failed_tty;				// tty reset flag
 
-short attention()				// process attention
+short attention(void)				// process attention
 { short s = 0;					// return value
 
   if (partab.jobtab->trap & SIG_CC)		// control c
   { partab.jobtab->trap = partab.jobtab->trap & ~SIG_CC; // clear it
-    partab.jobtab->async_error = -(ERRZ51+ERRMLAST); // store the error
+    partab.jobtab->async_error = -(ERRZ51 + ERRMLAST); // store the error
   }
 
-//      if (partab.jobtab->trap & SIG_WS)	// window size change SIGWINCH
-//      { partab.jobtab->trap = partab.jobtab->trap & ~SIG_WS; // clear it
-//          THIS IS IGNORED IN SQ_Signal.c CURRENTLY
-//      }
+  /*
+  if (partab.jobtab->trap & SIG_WS)	        // window size change SIGWINCH
+  { partab.jobtab->trap = partab.jobtab->trap & ~SIG_WS; // clear it
+    THIS IS IGNORED IN SQ_Signal.c CURRENTLY
+  }
+  */
 
   if (partab.jobtab->trap & SIG_HUP)		// SIGHUP
   { partab.jobtab->trap = partab.jobtab->trap & ~SIG_HUP; // clear it
-    partab.jobtab->async_error = -(ERRZ66+ERRMLAST); // store the error
+    partab.jobtab->async_error = -(ERRZ66 + ERRMLAST); // store the error
   }
   if (partab.jobtab->trap & SIG_U1)		// user defined signal 1
   { partab.jobtab->trap = partab.jobtab->trap & ~SIG_U1; // clear it
-    partab.jobtab->async_error = -(ERRZ67+ERRMLAST); // store the error
+    partab.jobtab->async_error = -(ERRZ67 + ERRMLAST); // store the error
   }
   if (partab.jobtab->trap & SIG_U2)		// user defined signal 2
   { partab.jobtab->trap = partab.jobtab->trap & ~SIG_U2; // clear it
-    partab.jobtab->async_error = -(ERRZ68+ERRMLAST); // store the error
+    partab.jobtab->async_error = -(ERRZ68 + ERRMLAST); // store the error
   }
 
   if (partab.jobtab->trap & (SIG_QUIT | SIG_TERM | SIG_STOP)) // stop type
@@ -93,26 +97,27 @@ short attention()				// process attention
 
 //  DoInfo() - look after a control T
 //
-void DoInfo()
+void DoInfo(void)
 { int i;					// a handy int
   int j;					// and another
   char ct[400];					// some space for control t
   char *p;					// a handy pointer
   mvar *var;					// and another
+  struct winsize w;				// for ioctl
 
   bcopy("\033\067\033[99;1H", ct, 9);		// start off
   i = 9;					// next char
-  i += sprintf(&ct[i],"%d", (int)(partab.jobtab - systab->jobtab) + 1);
+  i += sprintf(&ct[i],"%d", (int) (partab.jobtab - systab->jobtab) + 1);
   i += sprintf(&ct[i]," (%d) ", partab.jobtab->pid);
-  p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam;
-          					// point at routine name
-  for (j = 0; (j < VAR_LEN) && (p[j]); ct[i++] = p[j++]) ; // copy it
+  p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam; // point at routine name
+  for (j = 0; (j < VAR_LEN) && p[j]; ct[i++] = p[j++]) continue; // copy it
   i += sprintf(&ct[i]," Cmds: %d ", partab.jobtab->commands);
   i += sprintf(&ct[i],"Grefs: %d ", partab.jobtab->grefs);
   var = &partab.jobtab->last_ref;		// point at $R
   if (var->name.var_cu[0] != '\0')		// something there?
-    i += UTIL_String_Mvar(var, (u_char *) &ct[i], 32767);	// decode it
-  if (i > 89) i = 89;				// fit on terminal
+    i += UTIL_String_Mvar(var, (u_char *) &ct[i], MAX_NUM_SUBS); // decode it
+  if ((ioctl(0, TIOCGWINSZ, &w) != -1) && (i > (w.ws_col + 9))) i = w.ws_col + 9; // fit on terminal
+  else if (i > 89) i = 89;			// fit on terminal if ioctl failed
   bcopy("\033\133\113\033\070\0", &ct[i], 6);	// and the trailing bit
   fprintf(stderr, "%s", ct);			// output it
   return;					// all done
@@ -126,7 +131,6 @@ void DoInfo()
 //	cft = 0 JOB
 //	      1 FORK
 //	     -1 Just do a fork()/rfork() for the daemons, no file table
-
 int ForkIt(int cft)				// Copy File Table True/False
 { int i;					// a handy int
   int ret;					// ant another
@@ -216,7 +220,7 @@ int ForkIt(int cft)				// Copy File Table True/False
   { for (i = 0; ; i++)				// try the long way
     { if (getpid() == partab.jobtab->pid)	// done yet ?
         break;					// yes - exit
-      if (i > 120)				// two minutes is nuff
+      if (i > 120)				// two minutes is enough
 	panic("ForkIt: Child job never got setup");
       sleep(1);					// wait for a second
     }
@@ -244,9 +248,8 @@ int ForkIt(int cft)				// Copy File Table True/False
 }
 
 // SchedYield()
-
-void SchedYield()				// do a sched_yield()
+void SchedYield(void)				// do a sched_yield()
 {
-  (void)sched_yield();				// do it
+  (void) sched_yield();				// do it
   return;					// and exit
 }

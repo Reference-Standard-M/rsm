@@ -4,7 +4,7 @@
  * Summary:  module RSM util_share - shared memory
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -48,30 +48,30 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
   int i;
   systab_struct *sad;				// systab address
   shar_mem_key = ftok(dbf, RSM_SYSTEM);         // get a unique key
-  if (shar_mem_key == -1) return (errno);       // die on error
+  if (shar_mem_key == -1) return errno;         // die on error
   shar_mem_id = shmget(shar_mem_key, 0, 0);     // attach to existing share
-  if (shar_mem_id == -1) return (errno);        // die on error
+  if (shar_mem_id == -1) return errno;          // die on error
   sad = (systab_struct *) shmat(shar_mem_id, SHMAT_SEED, 0); // map it
   systab = (systab_struct *) sad->address;  	// get required address
   if (sad != systab)				// if not in correct place
-  {
-    i = shmdt(sad);				// unmap it
+  { i = shmdt(sad);				// unmap it
     if (i == -1) fprintf(stderr, "shmdt return = %X\n", i);
     sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0); // try again
     if (sad == (void *) -1) fprintf(stderr, "systab = %lX  attach = %lX\n", (u_long) systab, (u_long) sad);
-    if (systab != sad)
-        return(errno);				// die on error
+    if (systab != sad) return errno;		// die on error
   }
   sem_id = semget(shar_mem_key, 0, 0);		// attach to semaphores
-  if (sem_id < 0) return (errno);		// die on error
-  return(0);                                    // return 0 for OK
+  if (sem_id < 0) return errno;			// die on error
+  return 0;                                     // return 0 for OK
 }
 
-//	struct sembuf {
-//		   u_short sem_num;        /* semaphore # */
-//		   short   sem_op;         /* semaphore operation */
-//		   short   sem_flg;        /* operation flags */
-//	};
+/*
+struct sembuf {
+  u_short sem_num;  // semaphore #
+  short   sem_op;   // semaphore operation
+  short   sem_flg;  // operation flags
+};
+*/
 
 short SemOp(int sem_num, int numb)              // Add/Remove semaphore
 { short s;                                      // for returns
@@ -93,7 +93,7 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
       if (partab.jobtab == NULL)		// from a daemon
 	panic("SemOp() error in write daemon");	// yes - die
     if (partab.jobtab->trap)                    // and we got a <Ctrl><C>
-      return -(ERRZ51+ERRMLAST);                // return an error
+      return -(ERRZ51 + ERRMLAST);              // return an error
   }
   if (systab->start_user == -1)			// If shutting down
   { exit(0);					// just quit

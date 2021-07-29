@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a line
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -73,7 +73,7 @@ int parse2eq(u_char *ptr)			// scan to = or EOS
 
 //***********************************************************************
 
-void parse_close()				// CLOSE
+void parse_close(void)				// CLOSE
 { int iflag = 0;				// indirection flag
 
   while (TRUE)					// get the args
@@ -84,21 +84,21 @@ void parse_close()				// CLOSE
     else
       *comp_ptr++ = CMCLOSE;			// the op code
     if (*source_ptr != ',') break;		// done
-    source_ptr++;				// point at next	
+    source_ptr++;				// point at next
   }
   return;
 }
 
 //***********************************************************************
 
-void parse_do(int runtime)				// DO
+void parse_do(int runtime)			// DO
 {
   short s;                                      // for functions
   int i;					// a handy int
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
   u_char *p;                                    // a handy pointer
-  u_char save[1024];                            // a usefull save area
+  u_char save[1024];                            // a useful save area
   int savecount;                                // number of bytes saved
 
   while (TRUE)					// loop thru the arguments
@@ -121,7 +121,7 @@ void parse_do(int runtime)				// DO
         source_ptr++;				// skip the (
         while (TRUE)				// while we have args
         { args++;				// count an argument
-	  if (args > 127) SYNTX			// too many
+	  if (args > MAX_NUM_ARGS) SYNTX	// too many
           if (*source_ptr == ')')		// trailing bracket ?
           { source_ptr++;			// skip the )
             break;				// and exit
@@ -134,7 +134,7 @@ void parse_do(int runtime)				// DO
           { source_ptr++;			// skip the dot
 	    if (*source_ptr == '@')		// if indirection
 	    { source_ptr++;			// skip the @
-              atom();					// eval the string
+              atom();				// eval the string
 	      *comp_ptr++ = INDMVAR;
 	    }
 	    else
@@ -175,7 +175,7 @@ void parse_do(int runtime)				// DO
       s = (short) savecount;
       bcopy(&s, comp_ptr, 2);
       comp_ptr += 2;
-      //*((short *)comp_ptr)++ = (short) savecount; // this many bytes
+      //*((short *) comp_ptr)++ = (short) savecount; // this many bytes
       bcopy(save, comp_ptr, savecount); 	// copy the code back
       comp_ptr = comp_ptr + savecount;	// and add to the pointer
     }
@@ -191,8 +191,8 @@ void parse_goto(int runtime)			// GOTO
 {
   int i;					// a handy int
   u_char *ptr;                                  // a handy pointer
-  u_char save[1024];                            // a usefull save area
-  short savecount;                                // number of bytes saved
+  u_char save[1024];                            // a useful save area
+  short savecount;                              // number of bytes saved
 
   while (TRUE)					// loop thru the arguments
   { ptr = comp_ptr;				// save compile pointer
@@ -203,9 +203,9 @@ void parse_goto(int runtime)			// GOTO
       *comp_ptr++ = INDGO;			// store the opcode
     }
     else
-    { if (i == -2) *ptr = CMGORT;		// just a routine
-       else if (i == -3) *ptr = CMGOROU;	// both
-       else if (i == -4) *ptr = CMGORTO;	// and an offset
+    { if (i == -2) *ptr = CMGORT;		// tag and routine
+      else if (i == -3) *ptr = CMGOROU;		// just a routine
+      else if (i == -4) *ptr = CMGORTO;		// routine, tag, and an offset
     }
     if (*source_ptr == ':')			// postcond arg ?
     { savecount = comp_ptr - ptr;		// bytes that got compiled
@@ -216,7 +216,7 @@ void parse_goto(int runtime)			// GOTO
       *comp_ptr++ = JMP0;			// jump if false
       bcopy(&savecount, comp_ptr, 2);
       comp_ptr += 2;
-      //*((short *)comp_ptr)++ = (short) savecount; // this many bytes
+      //*((short *) comp_ptr)++ = (short) savecount; // this many bytes
       bcopy(save, comp_ptr, savecount);		// copy the code back
       comp_ptr = comp_ptr + savecount;		// and add to the pointer
     }
@@ -228,7 +228,7 @@ void parse_goto(int runtime)			// GOTO
 
 //***********************************************************************
 
-void parse_hang()				// HANG
+void parse_hang(void)				// HANG
 { int iflag = 0;				// indirection check
   while (TRUE)                            	// scan the line
   { iflag = (*source_ptr == '@');		// check for indirection
@@ -265,10 +265,10 @@ void parse_if(long i)				// IF
       { *comp_ptr++ = OPIFI;			// the op code
         bcopy(&i, comp_ptr, sizeof(i));
         comp_ptr += sizeof(i);
-	    //*((int *)comp_ptr)++ = i;		// the isp to restore
+	    //*((int *) comp_ptr)++ = i;	// the isp to restore
       }
     if (*source_ptr != ',') break;		// done
-    source_ptr++;				// point at next	
+    source_ptr++;				// point at next
   }
   return;
 }
@@ -280,7 +280,7 @@ void parse_job(int runtime)			// JOB
   int i;					// a handy int
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
-  u_char save[1024];                            // a usefull save area
+  u_char save[1024];                            // a useful save area
   int savecount;                                // number of bytes saved
 
   while (TRUE)					// loop thru the arguments
@@ -295,7 +295,7 @@ void parse_job(int runtime)			// JOB
     { args = 0;					// number of args
       if (i == -2) *ptr = CMJOBRT;		// routine + tag
       if (i == -3) *ptr = CMJOBROU;		// just a routine
-      if (i == -4) *ptr = CMJOBRTO;		// and an offset
+      if (i == -4) *ptr = CMJOBRTO;		// routine, tag, and offset
       if (*source_ptr == '(')			// any args?
       { savecount = comp_ptr - ptr;		// bytes that got compiled
         bcopy(ptr, save, savecount);		// save that lot
@@ -303,7 +303,7 @@ void parse_job(int runtime)			// JOB
         source_ptr++;				// skip the (
         while (TRUE)				// while we have args
         { args++;				// count an argument
-	  if (args > 127) SYNTX			// too many
+	  if (args > MAX_NUM_ARGS) SYNTX	// too many
 	  if (*source_ptr == ')')		// trailing bracket ?
 	  { source_ptr++;			// skip the )
 	    break;				// and exit
@@ -350,7 +350,7 @@ void parse_job(int runtime)			// JOB
 
 //***********************************************************************
 
-void parse_kill()				// KILL
+void parse_kill(void)				// KILL
 {
   short s;                                      // for functions
   int args = 0;					// number of args
@@ -367,8 +367,7 @@ void parse_kill()				// KILL
         return;                           	// and exit
       }
       ptr[s++] = OPMVAR;			// build an mvar, point at type
-      if ((ptr[s] != TYPVARNAM) &&
-          (ptr[s] != TYPVARIDX)) SYNTX		// must be local unsubscripted
+      if ((ptr[s] != TYPVARNAM) && (ptr[s] != TYPVARIDX)) SYNTX	// must be local unsubscripted
       args++;					// count the arg
       if (*source_ptr == ')')			// closing bracket?
       { source_ptr++;				// skip it
@@ -419,7 +418,7 @@ void parse_kill()				// KILL
 
 //***********************************************************************
 
-void parse_lock()				// LOCK
+void parse_lock(void)				// LOCK
 {
   char c;                                       // current character
   short s;                                      // for functions
@@ -478,7 +477,7 @@ void parse_lock()				// LOCK
     { *comp_ptr++ = OPSTR;			// string follows
       *comp_ptr++ = 2;
       *comp_ptr++ = 0;
-      //*((short *)comp_ptr)++ = 2; 		// this many bytes
+      //*((short *) comp_ptr)++ = 2; 		// this many bytes
       *comp_ptr++ = '-';			// the minus
       *comp_ptr++ = '1';			// and the one
       *comp_ptr++ = '\0';			// null terminate
@@ -495,7 +494,7 @@ void parse_lock()				// LOCK
 
 //***********************************************************************
 
-void parse_merge()				// MERGE
+void parse_merge(void)				// MERGE
 { short s;					// for functions
   int i;					// an index
 
@@ -548,8 +547,7 @@ void parse_merge()				// MERGE
       SYNTX					// shouldn't get here
     }						// end indirect processing
 
-// Parse the destination
-
+    // Parse the destination
     ptr1 = comp_ptr;				// save posn
     if (*source_ptr == '@')			// indirection ?
     { atom();					// eval the string
@@ -580,7 +578,7 @@ void parse_merge()				// MERGE
 
 //***********************************************************************
 
-void parse_new()				// NEW
+void parse_new(void)				// NEW
 {
   char c;                                       // current character
   short s;                                      // for functions
@@ -675,7 +673,7 @@ void parse_new()				// NEW
 
 //***********************************************************************
 
-void parse_open()				// OPEN
+void parse_open(void)				// OPEN
 { int iflag;
 
   while (TRUE)					// loop
@@ -685,28 +683,26 @@ void parse_open()				// OPEN
     eval();					// get the channel
     if ((*(comp_ptr - 1) == INDEVAL) && (iflag)) // if it was indirect
       *(comp_ptr - 1) = INDOPEN;		// say open indirect
-
     // Regular Open code
     else
     { if (*source_ptr++ != ':') SYNTX		// must be a colon
-
-      if (*source_ptr == '(') {		// possibly followed by (
-          source_ptr++;             // move to next for eval
+      if (*source_ptr == '(') {			// possibly followed by (
+          source_ptr++;				// move to next for eval
           eval();					// param 1
           if (*source_ptr++ != ':') SYNTX		// must be a colon
           eval();					// param 2
           if (*source_ptr++ != ')') SYNTX		// must be a )
       }
-      else { //otherwise, we have no parens. Valid only for opening $Principal
+      else { //otherwise, we have no parens. Valid only for opening $PRINCIPAL
              //populate the device and mode with empty strings.
-          *comp_ptr++ = OPSTR;        // Empty String
-          *comp_ptr++ = 0;           // Cstring short length
-          *comp_ptr++ = 0;           // ditto (NB: beware endianness)
-          *comp_ptr++ = '\0';        // null terminatred cstring text
-          *comp_ptr++ = OPSTR;       // Empty String
-          *comp_ptr++ = 0;           // Cstring short length
-          *comp_ptr++ = 0;           // ditto (NB: beware endianness)
-          *comp_ptr++ = '\0';        // null terminatred cstring text
+          *comp_ptr++ = OPSTR;                  // Empty String
+          *comp_ptr++ = 0;                      // cstring u_short length
+          *comp_ptr++ = 0;                      // ditto (NB: beware endianness)
+          *comp_ptr++ = '\0';                   // null terminatred cstring text
+          *comp_ptr++ = OPSTR;                  // Empty String
+          *comp_ptr++ = 0;                      // cstring u_short length
+          *comp_ptr++ = 0;                      // ditto (NB: beware endianness)
+          *comp_ptr++ = '\0';                   // null terminated cstring text
       }
       if (*source_ptr == ':')			// do we have a timeout
       { source_ptr++;				// skip the colon
@@ -714,7 +710,7 @@ void parse_open()				// OPEN
 	{ *comp_ptr++ = OPSTR;			// make up our own
           *comp_ptr++ = 2;
           *comp_ptr++ = 0;
-          //*((short *)comp_ptr)++ = 2;		// length 2
+          //*((short *) comp_ptr)++ = 2;	// length 2
           *comp_ptr++ = '-';			// minus
           *comp_ptr++ = '1';			// 1
           *comp_ptr++ = '\0';			// null terminated
@@ -727,7 +723,7 @@ void parse_open()				// OPEN
       { *comp_ptr++ = OPSTR;			// make up our own
         *comp_ptr++ = 2;
         *comp_ptr++ = 0;
-        //*((short *)comp_ptr)++ = 2;		// length 2
+        //*((short *) comp_ptr)++ = 2;		// length 2
         *comp_ptr++ = '-';			// minus
         *comp_ptr++ = '1';			// 1
         *comp_ptr++ = '\0';			// null terminated
@@ -737,7 +733,7 @@ void parse_open()				// OPEN
 	*comp_ptr++ = OPSTR;			// push a string
         *comp_ptr++ = 10;
         *comp_ptr++ = 0;
-	//*((short *)comp_ptr)++ = (short) 10;	// the length
+	//*((short *) comp_ptr)++ = (short) 10;	// the length
 	bcopy("namespace=\0", comp_ptr, 11);	// copy the param name
 	eval();					// eval the arg
 	*comp_ptr++ = OPCAT;			// concatenate them
@@ -745,7 +741,7 @@ void parse_open()				// OPEN
       else
       { *comp_ptr++ = OPSTR;			// push a string
 	*comp_ptr++ = 0;			// these were
-	*comp_ptr++ = 0;			// *((short *)comp_ptr)++ = 0
+	*comp_ptr++ = 0;			// *((short *) comp_ptr)++ = 0
 	*comp_ptr++ = '\0';			// null terminated
       }
       *comp_ptr++ = CMOPEN;			// the opcode
@@ -758,12 +754,12 @@ void parse_open()				// OPEN
 
 //***********************************************************************
 
-void write_fmt()				// Called by parse_read/write
+void write_fmt(void)				// Called by parse_read/write
 
 { int i;					// a handy int
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
-  u_char save[1024];                            // a usefull save area
+  u_char save[1024];                            // a useful save area
   int savecount;                                // number of bytes saved
 
   source_ptr++;                       		// increment source
@@ -782,7 +778,7 @@ void write_fmt()				// Called by parse_read/write
     source_ptr++;				// skip the (
     while (TRUE)				// while we have args
     { args++;					// count an argument
-      if (args > 127) SYNTX			// too many
+      if (args > MAX_NUM_ARGS) SYNTX		// too many
       if (*source_ptr == ')')			// trailing bracket ?
       { source_ptr++;				// skip the )
         break;					// and exit
@@ -835,7 +831,7 @@ short parse_read_var(int star)			// called below
         }
         ptr[s] = OPMVAR;			// make an mvar of it
       }
-      type = star ? CMREADS : CMREAD;		// the default opcode
+      type = (star ? CMREADS : CMREAD);		// the default opcode
       if ((!star) && (*source_ptr == '#'))	// read count ?
       { source_ptr++;				// skip the #
         eval();					// eval argument
@@ -848,8 +844,7 @@ short parse_read_var(int star)			// called below
 	{ type = CMREADST;
 	}
 	else
-        { type = (type == CMREAD) ?
-            CMREADT : CMREADCT;			// replace op code
+        { type = ((type == CMREAD) ? CMREADT : CMREADCT); // replace op code
         }
       }
       *comp_ptr++ = (u_char) type;		// this opcode
@@ -866,8 +861,8 @@ short parse_read_var(int star)			// called below
       return s;                           	// and exit
     }
     ptr[s] = OPMVAR;				// get an mvar on the addstk[]
-    type = star ? CMREADS : CMREAD;		// the default opcode
-    if ((!star) && (*source_ptr == '#'))	// read count ?
+    type = (star ? CMREADS : CMREAD);		// the default opcode
+    if (!star && (*source_ptr == '#'))		// read count ?
     { source_ptr++;				// skip the #
       eval();					// eval argument
       type = CMREADC;				// now a read with count
@@ -879,8 +874,7 @@ short parse_read_var(int star)			// called below
       { type = CMREADST;
       }
       else
-      { type = (type == CMREAD) ?
-          CMREADT : CMREADCT;			// replace op code
+      { type = ((type == CMREAD) ? CMREADT : CMREADCT); // replace op code
       }
     }
     *comp_ptr++ = (u_char) type;		// this opcode
@@ -888,7 +882,7 @@ short parse_read_var(int star)			// called below
   return 0;
 }
 
-void parse_read()				// READ
+void parse_read(void)				// READ
 { char c;                                       // current character
   int args = 0;					// number of args
 
@@ -950,7 +944,7 @@ void parse_read()				// READ
 
 //***********************************************************************
 
-void parse_set()				// SET
+void parse_set(void)				// SET
 {
   short s;                                      // for functions
   int i;					// a handy int
@@ -986,19 +980,17 @@ void parse_set()				// SET
       SYNTX					// shouldn't get here
     }						// end indirect processing
 
-// Parse the destination(s)
+    // Parse the destination(s)
     bracket = 0;				// assume no brackets
     if (*source_ptr == '(')			// a bracket?
     { bracket = 1;				// flag it
       source_ptr++;				// and skip it
     }
     while (TRUE)				// in case of brackets
-    { if ((strncasecmp((char *) source_ptr, "$e(", 3) == 0) ||
-	  (strncasecmp((char *) source_ptr, "$extract(", 9) == 0) ||
-	  (strncasecmp((char *) source_ptr, "$p(", 3) == 0) ||
-	  (strncasecmp((char *) source_ptr, "$piece(", 7) == 0))
+    { if ((strncasecmp((char *) source_ptr, "$e(", 3) == 0) || (strncasecmp((char *) source_ptr, "$extract(", 9) == 0) ||
+	  (strncasecmp((char *) source_ptr, "$p(", 3) == 0) || (strncasecmp((char *) source_ptr, "$piece(", 7) == 0))
       { args = (toupper(source_ptr[1]) == 'P'); // $P = 1, $E = 0
-	while ((*source_ptr != '(') && (*source_ptr))
+	while ((*source_ptr != '(') && *source_ptr)
 	  source_ptr++;				// skip to bracket
 	source_ptr++;				// skip opening bracket
 	p = comp_ptr;				// save posn
@@ -1028,9 +1020,9 @@ void parse_set()				// SET
 	}
 	if (*source_ptr == ')')			// end of function?
 	{ *comp_ptr++ = OPSTR;            	// say string following
-      *comp_ptr++ = 1;
-      *comp_ptr++ = 0;
-	  //*((short *) comp_ptr)++ = 1;		// length 1
+	  *comp_ptr++ = 1;
+	  *comp_ptr++ = 0;
+	  //*((short *) comp_ptr)++ = 1;	// length 1
 	  *comp_ptr++ = '1';			// value 1
 	  *comp_ptr++ = '\0';			// null terminated
 	}
@@ -1048,7 +1040,7 @@ void parse_set()				// SET
 	  eval();				// eval the second numeric arg
 	}
 	if (*source_ptr++ != ')') SYNTX		// ensure there is a )
-	*comp_ptr++ = args ? CMSETP : CMSETE; 	// set the opcode
+	*comp_ptr++ = (args ? CMSETP : CMSETE);	// set the opcode
       }						// end SET $E/$P
       else if (*source_ptr == '@')		// indirection ?
       { source_ptr++;				// skip the @
@@ -1098,7 +1090,7 @@ void parse_set()				// SET
 
 //***********************************************************************
 
-void parse_use()				// USE
+void parse_use(void)				// USE
 { char c;                                       // current character
   int i;					// a handy int
   int args;					// number of args
@@ -1131,9 +1123,9 @@ void parse_use()				// USE
       { source_ptr++;				// advance past it
         args++;					// count it
 	*comp_ptr++ = OPSTR;			// push a string
-    *comp_ptr++ = 10;
-    *comp_ptr++ = 0;
-	//*((short *)comp_ptr)++ = (short) 10;	// the length
+        *comp_ptr++ = 10;
+        *comp_ptr++ = 0;
+	//*((short *) comp_ptr)++ = (short) 10;	// the length
 	bcopy("namespace=\0",comp_ptr, 11);	// copy the param name
 	comp_ptr += 11;				// add to comp_ptr
 	eval();					// eval the arg
@@ -1150,7 +1142,7 @@ void parse_use()				// USE
 
 //***********************************************************************
 
-void parse_write()				// WRITE
+void parse_write(void)				// WRITE
 { char c;                                       // current character
   int iflag;
 
@@ -1180,7 +1172,7 @@ void parse_write()				// WRITE
     else                                  	// must be an expression
     { iflag = (*source_ptr == '@');		// check for indirection
       eval();                             	// eval it
-      if ((*(comp_ptr - 1) == INDEVAL) && (iflag)) // if it was indirect
+      if ((*(comp_ptr - 1) == INDEVAL) && iflag) // if it was indirect
         *(comp_ptr - 1) = INDWRIT;		// say write indirect
       else
         *comp_ptr++ = CMWRTEX;              	// write it
@@ -1196,10 +1188,10 @@ void parse_write()				// WRITE
 
 //***********************************************************************
 
-void parse_xecute()				// XECUTE
+void parse_xecute(void)				// XECUTE
 { int iflag;
   u_char *ptr;                                  // a handy pointer
-  u_char save[1024];                            // a usefull save area
+  u_char save[1024];                            // a useful save area
   short savecount;                                // number of bytes saved
 
   while (TRUE)					// loop thru the arguments
@@ -1219,7 +1211,7 @@ void parse_xecute()				// XECUTE
         *comp_ptr++ = JMP0;			// jump if false
         bcopy(&savecount, comp_ptr, 2);
         comp_ptr += 2;
-        //*((short *)comp_ptr)++ = (short) savecount; // this many bytes
+        //*((short *) comp_ptr)++ = (short) savecount; // this many bytes
         mcopy(save, comp_ptr, savecount);	// copy the code back
         comp_ptr = comp_ptr + savecount;	// and add to the pointer
       }
@@ -1234,10 +1226,10 @@ void parse_xecute()				// XECUTE
 // parse string pointed to by source_ptr.
 // compile to location pointed to by comp_ptr.
 //
-
-void parse()                                    // MAIN PARSE LOOP
+void parse(void)                                // MAIN PARSE LOOP
 { char c;                                       // current character
   short s;                                      // for functions
+  u_short us;                                   // for compiled size
   int i;					// a handy int
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
@@ -1251,6 +1243,7 @@ void parse()                                    // MAIN PARSE LOOP
       case ';':                                 // comment
 	*comp_ptr++ = ENDLIN;			// add an end line op
         return;                                 // all done
+
       case ' ':                                 // space
         break;                                  // go for more
 
@@ -1277,7 +1270,7 @@ void parse()                                    // MAIN PARSE LOOP
 	  { eval();				// get arg
 	    *comp_ptr++ = OPBRKN;		// the op code
 	    if (*source_ptr != ',') break;	// done
-	    source_ptr++;			// point at next	
+	    source_ptr++;			// point at next
 	  }
 	}
 	else					// at end of line
@@ -1352,12 +1345,11 @@ void parse()                                    // MAIN PARSE LOOP
 	  --source_ptr;				// backup to null (I hope)
 	  *comp_ptr++ = OPENDC;			// say end cmd (restore asp)
 	  *comp_ptr++ = JMP;			// add a jump
-          s = ptr - comp_ptr;
-          bcopy(&s, comp_ptr, 2);
-          comp_ptr += 2;
+          us = ptr - comp_ptr;
+          bcopy(&us, comp_ptr, sizeof(u_short));
+          comp_ptr += sizeof(u_short);
 	  *comp_ptr++ = OPNOP;			// add the NOP
-	  *((short *)ptr) =
-	    (short) ((comp_ptr - ptr) - sizeof(short) - 1);
+	  *((u_short *) ptr) = (u_short) (comp_ptr - ptr - sizeof(u_short) - 1);
           break;				// and give up
         }
 	source_ptr--;				// back up the source
@@ -1368,7 +1360,7 @@ void parse()                                    // MAIN PARSE LOOP
         { comperror(s);                      	// compile it
           return;                            	// and exit
         }
-	  ptr = ptr + s;			// point here
+        ptr = ptr + s;		        	// point here
 
 	if (*source_ptr++ != '=') SYNTX		// check for equals
 	*ptr = CMFORSET;			// setup a for
@@ -1397,19 +1389,19 @@ void parse()                                    // MAIN PARSE LOOP
 	  }
 	}
 	--source_ptr;				// backup the source ptr
-	s = (comp_ptr - ptr) - sizeof(short);	// offset to code
-        bcopy(&s, ptr, 2);
-        ptr += 2;
+	us = comp_ptr - ptr - sizeof(u_short);  // offset to code
+        bcopy(&us, ptr, sizeof(u_short));
+        ptr += sizeof(u_short);
 	parse();				// parse the code
 	--comp_ptr;				// backup over ENDLIN
 	--source_ptr;				// backup to null (I hope)
 	*comp_ptr++ = CMFOREND;			// do end of for processing
 	*comp_ptr++ = OPNOP;			// add the NOP
-	*((short *)ptr) = (short) ((comp_ptr - ptr) - sizeof(short) - 1);
+	*((u_short *) ptr) = (u_short) (comp_ptr - ptr - sizeof(u_short) - 1);
 	break;					// end of FOR
 
       case 'G':					// GOTO
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "oto", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "oto"
         }
@@ -1427,7 +1419,7 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'H':                                 // HALT/HANG
 	i = 0;					// halt = 1, hang = 2
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "alt", 3) == 0)
 	    i = 1;
 	  else if (strncasecmp((char *) source_ptr, "ang", 3) == 0)
@@ -1459,7 +1451,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of hang
 
      case 'I':                                 	// IF
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "f", 1) != 0) SYNTX
           source_ptr += 1;                      // point past the "f"
         }
@@ -1474,7 +1466,7 @@ void parse()                                    // MAIN PARSE LOOP
 	break;					// end of if
 
       case 'J':					// JOB
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "ob", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "ob"
         }
@@ -1491,7 +1483,7 @@ void parse()                                    // MAIN PARSE LOOP
 	break;					// end of job
 
       case 'K':                                 // KILL
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "ill", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "ill"
         }
@@ -1518,7 +1510,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of KILL code
 
       case 'L':					// LOCK
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "ock", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "ock"
         }
@@ -1545,7 +1537,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of MERGE code
 
       case 'M':                                 // MERGE
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "erge", 4) != 0) SYNTX
           source_ptr += 4;                      // point past the "erge"
         }
@@ -1562,7 +1554,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of MERGE code
 
       case 'N':					// NEW
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "ew", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "ew"
         }
@@ -1590,7 +1582,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of NEW code
 
       case 'O':					// OPEN
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "pen", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "pen"
         }
@@ -1604,10 +1596,10 @@ void parse()                                    // MAIN PARSE LOOP
         }
         if (c != ' ') SYNTX                     // must be a space
 	parse_open();
-        break;                                  // end of open code	
+        break;                                  // end of open code
 
       case 'Q':					// QUIT - no indirection
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "uit", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "uit"
         }
@@ -1633,7 +1625,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of QUIT code
 
       case 'R':					// READ
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "ead", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "ead"
         }
@@ -1650,7 +1642,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of read
 
       case 'S':                                 // SET
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "et", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "et"
         }
@@ -1667,7 +1659,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of SET code
 
       case 'U':					// USE
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "se", 2) != 0) SYNTX
           source_ptr += 2;                      // point past the "se"
         }
@@ -1684,7 +1676,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of USE
 
       case 'V':					// VIEW - no indirection
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "iew", 3) != 0) SYNTX
           source_ptr += 3;                      // point past the "iew"
         }
@@ -1709,7 +1701,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of VIEW
 
       case 'W':                                 // WRITE
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "rite", 4) != 0) SYNTX
           source_ptr += 4;                      // point past the "rite"
         }
@@ -1726,7 +1718,7 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of WRITE
 
       case 'X':					// XECUTE
-        if (isalpha(*source_ptr) !=0)           // if the next is alpha
+        if (isalpha(*source_ptr) != 0)          // if the next is alpha
         { if (strncasecmp((char *) source_ptr, "ecute", 5) != 0) SYNTX
           source_ptr += 5;                      // point past the "ecute"
         }
@@ -1743,14 +1735,12 @@ void parse()                                    // MAIN PARSE LOOP
         break;                                  // end of XECUTE
 
       default:                                  // we didn't understand that
-        comperror(-(ERRZ13+ERRMLAST));          // give an error
+        comperror(-(ERRZ13 + ERRMLAST));          // give an error
         return;                                 // and return
     }                                           // end of switch
     if (jmp_eoc != NULL)			// was there a postcond
-    { *((short *)jmp_eoc) =
-	(short) (comp_ptr - jmp_eoc -sizeof(short)); // save the jump offset
+    { *((short *) jmp_eoc) = (short) (comp_ptr - jmp_eoc - sizeof(short)); // save the jump offset
     }
     *comp_ptr++ = OPENDC;               	// flag end of command
   }                                             // end of while (TRUE) parse
 }                                               // end of parse()
-

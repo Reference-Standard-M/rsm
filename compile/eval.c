@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -44,14 +44,14 @@ u_char *source_ptr;                             // pointer to source code
 u_char *comp_ptr;                               // pointer to compiled code
 
 void comperror(short err)                       // compile error
-{ short s;					// for functions
+{ int s;					// for functions
   cstring *line;				// line of code
   u_char *src;					// current src ptr
   int i;					// a handy int
   u_char tmp[128];				// some space
 
   *comp_ptr++ = OPERROR;                        // say it's an error
-  bcopy(&err, comp_ptr, 2);
+  bcopy(&err, comp_ptr, sizeof(short));
   comp_ptr += 2;
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
@@ -64,7 +64,7 @@ void comperror(short err)                       // compile error
   if (s < 0) goto scan;				// exit on error
   s = SQ_WriteFormat(SQ_LF);			// return
   if (s < 0) goto scan;				// exit on error
-  i = (src - line->buf) - 1;			// get the offset
+  i = src - line->buf - 1;			// get the offset
   if (i > 0)
   { s = SQ_WriteFormat(i);			// tab
     if (s < 0) goto scan;			// exit on error
@@ -82,6 +82,7 @@ void comperror(short err)                       // compile error
   s = SQ_Write(line);				// write the line
   if (s >= 0)					// if no error error
     s = SQ_WriteFormat(SQ_LF);			// return
+
 scan:
   while (*source_ptr) source_ptr++;		// skip rest of line
   return;					// and done
@@ -90,7 +91,7 @@ scan:
 // function atom entered with source_ptr pointing at the source
 // atom to evaluate and comp_ptr pointing at where to put the code.
 //
-void atom()                                     // evaluate source
+void atom(void)                                 // evaluate source
 { char c;                                       // current character
   int j;                                        // and another
   short s;                                      // for function returns
@@ -111,8 +112,7 @@ void atom()                                     // evaluate source
     }
     return;					// and exit
   }
-  if ((isalpha((int)c) != 0) || (c == '%') ||   // check for local variable
-      (c == '^'))				// or a global var
+  if ((isalpha((int) c) != 0) || (c == '%') || (c == '^')) // check for local variable or a global var
   { --source_ptr;				// backup to first character
     s = localvar();				// parse the variable
     if (s < 0)					// if we got an error
@@ -130,7 +130,12 @@ void atom()                                     // evaluate source
   if ((isdigit((int) c) != 0) || (c == '.'))    // check for number or dot
   { source_ptr--;                               // back up the source ptr
     *comp_ptr++ = OPSTR;                        // say string following
-    s = ncopy(&source_ptr, comp_ptr + 2);       // copy as number
+    s = ncopy(&source_ptr, comp_ptr + sizeof(short)); // copy as number
+    if (s < 0)					// if we got an error
+    { comp_ptr--;				// remove the OPSTR
+      comperror(s);				// compile it
+      return;					// and exit
+    }
     *((short *) comp_ptr) = s;                  // store string count
     comp_ptr = comp_ptr + sizeof(short) + s + 1; // allow for null byte
     return;
@@ -139,25 +144,23 @@ void atom()                                     // evaluate source
   if (c == '"')                                 // rabbit ear
   { *comp_ptr++ = OPSTR;                        // say string following
     p = comp_ptr;                               // possible destination
-    j = 2;                                      // point at p->buf[0]
+    j = sizeof(short);                          // point at p->buf[0]
     while (TRUE)                                // scan the string
     { if (*source_ptr == '\0')                  // check for end of string
       { comp_ptr--;				// remove the OPSTR
-        comperror(-(ERRZ12+ERRMLAST));          // compile an error
+        comperror(-(ERRZ12 + ERRMLAST));        // compile an error
         return;                                 // and exit
       }                                         // end of error bit
-      if ((*source_ptr == '"') &&
-          (source_ptr[1] != '"'))               // check end of literal
+      if ((*source_ptr == '"') && (source_ptr[1] != '"')) // check end of literal
       { p[j] = '\0';                            // null terminate it
         source_ptr++;                           // point past it
         break;                                  // and exit
       }                                         // end 'end of str' code
       p[j++] = *source_ptr++;                   // copy the character
-      if ((*(source_ptr-1) == '"') &&
-          (*source_ptr == '"'))                 // check for rabbit ear
+      if ((*(source_ptr - 1) == '"') && (*source_ptr == '"')) // check for rabbit ear
         source_ptr++;                           // point past the second one
     }                                           // end of copy loop
-    *((short *)p) = (short) j-2;                // store cstring count
+    *((short *) p) = (short) (j - sizeof(short)); // store cstring count
     comp_ptr = comp_ptr + j + 1;                // point past str and null
     return;
   }                                             // end string literal
@@ -183,17 +186,17 @@ void atom()                                     // evaluate source
   if (c == '(')                                 // open bracket
   { eval();                                     // eval content of ()
     if (*source_ptr++ != ')')                   // error if no trailing ) found
-    { comperror(-(ERRZ12+ERRMLAST));            // compile an error
+    { comperror(-(ERRZ12 + ERRMLAST));          // compile an error
       return;                                   // and exit
     }                                           // end error
     return;
   }                                             // end open bracket parse
 
-  comperror(-(ERRZ12+ERRMLAST));                // compile an error
+  comperror(-(ERRZ12 + ERRMLAST));              // compile an error
   return;                                       // and exit
 }
 
-int operator()                                  // extract an operator
+int operator(void)                              // extract an operator
 { char c;                                       // the character
   int not = 0;                                  // not flag
   c = *source_ptr++;                            // get next char
@@ -206,9 +209,11 @@ int operator()                                  // extract an operator
   { case '+':                                   // add
       if (not) return 0;			// a not here is junk
       return OPADD;                             // save opcode
+
     case '-':                                   // subtract
       if (not) return 0;			// a not here is junk
       return OPSUB;                             // save opcode
+
     case '*':                                   // multiply (or power)
       if (not) return 0;			// a not here is junk
       if (*source_ptr == '*')                   // if there is another
@@ -216,38 +221,51 @@ int operator()                                  // extract an operator
         return OPPOW;                           // it's a power
       }
       return OPMUL;                             // set as a multiply
+
     case '/':                                   // divide
       if (not) return 0;			// a not here is junk
       return OPDIV;                             // set the op code
+
     case '\\':                                  // back-slash
       if (not) return 0;			// a not here is junk
       return OPINT;                             // integer divide
+
     case '#':                                   // hash
       if (not) return 0;			// a not here is junk
       return OPMOD;                             // modulus
+
     case '_':                                   // underscore
       if (not) return 0;			// a not here is junk
       return OPCAT;                             // concatenate
+
     case '=':                                   // equal sign
-      return not ? OPNEQL : OPEQL;              // equal or not
+      return (not ? OPNEQL : OPEQL);            // equal or not
+
     case '<':                                   // less than
-      return not ? OPNLES : OPLES;              // less than or not
+      return (not ? OPNLES : OPLES);            // less than or not
+
     case '>':                                   // greater than
-      return not ? OPNGTR : OPGTR;              // greater than or not
+      return (not ? OPNGTR : OPGTR);            // greater than or not
+
     case '&':                                   // and
-      return not ? OPNAND : OPAND;              // and or nand
+      return (not ? OPNAND : OPAND);            // and or nand
+
     case '!':                                   // exclam
-      return not ? OPNIOR : OPIOR;              // or or nor
+      return (not ? OPNIOR : OPIOR);            // or or nor
+
     case '[':                                   // left square bracket
-      return not ? OPNCON : OPCON;              // contains or not
+      return (not ? OPNCON : OPCON);            // contains or not
+
     case ']':                                   // right square bracket
       if (*source_ptr == ']')                   // if there is another
       { source_ptr++;                           // advance the pointer
-        return not ? OPNSAF : OPSAF;            // sorts after or not
+        return (not ? OPNSAF : OPSAF);          // sorts after or not
       }
-      return not ? OPNFOL : OPFOL;              // follows or not
+      return (not ? OPNFOL : OPFOL);            // follows or not
+
     case '?':                                   // question
-      return not ? OPNPAT : OPPAT;              // matches or not
+      return (not ? OPNPAT : OPPAT);            // matches or not
+
     default:                                    // stuffed up
       return 0;                                 // clear op
   }                                             // end of switch for operators
@@ -255,26 +273,26 @@ int operator()                                  // extract an operator
 
 // function eval entered with source_ptr pointing at the source
 // expression to evaluate and comp_ptr pointing at where to put the code.
-void eval()                                     // evaluate source
+void eval(void)                                 // evaluate source
 { int op;                                       // operator
   int q;					// in quotes indicator
   int patmat = 0;				// for pattern match funny
   cstring *ptr;					// spare pointer
   u_char c;
   atom();                                       // get first operand
-  if ((*source_ptr == ')') ||			// do it at a higher level
-      (*source_ptr == ',') ||			// ditto
-      (*source_ptr == ':') ||			// ditto
+  if ((*source_ptr == ')')  ||			// do it at a higher level
+      (*source_ptr == ',')  ||			// ditto
+      (*source_ptr == ':')  ||			// ditto
       (*source_ptr == '\0') ||			// end of string
-      (*source_ptr == '^') ||			// start of routine ref
-      (*source_ptr == '@') ||			// end of name indirection
+      (*source_ptr == '^')  ||			// start of routine ref
+      (*source_ptr == '@')  ||			// end of name indirection
       (*source_ptr == ' '))                     // end of command
     return;                                     // exit
 
   while (TRUE)                                  // until the end
   { op = operator();                            // get the operator
     if (op == 0)                                // an error??
-    { comperror(-(ERRZ12+ERRMLAST));            // compile the error
+    { comperror(-(ERRZ12 + ERRMLAST));          // compile the error
       return;                                   // and exit
     }
     patmat = ((op == OPPAT) || (op == OPNPAT));	// bloody pattern match

@@ -4,7 +4,7 @@
  * Summary:  module database - Locate Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -90,7 +90,7 @@ short Locate(u_char *key)				// find key
 //	     External vars setup as for Locate() above.
 //
 
-short Locate_next()					// point at next key
+short Locate_next(void)					// point at next key
 { int i;						// a handy int
   short s;						// function returns
 
@@ -112,4 +112,3 @@ short Locate_next()					// point at next key
   record = (cstring *) &chunk->buf[chunk->buf[1] + 2];	// point at the dbc
   return 0;						// all done
 }
-

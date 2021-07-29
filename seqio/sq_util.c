@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential misc. I/O operations
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,23 +27,23 @@
  * Extended Summary:
  *
  * This module implements the following miscellaneous sequential
- * input/output ( ie IO ) operations:
+ * input/output (ie IO) operations:
  *
  *	printBytestr	Prints the integer value of each element in a character
  *			array
  *	printSQChan	Prints out each field in the structure SQ_Chan, and
  *			selected fields in the structure jobtab
- *	getError	Returns a negative integer value ( which corresponds to
- *			a particular error message )
+ *	getError	Returns a negative integer value (which corresponds to
+ *			a particular error message)
  *	setSignalBitMask
  *			Sets the bits of those signals that have been caught
  *	seqioSelect	Waits until an object is ready for reading or writing
  */
 
-#include	<stdio.h>				// always include
-#include 	<stdlib.h>                         	// these two
+#include	<stdio.h>			// always include
+#include 	<stdlib.h>                      // these two
 #include	<errno.h>
-#include 	<sys/types.h>                      	// for u_char def
+#include 	<sys/types.h>                   // for u_char def
 #include	<sys/time.h>
 #include	<signal.h>
 #include	<string.h>
@@ -58,24 +58,23 @@
 //
 //	"type"	Description	Return
 //
-//	SYS	System error	-( "errnum" + ERRMLAST + ERRZLAST );
-//	INT	Internal error	-( "errnum" + ERRMLAST );
-
+//	SYS	System error	-(ERRMLAST + ERRZLAST + errnum);
+//	INT	Internal error	-(ERRMLAST + errnum);
 int getError(int type, int errnum)
 { int	err;
 
   switch (type)
   { case SYS:
-      err = errnum + ERRMLAST + ERRZLAST;
+      err = ERRMLAST + ERRZLAST + errnum;
       break;
     case INT:
-      err = errnum + ERRMLAST;
+      err = ERRMLAST + errnum;
       break;
     default:
       err = ERRZ20 + ERRMLAST;
       break;
   }
-  return (-err);
+  return -err;
 }
 
 // ************************************************************************* //
@@ -84,7 +83,6 @@ int getError(int type, int errnum)
 // signal(s) have been caught by the bits in the mask "partab.jobtab->trap";
 // hence, if a bit has been set, then the signal corresponding to that bit has
 // been caught.
-
 void setSignalBitMask(int sig)
 { int	mask;
   if (sig == SIGQUIT)
@@ -103,7 +101,6 @@ void setSignalBitMask(int sig)
 // "sid" is ready for reading or writing ( as determined by "type" ).
 // Otherwise, a negative integer is returned to indicate the error that has
 // occurred.
-
 int seqioSelect(int sid, int type, int tout)
 { int           	nfds;
   fd_set        	fds;
@@ -119,22 +116,18 @@ int seqioSelect(int sid, int type, int tout)
     if (type == FDRD) ret = select(nfds, &fds, NULL, NULL, &timeout);
     else ret = select(nfds, NULL, &fds, NULL, &timeout);
   }
-
-  // Time out handled by alarm(), where no alarm() would be set if "tout"
-  // was -1
-
+  // Time out handled by alarm(), where no alarm() would be set if "tout" was -1
   else
   { if (type == FDRD) ret = select(nfds, &fds, NULL, NULL, NULL);
     else ret = select(nfds, NULL, &fds, NULL, NULL);
   }
 
   // An error has occurred ( possibly timed out by alarm() )
-
-  if (ret == -1) return (getError(SYS, errno));
+  if (ret == -1) return getError(SYS, errno);
   else if (ret == 0)
   { ret = raise(SIGALRM);			// Force select to time out
-    if (ret == -1) return (getError(SYS, errno));
-    return (-1);
+    if (ret == -1) return getError(SYS, errno);
+    return -1;
   }
-  else return (0);				// Success
+  else return 0;				// Success
 }

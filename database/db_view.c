@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, View
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -45,10 +45,9 @@
 // Input(s): Vol# and Block# to get
 // Return:   Address of gbd or null on error
 //
-
 struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
 { short s;						// for func
-  if ((block < 1) || (block > systab->vol[vol-1]->vollab->max_block))
+  if ((block < 1) || (block > systab->vol[vol - 1]->vollab->max_block))
   { return NULL;					// validate
   }
   level = 0;						// where it goes
@@ -65,7 +64,7 @@ struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
   if (curr_lock)
   { SemOp(SEM_GLOBAL, -curr_lock);			// unlock the globals
   }
-  return (s < 0) ? NULL : blk[level];			// return whatever
+  return ((s < 0) ? NULL : blk[level]);			// return whatever
 }
 
 //-----------------------------------------------------------------------------
@@ -74,7 +73,6 @@ struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
 // Input(s): Vol# and gbd ptr of block
 // Return:   none
 //
-
 void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
 { short s;						// for funcs
 
@@ -110,7 +108,6 @@ void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
 // Input(s): Vol# and gbd ptr of block
 // Return:   none
 //
-
 void DB_ViewRel(int vol, struct GBD *ptr)	      	// release block, gbd
 { short s;						// for functions
 
@@ -120,7 +117,7 @@ void DB_ViewRel(int vol, struct GBD *ptr)	      	// release block, gbd
   { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
     if (s < 0)						// check error
     { return;						// quit if so
-// PROBABLY SHOULD PERSIST HERE
+    // PROBABLY SHOULD PERSIST HERE
     }
     Free_GBD(ptr);					// free it
     SemOp(SEM_GLOBAL, -curr_lock);			// release lock

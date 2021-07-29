@@ -4,7 +4,7 @@
  * Summary:  module database - Main Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -56,12 +56,11 @@ int Index;                                              // Index # into above
 cstring *chunk;						// chunk at Index
 cstring *record;					// record at Index
                                                         // points at dbc
-u_char keybuf[260];					// for storing keys
+u_char keybuf[MAX_KEY_SIZE + 5];			// for storing keys
 u_short *idx;						// for Indexes
 int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
-
 int hash_start = 0;					// start searching here
 
 //-----------------------------------------------------------------------------
@@ -75,7 +74,6 @@ int hash_start = 0;					// start searching here
 //
 // Note:     No locks are held at this stage.
 //
-
 short Copy2local(mvar *var)
 { int i;						// a handy int
 
@@ -89,10 +87,10 @@ short Copy2local(mvar *var)
   { db_var.volset = partab.jobtab->vol;			// get current volset
   }
   if (db_var.volset > MAX_VOL)				// within limits?
-  { return (-ERRM26);					// no - error
+  { return -ERRM26;					// no - error
   }
-  if (systab->vol[db_var.volset-1] == NULL)		// is it mounted?
-  { return (-ERRM26);					// no - error
+  if (systab->vol[db_var.volset - 1] == NULL)		// is it mounted?
+  { return -ERRM26;					// no - error
   }
   if (db_var.uci == 0)					// UCI specified?
   { if (db_var.name.var_cu[0] == '%')
@@ -103,7 +101,7 @@ short Copy2local(mvar *var)
     }
   }
   if (db_var.uci > UCIS)
-  { return (-ERRM26);					// too big
+  { return -ERRM26;					// too big
   }
 
   if ((var->volset == 0) && (var->uci == 0))		// no vol or UCI
@@ -117,12 +115,12 @@ short Copy2local(mvar *var)
     }							// end found one
   }							// end trantab lookup
 
-  if (systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].name.var_cu[0] == '\0') // does UCI exist?
-  { return (-ERRM26);					// no - error
+  if (systab->vol[db_var.volset - 1]->vollab->uci[db_var.uci - 1].name.var_cu[0] == '\0') // does UCI exist?
+  { return -ERRM26;					// no - error
   }
   if ((db_var.name.var_cu[0] == '%') &&			// if a %global
       (db_var.uci != 1))				// and UCI is not 1
-  { return (-ERRM26);					// error
+  { return -ERRM26;					// error
   }
   volnum = db_var.volset;				// save this for ron
   return 0;						// else return ok
@@ -135,9 +133,8 @@ short Copy2local(mvar *var)
 //	     Pointer to buffer for data
 // Return:   String length -> Ok, negative M error
 //
-
-short DB_Get(mvar *var, u_char *buf)           		// get global data
-{ short s;						// for returns
+int DB_Get(mvar *var, u_char *buf)           		// get global data
+{ int s;						// for returns
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
@@ -153,11 +150,11 @@ short DB_Get(mvar *var, u_char *buf)           		// get global data
     // This code must then be copied to all 10 other calls to Copy2local
     //
   }
-  systab->vol[volnum-1]->stats.dbget++;                 // update stats
+  systab->vol[volnum - 1]->stats.dbget++;               // update stats
   s = Get_data(0);					// attempt to get it
   if (s >= 0)						// if worked
   { if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) // if ^$G
-    { s = itocstring(buf, *(u_int *) record);		// block number
+    { s = itocstring(buf, *((u_int *) record));		// block number
     }
     else
     { s = mcopy(record->buf, buf, record->len);		// copy the data
@@ -176,9 +173,8 @@ short DB_Get(mvar *var, u_char *buf)           		// get global data
 //	     Pointer to cstring containing data
 // Return:   String length -> Ok, negative M error
 //
-
-short DB_Set(mvar *var, cstring *data)	         	// set global data
-{ short s;						// for returns
+int DB_Set(mvar *var, cstring *data)	         	// set global data
+{ int s;						// for returns
   int i;						// a handy int
 
   s = Copy2local(var);					// get local copy
@@ -190,19 +186,19 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   { i += (4 - (i & 3));					// round up
   }
   i += 4;						// add Index
-  if (i > (systab->vol[volnum-1]->vollab->block_size - sizeof(DB_Block))) // if too big
+  if (i > (systab->vol[volnum - 1]->vollab->block_size - sizeof(DB_Block))) // if too big
   { return -ERRM75;					// return an error
   }
-  systab->vol[volnum-1]->stats.dbset++;                 // update stats
+  systab->vol[volnum - 1]->stats.dbset++;               // update stats
   writing = 1;						// say we are writing
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
     }
   }							// end writelock check
 
-  i = systab->vol[volnum-1]->vollab->max_block >> 3;	// last map byte
+  i = systab->vol[volnum - 1]->vollab->max_block >> 3;	// last map byte
   while (i)						// check from the end
   { if ((((u_char *) systab->vol[volnum - 1]->map)[i--]) == 0)
     { break;						// OK if byte is free
@@ -210,7 +206,7 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   }
 
   if (!i)
-  { return -(ERRZLAST+ERRZ11);				// complain if failed
+  { return -(ERRZ11 + ERRZLAST);			// complain if failed
   }
 
   s = Set_data(data);					// do the set
@@ -228,19 +224,19 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
 //	     Pointer to buffer for return result (0, 1, 10 or 11)
 // Return:   String length -> Ok, negative M error
 //
-
 short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
 { short s;						// for returns
+  int t;						// for returns
   int i;						// a handy int
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbdat++;                 // update stats
-  s = Get_data(0);					// attempt to get it
+  systab->vol[volnum - 1]->stats.dbdat++;               // update stats
+  t = Get_data(0);					// attempt to get it
   i = 1;						// assume data found
-  if (s == -ERRM7)					// undefined global?
+  if (t == -ERRM7)					// undefined global?
   { i = 0;						// yes - no data
     if (level == 0 &&					// check for global
        (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) != 0)) // but not ^$G
@@ -252,13 +248,13 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
       return 1;						// and exit
     }
   }
-  else if (s < 0)					// if it failed
+  else if (t < 0)					// if it failed
   { if (curr_lock)					// if locked
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
     }
-    return s;						// and exit
+    return (short) t;					// and exit
   }
-  if ((!db_var.slen) && (!i))				// pointing at 1st
+  if (!db_var.slen && !i)				// pointing at 1st
   { Index++;
   }
   if ((i) || (Index > blk[level]->mem->last_idx))	// found or passed end
@@ -277,8 +273,7 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
     }
   }							// got next record
   if (((db_var.slen < keybuf[0]) &&			// if smaller key and
-       (bcmp(&keybuf[1], db_var.key, db_var.slen) == 0)) || // a descendant?
-       (!db_var.slen))
+       (bcmp(&keybuf[1], db_var.key, db_var.slen) == 0)) || !db_var.slen) // a descendant?
   { i += 10;						// add 10 to result
   }
   if (curr_lock)					// if locked
@@ -293,19 +288,18 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
 // Input(s): Pointer to mvar to remove
 // Return:   0 -> Ok, negative M error
 //
-
 short DB_Kill(mvar *var)	                       	// remove sub-tree
-{ short s;						// for returns
+{ int s;						// for returns
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
-  { return s;						// exit on error
+  { return (short) s;					// exit on error
   }
-  systab->vol[volnum-1]->stats.dbkil++;                 // update stats
+  systab->vol[volnum - 1]->stats.dbkil++;               // update stats
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { (void)sleep(5);					// wait a bit
+  { (void) sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
     }
   }							// end writelock check
 
@@ -318,7 +312,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
     if (s == -ERRM7)					// if undefined
     { s = 0;						// that is OK
     }
-    return s;						// nothing to do
+    return (short) s;					// nothing to do
   }
 
   if ((s == -ERRM7) && (db_var.slen))			// if undefined
@@ -356,7 +350,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
   if (curr_lock)					// if locked
   { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
   }
-  return s;						// return the result
+  return (short) s;					// return the result
 }
 
 //-----------------------------------------------------------------------------
@@ -367,9 +361,9 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
 //	     Direction, 1 = fwd, -1 = bck
 // Return:   String length -> Ok, negative M error
 //
-
 short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
 { short s;						// for returns
+  int t;						// for returns
   int i;						// a handy int
   int last_key;						// start of last key
 
@@ -377,16 +371,16 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbord++;                 // update stats
+  systab->vol[volnum - 1]->stats.dbord++;               // update stats
   last_key = UTIL_Key_Last(&db_var);			// get start of last
   buf[0] = '\0';					// null terminate ret
   if (dir < 0)						// if it's backward
-  { s = Get_data(-1);					// get the previous
-    if ((s < 0) && (s != -ERRM7))			// check for errors
+  { t = Get_data(-1);					// get the previous
+    if ((t < 0) && (t != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
-      return s;						// and return the error
+      return (short) t;					// and return the error
     }
     if ((level == 0) && (s == -ERRM7) &&		// if no such global
 	(bcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8))) // and not ^$G()
@@ -400,16 +394,16 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
     { panic("DB_Order: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
-    record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
+    record = (cstring *) &chunk->buf[chunk->buf[1] + 4]; // point at the dbc
   }							// end backwards
   else							// it's forward
   { db_var.key[db_var.slen++] = 255;			// force next key
-    s = Get_data(0);					// try to find that
-    if (s != -ERRM7)					// MUST be undefined
+    t = Get_data(0);					// try to find that
+    if (t != -ERRM7)					// MUST be undefined
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
-      return (s < 0) ? s : -(ERRMLAST+ERRZ61);		// and return the error
+      return ((t < 0) ? (short) t : -(ERRZ61 + ERRMLAST)); // and return the error
     }
     if ((level == 0) &&					// if no such global
 	(bcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8))) // and not ^$G()
@@ -424,7 +418,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
       { if (curr_lock)					// if locked
         { SemOp(SEM_GLOBAL, -curr_lock);		// release global lock
         }
-        return (s == -ERRM7) ? 0 : s;			// done
+        return ((s == -ERRM7) ? 0 : s);			// done
       }
     }
   }							// end forwards
@@ -441,8 +435,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
   { return 0;						// done
   }
   i = 0;						// clear flag
-  s = UTIL_Key_Extract(&keybuf[last_key + 1], buf, &i);	// extract the key
-  return s;						// return result
+  return UTIL_Key_Extract(&keybuf[last_key + 1], buf, &i); // extract the key and return
 }
 
 //-----------------------------------------------------------------------------
@@ -453,25 +446,25 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
 //	     Direction, 1 = fwd, -1 = bck
 // Return:   String length -> Ok, negative M error
 //
-
 short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
 { short s;						// for returns
+  int t;						// for returns
   int i;						// a handy int
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbqry++;                 // update stats
+  systab->vol[volnum - 1]->stats.dbqry++;               // update stats
   if (dir < 0)						// if it's backward
-  { s = Get_data(-1);					// get the previous
-    if ((s < 0) && (s != -ERRM7))			// check for errors
+  { t = Get_data(-1);					// get the previous
+    if ((t < 0) && (t != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
-      return s;						// and return the error
+      return (short) t;					// and return the error
     }
-    if ((level == 0) && (s == -ERRM7))			// if no such global
+    if ((level == 0) && (t == -ERRM7))			// if no such global
     { buf[0] = '\0';					// null terminate ret
       if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
@@ -483,9 +476,8 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
     { panic("DB_Query: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
-    record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
-    if ((!chunk->buf[0]) && (!chunk->buf[1]) &&		// if first node
-        ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+    record = (cstring *) &chunk->buf[chunk->buf[1] + 4]; // point at the dbc
+    if (!chunk->buf[0] && !chunk->buf[1] && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)) // if first node
     { buf[0] = '\0';					// null terminate ret
       if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
@@ -494,12 +486,12 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
     }
   }							// end backwards
   else							// it's forward
-  { s = Get_data(0);					// try to find that
-    if ((s < 0) && (s != -ERRM7))			// check for errors
+  { t = Get_data(0);					// try to find that
+    if ((t < 0) && (t != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
       }
-      return s;						// and return the error
+      return (short) t;					// and return the error
     }
     if ((level == 0) && (s == -ERRM7))			// if no such global
     { buf[0] = '\0';					// null terminate ret
@@ -508,10 +500,10 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
       }
       return 0;						// and return
     }
-    if ((s < 0) && (!db_var.slen))
+    if ((t < 0) && !db_var.slen)
     { Index++;
     }
-    if ((Index > blk[level]->mem->last_idx) || (s >= 0)) // want next one
+    if ((Index > blk[level]->mem->last_idx) || (t >= 0)) // want next one
     { s = Locate_next();				// point at next
       if (s < 0)					// not found or error
       { if (curr_lock)					// if locked
@@ -539,7 +531,7 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
   VAR_COPY(db_var.name, var->name);			//      data
   db_var.slen = keybuf[0];				//         to
   bcopy(&keybuf[1], &db_var.key[0], keybuf[0]);		//           db_var
-  return UTIL_String_Mvar(&db_var, buf, 9999);		// convert and return
+  return UTIL_String_Mvar(&db_var, buf, MAX_NUM_SUBS);	// convert and return
 }
 
 //-----------------------------------------------------------------------------
@@ -551,30 +543,30 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
 //	     Updated MVAR if not error
 //	     Data from updated mvar (if no error)
 //
-
 short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 { short s;						// for returns
+  int t;						// for returns
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
-  s = Get_data(0);					// try to find that
-  if ((s < 0) && (s != -ERRM7))				// check for errors
+  t = Get_data(0);					// try to find that
+  if ((t < 0) && (t != -ERRM7))				// check for errors
   { if (curr_lock)					// if locked
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
     }
-    return s;						// and return the error
+    return (short) t;					// and return the error
   }
-  if ((level == 0) && (s == -ERRM7))			// if no such global
+  if ((level == 0) && (t == -ERRM7))			// if no such global
   { buf[0] = '\0';					// null terminate ret
     if (curr_lock)					// if locked
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
     }
-    return -(ERRMLAST+ERRZ55);				// and return
+    return -(ERRZ55 + ERRMLAST);			// and return
   }
 
-  if ((s < 0) && (db_var.slen))				// If we had a "real"
+  if ((t < 0) && db_var.slen)				// If we had a "real"
   { Index--;						// <UNDEF> last time
   }							// back up Index
 
@@ -584,7 +576,7 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
     }
     if (s == -ERRM7)					// if no more
-    { s = -(ERRMLAST+ERRZ55);				// say 'at end'
+    { s = -(ERRZ55 + ERRMLAST);				// say 'at end'
     }
     return s;						// done
   }
@@ -597,11 +589,11 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 //  }
   bcopy(&keybuf[1], var->key, (int) keybuf[0]);		// copy in the key
   var->slen = keybuf[0];				// update the length
-  s = mcopy(record->buf, buf, record->len);		// copy the data
+  t = mcopy(record->buf, buf, record->len);		// copy the data
   if (curr_lock)					// if locked
   { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
   }
-  return s;						// return the count
+  return (short) t;						// return the count
 }
 
 //-----------------------------------------------------------------------------
@@ -615,11 +607,10 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 //	     Buffer for routine (if not NULL)
 // Return:   String length -> Ok, negative M error
 // Note:     There may be NO intervening calls to other DB modules
-//	     when the GDB has been left locked.
+//	     when the GBD has been left locked.
 //
-
-short DB_GetLen(mvar *var, int lock, u_char *buf)	// length of node
-{ short s;						// for returns
+int DB_GetLen(mvar *var, int lock, u_char *buf)		// length of node
+{ int s;						// for returns
   int sav;						// save curr_lock
 
   if ((lock == -1) && (buf == NULL))			// just unlock?
@@ -660,7 +651,6 @@ short DB_GetLen(mvar *var, int lock, u_char *buf)	// length of node
 // Input(s): Volume set number to examine
 // Return:   Number of free blocks
 //
-
 int DB_Free(int vol)	                           	// total free blocks
 { short s;						// for funcs
   u_int i;						// loop cnt
@@ -671,10 +661,9 @@ int DB_Free(int vol)	                           	// total free blocks
   { return s;						// return any errors
   }
   for (i = 1;						// start at block 1
-	i <= systab->vol[vol-1]->vollab->max_block;  	// while still in map
-        i++)						// going up by one
-  { count +=		 				// add up blocks
-	(((((u_char *)systab->vol[vol-1]->map)[i>>3]) &(1U<<(i&7))) == 0);
+       i <= systab->vol[vol - 1]->vollab->max_block;  	// while still in map
+       i++)						// going up by one
+  { count += (((((u_char *) systab->vol[vol - 1]->map)[i >> 3]) & (1U << (i & 7))) == 0); // add up blocks
   }
   SemOp(SEM_GLOBAL, -curr_lock);			// unlock the globals
   return count;						// return the count
@@ -683,11 +672,10 @@ int DB_Free(int vol)	                           	// total free blocks
 //-----------------------------------------------------------------------------
 // Function: DB_Expand
 // Descript: Expand volume set
-// Input(s): Internal volume set number to dismount
+// Input(s): Internal volume set number to expand
 //	     New size in blocks (checks have been done)
 // Return:   0 or error
 //
-
 short DB_Expand(int vol, u_int vsiz)			// expand it
 { off_t fptr;						// for lseek
   off_t fres;						// ditto
@@ -698,30 +686,29 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 
   p = malloc(systab->vol[vol]->vollab->block_size);	// get some space
   if (p == NULL)
-  { return -(ERRMLAST+ERRZLAST+errno);			// die
+  { return -(ERRMLAST + ERRZLAST + errno);		// die
   }
   bzero(p, systab->vol[vol]->vollab->block_size);	// clear it
   dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)						// if failed
   { free(p);						// free memory
-    return -(ERRMLAST+ERRZLAST+errno);			// and die
+    return -(ERRMLAST + ERRZLAST + errno);		// and die
   }
 
-  fptr = (off_t)systab->vol[vol]->vollab->max_block;	// start here
-  fptr = (fptr * (off_t) systab->vol[vol]->vollab->block_size)
-	 + (off_t) systab->vol[vol]->vollab->header_bytes;
+  fptr = (off_t) systab->vol[vol]->vollab->max_block;	// start here
+  fptr = (fptr * (off_t) systab->vol[vol]->vollab->block_size) + (off_t) systab->vol[vol]->vollab->header_bytes;
 
   fres = lseek(dbfd, fptr, SEEK_SET);			// Seek to eof
   if (fres != fptr)					// if failed
   { free(p);						// free memory
-    return -(ERRMLAST+ERRZLAST+errno);			// and die
+    return -(ERRMLAST + ERRZLAST + errno);		// and die
   }
   vexp = vsiz - systab->vol[vol]->vollab->max_block;	// expand by
   while (vexp)
   { i = write(dbfd, p, systab->vol[vol]->vollab->block_size);
     if (i < 0)						// if failed
     { free(p);						// free memory
-      return -(ERRMLAST+ERRZLAST+errno);		// and die
+      return -(ERRMLAST + ERRZLAST + errno);		// and die
     }
     vexp--;						// count 1
   }
@@ -738,12 +725,11 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 // Input(s): Volume set number to dismount
 // Return:   0
 //
-
 int DB_Dismount(int vol)	                       	// dismount a volume
 { if (vol == 1)
   { DB_StopJournal(vol, JRN_ESTOP);
   }
-  systab->vol[vol-1]->dismount_flag = 1;		// set the flag
+  systab->vol[vol - 1]->dismount_flag = 1;		// set the flag
   return 0;						// that's all for now
 }
 
@@ -754,7 +740,6 @@ int DB_Dismount(int vol)	                       	// dismount a volume
 //	     Reason (currently JRN_STOP and JRN_ESTOP)
 // Return:   none
 //
-
 void DB_StopJournal(int vol, u_char action)		// Stop journal
 { jrnrec jj;
 
@@ -780,21 +765,21 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
 // Input(s): Pointer to mvar -> ^$GLOBAL("name")
 // Return:   flags or negative M error
 //
-
 int DB_GetFlags(mvar *var)	                       	// Get flags
 { short s;						// for returns
+  int t;						// for returns
   int i;						// a handy int
 
   s = Copy2local(var);					// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
-  s = Get_data(0);					// try to find that
-  if ((s < 0) && (s != -ERRM7))				// check for errors
+  t = Get_data(0);					// try to find that
+  if ((t < 0) && (t != -ERRM7))				// check for errors
   { if (curr_lock)					// if locked
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
     }
-    return s;						// and return the error
+    return t;						// and return the error
   }
   i = ((int *) record)[1];				// get the value
   if (curr_lock)					// if locked
@@ -810,11 +795,11 @@ int DB_GetFlags(mvar *var)	                       	// Get flags
 //	     Positive flags to set or negative flags to clear
 // Return:   new flags or negative M error
 //
-
-int DB_SetFlags(mvar *var, int flags)                  	// Set flags
+int DB_SetFlags(mvar *var, int flags)              	// Set flags
 { int clearit = 0;
-  int i;
   short s;
+  int i;
+  int t;						// for returns
 
   if (flags < 0)
   { clearit = 1;					// setup to clear
@@ -824,30 +809,30 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbset++;                 // update stats
+  systab->vol[volnum - 1]->stats.dbset++;               // update stats
   writing = 1;						// say we are writing
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
     }
   }							// end writelock check
   Get_GBDs(1);						// ensure this many
-  s = Get_data(0);                                      // try to find that
-  if ((s < 0) && (s != -ERRM7))                         // check for errors
+  t = Get_data(0);                                      // try to find that
+  if ((t < 0) && (t != -ERRM7))                         // check for errors
   { if (curr_lock)					// if locked
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
     }
-    return (int) s;					// return error
+    return t;						// return error
   }
-  i = ((int *)record)[1];				// get current flags
+  i = ((int *) record)[1];				// get current flags
   if (clearit)
   { i = i & ~flags;					// clear flags
   }
   else
   { i = i | flags;					// set flags
   }
-  ((int *)record)[1] = i;				// set back to GD
+  ((int *) record)[1] = i;				// set back to GD
   if (blk[level]->dirty == (gbd *) 1)			// if reserved
   { blk[level]->dirty = blk[level];			// terminate list
     Queit();						// que for write
@@ -863,16 +848,15 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
 //	     Level to process 0 -> 15 (data level or more means data level)
 // Return:   actual level number processed or error number
 //
-
 short DB_Compress(mvar *var, int flags)			// Compress global
 { int i;
-  short s;
-  int retlevel;						// the ACTUAL level
+  int s;
+  short retlevel;					// the ACTUAL level
 
   flags &= 15;						// clear high bits
   s = Copy2local(var);					// get local copy
   if (s < 0)
-  { return s;						// exit on error
+  { return (short) s;					// exit on error
   }
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));           // clear that table
@@ -894,15 +878,15 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     while (systab->vol[volnum - 1]->writelock)		// check for write lock
     { i = sleep(5);					// wait a bit
       if (partab.jobtab->attention)
-      { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+      { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
       }
     }							// end writelock check
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZ51 + ERRZLAST);			// for <Control><C>
     }
 
     s = Get_data(retlevel);				// get the block
-    if ((s == -ERRM7) && (!db_var.slen))		// if first node
+    if ((s == -ERRM7) && !db_var.slen)			// if first node
     { s = 0;						// it exists
     }
     if (s == -ERRM7)					// if key changed
@@ -917,15 +901,15 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     }
     if (s < 0)
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
-      return s;						// exit on error
+      return (short) s;					// exit on error
     }
     if (!blk[level]->mem->right_ptr)			// if no more
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
-      if ((retlevel == 2) && (!db_var.slen))		// if only block lvl 2
+      if ((retlevel == 2) && !db_var.slen)		// if only block lvl 2
       { s = Compress1();				// do that
 	SemOp(SEM_GLOBAL, -curr_lock);			// release write lock
 	if (s < 0)
-	{ return s;					// exit on error
+	{ return (short) s;				// exit on error
 	}
       }
       return retlevel;					// all done, exit
@@ -934,7 +918,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     s = Get_block(blk[level - 1]->mem->right_ptr);
     if (s < 0)						// if error
     { SemOp(SEM_GLOBAL, -curr_lock);			// release global lock
-      return s;						// exit on error
+      return (short) s;					// exit on error
     }
     i = ((blk[level - 1]->mem->last_free * 2 + 1 - blk[level - 1]->mem->last_idx) * 2)
       + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2);
@@ -949,7 +933,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     s = Compress1();					// do that
     SemOp(SEM_GLOBAL, -curr_lock);			// release write lock
     if (s < 0)
-    { return s;						// exit on error
+    { return (short) s;					// exit on error
     }
     if (!var->volset)					// if done
     { return retlevel;

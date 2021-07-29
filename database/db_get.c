@@ -4,7 +4,7 @@
  * Summary:  module database - Get Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -53,9 +53,9 @@
 //		iidx, keybuf Index.
 // NOTE: lastused block is NOT used if dir != 0 or journaling is on and writing
 
-short Get_data(int dir)					// locate a record
+int Get_data(int dir)					// locate a record
 { int i;						// a handy int
-  short s;						// for function returns
+  int s;						// for function returns
   u_char tmp[VAR_LEN + 4];				// spare string
   gbd *ptr;						// handy pointer
 
@@ -67,21 +67,19 @@ short Get_data(int dir)					// locate a record
   }
 
   if (systab->vol[db_var.volset - 1] == NULL)		// vol still mounted?
-  { return (-ERRM26);					// no - error
+  { return -ERRM26;					// no - error
   }
-  if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
-      (dir != 0) ||					// or level or backward
-      ((systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
-       (writing)))					// and writing
+  if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || (dir != 0) || // if ^$G or level or backward
+      (systab->vol[volnum - 1]->vollab->journal_available && writing)) // or journaling and writing
   { systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // zot this
   }
-			// NOTE - LASTUSED NEEDS TO BE BY VOLUME SET
+  // NOTE - LASTUSED NEEDS TO BE BY VOLUME SET
   else
   { i = systab->last_blk_used[partab.jobtab - systab->jobtab]; // get last used
-    if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1U<<(i&7))))
+    if (i && ((((u_char *) systab->vol[volnum - 1]->map)[i >> 3]) & (1U << (i & 7))))
 							// if one there
-    { systab->vol[volnum-1]->stats.lasttry++;		// count a try
-      ptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)]; // get listhead
+    { systab->vol[volnum - 1]->stats.lasttry++;		// count a try
+      ptr = systab->vol[volnum - 1]->gbd_hash[i & (GBD_HASH - 1)]; // get listhead
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
         { if ((!var_equal(ptr->mem->global, db_var.name)) || // wrong global or
@@ -96,17 +94,17 @@ short Get_data(int dir)					// locate a record
 	      ((s = -ERRM7) &&				// not found and
 	       (Index <= blk[level]->mem->last_idx) &&	// still in block
 	       (Index > IDX_START)))			// not at beginning
-	  { systab->vol[volnum-1]->stats.lastok++;	// count success
+	  { systab->vol[volnum - 1]->stats.lastok++;	// count success
 	    blk[level]->last_accessed = current_time(TRUE); // accessed
-            for (i = 0; i < level; blk[i++] = NULL);	// zot these
+            for (i = 0; i < level; blk[i++] = NULL)	// zot these
+              continue;
 	    if (!s)					// if ok
 	    { s = record->len;				// get the dbc
 	    }
-	    if ((writing) && (blk[level]->dirty == NULL)) // if writing
+	    if (writing && (blk[level]->dirty == NULL)) // if writing
 	    { blk[level]->dirty = (gbd *) 1;		// reserve it
 	    }
-	    if ((!db_var.slen) && (!s) &&
-	        ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+	    if (!db_var.slen && !s && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
 	    { s = -ERRM7;				// check for top node
 	    }
 	    return s;					// and return
@@ -121,10 +119,10 @@ short Get_data(int dir)					// locate a record
     systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // zot it
   }
 
-  i = systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].global;
+  i = systab->vol[db_var.volset - 1]->vollab->uci[db_var.uci - 1].global;
 							// get directory blk#
   if (!i)						// if nosuch
-  { return (-ERRM26);					// then error
+  { return -ERRM26;					// then error
   }
 
   level = 0;						// where it goes
@@ -177,7 +175,7 @@ short Get_data(int dir)					// locate a record
   while (blk[level]->mem->type < 65)			// while we have ptrs
   {
     if (!var_equal(blk[level]->mem->global, db_var.name))
-    { return -(ERRMLAST+ERRZ61);			// database stuffed
+    { return -(ERRZ61 + ERRMLAST);			// database stuffed
     }
     s = Locate(&db_var.slen);				// locate the key
     if (s == -ERRM7)					// failed to find?
@@ -194,7 +192,7 @@ short Get_data(int dir)					// locate a record
     }
 
     chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
-    record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
+    record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at the dbc
     Align_record();					// if not aligned
     if (level == dir)					// stop here?
     { return s;						// yes - return result
@@ -208,13 +206,13 @@ short Get_data(int dir)					// locate a record
   }							// end while ptr
 
   if (!var_equal(blk[level]->mem->global, db_var.name))
-  { return -(ERRMLAST+ERRZ61);				// database stuffed
+  { return -(ERRZ61 + ERRMLAST);			// database stuffed
   }
   s = Locate(&db_var.slen);				// locate key in data
   if (dir < 1)						// if not a pointer
   { systab->last_blk_used[partab.jobtab - systab->jobtab] = i; // set last used
   }
-  if ((!db_var.slen) && (!s) && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+  if (!db_var.slen && !s && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
   { if (!record->len)
     { s = -ERRM7;					// check for top node
     }
