@@ -26,76 +26,82 @@
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
 OS    != uname
-CC    = gcc
-FLAGS = -fsigned-char -fwrapv -Wall -std=gnu99 -Iinclude
-LIBS  = -lm -lcrypt
+CC     = gcc
+FLAGS  = -fsigned-char -fwrapv -Wall -std=gnu99 -Iinclude
+LIBS   = -lm -lcrypt
 
 .ifmake test
-EXTRA = -O0 -g3
+    EXTRA = -O0 -g3
 .else
-EXTRA = -O3
+    EXTRA = -O3
 .endif
 
 .ifdef dbver
-FLAGS += -DRSM_DBVER=$(dbver)
+    FLAGS += -DRSM_DBVER=$(dbver)
+.endif
+
+.ifdef path
+    DIR=$(path)
+.else
+    DIR=/usr/local/bin
 .endif
 
 .if ($(OS) == OpenBSD)
-LIBS  = -lm
+    LIBS = -lm
 .endif
 
-DIRS  = compile database init runtime seqio symbol util xcall
-RM    = rm -f
-PROG  = rsm
+DIRS = compile database init runtime seqio symbol util xcall
+RM   = rm -f
+PROG = rsm
 
-OBJS  = compile/dollar.o \
-        compile/eval.o \
-        compile/localvar.o \
-        compile/parse.o \
-        compile/routine.o \
-        database/db_buffer.o \
-        database/db_daemon.o \
-        database/db_get.o \
-        database/db_ic.o \
-        database/db_kill.o \
-        database/db_locate.o \
-        database/db_main.o \
-        database/db_rekey.o \
-        database/db_set.o \
-        database/db_uci.o \
-        database/db_util.o \
-        database/db_view.o \
-        init/init_create.o \
-        init/init_run.o \
-        init/init_start.o \
-        init/rsm.o \
-        runtime/runtime_attn.o \
-        runtime/runtime_buildmvar.o \
-        runtime/runtime_debug.o \
-        runtime/runtime_func.o \
-        runtime/runtime_math.o \
-        runtime/runtime_pattern.o \
-        runtime/runtime_run.o \
-        runtime/runtime_ssvn.o \
-        runtime/runtime_util.o \
-        runtime/runtime_vars.o \
-        seqio/sq_util.o \
-        seqio/sq_signal.o \
-        seqio/sq_device.o \
-        seqio/sq_file.o \
-        seqio/sq_pipe.o \
-        seqio/sq_seqio.o \
-        seqio/sq_socket.o \
-        seqio/sq_tcpip.o \
-        symbol/symbol_new.o \
-        symbol/symbol_util.o \
-        util/util_key.o \
-        util/util_lock.o \
-        util/util_memory.o \
-        util/util_routine.o \
-        util/util_share.o \
-        util/util_strerror.o \
-        xcall/xcall.o
+OBJS = compile/dollar.o \
+       compile/eval.o \
+       compile/localvar.o \
+       compile/parse.o \
+       compile/routine.o \
+       database/buffer.o \
+       database/daemon.o \
+       database/get.o \
+       database/ic.o \
+       database/kill.o \
+       database/locate.o \
+       database/main.o \
+       database/rekey.o \
+       database/set.o \
+       database/uci.o \
+       database/util.o \
+       database/view.o \
+       init/create.o \
+       init/rsm.o \
+       init/run.o \
+       init/start.o \
+       runtime/attn.o \
+       runtime/buildmvar.o \
+       runtime/debug.o \
+       runtime/func.o \
+       runtime/math.o \
+       runtime/pattern.o \
+       runtime/run.o \
+       runtime/ssvn.o \
+       runtime/util.o \
+       runtime/var.o \
+       seqio/device.o \
+       seqio/file.o \
+       seqio/pipe.o \
+       seqio/seqio.o \
+       seqio/signal.o \
+       seqio/socket.o \
+       seqio/tcpip.o \
+       seqio/util.o \
+       symbol/new.o \
+       symbol/util.o \
+       util/key.o \
+       util/lock.o \
+       util/memory.o \
+       util/routine.o \
+       util/share.o \
+       util/strerror.o \
+       xcall/xcall.o
 
 .c.o:
 	${CC} ${EXTRA} ${FLAGS} -c $< -o $@
@@ -112,9 +118,23 @@ install: ${PROG}
 	    exit 1; \
 	fi
 
-	install -o root -g 0 -m 755 ${PROG} /usr/local/bin/
+	@if [ ! -d ${DIR} ]; then \
+	    mkdir -p ${DIR}; \
+	fi
+
+	install -o root -g 0 -m 755 -s ${PROG} ${DIR}
+
+uninstall:
+	@if [ "$${USER}" != "root" ]; then \
+	    echo "You must uninstall ${PROG} as root"; \
+	    exit 1; \
+	fi
+
+	@if [ -f ${DIR}/${PROG} -a -x ${DIR}/${PROG} ]; then \
+	    ${RM} ${DIR}/${PROG}; \
+	fi
 
 clean:
 	${RM} ${OBJS} ${PROG} ${PROG}.core
 
-.PHONY: all test install clean
+.PHONY: all test install uninstall clean
