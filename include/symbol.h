@@ -29,9 +29,13 @@
 #define _RSM_SYMBOL_H_
 
 #define DTBLKSIZE (sizeof(ST_depend *) + (sizeof(short) * 2) + sizeof(char))
-#define DTMINSIZ  32                                                            // leaves 21 for data
-#define DPBLKSIZE (sizeof(u_char) + sizeof(ST_depend *) + sizeof(short) + sizeof(char))
-#define NTBLKSIZE (sizeof(ST_newtab *) + (sizeof(short) * 2) + sizeof(short *) + sizeof(ST_locdata *))
+#define DTMINSIZE 32                                                            // leaves 21 for data
+
+#define DPBLKSIZE (sizeof(u_char) + sizeof(ST_depend *) \
+                  + sizeof(short) + sizeof(char))
+
+#define NTBLKSIZE (sizeof(ST_newtab *) + (sizeof(short) * 2) \
+                  + sizeof(short *) + sizeof(ST_locdata *))
 
 struct ST_DATA;                                                                 // defined below
 
@@ -41,15 +45,15 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK {                         
     struct ST_DATA *data;                                                       // data address
 } new_stack;                                                                    // end of struct new_stack
 
-// *** SYMTAB definitions ***
-#define ST_HASH       1023                                                      // hash size of symtab
-#define ST_FREE       ST_HASH                                                   // head of free list
-#define ST_MAX        ((ST_HASH + 1) * 3)                                       // max number of ST entries
+// SYMTAB definitions
+#define ST_HASH     1023                                                        // hash size of symtab
+#define ST_FREE     ST_HASH                                                     // head of free list
+#define ST_MAX      ((ST_HASH + 1) * 3)                                         // max number of ST entries
 
-#define STORAGE       ST_MAX                                                    // $STORAGE uses this to loop through the
+#define STORAGE     ST_MAX                                                      // $STORAGE uses this to loop through the
                                                                                 //   symbol table calculating free slots
 
-// *** Structures for symbol table data ***
+// Structures for symbol table data
 #define SIZE_KEY_DATA (MAX_KEY_SIZE + MAX_STR_LEN + 5)                          // for the following
 
 typedef struct __attribute__ ((__packed__)) ST_DEPEND {                         // symbol dependent block

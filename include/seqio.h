@@ -29,12 +29,12 @@
 #ifndef _RSM_SEQIO_H_                                                           // only do this once
 #define _RSM_SEQIO_H_
 
-#include    <sys/types.h>
-#include    "rsm.h"
+#include <sys/types.h>
+#include "rsm.h"
 
-// *** Global constants ***
+// Global constants
 
-// *** IO operations ***
+// IO operations
 #define WRITE   1                                                               // Write only
 #define READ    2                                                               // Read only
 #define APPEND  3                                                               // Append
@@ -46,22 +46,22 @@
 #define PIPE    9                                                               // Named pipe (writing)
 #define NEWPIPE 10                                                              // Named pipe (reading)
 
-// *** Signal operations ***
+// Signal operations
 #define CATCH   0                                                               // Catch signal
 #define IGNORE  1                                                               // Ignore signal
 
-// *** Types of errors ***
+// Types of errors
 #define SYS     0                                                               // System error
 #define INT     1                                                               // Internal error
 
-// *** File/Pipe permissions ***
+// File/Pipe permissions
 #define MODE    (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
-// *** Select operations ***
+// Select operations
 #define FDRD    0                                                               // Ready to read on object
 #define FDWR    1                                                               // Ready to write on object
 
-// *** Global function declarations ***
+// Global function declarations
 void setSignalBitMask(int sig);
 int  setSignal(int sig, int flag);
 int  setSignals(void);

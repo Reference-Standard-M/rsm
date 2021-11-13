@@ -7,13 +7,13 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 = Reference Standard M
 
-*Version 1.74.0 - 2021 Jul 28*
+*Version 1.75.0 - 2021 Nov 12*
 
 === Implementation of ANSI Standard M X11.1-1995 and ISO/IEC 11756:1999
 
 '''
 
-==== Copyright and License
+=== Copyright and License
 
 Developed and maintained by David Wicksell dlw@linux.com +
 Copyright © 2020-2021 Fourth Watch Software LC +
@@ -28,39 +28,38 @@ the terms of the GNU Affero General Public License (AGPL) as published by the
 Free Software Foundation, either version 3 of the License, or (at your option)
 any later version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License along
 with this program. If not, see https://www.gnu.org/licenses/.
 
 Full license text: link:COPYING[AGPL-3.0]
 
-==== Summary and Info
+=== Summary and Info
 
 Reference Standard M (RSM) is an implementation of the M programming language
 and database, which was originally created by Ray Douglas Newman as MUMPS V1
-(MV1). The name change to Reference Standard M reflects its goal as a reference
-implementation for the M Development Committee (MDC), and it will attempt to
-track and implement the latest M standard that is released by the MDC, currently
-ANSI X11.1-1995. See the link:CHANGELOG.adoc[CHANGELOG] for more information on
-the many changes in Reference Standard M. This software uses
+(MV1). The name change to Reference Standard M reflects its role as a reference
+implementation for the M Development Committee (MDC). With RSM we will attempt
+to track and implement the latest M standard that is released by the MDC,
+currently ANSI X11.1-1995. See the link:CHANGELOG.adoc[CHANGELOG] for more
+information on the many changes in Reference Standard M. This software uses
 link:https://semver.org/[semantic versioning].
 
 _This is the post-relational database._
 
-The RSM link:doc/index.adoc[Documentation] is a work-in-progress.
+The RSM link:doc/index.adoc[documentation] is a work-in-progress.
 
-==== Installation
+=== Installation
 
-RSM runs on Linux x86 and x86_64, FreeBSD, NetBSD, OpenBSD, MacOS X 10.4 through
-11.4, in 32 and 64 bit mode (using gcc or clang), Solaris on x86 and x86_64, the
-Raspberry Pi (ARMv6 and ARMv7) running Raspbian, and Windows 10, under Cygwin
-and Windows Subsystem for Linux (WSL) versions 1 and 2. It might also run on
-Windows 7 and Windows XP, under Cygwin, but it has not been built or tested
-there recently.
+RSM builds and runs on Linux x86 and x86_64 (little or big-endian), AIX (little
+or big-endian), FreeBSD, NetBSD, OpenBSD, MacOS X 10.4 through 11.4, in 32 and
+64 bit mode (using GCC or Clang), Solaris on x86 and x86_64, the Raspberry Pi
+(ARMv6 and ARMv7) running Raspbian, and Windows 10, under Cygwin and Windows
+Subsystem for Linux (WSL) versions 1 and 2. It might also run on Windows 7 and
+Windows XP, under Cygwin, but it has not been built or tested there recently.
 
 Thanks to John Willis for providing access to his build farm for testing.
 
@@ -71,11 +70,16 @@ To build RSM, clone the RSM git repository:
 git clone https://gitlab.com/Reference-Standard-M/rsm.git
 ----
 
-Change to the `rsm` directory and build the RSM executable:
+Change to the `rsm` directory and build the `rsm` executable:
 
 [source,bash]
 ----
 make
+----
+or
+[source,bash]
+----
+make -j
 ----
 
 On FreeBSD, NetBSD, and OpenBSD:
@@ -84,6 +88,11 @@ On FreeBSD, NetBSD, and OpenBSD:
 ----
 make -f BSDmakefile
 ----
+or
+[source,bash]
+----
+make -j -f BSDmakefile
+----
 
 On Solaris:
 
@@ -91,14 +100,24 @@ On Solaris:
 ----
 gmake
 ----
+or
+[source,bash]
+----
+gmake -j
+----
 
 The resulting `rsm` executable will be optimized for your system.
 
-Install the `rsm` executable in a system location:
+Install the `rsm` executable in a system location [/usr/local/bin]:
 
 [source,bash]
 ----
 sudo make install
+----
+or
+[source,bash]
+----
+sudo make install path=<path-to-system-location>
 ----
 
 Clean up the build environment after installation:
@@ -108,10 +127,29 @@ Clean up the build environment after installation:
 make clean
 ----
 
-==== Usage
+Uninstall the `rsm` executable from a system location [/usr/local/bin]:
+
+[source,bash]
+----
+sudo make uninstall
+----
+or
+[source,bash]
+----
+sudo make uninstall path=<path-to-system-location>
+----
+
+=== Usage
 
 NOTE: Set the environment variable `RSM_DBFILE` to the database file path to
 avoid having to pass it to `rsm`
+
+Output a short version string:
+
+[source,bash]
+----
+rsm -V
+----
 
 Output a helpful options menu:
 
@@ -120,17 +158,30 @@ Output a helpful options menu:
 rsm -h
 ----
 
+Output a database and environment configuration:
+
+[source,bash]
+----
+rsm -i tst.dat
+----
+or
+[source,bash]
+----
+export RSM_DBFILE="/home/user/rsm/tst.dat"
+rsm -i
+----
+
 To use RSM, create a database:
 
 [source,bash]
 ----
 # Optional arguments in square brackets
-#  -v <volume name>        Name of volume             (1 - 32 alpha characters)
-#  -b <block size>         Size of database blocks    (4 - 256 KiB)
-#  -s <database size>      Initial size of database   (100 - 2147483647 blocks)
-# [-m <map size>]          Size of map block          (0 - 262147 KiB)
-# [-e <environment name>]  Name of manager UCI        (1 - 32 alpha characters)
-# [<database file>]        Name of the database file
+#  -v <volume-name>        Name of volume             (1-32 alpha characters)
+#  -b <block-size>         Size of database blocks    (4-256 KiB)
+#  -s <database-size>      Initial size of database   (100-2147483647 blocks)
+# [-m <map-size>]          Size of map block          (0-262147 KiB)
+# [-e <environment-name>]  Name of manager UCI        (1-32 alpha characters)
+# [<database-file>]        Name of the database file
 
 rsm -v TST -b 16 -s 4096 tst.dat
 ----
@@ -149,10 +200,10 @@ Initialize and start the environment:
 [source,bash]
 ----
 # Optional arguments in square brackets
-#  -j <max jobs>          Maximum attached jobs      (1 - 512 jobs)
-# [-g <global buffers>]   Size of global buffers     (1 - 131072 MiB)
-# [-r <routine buffers>]  Size of routine buffers    (1 - 4095 MiB)
-# [<database file>]       Name of the database file
+#  -j <max-jobs>          Maximum attached jobs      (1-512 jobs)
+# [-g <global-buffers>]   Size of global buffers     (1-131072 MiB)
+# [-r <routine-buffers>]  Size of routine buffers    (1-4095 MiB)
+# [<database-file>]       Name of the database file
 
 rsm -j 12 tst.dat
 ----
@@ -165,7 +216,8 @@ rsm -j 12
 
 On MacOS X, you might need to increase the accessible shared memory before
 starting the environment, if the previous command failed. If so, as root or
-using sudo, run the following commands, adjusted based on your system resources:
+using `sudo`, run the following commands, adjusted based on your system
+resources:
 
 [source,bash]
 ....
@@ -173,13 +225,22 @@ sudo sysctl -w kern.sysv.shmmax=536870912
 sudo sysctl -w kern.sysv.shmall=131072
 ....
 
+On Cygwin, you need to configure and start `cygserver` (as administrator) before
+starting the RSM environment, as it provides the SysV shared memory support.
+
+[source,bash]
+----
+cygserver-config
+cygrunsrv -S cygserver
+----
+
 Load the M utilities:
 
 [source,bash]
 ----
 # Optional arguments in square brackets
-# -x <M command(s)>  String of M commands
-# [<database file>]  Name of the database file
+# -x <M-command(s)>  String of M commands
+# [<database-file>]  Name of the database file
 
 rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' tst.dat
 ----
@@ -198,9 +259,9 @@ Start direct mode:
 [source,bash]
 ----
 # Optional arguments in square brackets
-# [-e <environment name>]  Name of initial UCI environment
-# [-x <M command(s)>]      String of M commands to execute
-# [<database file>]        Name of the database file
+# [-e <environment-name>]  Name of initial UCI environment
+# [-x <M-command(s)>]      String of M commands to execute
+# [<database-file>]        Name of the database file
 
 rsm tst.dat
 ----
@@ -217,8 +278,8 @@ Run an M routine in indirect mode:
 ----
 # Start the M Command Language shell
 # Optional arguments in square brackets
-# -x <M command(s)>  String of M commands
-# [<database file>]  Name of the database file
+# -x <M-command(s)>  String of M commands
+# [<database-file>]  Name of the database file
 
 rsm -x "do ^%M" tst.dat
 ----
@@ -260,13 +321,14 @@ From within the MCL shell:
 
 [source,m]
 ----
-MCL [MGR]> shutdown
+MCL [MGR,TST]> shutdown
 ----
 
 A previous version of RSM introduced a change from 8 character identifiers to 32
 character identifiers. This necessitated a change to the database format, the
 routine bytecode format, and the journal format, which required bumping the
-database version from 1 to 2, and the compiler version from 7 to 8.
+database version from 1 to 2, the compiler version from 7 to 8, and the journal
+version from 1 to 2.
 
 The RSM runtime image will detect a database in the older format, as well as
 compiled bytecode in the older format, and return an appropriate error. If you

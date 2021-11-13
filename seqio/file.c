@@ -1,7 +1,7 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/seqio/sq_file.c
- * Summary:  module IO - sequential file I/O
+ * File:     rsm/seqio/file.c
+ * Summary:  module IO - sequential file IO
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2021 Fourth Watch Software LC
@@ -26,82 +26,94 @@
  *
  * Extended Summary:
  *
- * This module implements the following sequential input/output (ie IO)
+ * This module implements the following sequential input/output (i.e., IO)
  * operations for files:
  *
- *	SQ_File_Open		Opens a file for read, write or append mode
- *	SQ_File_Write		Writes to file
- *	SQ_File_Read		Reads from file
+ *     SQ_File_Open  - Opens a file for read, write or append mode
+ *     SQ_File_Write - Writes to file
+ *     SQ_File_Read  - Reads from file
  */
 
-#include	<errno.h>
-#include	<sys/stat.h>
-#include	<sys/types.h>
-#include	<sys/uio.h>
-#include	<fcntl.h>
-#include	<stdio.h>
-#include	<unistd.h>
-#include	"error.h"
-#include	"seqio.h"
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "error.h"
+#include "seqio.h"
 
-// ************************************************************************* //
-//									     //
-// File functions							     //
-//									     //
-// ************************************************************************* //
+// File functions
 
-// ************************************************************************* //
-// This function opens a sequential file "file" for the specified operation
-// "op" ( ie writing, reading or appending ). If successful, it returns a
-// non-negative integer, termed a file descriptor. Otherwise, a negative
-// integer is returned to indicate the error that has occurred.
+/*
+ * This function opens a sequential file "file" for the specified operation
+ * "op" (i.e., writing, reading or appending). If successful, it returns a
+ * non-negative integer, termed a file descriptor. Otherwise, a negative
+ * integer is returned to indicate the error that has occurred.
+ */
 int SQ_File_Open (char *file, int op)
-{ int	flag;
-  int	fid;
+{
+    int flag;
+    int fid;
 
-  switch (op)
-  { case WRITE:
-      flag = O_WRONLY | O_TRUNC | O_CREAT;
-      break;
+    switch (op) {
+    case WRITE:
+        flag = (O_WRONLY | O_TRUNC | O_CREAT);
+        break;
+
     case READ:
-      flag = O_RDONLY;
-      break;
+        flag = O_RDONLY;
+        break;
+
     case APPEND:
-      flag = O_WRONLY | O_APPEND | O_CREAT;
-      break;
+        flag = (O_WRONLY | O_APPEND | O_CREAT);
+        break;
+
     default:
-      return getError(INT, ERRZ21);
-  }
+        return getError(INT, ERRZ21);
+    }
 
-  // I am assuming that MODE will always be ignored, except when the file does
-  // not exist and "op" is either WRITE or APPEND.
-  fid = open(file, flag, MODE);
-  if (fid == -1) return getError(SYS, errno);
-  return fid;
+    /*
+     * I am assuming that MODE will always be ignored, except when the file does
+     * not exist and "op" is either WRITE or APPEND.
+     */
+
+    fid = open(file, flag, MODE);
+    if (fid == -1) return getError(SYS, errno);
+    return fid;
 }
 
-// ************************************************************************* //
-// This function writes "nbytes" bytes from the buffer "writebuf" to the file
-// associated with the descriptor "fid". Upon successful completion, the number
-// of bytes actually written is returned. Otherwise, a negative integer is
-// returned to indicate the error that has occurred.
+/*
+ * This function writes "nbytes" bytes from the buffer "writebuf" to the file
+ * associated with the descriptor "fid". Upon successful completion, the number
+ * of bytes actually written is returned. Otherwise, a negative integer is
+ * returned to indicate the error that has occurred.
+ */
 int SQ_File_Write (int fid, u_char *writebuf, int nbytes)
-{ int	ret;
+{
+    int ret;
 
-  ret = write(fid, writebuf, nbytes);
-  if (ret == -1) return getError(SYS, errno);
-  return ret;
+    ret = write(fid, writebuf, nbytes);
+    if (ret == -1) return getError(SYS, errno);
+    return ret;
 }
 
-// ************************************************************************* //
-// This function reads "nbytes" bytes into the buffer "readbuf" from the file
-// associated with the descriptor "fid". If successful, the number of bytes
-// actually read is returned. Otherwise, a negative integer is returned to
-// indicate the error that has occurred.
+/*
+ * This function reads "nbytes" bytes into the buffer "readbuf" from the file
+ * associated with the descriptor "fid". If successful, the number of bytes
+ * actually read is returned. Otherwise, a negative integer is returned to
+ * indicate the error that has occurred.
+ */
 int SQ_File_Read (int fid, u_char *readbuf)
-{ int	ret;
+{
+    int ret;
 
-  ret = read(fid, readbuf, 1);
-  if (ret == -1) return getError(SYS, errno);
-  else return ret;
+    ret = read(fid, readbuf, 1);
+
+    if (ret == -1) {
+        return getError(SYS, errno);
+    } else {
+        return ret;
+    }
 }

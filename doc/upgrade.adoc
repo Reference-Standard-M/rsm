@@ -1,7 +1,11 @@
 :source-highlighter: pygments
 
+[role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
+
+[role="right"]
+link:index.adoc[Index]
 
 '''
 
@@ -18,7 +22,7 @@ and the routine bytecode. These changes were required to support the change to
 However, you can compile RSM version 1.73.0 (or later) with the `dbver=1` flag
 and the resulting runtime image will work with the older database and bytecode
 formats, which used 8 character names. This will allow you to effectively
-upgrade an older RSM or MUMPS V1 database, to the new RSM database format, by
+upgrade an older RSM or MV1 database, to the new RSM database format, by
 connecting to an older database, and exporting all the routines and globals you
 wish to move to your new RSM database.
 
@@ -28,11 +32,11 @@ as well as setting up and configuring your new database to match your old
 database.
 
 If you wish to do this process manually, follow the steps outlined in this
-document. This example process will upgrade 'old-database.dat' to
-'new-database.dat', and assumes the old database environment has been shut down.
-In order to use this process, you must load the routines in `utils.rsm` in both
-the old and new databases, in order to run the export and import routines. See
-the link:../README.adoc[README] file for more information.
+document. This example process will upgrade '`old-database.dat`' to
+'`new-database.dat`', and assumes the old database environment has been shut
+down. In order to use this process, you must load the routines in `utils.rsm`
+in both the old and new databases, in order to run the export and import
+routines. See the link:../README.adoc[README] file for more information.
 
 Build RSM for database version 1, and then start the old database environment in
 single user mode:
@@ -74,7 +78,7 @@ Do the same process for every other UCI that has routines and globals that you
 wish to move to the new database, taking care to name the routine and global out
 files according to their UCI, so you can import them in to the correct
 environment in the new database. In this example, we'll assume there is one more
-UCI we care about named USR. After exporting the last of the routines and
+UCI we care about named `USR`. After exporting the last of the routines and
 globals that we want to move to the new database, shut down the old environment:
 
 [source,m]
@@ -96,9 +100,9 @@ RSM [MGR]> kill ^$job
 
 Compile RSM without the `dbver` flag, using the latest build, with database
 version 2. Create a new database and start the new environment in single user
-mode. For this example, we'll assume the new database volume will be named TST.
-See the link:../README.adoc[README] file for more information about creating a
-new RSM database and environment:
+mode. For this example, we'll assume the new database volume will be named
+`TST`. See the link:../README.adoc[README] file for more information about
+creating a new RSM database and environment:
 
 [source,bash]
 ----
@@ -163,4 +167,4 @@ RSM [MGR]> kill ^$job
 Now you have a fully upgraded RSM database.
 
 [role="right"]
-link:index.adoc[Site Directory]
+link:index.adoc[Index]

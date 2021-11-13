@@ -1,7 +1,7 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/include/compile.h
- * Summary:  module RSM header file - routine structures etc
+ * Summary:  module RSM header file - routine structures etc.
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2021 Fourth Watch Software LC
@@ -28,15 +28,32 @@
 #ifndef _RSM_COMPILE_H_                                                         // only do this once
 #define _RSM_COMPILE_H_
 
-#define UNVAR    {comperror(-ERRM8); return;}                                   // compile undef spec var
-#define EXPRE    {comperror(-(ERRZ12 + ERRMLAST)); return;}                     // compile expr err
-#define SYNTX    {comperror(-(ERRZ13 + ERRMLAST)); return;}                     // compile syntax err
-#define ERROR(E) {partab.jobtab->async_error = E; partab.jobtab->attention = 1; break;} // report an error
+#define UNVAR { \
+    comperror(-ERRM8); \
+    return; \
+}                                                                               // compile undef spec var
+
+#define EXPRE { \
+    comperror(-(ERRZ12 + ERRMLAST)); \
+    return; \
+}                                                                               // compile expr error
+
+#define SYNTX { \
+    comperror(-(ERRZ13 + ERRMLAST)); \
+    return; \
+}                                                                               // compile syntax error
+
+#define ERROR(E) { \
+    partab.jobtab->async_error = E; \
+    partab.jobtab->attention = 1; \
+    break; \
+}                                                                               // report an error
 
 #define INDSNOK(S) (((S * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)             // For testing indirection size - a guess
 #define INDANOK(A) ((comp_ptr + (sizeof(int) * 2) + 1) >= &indstk[MAX_ISTK])    // For testing the address of compiled indirection
 
-#define RBD_OVERHEAD (sizeof(rbd *) + (sizeof(int) * 2) + sizeof(time_t) + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(short))
+#define RBD_OVERHEAD (sizeof(rbd *) + (sizeof(int) * 2) + sizeof(time_t) \
+                     + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(short))
 
 #define RESERVE_TIME    (17 * 60)                                               // 17 minutes
 #define SIZE_CLOSE      1024                                                    // routine size match
@@ -45,15 +62,14 @@
 #define FOR_TYP_1       1                                                       // one arg
 #define FOR_TYP_2       2                                                       // two args
 #define FOR_TYP_3       3                                                       // three args
-
 #define FOR_NESTED      16                                                      // we are not an outside for
 
-// *** Funny op code stuff ***
+// Funny op code stuff
 #define BREAK_NOW       256                                                     // break (not really an opcode)
 #define JOBIT           512                                                     // JOB (ditto)
 #define BREAK_QN        16384                                                   // return a QUIT n
 
-// *** Variable types follow ***
+// Variable types follow
 #define TYPMAXSUB       63                                                      // max subscripts
 #define TYPVARNAM       0                                                       // name only (NAME_LEN bytes)
 #define TYPVARLOCMAX    (TYPVARNAM + TYPMAXSUB)                                 // local is 1->63 subs
@@ -67,7 +83,6 @@
 
 extern u_char *source_ptr;                                                      // pointer to source code
 extern u_char *comp_ptr;                                                        // pointer to compiled code
-
 extern u_char indstk[];                                                         // indirect stack
 extern long   isp;                                                              // indirect stack pointer
 
@@ -97,6 +112,7 @@ typedef struct __attribute__ ((__packed__)) RBD {                               
     u_char     uci;                                                             // UCI num for this rou
     u_char     vol;                                                             // vol num for this rou
     u_short    rou_size;                                                        // rou->len of routine node
+
     // what follows is the routine from disk (up to MAX_STR_LEN bytes + a NULL)
     u_short    comp_ver;                                                        // compiler version
     u_short    comp_user;                                                       // compiled by user#
@@ -108,9 +124,9 @@ typedef struct __attribute__ ((__packed__)) RBD {                               
     u_short    num_vars;                                                        // number of vars in table
     u_short    code;                                                            // offset to compiled code
     u_short    code_size;                                                       // bytes of code
-} rbd;                                                                          // end rbd struct
+} rbd;                                                                          // end RBD struct
 
-// *** Compile only prototypes follow ***
+// Compile only prototypes follow
 void  parse_close(void);                                                        // CLOSE
 void  parse_do(int runtime);                                                    // DO
 void  parse_goto(int runtime);                                                  // GOTO
@@ -133,7 +149,7 @@ void  eval(void);                                                               
 void  atom(void);                                                               // evaluate source
 void  comperror(short err);                                                     // compile error
 
-// *** Debug prototypes ***
+// Debug prototypes
 #ifdef __NetBSD__
 void  Debug_GBD(short e);
 #endif

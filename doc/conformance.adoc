@@ -1,0 +1,21 @@
+[role="left"]
+image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
+="Fourth Watch Software Logo", width="480", height="80"]
+
+[role="right"]
+link:index.adoc[Index]
+
+'''
+
+= Reference Standard M Conformance Clause
+
+=== Under Construction
+
+Reference Standard M Version 1.75.0 conforms to ANSI X11.1-1995 and ISO/IEC
+11756:1999 with the following exceptions:
+
+* Only supports the M Character Set Profile
+* Uniqueness of the values of `$SYSTEM` is guaranteed by compiler build macros
+
+[role="right"]
+link:index.adoc[Index]

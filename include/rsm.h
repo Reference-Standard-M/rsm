@@ -28,8 +28,22 @@
 #ifndef _RSM_RSM_H_                                                             // only do this once
 #define _RSM_RSM_H_
 
-// *** General constant definitions ***
+// Compiler warning suppression
+#define PRAGMA(x) _Pragma(#x)
 
+#if __GNUC__ >= 11
+#    define ENABLE_WARN _Pragma("GCC diagnostic pop")
+#else
+#    define ENABLE_WARN
+#endif
+
+#if __GNUC__ >= 11
+#    define DISABLE_WARN(name) _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
+#else
+#    define DISABLE_WARN(name)
+#endif
+
+// General constant definitions
 #define RSM_STRING(num)     RSM_STRINGIFY(num)
 #define RSM_STRINGIFY(num)  #num
 
@@ -40,7 +54,7 @@
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       74                                                  // Minor version number
+#define VERSION_MINOR       75                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -84,22 +98,22 @@
 
 #define UCIS                64                                                  // always 64
 
-// *** KeyCmp outputs ***
+// KeyCmp outputs
 #define KEQUAL              0                                                   // outputs for..
 #define K2_LESSER           1                                                   // .. KeyCmp function
 #define K2_GREATER          -1                                                  // ***
 
 #define MAX_DO_FRAMES       128                                                 // maximum permitted do_frame
 #define STM1_FRAME          (MAX_DO_FRAMES - 1)                                 // where $STACK(-1) data goes
-#define MAX_SEQ_IO          32                                                  // maximum sequential IO chans
+#define MAX_SEQ_IO          64                                                  // maximum sequential IO chans
 #define MAX_SEQ_NAME        256                                                 // max file name size
 #define MAX_SEQ_OUT         6                                                   // max output terminator size
 #define MAX_DKEY_LEN        16                                                  // max $KEY seq stored
 #define SQ_FREE             0                                                   // SQ_Chan->type - free
 #define SQ_FILE             1                                                   // SQ_Chan->type - disk file
-#define SQ_TCP              2                                                   // SQ_Chan->type - tcpip
+#define SQ_TCP              2                                                   // SQ_Chan->type - TCP/IP
 #define SQ_PIPE             3                                                   // SQ_Chan->type - local pipe
-#define SQ_TERM             4                                                   // SQ_Chan->type - device
+#define SQ_TERM             4                                                   // SQ_Chan->type - terminal device
 #define SQ_LF               -1                                                  // WRITE !
 #define SQ_FF               -2                                                  // WRITE #
 
@@ -127,7 +141,7 @@
 
 #define MIN_GBD             40                                                  // minumum number GBDs
 
-// *** Note the following three MUST be a power of 2 as they are masks for & ***
+// Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH            1024                                                // hash size for global buffers
 #define NUM_DIRTY           1024                                                // max queued dirty chains
 #define NUM_GARB            8192                                                // max queued garbage blocks
@@ -135,9 +149,9 @@
 #define RBD_HASH            1023                                                // hash size for routine names
 #define GBD_FREE            GBD_HASH                                            // head of GBD free list
 
-#define AVROUSIZ            3072                                                // average compiled routine size
-#define MAXROUSIZ           MAX_STR_LEN                                         // max compiled rou size
-#define MAXROULIN           MAX_STR_LEN                                         // max rou lines
+#define AVROUSIZE           3072                                                // average compiled routine size
+#define MAXROUSIZE          MAX_STR_LEN                                         // max compiled rou size
+#define MAXROULINE          MAX_STR_LEN                                         // max rou lines
 
 #if RSM_DBVER == 1
 #    define DB_VER          1                                                   // database version
@@ -147,7 +161,7 @@
 #    define COMP_VER        8                                                   // compiler version
 #endif
 
-// *** Global flags (from Global Directory) follow ***
+// Global flags (from Global Directory) follow
 #define GL_JOURNAL          1                                                   // Journal global flag
 #define GL_TOP_DEFINED      2                                                   // Top node of global defined
 
@@ -161,7 +175,7 @@
 
 #define MAX_HISTORY         128                                                 // max size of history recall buffer
 
-// *** Do frame types - negative numbers are error codes ***
+// Do frame types - negative numbers are error codes
 #define TYPE_RUN            1                                                   // normal RSM startup
 #define TYPE_JOB            2                                                   // got jobbed [0] only
 #define TYPE_DO             3                                                   // DO
@@ -173,7 +187,7 @@
 #define DO_FLAG_FOR         4                                                   // called from a FOR (infor)
 #define DO_FLAG_ERROR       8                                                   // this is an error frame
 
-// *** Signals we do something with (see jobtab->trap). (add as required) ***
+// Signals we do something with (see jobtab->trap). (add as required)
 #define SIG_HUP             1                                                   // SIGHUP (ERR Z66)
 #define SIG_CC              (1U << 2)                                           // control c signal (sigint)
 #define SIG_QUIT            (1U << 3)                                           // SIGQUIT (HALT)
@@ -183,16 +197,16 @@
 #define SIG_CT              (1U << 29)                                          // control t signal (siginfo)
 #define SIG_U1              (1U << 30)                                          // user signal 1 (ERR Z67)
 #define SIG_U2              (1U << 31)                                          // user signal 2 (ERR Z68)
-// *** Unknown signals generate error Z69 ***
+// Unknown signals generate error Z69
 
 #define MAX_VOL             2                                                   // max number of vols
 #define VOL_FILENAME_MAX    256                                                 // max chars in stored filename
 #define JNL_FILENAME_MAX    226                                                 // max chars in journal filename
 
-// *** systab->historic bit flag meanings ***
+// systab->historic bit flag meanings
 #define HISTORIC_EOK        1                                                   // E syntax flag
 #define HISTORIC_OFFOK      2                                                   // GO/DO with offset OK
-#define HISTORIC_DNOK       4                                                   // $NEXT OK runtime/runtime_ssvn
+#define HISTORIC_DNOK       4                                                   // $NEXT OK rsm/runtime/ssvn.c
 
 /*
  * Semaphore defines
@@ -200,7 +214,6 @@
  * A read takes one semaphore unit
  * A write takes systab->maxjob units
  */
-
 #define SEM_SYS             0                                                   // Systab Semaphore
 #define SEM_LOCK            1                                                   // Lock Table Semaphore
 #define SEM_GLOBAL          2                                                   // global database module
@@ -210,13 +223,13 @@
 
 #define MAX_TRANTAB         8                                                   // total number of entries
 
-#if defined(linux) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun__) || defined(__CYGWIN__)
+#if defined(linux) || defined(_AIX) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun__) || defined(__CYGWIN__)
 typedef union semun {
-    int                val;                                                     // value for SETVAL
-    struct semid_ds    *buf;                                                    // buffer for IPC_STAT, IPC_SET
-    unsigned short int *array;                                                  // array for GETALL, SETALL
-#if defined(linux) || defined(__CYGWIN__)
-    struct seminfo     *__buf;                                                  // buffer for IPC_INFO
+    int             val;                                                        // value for SETVAL
+    struct semid_ds *buf;                                                       // buffer for IPC_STAT, IPC_SET
+    u_short         *array;                                                     // array for GETALL, SETALL
+#if defined(linux) || defined(_AIX) || defined(__CYGWIN__)
+    struct seminfo  *__buf;                                                     // buffer for IPC_INFO
 #endif
 } semun_t;
 #else
@@ -225,7 +238,7 @@ typedef union semun semun_t;
 
 typedef unsigned long long u_int64;                                             // Unix unsigned quadword
 
-typedef union __attribute__ ((__packed__)) VAR_U {                              // get at this two ways
+typedef union __attribute__ ((__packed__)) VAR_U {                              // get at this three ways
     u_int64 var_q;                                                              // variable name (quadword) for casting
     u_int64 var_qu[VAR_LEN / 8];                                                // variable name (quadword array)
     u_char  var_cu[VAR_LEN];                                                    // variable name (as u_char[])
@@ -245,8 +258,7 @@ typedef struct __attribute__ ((__packed__)) MVAR {                              
 } mvar;                                                                         // end M subs var
                                                                                 // sizeof(mvar) = 259 + VAR_LEN
 
-// *** Common memory structures ***
-
+// Common memory structures
 struct GBD;                                                                     // defined in rsm/include/database.h
 struct RBD;                                                                     // defined in rsm/include/compile.h
 
@@ -256,14 +268,14 @@ typedef struct __attribute__ ((__packed__)) UCI_TAB {
 } uci_tab;                                                                      // define the UCI table
 
 typedef union __attribute__ ((__packed__)) DATA_UNION {                         // diff types of msg data
-    struct GBD *gbddata;                                                        // a gbd pointer
+    struct GBD *gbddata;                                                        // a GBD pointer
     u_int      intdata;                                                         // or an integer (block number)
 } msg_data;                                                                     // end data msg union
 
 typedef struct __attribute__ ((__packed__)) WD_TAB {                            // write daemon table
     int      pid;                                                               // the wd's pid
     int      doing;                                                             // what we are doing
-    msg_data currmsg;                                                           // the current gbd */block#
+    msg_data currmsg;                                                           // the current GBD */block#
 } wdtab_struct;                                                                 // end write daemon structure
 
 typedef struct __attribute__ ((__packed__)) LABEL_BLOCK {
@@ -288,7 +300,7 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK {
                                                                                 // sizeof(label_block) = 256 + VAR_LEN +
                                                                                 //   ((VAR_LEN + 4) * 64) - (VAR_LEN % 32)
 
-#define MAX_MAP_SIZE    ((u_int) (MAX_DATABASE_BLKS / 8 + sizeof(label_block)) / 1024 + 1) // Max size of label/map block
+#define MAX_MAP_SIZE ((u_int) (MAX_DATABASE_BLKS / 8 + sizeof(label_block)) / 1024 + 1) // Max size of label/map block
 
 typedef struct __attribute__ ((__packed__)) DB_STAT {
     u_int dbget;                                                                // Global Gets
@@ -313,7 +325,7 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF {
     label_block  *vollab;                                                       // ptr to volset label block
     void         *map;                                                          // start of map area
     void         *first_free;                                                   // first word with free bits
-    struct GBD   *gbd_hash[GBD_HASH + 1];                                       // gbd hash table
+    struct GBD   *gbd_hash[GBD_HASH + 1];                                       // GBD hash table
     struct GBD   *gbd_head;                                                     // head of global buffer desc
     u_int        num_gbd;                                                       // number of global buffers
     void         *global_buf;                                                   // start of global buffers
@@ -328,12 +340,12 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF {
     int          writelock;                                                     // RSM write lock
     u_int        upto;                                                          // validating map up-to block
     int          shm_id;                                                        // GBD share mem id
-    struct GBD   *dirtyQ[NUM_DIRTY];                                            // dirty que (for daemons)
-    int          dirtyQw;                                                       // write ptr for dirty que
-    int          dirtyQr;                                                       // read ptr for dirty que
-    u_int        garbQ[NUM_GARB];                                               // garbage que (for daemons)
-    int          garbQw;                                                        // write ptr for garbage que
-    int          garbQr;                                                        // read ptr for garbage que
+    struct GBD   *dirtyQ[NUM_DIRTY];                                            // dirty queue (for daemons)
+    int          dirtyQw;                                                       // write ptr for dirty queue
+    int          dirtyQr;                                                       // read ptr for dirty queue
+    u_int        garbQ[NUM_GARB];                                               // garbage queue (for daemons)
+    int          garbQw;                                                        // write ptr for garbage queue
+    int          garbQr;                                                        // read ptr for garbage queue
     off_t        jrn_next;                                                      // next free offset in jrn file
     char         file_name[VOL_FILENAME_MAX];                                   // absolute pathname of volfile
     db_stat      stats;                                                         // database statistics
@@ -362,8 +374,7 @@ typedef struct __attribute__ ((__packed__)) DO_FRAME {
 } do_frame;                                                                     // do frame
                                                                                 // sizeof(do_frame) = 88 + VAR_LEN
 
-// *** SEQIO specific ***
-
+// Sequential IO specific
 typedef struct __attribute__ ((__packed__)) FORKTAB {
     int job_no;
     int pid;
@@ -376,6 +387,11 @@ typedef struct __attribute__ ((__packed__)) SERVERTAB {
     u_char  name[MAX_SEQ_NAME];
     forktab *forked;
 } servertab;
+
+typedef union IN_TERM {
+    u_int64 iterm;                                                              // input terminator bit mask
+    u_int64 interm[2];                                                          // input terminator bit mask array
+} IN_Term;
 
 typedef struct __attribute__ ((__packed__)) SQ_CHAN {
     u_char    type;                                                             // type of device
@@ -390,18 +406,17 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN {
     u_char    dkey[MAX_DKEY_LEN + 1];                                           // stored $KEY (null term)
     short     out_len;                                                          // length of output terminator
     u_char    out_term[MAX_SEQ_OUT];                                            // the output terminator
-    u_int64   in_term;                                                          // input terminator bit mask
+    IN_Term   in_term;                                                          // input terminator bit mask
     var_u     namespace;                                                        // routine for namespace
-} SQ_Chan;                                                                      // define the $I stuff
-
-// *** End SEQIO specific ***
+} SQ_Chan;                                                                      // define the $IO stuff
+// End Sequential IO specific
 
 typedef struct __attribute__ ((__packed__)) JOBTAB {
     int        pid;                                                             // OS PID (0 if unused)
     int        cur_do;                                                          // current do frame addr
     u_int      commands;                                                        // commands executed
     u_int      grefs;                                                           // global references
-    u_int      last_block_flags;                                                // journal etc of last db block
+    u_int      last_block_flags;                                                // journal etc. of last db block
     short      error_frame;                                                     // frame error happened in
     short      etrap_at;                                                        // where $ET was invoked
     u_int      trap;                                                            // outstanding traps
@@ -422,10 +437,10 @@ typedef struct __attribute__ ((__packed__)) JOBTAB {
     short      start_len;                                                       // length start data
     u_char     start_dh[14];                                                    // store start time here
     do_frame   dostk[MAX_DO_FRAMES];                                            // the do stack
-    SQ_Chan    seqio[MAX_SEQ_IO];                                               // sequential io stuff
+    SQ_Chan    seqio[MAX_SEQ_IO];                                               // sequential IO stuff
     struct GBD *view[MAX_VOL];                                                  // locked view buffers
 } jobtab;                                                                       // define jobtab
-                                                                                // sizeof(jobtab) = 30099 + (161 * VAR_LEN)
+                                                                                // sizeof(jobtab) = 50133 + (161 * VAR_LEN)
 
 typedef struct __attribute__ ((__packed__)) LOCKTAB {                           // internal lock tables
     struct LOCKTAB *fwd_link;                                                   // point at next one
@@ -453,7 +468,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     jobtab  *jobtab;                                                            // address of jobtab
     u_int   maxjob;                                                             // maximum jobs permitted
     int     sem_id;                                                             // GBD semaphore id
-    int     historic;                                                           // Enn, tag+off, $NEXT etc
+    int     historic;                                                           // Enn, tag+off, $NEXT etc.
     int     precision;                                                          // decimal precision
     int     max_tt;                                                             // max TRANTAB used
     trantab tt[MAX_TRANTAB];                                                    // translation tables
@@ -473,14 +488,13 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
 extern systab_struct *systab;                                                   // make its ptr external
 extern int           sem_id;                                                    // global semaphore id
 
-// *** Process memory structures ***
+// Process memory structures
 
-// *** PARTAB definitions ***
-
+// PARTAB definitions
 typedef struct __attribute__ ((__packed__)) PARTAB {                            // define the partition table
     jobtab  *jobtab;                                                            // our jobtab entry
-    int     vol_fds[MAX_VOL];                                                   // the filedes for the volumes
-    int     jnl_fds[MAX_VOL];                                                   // the filedes for journals
+    int     vol_fds[MAX_VOL];                                                   // the file descriptors for volumes
+    int     jnl_fds[MAX_VOL];                                                   // the file descriptors for journals
     int     debug;                                                              // debug in progress
     u_char  *strstk_start;                                                      // start of string stack
     u_char  *strstk_last;                                                       // last byte of strstk
@@ -498,23 +512,12 @@ extern u_char        *addstk[];                                                 
 extern u_char        strstk[];                                                  // string stack
 extern u_char        *rsmpc;                                                    // RSM prog pointer
 
-// *** VAR_U macros and inline functions ***
+// VAR_U macros and inline functions
 #define VAR_CLEAR(var) \
-    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) \
-        var.var_qu[var_i] = 0
+    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) var.var_qu[var_i] = 0
 
 #define VAR_COPY(var_dst, var_src) \
-    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) \
-        var_dst.var_qu[var_i] = var_src.var_qu[var_i]
-
-static inline u_int var_empty(var_u var)
-{
-    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) {
-        if (var.var_qu[var_i] != 0) return FALSE;
-    }
-
-    return TRUE;
-}
+    for (u_int var_i = 0; var_i < (VAR_LEN / 8); var_i++) var_dst.var_qu[var_i] = var_src.var_qu[var_i]
 
 static inline u_int var_equal(var_u var1, var_u var2)
 {
@@ -523,6 +526,15 @@ static inline u_int var_equal(var_u var1, var_u var2)
     }
 
     return TRUE;
+}
+
+static inline u_int var_empty(var_u var)
+{
+    if (var.var_q == 0) {
+        return TRUE;
+    } else {
+        return FALSE;
+    }
 }
 
 #endif                                                                          // !_RSM_RSM_H_

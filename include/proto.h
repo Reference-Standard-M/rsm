@@ -28,7 +28,7 @@
 #ifndef _RSM_PROTO_H_                                                           // only do this once
 #define _RSM_PROTO_H_
 
-// *** Database ***
+// Database
 int    DB_Get(mvar *var, u_char *buf);                                          // get global data
 int    DB_Set(mvar *var, cstring *data);                                        // set global data
 short  DB_Data(mvar *var, u_char *buf);                                         // get $DATA()
@@ -41,8 +41,8 @@ short  DB_QueryD(mvar *var, u_char *buf);                                       
 int    DB_GetLen(mvar *var, int lock, u_char *buf);                             // return length of global
 short  DB_Compress(mvar *var, int flags);                                       // on line compressor
 int    DB_Free(int vol);                                                        // return total free blocks
-short  DB_UCISet(int vol, int uci, var_u name);                                 // set uci name
-short  DB_UCIKill(int vol, int uci);                                            // kill uci entry
+short  DB_UCISet(int vol, int uci, var_u name);                                 // set UCI name
+short  DB_UCIKill(int vol, int uci);                                            // kill UCI entry
 short  DB_Expand(int vol, u_int vsiz);                                          // expand db
 int    DB_Dismount(int vol);                                                    // dismount a volume
 void   ClearJournal(int vol);                                                   // clear journal
@@ -50,12 +50,12 @@ void   DB_StopJournal(int vol, u_char action);                                  
 int    DB_GetFlags(mvar *var);                                                  // Get flags
 int    DB_SetFlags(mvar *var, int flags);                                       // Set flags
 int    DB_ic(int vol, int block);                                               // integrity checker
-struct GBD *DB_ViewGet(int vol, int block);                                     // return gbd address of specified block null on err
-void   DB_ViewPut(int vol, struct GBD *ptr);                                    // que block for write
-void   DB_ViewRel(int vol, struct GBD *ptr);                                    // release block, gbd -> free
+struct GBD *DB_ViewGet(int vol, int block);                                     // return GBD address of specified block null on err
+void   DB_ViewPut(int vol, struct GBD *ptr);                                    // queue block for write
+void   DB_ViewRel(int vol, struct GBD *ptr);                                    // release block, GBD -> free
 
-// *** Sequential IO ***
-short SQ_Init(void);                                                            // init chan 0 etc
+// Sequential IO
+short SQ_Init(void);                                                            // init chan 0 etc.
 
 short SQ_Open(int     chan,                                                     // open on this channel
               cstring *object,                                                  // this file/device
@@ -83,14 +83,14 @@ short SQ_Flush(void);                                                           
 int   SQ_Device(u_char *buf);                                                   // return attributes
 short SQ_Force(cstring *device, cstring *msg);                                  // force data to a device
 
-// *** Compiler ***
+// Compiler
 int   Compile_Routine(mvar *rou, mvar *src, u_char *stack);                     // whole routine
 void  eval(void);                                                               // compiler
 void  parse(void);                                                              // ditto
-void  dodollar(void);                                                           // parse var, func etc
+void  dodollar(void);                                                           // parse var, func etc.
 short routine(int runtime);                                                     // parse routine ref
 
-// *** Runtime utilities ***
+// Runtime utilities
 int    cstringtoi(cstring *str);                                                // convert cstring to int
 int    cstringtob(cstring *str);                                                // convert cstring to boolean
 short  itocstring(u_char *buf, int n);                                          // convert int to string
@@ -106,14 +106,14 @@ int    ForkIt(int cft);                                                         
 void   SchedYield(void);                                                        // do a sched_yield()
 void   DoInfo(void);                                                            // for control t
 
-// *** Runtime math (decimal ex FreeMUMPS) ***
+// Runtime math (decimal ex FreeMUMPS)
 short runtime_add(char *a, char *b);                                            // add b to a
 short runtime_mul(char *a, char *b);                                            // mul a by b
 short runtime_div(char *uu, char *v, short typ);                                // divide string arithmetic
 short runtime_power(char *a, char *b);                                          // raise a to the b-th power
 short runtime_comp(char *s, char *t);                                           // compare
 
-// *** Runtime functions ***
+// Runtime functions
 short Dascii1(u_char *ret_buffer, cstring *expr);
 short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);
@@ -153,7 +153,7 @@ int   Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value);   
 int   DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2); // Set $PIECE()
 int   DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2);       // Set $EXTRACT()
 
-// *** Runtime variables ***
+// Runtime variables
 int   Vecode(u_char *ret_buffer);
 int   Vetrap(u_char *ret_buffer);
 short Vhorolog(u_char *ret_buffer);
@@ -164,7 +164,7 @@ short Vx(u_char *ret_buffer);
 short Vy(u_char *ret_buffer);
 int   Vset(mvar *var, cstring *cptr);                                           // set a special variable
 
-// *** Symbol table ***
+// Symbol table
 int   ST_Get(mvar *var, u_char *buf);                                           // get local data
 int   ST_GetAdd(mvar *var, cstring **add);                                      // get local data address
 int   ST_Set(mvar *var, cstring *data);                                         // set local data
@@ -185,15 +185,15 @@ short ST_New(int count, var_u *list);                                           
 short ST_NewAll(int count, var_u *list);                                        // new all other than listed
 short ST_ConData(mvar *var, u_char *data);                                      // connect reference to data
 
-// *** SSVN ***
-short SS_Norm(mvar *var);                                                       // "normalize" ssvn
-int   SS_Get(mvar *var, u_char *buf);                                           // get ssvn data
-short SS_Set(mvar *var, cstring *data);                                         // set ssvn data
+// SSVN
+short SS_Norm(mvar *var);                                                       // "normalize" SSVN
+int   SS_Get(mvar *var, u_char *buf);                                           // get SSVN data
+short SS_Set(mvar *var, cstring *data);                                         // set SSVN data
 short SS_Data(mvar *var, u_char *buf);                                          // get $DATA()
 short SS_Kill(mvar *var);                                                       // remove sub-tree
 short SS_Order(mvar *var, u_char *buf, int dir);                                // get next subscript
 
-// *** Key utility ***
+// Key utility
 short UTIL_Key_Build(cstring *src, u_char *dest);                               // locn of source string
 short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt);                     // extract subscript
 short UTIL_String_Key(u_char *key, u_char *str, int max_subs);                  // extract all keys
@@ -203,9 +203,9 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var);                               
 int   UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int   UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *KeyBuffer);
 
-// *** General utility ***
+// General utility
 short  UTIL_strerror(int err, u_char *buf);                                     // return string error msg
-int    mcopy(u_char *src, u_char *dst, int bytes);                              // bcopy with checking etc
+int    mcopy(u_char *src, u_char *dst, int bytes);                              // bcopy with checking etc.
 short  ncopy(u_char **src, u_char *dst);                                        // copy as number
 void   CleanJob(int job);                                                       // tidy up a job
 void   panic(char *msg);                                                        // die on error
@@ -221,7 +221,7 @@ short  UTIL_String_Lock(locktab *var,                                           
 
 short  UTIL_mvartolock(mvar *var, u_char *buf);                                 // convert mvar to string
 
-// *** Share and semaphore stuff ***
+// Share and semaphore stuff
 int   UTIL_Share(char *dbf);                                                    // attach share and semaphores
 short SemOp(int sem_num, int numb);                                             // Add/Remove semaphore
 short LCK_Order(cstring *ent, u_char *buf, int dir);
@@ -232,7 +232,7 @@ short LCK_Old(int count, cstring *list, int to);
 short LCK_Add(int count, cstring *list, int to);
 short LCK_Sub(int count, cstring *list);
 
-// *** Xcalls ***
+// XCalls
 short Xcall_host(char *ret_buffer, cstring *name, cstring *dum2);
 short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
 short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2);

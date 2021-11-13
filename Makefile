@@ -84,6 +84,7 @@ OBJS = compile/dollar.o \
        init/create.o \
        init/rsm.o \
        init/run.o \
+       init/util.o \
        init/start.o \
        runtime/attn.o \
        runtime/buildmvar.o \

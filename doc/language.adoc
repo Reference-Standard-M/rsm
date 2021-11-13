@@ -1,13 +1,2650 @@
+:source-highlighter: pygments
+:toc: left
+:toclevels: 2
+:toc-title: RSM Language Guide
+
+[role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
 
+[role="right"]
+link:index.adoc[Index]
+
 '''
 
+[discrete]
 = Reference Standard M Language Guide
+David Wicksell <dlw@linux.com> +
+Copyright © 2020-2021 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
 
-== Under Construction
+== Introduction
 
-'''
+This guide provides documentation of the M language elements implemented in
+Reference Standard M [RSM] and their relation to the ANSI X11.1-1995 (ISO/IEC
+11756:1999) M Programming Language standard.
+
+=== Open M Interconnect
+
+The ANSI X11.2-1995 (ISO/IEC 15851:1999) Open M Interconnect [OMI] communication
+protocol has not yet been implemented.
+
+=== M Windowing Application Programming Interface
+
+The ANSI X11.6-1995 (ISO/IEC 15852:1999) M Windowing Application Programming
+Interface [MWAPI] has not yet been implemented.
+
+=== Mnemonic Namespaces
+
+The ANSI X3.64-1979 (terminal device control mnemonics) binding has been
+implemented as a terminal mnemonic namespace, written in M. It is provided by
+the included vendor utility routine `%X364`, found in `utils.rsm`, and must be
+loaded in to the database in order to use it. You can enable it on your current
+I/O terminal device with the `USE` command (e.g., `use $io::"%X364"`).
+
+=== Transaction Processing
+
+Transaction processing has not yet been implemented.
+
+=== Structured System Variables
+
+The Structured System Variables `^$CHARACTER` and `^$DEVICE` have not yet been
+implemented. However, the other SSVs defined in the standard have been
+implemented (i.e., `^$GLOBAL`, `^$ROUTINE`, `^$LOCK`, `^$JOB`, and `^$SYSTEM`).
+
+=== Implementation Specific Syntax
+
+No `Z` commands, `$Z` functions, `$Z` variables, or `^$Z` system variables have
+yet been implemented, except for the `$ZBP` intrinsic variable, used to store
+current debugging breakpoints.
+
+=== External Calls
+
+User-written external calls [XCalls] are not currently supported; however,
+several external calls have been provided as native implementations -- see
+link:xcall.adoc[External Call Interface].
+
+=== Volume Sets and User Class Identifiers
+
+RSM currently supports only one volume (database file) per volume set, though
+that will change in the future. Each volume is created with an initial manager
+UCI [User Class Identifier], which is named `MGR` by default, but which can be
+named at volume creation with the `-e` option. Each volume can also contain up
+to 63 user-defined UCIs.
+
+=== VIEW and $VIEW
+
+The `VIEW` command and the `$VIEW` function are used exclusively for the
+examination and modification of database blocks, stored in global buffers in
+shared memory. Database corruption can occur if you change block contents and do
+not know what you are doing, so extreme care is advised.
+
+=== Scientific E Notation
+
+Scientific notation using the '`E`' form of numbers is not supported by default
+(i.e., `+"2E3"` equals 2 not 2000). Scientific notation support may be turned on
+with `set ^$system("eok")=1` as a privileged user (see below).
+
+=== Privilege
+
+The use of the term '`privilege`' in this document means either that the command
+is in a library [manager] routine (one beginning with a `%`), or the user is
+privileged in the underlying operating environment. A privileged user refers to
+either the user who started the RSM environment, the '`root`' user, or a user
+that's a member of a group that's allowed to become the '`root`' user.
+
+IMPORTANT: Currently any user may create or edit a library routine
+
+== Commands
+
+IMPORTANT: Commands without an argument must be followed by two or more spaces
+
+NOTE: M commands are case-insensitive, and have a short and long form, denoted
+with square bracket notation
+
+=== `*;*` Comment
+
+Add comments to source code.
+
+==== Condition
+
+Not applicable.
+
+==== Arguments
+
+Not applicable.
+
+==== Usage
+
+Everything from the `;` to the end of the current line, inclusive, is ignored.
+When the `;` is in the first column, the entire line is ignored and does not
+affect the line level (number of dots).
+
+==== Standard
+
+Mostly complies; the standard does not permit a `;` in the first column.
+
+==== Examples
+
+[source,m]
+----
+; This is a comment
+----
+
+=== B[REAK]
+
+Stops execution of current process for debugging until signaled.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+Break specifier (see below).
+
+NOTE: Argument indirection is not permitted
+
+==== Usage
+
+Suspends execution until receipt of a signal. The signal is `QUIT` as `BREAK`
+effectively runs as an `XECUTE` or `DO` command.
+
+The break specifier may be one of the following:
+
+[%autowidth]
+.B[REAK] Usage
+|===
+| Specifier                     | Description
+
+| `BREAK "_breakref_:__code__"` | Set breakpoint with handler
+| `BREAK "_breakref_:"`         | Set simple breakpoint
+| `BREAK "_breakref_"`          | Clear breakpoint
+| `BREAK ""`                    | Clear all breakpoints
+| `BREAK`                       | Break here
+|===
+
+Where _breakref_ is `[+_linenum_]^_routine_` and _code_ is valid M code that
+will be executed when the _breakref_ is hit.
+
+The debugger is terminated with an argumentless `QUIT`. A `QUIT` may be followed
+by a positive integer to execute that many commands (not lines) before breaking
+again.
+
+The `$ZBP` array (case-sensitive), stores all the currently active breakpoints.
+Its format is `$ZBP(_routine_,_linenumber_)`. You can `$ORDER` or `$QUERY`
+through it to list current breakpoints. There is also an included vendor routine
+called `^%SHOWBP`, found in `utils.rsm`, which will list all current
+breakpoints.
+
+WARNING: Code entered in the debugger must be 255 characters or less
+
+==== Standard
+
+Complies, as the standard does not specify arguments or signals.
+
+==== Examples
+
+[source,m]
+----
+break "+7^routine:do ^debug" ; Break at line 7 of ^routine, and call ^debug
+break "+3^routine:"          ; Set simple breakpoint at line 3 of ^routine
+break "+1^routine"           ; Clear breakpoint on line 1 of ^routine
+break ""                     ; Turn off debugging, and clear all breakpoints
+break                        ; Break here and make debugging active
+
+; Loop through and display all the current breakpoints
+set bp=$name($ZBP("")) for  set bp=$query(@bp) quit:bp=""  write bp,!
+
+; Loop through and display all the current breakpoints in debug format
+write "Breakpoints:",!
+set (routine,line)=""
+for  set routine=$order($ZBP(routine)) quit:routine=""  do
+. for  set line=$order($ZBP(routine,line)) quit:line=""  do
+. . write ?4,"+"_line_"^"_routine,!
+----
+
+=== C[LOSE]
+
+Releases ownership of an I/O device.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of channel numbers.
+
+==== Usage
+
+Relinquishes ownership of the specified channel. If the channel is not currently
+open, the command is ignored. If the channel is current (i.e., `$IO` is equal to
+_channel_) then `$IO` is set to 0.
+
+NOTE: Closing channel 0 is always ignored
+
+==== Standard
+
+Mostly complies; however, device parameters are not yet implemented.
+
+==== Examples
+
+[source,m]
+----
+close 1,2 ; Close channels 1 and 2
+----
+
+=== D[O]
+
+Executes a subroutine (named or anonymous via a dotted-do block), then returns
+control to the next command after the `DO`; for multiple arguments, each
+subroutine in turn is executed.
+
+==== Condition
+
+Valid truth-value expression -- also valid on each argument.
+
+==== Arguments
+
+Zero or more `_entryref_[(_argumentlist_)][:__postcondition__]` where _entryref_
+is of the form `_tag_[^_routine_]` or `^_routine_`.
+
+==== Usage
+
+An argumentless `DO` initiates execution of an inner block of lines, denoted by
+leading dots that are one level deeper than the line the `DO` is on. `DO` with
+arguments is a generalized call to a subroutine specified by _entryref_. The
+line specified by _entryref_ must have a level of one (i.e., doesn't begin with
+a dot). If the line specified by _entryref_ doesn't have a level of one, an
+`M14` error is thrown. The argumentless form of `DO` also does a `new $test`
+implicitly, while the form with arguments does not.
+
+==== Standard
+
+Mostly complies, however the standard allows for an _entryref_ of the form
+`_tag_+_offset_[^_routine_]`. As this is a potential security risk, it is not
+enabled by default. This feature may be turned on with `set ^$system("offok")=1`
+as a privileged user.
+
+==== Examples
+
+[source,m]
+----
+do  ; Do the following block of code
+. write "First line in the block",!
+. write "Second line in the block",!
+
+do tag,ext^routine,tag2(arg1) ; Various subroutine calls
+----
+
+=== E[LSE]
+
+Execute the following commands if `$TEST` evaluates to false.
+
+==== Condition
+
+Not applicable.
+
+==== Arguments
+
+Not applicable.
+
+==== Usage
+
+Execute the remainder of the line, or the following dotted-do block, if `$TEST`
+is equal to `0`. Otherwise, if the value of `$TEST` is equal to `1`, the
+remainder of the line, or the following dotted-do block, is not executed.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+if 0 write "True!",!   ; This write command will not execute - $test=0
+else  write "False!",! ; This write command will execute - $test=0
+----
+
+=== F[OR]
+
+Execute commands repeatedly, until certain conditions are met; argumented form
+sets the value of a variable, argumentless form does not.
+
+==== Condition
+
+Not applicable.
+
+==== Arguments
+
+A _<space>_ or `_localvariable_=_forparameter(s)_`. A _forparameter_ is either
+an expression, or a range of the form `_start_[:__increment__[:__end__]]`, where
+each of _start_, _increment_, and _end_ are integers. Argument indirection is
+not permitted.
+
+==== Usage
+
+The scope of the `FOR` command begins with the next command on the current line
+and extends to the end of the current line. In the case of a dotted-do block,
+the scope of the `FOR` command is the dotted-do block. Any `FOR` loop may be
+terminated by a `QUIT` or `GOTO` within the scope of the `FOR`. A `QUIT`
+terminates the innermost `FOR` whose scope contains the `QUIT`. A `GOTO`
+terminates all `FOR` commands in the line containing the `GOTO`. The `FOR`
+conditional test is made before the scope is executed.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+for i=10:1:9 do something ; This will do nothing
+
+; Execute following block until ok is true
+set ok=0 for  do  quit:ok
+. if ^global("okNode") set ok=1 quit
+. do processReport^auditMan
+
+for i=1:1:3,5,7:1:9 write i             ; Write out 1235789
+for i=1:1 for j=1:1 do sub goto done:ok ; Process all i and j until ok true
+----
+
+=== G[OTO]
+
+Transfer control to another line of code without use of the stack.
+
+==== Condition
+
+Valid truth-value expression -- also valid on each argument.
+
+==== Arguments
+
+One or more `_entryref_[:__postcondition__]` where _entryref_ is of the form
+`_tag_[^_routine_]` or `^_routine_`.
+
+==== Usage
+
+The `GOTO` command is a generalized transfer of control. The line specified by
+_entryref_ must have a level of one (i.e., doesn't begin with a dot), except
+where the line specified has the same level as the line containing the `GOTO`
+and both lines are in the same routine and there are no lines between the two
+lines of a lower (numerically less) level, otherwise error `M45` occurs.
+
+==== Standard
+
+The standard allows for an _entryref_ of the form `_tag_+_offset_`. As this is a
+potential security risk, it is not enabled by default. This feature may be
+turned on with `set ^$system("offok")=1` as a privileged user.
+
+==== Examples
+
+[source,m]
+----
+goto done:ok,fail ; Dispatch to done or fail on ok flag
+----
+
+=== H[ALT]
+
+Stop the currently executing process (M job).
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+Not applicable.
+
+==== Usage
+
+Execution of the process (M job) is terminated.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+halt ; Terminate the job
+----
+
+=== H[ANG]
+
+Pause execution of the currently running process (M job) for a specified number
+of seconds.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+Numeric expression -- interpretated as a positive integer and using its floor.
+
+==== Usage
+
+If the numeric expression is greater than zero, execution is suspended for that
+number of seconds, otherwise the current time slice is surrendered.
+
+==== Standard
+
+Mostly complies, however a `hang 0` gives up the current timeslice to the OS
+process scheduler, rather than doing nothing.
+
+==== Examples
+
+[source,m]
+----
+hang 30   ; Wait for 30 seconds
+hang 30.9 ; Behaves the same as hang 30
+hang 0    ; Give up the current timeslice to the OS process scheduler
+hang -5   ; Behaves the same as hang 0
+----
+
+=== I[F]
+
+Execute the following commands if the argument expression evaluates to true;
+sets `$TEST` to whether the `IF` succeeded.
+
+==== Condition
+
+Not applicable.
+
+==== Arguments
+
+Zero or more valid truth-value expressions.
+
+==== Usage
+
+Each _tve_ is evaluated in order. If true, `$TEST` is set to 1 and execution
+continues. If false, `$TEST` is set to 0 and execution of the current line
+terminates. The argumentless form is equivalent to `if $test`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+if a=b,c=d goto tag ; Dispatch to tag when a=b and c=d
+----
+
+=== J[OB]
+
+Starts a new process (M job) that begins execution at the specified line of
+code.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of `_entryref_[(_argumentlist_)][::__timeout__]` where _entryref_ is of the
+form `_tag_^[_routine_]` or `^_routine_`.
+
+==== Usage
+
+The `JOB` command attempts to start another M job. If the _argumentlist_ is
+present, it may not contain arguments called '`by-reference`', (doing so results
+in an `M40` error), and must not contain more arguments than are defined in the
+_entryref_. If _timeout_ is present, the condition reported by `$TEST` is the
+success of initiating the process, as the `JOB` command always succeeds. If no
+_timeout_ is present, `$TEST` is unchanged and the current process is suspended
+until the other process has been successfully initiated.
+
+NOTE: If a _timeout_ is present, `$TEST` is always set to `1`
+
+==== Standard
+
+Complies exactly, as job parameters are implementation-specific in the standard.
+
+==== Examples
+
+[source,m]
+----
+job int^routine("param1") ; Start background job
+----
+
+=== K[ILL]
+
+Deletes specified variables, and all their array descendants.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+A _<space>_ or _variablelist_ or `(_local-variablelist_)`.
+
+==== Usage
+
+With no arguments, make all current local variables undefined. With variable
+list, make all listed variables and their descendants undefined. With bracketed
+local variable list, make all local variables (unsubscripted) except those
+listed and their descendants undefined.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+kill (a,b)        ; Remove all local variables except a and b
+kill ^database(1) ; Remove ^database(1) and its descendants
+----
+
+=== L[OCK]
+
+Create, or remove, an advisory lock (normal or incremental) on a name.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+Zero or more _nrefs_, optionally prefixed with a plus (`+`) or minus (`-`).
+With no arguments, `LOCK` releases all currently active locks. An _nref_ is a
+valid M local or global variable name. `LOCK` followed by one or more _nrefs_
+may be optionally followed by a `:__timeout__`, which is a positive integer or
+zero.
+
+==== Usage
+
+`LOCK` provides a generalized interlock facility. Execution of a `LOCK` is not
+affected by, nor does it directly affect, the state or value of any local or
+global variable, or the state of the naked indicator. Its use is not required to
+access globals, nor does its use inhibit other processes from accessing globals.
+It is an interlocking mechanism whose use depends on programmers establishing
+and following conventions, and is therefore advisory in nature.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+lock +^database(1) ; Acquire an incremental lock
+lock +^database(1) ; Increment the lock
+lock +^journal(0)  ; Acquire another lock (does not release any locks)
+lock -^database(1) ; Decrement the lock
+lock -^database(1) ; Release the lock
+lock ^patient      ; Acquire a lock
+lock ^user         ; Acquire another lock (releases previous lock)
+lock               ; Releases all locks
+----
+
+=== M[ERGE]
+
+Copies the value and all array descendants from one variable to another
+variable.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of `_variable1_=_variable2_`.
+
+==== Usage
+
+Copy _variable2_ and its descendants into _variable1_. If _variable1_ is a
+descendant of _variable2_ or _variable2_ is a descendant of _variable1_, then
+error (`M19`) occurs.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+merge ^database(1)=local ; Save our data in the database
+----
+
+=== N[EW]
+
+Saves and temporarily removes locals and their array descendants, and restores
+them when the block of code ends.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+A _<space>_ or _local-variablelist_ or `(_local-variablelist_)`.
+
+==== Usage
+
+With no arguments, make all current local variables undefined. With a variable
+list, make all listed variables and their descendants undefined. With bracketed
+local variable list, make all local variables and their descendants undefined,
+except those listed. Variables may not be subscripted variables (i.e., only the
+top level may be specified), however, `new A` also ``NEW``s all descendants of
+`A`. At the next `QUIT` at this level, all variables referenced by this command
+are restored to their previous state.
+
+Additionally, the following intrinsic special variables may be ``NEW``ed:
+
+[%autowidth]
+.N[EW] ISVs
+|===
+| ISV       | Action when ``NEW``ed
+
+| `$ETRAP`  | Value is unchanged
+| `$ESTACK` | Value set to zero
+|===
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+new       ; Save all local variables
+new (a,b) ; Save all local variables except a and b
+new a,b   ; Save a and b
+----
+
+=== O[PEN]
+
+Acquires ownership of an I/O device.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of `_channel_:(_param1_:__param2__)[:__timeout__[:__namespace__]]`.
+
+==== Usage
+
+Obtain ownership of a device or file. The _channel_ is from 1 to 63 inclusive
+(channel 0 is the principal device, and is always open). The _param1_ is the
+device or file that is being opened. The _param2_ describes how to open the
+device or file in that channel. One and only one second parameter must be
+supplied. It may be supplied in full or abbreviated to the initial character
+only, and is case-insensitive.
+
+[%autowidth]
+.O[PEN] Parameters
+|===
+| First Parameter    | Second Parameter
+
+| _/directory/file_  | `"READ"`\|`"WRITE"`\|`"APPEND"`
+| _/dev/device_      | `"READ"`\|`"WRITE"`\|`"IO"`
+| _host.domain port_ | `"TCPIP"`
+| _port_             | `"SERVER[=_int_]"`
+| _pipename_         | `"PIPE"`\|`"NEWPIPE"`
+|===
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+open 1:("/home/user/data.txt":"write") close 1 ; Delete the file
+open 2:("80":"server=4") use 2 read job        ; Setup a TCP server (4 jobs)
+----
+
+=== Q[UIT]
+
+Ends the current process level and returns a value; argumentless quit ends the
+current process level without returning a value
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+A _<space>_ or _value_.
+
+==== Usage
+
+Terminate the scope of a `FOR` -- no arguments permitted. Terminate a subroutine
+invoked with `DO` -- no arguments permitted. Terminate an extrinisic function
+and return a value.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+quit:ok     ; Quit when done
+quit result ; Return the result
+----
+
+=== R[EAD]
+
+Gets input from the current I/O device and puts the response in the specified
+variables.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of `_readargument_`, which is one of the following:
+
+* string literal
+* format command
+* `_variable_[#_count_][:__timeout__]`
+* `*_variable_[:__timeout__]`
+
+==== Usage
+
+When `_readargument_` is either '`string literal`' or '`format command,`' the
+`READ` command first cancels any pending read-ahead buffered by the device, then
+functions as a `WRITE` command.
+
+When `pass:[#]_count_` is present, that is the maximum number of characters that
+will be read into the specified _variable_ before the read is terminated. Note
+that the `pass:[#]_count_` form does not restrict the number of characters that
+may be read into the `$KEY` intrinsic variable.
+
+If `:__timeout__` is specified, `$TEST` is set to `0` and `$KEY` is set to `""`
+(null) if the read terminated because of expiration of specified time, or `1`
+otherwise. In any case, the _variable_ contains all characters received prior to
+the _timeout_.
+
+`$X` and `$Y` are changed by all characters read that are echoed as though they
+had been written using `WRITE`.
+
+When the `*_variable_` form is used, the ASCII value of the first character read
+is returned in _variable_ and `$KEY` is set to `""` (null) unless escape
+processing is on and an _<escape>_ [`$CHAR(27)`] key is received, then
+_variable_ is given a value of `0` and `$KEY` contains the escape sequence. If a
+timeout expired then _variable_ is equal to `-1`. `$X` and `$Y` are unchanged by
+this form and any key pressed does not echo on a terminal device.
+
+==== Standard
+
+Mostly complies, with the exception of the vague areas in the standard and the
+use of character transforms which aren't implemented.
+
+==== Examples
+
+[source,m]
+----
+read !,"Answer: ",ans:10 ; Give them 10 seconds to answer and store it in ans
+----
+
+=== S[ET]
+
+Puts values into variables.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of `_destination_=_source_` or
+`[(_destination1_[,_destination2_...)]]=_source_`, where _source_ is an
+expression, and _destination_ (or `_destination1_,_destination2_...`) is one of:
+
+* _variable_
+* `$ECODE`
+* `$ETRAP`
+* `$EXTRACT(_variable_[,_begin_[,_end_]])`
+* `$KEY`
+* `$PIECE(_variable_,_delim_[,_begin_[,_end_]])`
+* `$X`
+* `$Y`
+
+==== Usage
+
+Assign a value to a variable or substitute new value into piece(s) or character
+position(s) of variable.
+
+==== Standard
+
+Complies exactly with the extension of allowing `set var1=@var2`.
+
+==== Examples
+
+[source,m]
+----
+set $etrap="do ^%error"     ; Setup the error trap
+set $piece(list,",",5)=date ; Update date in list piece 5
+----
+
+=== U[SE]
+
+Changes the current device from the list of I/O devices owned by the current
+process.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of `_channel_[:(_parameter1_[:__parameter2__...])[:__namespace__]]`.
+
+==== Usage
+
+Make an owned device current for input and/or output.
+
+Valid parameters (passed as strings) by file/device type are:
+
+[%autowidth]
+.U[SE] Parameters
+|===
+| Parameter                     | Valid Types     | Description
+
+| `TERMINATOR=$CHAR(_n_[,...])` | All             | Input/read terminators
+| `OUTPUT=$CHAR(_n_[,...])`     | All             | Output terminators -- max 6
+| `[NO]CONTROLC`                | Stdin           | Control-C processing
+| `[NO]CONTROLT`                | Stdin           | Control-T processing
+| `[NO]ESCAPE`                  | Device/TCP/Pipe | Set/clear escape processing
+| `[NO]ECHO`                    | Device/TCP/Pipe | Set/clear echo processing
+| `DISCONNECT`                  | TCP [Server]    | Disconnect the client
+| `DELETE=NONE`                 | Device          | Setup key(s) for DEL key
+| `DELETE=BACK`                 | Device          | Setup key(s) for DEL key
+| `DELETE=DELETE`               | Device          | Setup key(s) for DEL key
+| `DELETE=BOTH`                 | Device          | Setup key(s) for DEL key
+|===
+
+IMPORTANT: `TERMINATOR` arguments must be ASCII characters [0-127]
+
+NOTE: `"TERMINATOR="_$C(13,10)` means that the following is placed in `$KEY` not
+returned in the data
+
+==== Standard
+
+Complies with the exception of the vague areas in the standard.
+
+==== Examples
+
+[source,m]
+----
+use term read *chk:0 use file                    ; See if the user has hit a key
+use 0:("terminator="_$C(1,5,10,13):"nocontrolc") ; Set terminators, disable ^C
+----
+
+=== V[IEW]
+
+Adds, or removes, disk blocks to, or from, the view buffer.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+A `_channel_:__offset__`.
+
+Where _channel_ is minus (`-`) volume number (i.e., `-1` only currently),
+_offset_ is the block number to read, `0` to free the view buffer, or minus
+(`-`) block number to write previously read block.
+
+==== Usage
+
+Read and write disk data in an open view channel buffer.
+
+NOTE: The volume should be write locked before using `VIEW`
+
+==== Standard
+
+As the standard is so vague, nearly anything complies exactly.
+
+==== Examples
+
+[source,m]
+----
+view -1:1 ; Get the global directory for the manager UCI
+----
+
+=== W[RITE]
+
+Formats and outputs values to the current I/O device.
+
+==== Condition
+
+Valid truth-value expression.
+
+==== Arguments
+
+List of _writeargument_.
+
+Where _writeargument_ is one of the following:
+
+* Format character string
+** `#` -> Carrige return, page feed combination
+** `!` -> Carrige return, linefeed combination, or specified output terminators
+** `?_n_` -> Tab to character position _n_ (left most position is `0`)
+** `/_cmd_[(_params_)]` -> Provide device specific control [X3.64-1979]
+* _expr_ -> Any valid M expression
+* `*_intexpr_` -> Output the ASCII character (`_intexpr_#256`)
+
+==== Usage
+
+Output characters to the current output device.
+
+`$X` and `$Y` are altered as follows:
+
+[%autowidth]
+.W[RITE] Usage
+|===
+| Character Type         | Description
+
+| Graphic [ASCII 32-126] | Increment `$X`
+| Backspace              | Decrement `$X` to a minimum of `0`
+| Line feed              | Increment `$Y`
+| Carriage return        | `$X` -> `0`
+| Form feed              | `$X` -> `0`, `$Y` -> `0`
+|===
+
+NOTE: `write *_intexpr_` does not alter `$X` or `$Y`
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write "Heading",! ; Output Heading to display
+----
+
+=== X[ECUTE]
+
+Interprets and executes a string as M code.
+
+==== Condition
+
+Valid truth-value expression -- also valid on each argument.
+
+==== Arguments
+
+List of expressions.
+
+==== Usage
+
+Executing M code which arises from the process of expression evaluation. Each
+argument is treated as a `DO` label where label defines a virtual line in the
+current routine that looks like label argument-content and is followed by a line
+consisting simply of space `QUIT`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+xecute "write ""x is 1""":x=1,"write ""x is not 1""":x-1 ; Run string as M code
+----
+
+== Intrinsic Functions
+
+NOTE: Intrinsic functions are case-insensitive, and have a short and long form,
+denoted with square bracket notation
+
+=== $A[SCII]
+
+ASCII code corresponding to one character in a string.
+
+==== Format
+
+`$ASCII(_expr_[,_int_])`
+
+==== Returns
+
+The ASCII code of the _int_ character in the string. The default for _int_ is
+`1`, and if the character doesn't exist, it returns `-1`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $ascii("ABC",2) ; -> 66
+----
+
+=== $C[HAR]
+
+Characters corresponding to a list of ASCII codes.
+
+==== Format
+
+`$CHAR(_int1_[,_int2_[,_int3_...]])`
+
+==== Returns
+
+A string made up of characters whose ASCII codes are `_int1_,_int2_,_int3_...`
+If the value of any _int_ is less than `0` or greater than `255` then that _int_
+is represented in the output string by nothing (e.g., `$CHAR(-1,256) -> ""`).
+
+==== Standard
+
+Complies exactly using the ASCII character set.
+
+==== Examples
+
+[source,m]
+----
+write $char(65,66,-1,67) ; -> "ABC"
+----
+
+=== $D[ATA]
+
+Number indicating whether a variable is defined or has nodes.
+
+==== Format
+
+`$DATA(_var_)`
+
+==== Returns
+
+[%autowidth]
+.$D[ATA] Returns
+|===
+| Value | Description
+
+| 0     | _var_ is undefined
+| 1     | _var_ is defined but has no descendants
+| 10    | _var_ is undefined but has descendants
+| 11    | _var_ is defined and has descendants
+|===
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+set A(1)=42 write $data(A)               ; -> 10
+set A="forty-two",A(1)=42 write $data(A) ; -> 11
+----
+
+=== $E[XTRACT]
+
+Returns one or more characters from a string.
+
+==== Format
+
+`$EXTRACT(_expr_[,_start_[,_stop_]])` +
+Where the default for _start_ is `1` and the default for _stop_ is _start_.
+
+==== Returns
+
+Characters from positions _start_ through _stop_ of expression.
+
+NOTE: May also be used as the destination for the `SET` command
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $extract("ABCD",-1,2) ; -> "AB"
+----
+
+=== $F[IND]
+
+Position of character following left-most occurrence of substring in a string.
+
+==== Format
+
+`$FIND(_expr1_,_expr2_[,_int_])`
+
+==== Returns
+
+Commencing at character position _int_ (default `1`) returns the character
+position immediately to the right of the first occurrence of _expr2_ in _expr1_.
+Specifically, `$FIND("anything","")` returns `1`. If _expr2_ is not found in
+_expr1_, it returns `0`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $find("ABCDEF","CD") ; -> 5
+----
+
+=== $FN[UMBER]
+
+Number formatted according to codes.
+
+==== Format
+
+`$FNUMBER(_numexp_,_code_[,_int_])` +
+Where code is zero or more of the following:
+
+[%autowidth]
+.$FN[UMBER] Format
+|===
+| Code        | Description
+
+| `P` or `p`  | Surround negative numbers with parentheses, positive with spaces
+| `T` or `t`  | Format with trailing sign or (if suppressed) space
+| `,` (comma) | Insert a comma every three significant digits
+| `+` (plus)  | Force a plus sign on positive values
+| `-` (minus) | Suppress the minus sign on negative values
+|===
+
+NOTE: `P` may not be used with `T`, `+` (plus), or `-` (minus) [`$ECODE="M2"`]
+
+==== Returns
+
+Returns _numexp_ edited as per code rounded to _int_ decimal places if _int_ is
+specified.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $fnumber(1234.567,"T+,",2) ; -> 1,234.57+
+----
+
+=== $G[ET]
+
+Returns the value of a variable, or a default value if variable is not defined.
+
+==== Format
+
+`$GET(_var_[,_expr_])`
+
+==== Returns
+
+The value of _var_ if defined, else _expr_ (default null). Note _expr_ (if
+specified) is always evaluated.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $get(^DATABASE(1),"Undefined") ; -> "Undefined" if $data(^DATABASE(1))#2=0
+----
+
+=== $J[USTIFY]
+
+Right justify a string in a field of spaces.
+
+==== Format
+
+`$JUSTIFY(_expr_,_int1_[,_int2_])`
+
+==== Returns
+
+The _expr_ space padded on the left to a length of _int1_ characters. If _int2_
+is specified, _expr_ is first rounded to _int2_ decimal places.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $justify("ABC",5)  ; -> "  ABC"
+write $justify(.456,6,2) ; -> "  0.46"
+----
+
+=== $L[ENGTH]
+
+Returns the length of a string, measured in characters or pieces.
+
+==== Format
+
+`$LENGTH(_expr1_[,_expr2_])`
+
+==== Returns
+
+If _expr2_ is specified, returns the number plus one of the non-overlapping
+occurrences of _expr2_ in _expr1_ or if _expr2_ is the empty string returns
+zero. If _expr2_ is not specified, returns a count of characters in _expr1_.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $length("ABC")             ; -> 3
+write $length("ABC,DEF,GHI",",") ; -> 3
+----
+
+=== $NA[ME]
+
+Evaluated name of a variable with some, all, or no subscripts; such a string is
+called a name value.
+
+==== Format
+
+`$NAME(_var_[,_int_])`
+
+==== Returns
+
+If _int_ is unspecified or greater than the number of subscripts in _var_,
+return full name of _var_. If _int_ is less than zero, throw error `M39`. If
+_int_ is one return name of unsubscripted _var_; otherwise, return _var_ name
+and _int_ subscripts up to total number.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $name(A(1,2,3),0)                  ; -> "A"
+set %=$data(^A(1,2,3)) write $name(^(6)) ; -> ^A(1,2,6)
+----
+
+=== $O[RDER]
+
+Next or previous subscript in a specified array.
+
+==== Format
+
+`$ORDER(_subscriptedvar_[,_int_])` +
+Where _int_ must be `1` or `-1`.
+
+==== Returns
+
+The next (_int_ = `1` or not specified) or previous (_int_ = `-1`) element at
+the specified level. The empty string may be specified as a seed. The collating
+sequence used is the M collating sequence.
+
+==== Standard
+
+Complies exactly using the M collating sequence.
+
+==== Examples
+
+[source,m]
+----
+kill A set A(1,2)="",A(1,4)="" ; Create A array
+write $order(A(1,""))          ; -> 2
+write $order(A(1,""),1)        ; -> 4
+write $order(A(1,2))           ; -> 4
+write $order(A(1,4),-1)        ; -> 2
+----
+
+=== $P[IECE]
+
+Partitions a string into pieces based on a delimiter, and returns some of those
+pieces.
+
+==== Format
+
+`$PIECE(_expr1_,_expr2_[,_int1_[,_int2_]])` +
+Where _int1_ defaults to `1` and _int2_ defaults to _int1_.
+
+==== Returns
+
+Returns the substring of _expr1_ bounded by but not including the _int1_ to
+_int2_ occurrence of _expr2_ in _expr1_.
+
+NOTE: May also be used as the destination for the `SET` command
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $piece("ABC,DE,FG,H,I",",",2,4) ; -> "DE,FG,H"
+----
+
+=== $QL[ENGTH]
+
+Number of subscripts in a variable name, passed as a name value.
+
+==== Format
+
+`$QLENGTH(_nameexpr_)` +
+Where _nameexpr_ evaluates to the name of a variable.
+
+==== Returns
+
+Returns the number of subscripts in the name.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $qlength("A(3)")           ; -> 1
+write $qlength($name(^A(1,2,3))) ; -> 3
+----
+
+=== $QS[UBSCRIPT]
+
+Specified part (name, environment, or a subscript) of a variable name, passed as
+a name value.
+
+==== Format
+
+`$QSUBSCRIPT(_nameexpr_,_int_)` +
+Where _nameexpr_ evaluates to the name of a variable.
+
+==== Returns
+
+If _int_ is equal to `-1`, then it returns the environment if provided. If _int_
+is equal to `0`, then it returns the unsubscripted variable name. Otherwise, it
+returns the _int_ subscript if it exists.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $qsubscript("^ABC(1,6,2)",2) ; -> 6
+----
+
+=== $Q[UERY]
+
+Next subscripted variable name in array, returned as a name value.
+
+==== Format
+
+`$QUERY(_var_[,_int_])` +
+Where _int_ must be `1` or `-1`.
+
+==== Returns
+
+The next (_int_ = `1` or not specified) or previous (_int_ = `-1`) record in the
+database or local variable table. The use of this function causes the naked
+indicator to point at _var_. The returned value will include an environment
+value only if the original specification did.
+
+==== Standard
+
+Mostly complies with two exceptions. First, the standard does not allow the
+second argument. Second, the standard states, "`The use of this function causes
+the naked indicator and `$REFERENCE` to become empty.`" This has not been done,
+instead, RSM follows the behavior of `$ORDER` on this point.
+
+==== Examples
+
+[source,m]
+----
+kill A set A(4,3)="" write $query(A) ; -> "A(4,3)"
+----
+
+=== $R[ANDOM]
+
+Random integer uniformly distributed over an interval between 0 and
+`_intargument_-1`, inclusive.
+
+==== Format
+
+`$RANDOM(_intargument_)` +
+Where _int_ is not less than one (`$ECODE` = `M3` if _int_ < `1`).
+
+==== Returns
+
+Returns a random number in the range `0` to `_intargument_-1`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $random(1) ; -> 0
+----
+
+=== $RE[VERSE]
+
+Returns the characters of a string in reverse order.
+
+==== Format
+
+`$REVERSE(_expr_)`
+
+==== Returns
+
+The _expr_ in the reverse order.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $reverse("ABC") ; -> "CBA"
+----
+
+=== $S[ELECT]
+
+Returns the value corresponding to first true condition of list, evaluated left
+to right.
+
+==== Format
+
+`$SELECT(_tve1_:__expr1__[,_tve2_:__expr2__...])` +
+Where _tve1_ and _tve2_ are truth value expressions.
+
+==== Returns
+
+The _expr_ where _tve_ is the first true _tve_, otherwise error `M4`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+kill A write $select($D(A):1,1:4) ; -> 4
+----
+
+=== $ST[ACK]
+
+Information about how a level of the process stack was created, what code is
+executing at that level, and what errors have accumulated there.
+
+==== Format
+
+`$STACK(_int_[,_code_])` +
+Where _int_ is `-1`, `0`, `1` to `$STACK(-1)` and _code_ is `"PLACE"`,
+`"MCODE"`, or `"ECODE"` (case-insensitive).
+
+==== Returns
+
+* `$STACK(-1)` -> Largest `$STACK(_int_)` value which returns a non-empty string
+* `$STACK(0)` -> Implementation specific value indicating how process was
+started (`RUN` or `JOB`)
+
+* `$STACK(_int_)` -> How process stack level was created (`DO`, `XECUTE`, `$$`
+or error code like `,M6,`) +
+Where _int_ is `1` to `$STACK(-1)`
+
+While _int_ is zero or greater, the following codes may be used:
+
+* `"ECODE"` -> List of error codes added at this level, delimited by commas
+* `"MCODE"` -> Source line of code identified by `"PLACE"` below
+* `"PLACE"` -> Location of a command at this stack level as follows:
+
+** If _int_ is not equal to `$STACK` and `$STACK(_int_,"ECODE")` is empty, the
+last command executed
+
+** If _int_ is equal to `$STACK` and `$STACK(_int_,"ECODE")` is empty, the
+currently executing command
+
+** If `$STACK(_int_,"ECODE")` is not empty, the last command to start execution
+while `$STACK(_int_,"ECODE")` was empty
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $stack(1) ; -> "DO"
+----
+
+=== $T[EXT]
+
+Returns a line of code from a routine.
+
+==== Format
+
+`$TEXT(_entryref_)` +
+Where _entryref_ is `_tag_[^_routine_]` or `+_offset_[^_routine_]` and
+`_routine_` defaults to the current routine.
+
+==== Returns
+
+The content of the specified line of the source routine. Specifically
+`$TEXT(+_offset_^_routine_)` is equivalent to `^$ROUTINE(_routine_,_offset_)`.
+The exception to this is `+0` returns the routine name.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $text(+0^ROUTINE) ; -> "ROUTINE"
+write $text(+0)         ; -> Current routine name
+----
+
+=== $TR[ANSLATE]
+
+A translation of a string, in which certain characters are removed or replaced.
+
+==== Format
+
+`$TRANSLATE(_expr1_,_expr2_[,_expr3_])`
+
+==== Returns
+
+A string resulting from _expr1_ with each character contained in _expr2_ removed
+and replaced with the character in the same position in _expr3_ if provided.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $translate("ABCDEF","FED","*$") ; -> "ABC$*"
+----
+
+=== $V[IEW]
+
+Returns, or changes, disk blocks from, or in, the view buffer.
+
+==== Format
+
+`$VIEW(_channel_,_offset_[,_size_[,_data_]])`
+
+==== Returns
+
+Block data for a '`read`' or `""` (null) for a '`write`'. A '`write`' is done
+when _data_ is provided. If size is `1` (default), `2`, or `4` the data is an
+integer, otherwise it's a string.
+
+==== Standard
+
+As the standard is so vague, anything complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $view(-1,44,2) ; -> Index for first key in block
+----
+
+== Intrinsic Special Variables
+
+NOTE: Intrinsic special variables are case-insensitive, and have a short and
+long form, denoted with square bracket notation
+
+=== $D[EVICE]
+
+The status of the current device.
+
+==== Returns
+
+`0,_devicetype_,_deviceinfo_` or `1,_errorcode_,_errortext_`
+
+If piece one is `0`, returns a full description of the channel in piece three
+(i.e., file/device name or IP address and port), and the type in piece two where
+the type number indicates:
+
+. Disk file
+. TCP/IP
+. Local pipe
+. Terminal device
+
+If piece one is `1`, returns an error code in piece two, and a string
+representing the device error in piece three.
+
+==== Standard
+
+Mostly complies, except it may not be set.
+
+==== Examples
+
+[source,m]
+----
+write $device ; -> "0,2,203.18.85.33 80"
+----
+
+=== $EC[ODE]
+
+The error status.
+
+==== Returns
+
+Null or all current M errors surrounded (and delimited) with commas.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $ecode ; -> ""
+----
+
+=== $ES[TACK]
+
+User-controlled stack level indicator.
+
+==== Returns
+
+Additional job stack levels since last `new $estack`. May be ``NEW``ed.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $estack ; -> 0
+----
+
+=== $ET[RAP]
+
+The error trap.
+
+==== Returns
+
+The M code to execute in the event of an error. May be ``NEW``ed and set.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $etrap ; -> "do ^%error"
+----
+
+=== $H[OROLOG]
+
+The current datetime.
+
+==== Returns
+
+The number of days since 31 Dec 1840, a comma, the number of seconds since
+midnight.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $horolog ; -> "57623,29373" (Wednesday 07 Oct 1998 08:09:33)
+----
+
+=== $I[O]
+
+The current I/O channel.
+
+==== Returns
+
+The current I/O channel number.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $io ; -> 0
+----
+
+=== $J[OB]
+
+The current job number.
+
+==== Returns
+
+Process/Job Identification Number (Note, this is not the OS PID).
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $job ; -> 1
+----
+
+=== $K[EY]
+
+The read terminator sequence.
+
+==== Returns
+
+Control sequence which terminated the last read from the current device. May be
+set.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $key ; -> $C(27,91,65) (the <up-arrow> key)
+----
+
+=== $P[RINCIPAL]
+
+The principal device.
+
+==== Returns
+
+The principal I/O device (if any).
+
+==== Standard
+
+Complies exactly (always returns `0`).
+
+==== Examples
+
+[source,m]
+----
+write $principal ; -> 0
+----
+
+=== $Q[UIT]
+
+The type of the last `QUIT`.
+
+==== Returns
+
+Returns `1` if the current level was invoked as an extrinsic function, otherwise
+returns `0`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $quit ; -> 0
+----
+
+=== $R[EFERENCE]
+
+The last global reference.
+
+==== Returns
+
+The name of the global variable that defined the current value of the "`naked
+indicator,`" or is empty when the "`naked indicator`" is currently undefined.
+
+==== Standard
+
+This is not defined in the standard, though it is referenced there.
+
+==== Examples
+
+[source,m]
+----
+write $reference ; -> ""
+----
+
+=== $ST[ACK]
+
+The current stack level.
+
+==== Returns
+
+Returns the current level of the process stack.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $stack ; -> 0
+----
+
+=== $S[TORAGE]
+
+The free space in the symbol table.
+
+==== Returns
+
+Number of free slots left for unique variable names in the symbol table,
+regardless of how many characters each variable uses.
+
+==== Standard
+
+Does not comply exactly, as the standard specifies that it returns the number of
+characters of free space remaining.
+
+==== Examples
+
+[source,m]
+----
+write $storage ; -> 3072
+----
+
+=== $SY[STEM]
+
+==== Returns
+
+A string of the form `_v_,_s_` where _v_ is an integer value allocated by the
+MDC to an implementer (RSM is 50) and _s_ is defined by that implementer in such
+a way as to be able to be unique for all the implementer's systems.
+
+==== Standard
+
+Complies exactly, assuming that it really is unique.
+
+==== Examples
+
+[source,m]
+----
+write $system ; -> "50,Reference Standard M V<major>.<minor>.<patch> for ..."
+----
+
+=== $T[EST]
+
+The status of the last conditional or timeout.
+
+==== Returns
+
+Returns `1` if the last `IF`, `OPEN`, `LOCK`, `JOB`, or `READ` with timeout was
+successful, otherwise returns `0`.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $test ; -> 0
+----
+
+=== $X
+
+The horizontal cursor position.
+
+==== Returns
+
+Approximate horizontal position of the cursor on the current device, it can be
+set.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $x ; -> 0
+----
+
+=== $Y
+
+The vertical cursor position.
+
+==== Returns
+
+Approximate vertical position of the cursor on the current device; it can be
+set.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write $y ; -> 0
+----
+
+== Structured System Variables
+
+NOTE: SSV names are case-insensitive, and have a short and long form, denoted
+with square bracket notation
+
+`$QUERY` may not be used on any SSV, and `MERGE` may not be used on any SSV
+except to compile a routine into `^$ROUTINE`:
+
+[source,m]
+----
+merge ^$routine("routine")=^UTILITY($job)
+----
+
+=== ^$G[LOBAL]
+
+==== Format
+
+`^$GLOBAL(_global_[,"JOURNAL"|"CHARACTER"])`
+
+==== Usage
+
+Provides a list of all globals in a UCI. `$ORDER` may be used for the global
+variable name. Stores per-global information about journaling and character sets
+as well.
+
+[%autowidth]
+.^$GLOBAL Usage
+|===
+| Subscripts             | Contains                              | Settable
+
+| `_global_`             | Top pointer block number of _global_  | No
+| `"$GLOBAL"`            | Global directory block number for UCI | No
+| `_global_,"JOURNAL"`   | Returns whether to journal _global_   | Yes
+| `"$GLOBAL","JOURNAL"`  | Returns the default journal action    | Yes
+| `_global_,"CHARACTER"` | Always returns "`M`"                  | No
+|===
+
+NOTE: While the name of a global is case-sensitive, including `$GLOBAL`, both
+`"JOURNAL"` and `"CHARACTER"` are case-insenstive
+
+==== Action
+
+This SSV may be used as the source of any M command, but may not be used as the
+destination except that `^$GLOBAL(_global_,"JOURNAL")` may be set with a
+truth-value expression.
+
+==== Standard
+
+Mostly complies; but does not provide collation sequence algorithm in
+`"COLLATE"` subscript.
+
+==== Examples
+
+[source,m]
+----
+write ^$global("RSM")             ; -> block number of "RSM" global root
+write ^$global("RSM","journal")   ; -> 1|0 - whether "RSM" journaling is on
+write ^$global("RSM","character") ; -> "M" - the only supported character set
+
+; List all globals in this UCI
+set gvn="" for  set gvn=$order(^$global(gvn)) quit:gvn=""  write gvn,!
+----
+
+=== ^$R[OUTINE]
+
+==== Format
+
+`^$ROUTINE(_routine_,0|_linenum_)`
+
+==== Usage
+
+Provides storage for all routines in a UCI as:
+
+* `^$ROUTINE(_routine_,0)` ; -> _bytecode_
+* `^$ROUTINE(_routine_,_linenum_)` ; -> _source_
+
+==== Action
+
+This SSV may be used as the source of any M command and may be merged and killed
+by privileged jobs. Note that a `MERGE` to `^$ROUTINE` must be from a suitable
+source -- this re-stores the routine source and compiles it into
+`^$ROUTINE(_routine_,0)`. `$ORDER` is available on the _routine_ names, `merge
+pass:[^]$routine(_routine_)=^$routine(_routine_)` may be used to re-compile a
+routine, and `^$ROUTINE(_routine_,"CHARACTER")` will return "`M`".
+
+==== Standard
+
+Mostly complies, but provides more functionality than in the standard.
+
+==== Examples
+
+[source,m]
+----
+merge ^$routine("ROUTINE")=^UTILITY($job)
+----
+
+=== ^$L[OCK]
+
+==== Format
+
+`^$LOCK(_lockref_)`
+
+==== Usage
+
+Provides a list of all locks held in a UCI.
+
+==== Action
+
+This SSV may be used as the source of any M command and may be killed by
+privileged jobs.
+
+==== Standard
+
+The standard is too vague to say.
+
+==== Examples
+
+[source,m]
+----
+; Returns the owning job number, a comma, and then the lock count
+write ^$lock("^lock") ; -> "1,2"
+
+; List all locks
+set L="" for  set L=$order(^$lock(L)) quit:L=""  write ^$lock(L),?10,L,!
+----
+
+=== ^$J[OB]
+
+==== Format
+
+`^$JOB(_jobnum_[,_opt_...])`
+
+==== Usage
+
+Provides a list of all jobs in the environment. This SSV exists once for each
+environment and is assumed to be in UCI number 1, volume 1. `^$JOB` returns the
+maximum permitted number of jobs in this environment. `$ORDER` may be used on
+the job number only; it returns the job numbers of currently active jobs only.
+
+The following second level (and higher) subscripts are also provided:
+
+[%autowidth]
+.^$JOB Usage
+|===
+| Subscripts                 | Contains                         | Settable
+
+| `"$IO"`                    | Current channel number           | No
+| `"$IO",_channel_`          | Name of device/file on channel   | No
+| `"$REFERENCE"`             | Last global reference            | No
+| `"$STACK"`                 | Current stack level              | No
+| `"$STACK",_level_`         | As for `$STACK(_level_)`         | No
+| `"$STACK",_level_,"MCODE"` | As for `$STACK(_level_,"MCODE")` | No
+| `"$STACK",_level_,"PLACE"` | As for `$STACK(_level_,"PLACE")` | No
+| `"CHARACTER"`              | Always returns "M"               | No
+| `"COMMANDS"`               | Number of commands executed      | No
+| `"GLOBAL"`                 | Global environment (UCI #)       | Current job
+| `"GLOBAL_VOL"`             | Global environment (VOL #)       | Current job
+| `"GREFS"`                  | Number of global references      | No
+| `"LOCK"`                   | Lock environment (UCI #)         | Current job
+| `"LOCK_VOL"`               | Lock environment (VOL #)         | Current job
+| `"OWNER"`                  | OS process owner name            | No
+| `"OWNER_ID"`               | OS process owner UID             | Privilege
+| `"PID"`                    | OS process ID                    | No
+| `"PRIORITY"`               | Current process priority         | Privilege
+| `"PRIV"`                   | Current process privilege        | Privilege
+| `"PROCESS_START"`          | `$HOROLOG` when process started  | No
+| `"ROUTINE"`                | Routine environment (UCI #)      | Current job
+| `"ROUTINE_NAME"`           | Routine name                     | No
+| `"ROUTINE_VOL"`            | Routine environment (VOL #)      | Current job
+|===
+
+==== Action
+
+This SSV may be used as the source of any M command and a `^$JOB(_jobnum_)` node
+may be killed by a privileged user or process.
+
+NOTE: A `kill ^$job` is a signal to shutdown the environment
+
+==== Standard
+
+Mostly complies; does not provide character information, but does provide
+additional info.
+
+==== Examples
+
+[source,m]
+----
+; Write last global reference and current routine line source for job JN
+write ^$job(JN,"$reference"),!,^$job(JN,"$stack",^$job(JN,"$stack"),"mcode"),!
+
+kill ^$job(104) ; Stop job number 104
+kill ^$job      ; Shutdown the system
+----
+
+=== ^$S[YSTEM]
+
+==== Format
+
+`^$SYSTEM(_opt1_[,_opt2_...])`
+
+==== Usage
+
+Provides system specific data (e.g., database statistics).
+
+[%autowidth]
+.^$SYSTEM Usage
+|===
+| Subscripts                        | Contains                   | Settable
+
+| `"NAME_LENGTH"`                   | Length of all names        | No
+| `"STRING_MAX"`                    | Maximum size of strings    | No
+| `"$NEXTOK"`                       | On/Off `$NEXT`             | Privilege
+| `"EOK"`                           | On/Off exponent notation   | Privilege
+| `"OFFOK"`                         | On/Off `DO/GO` offset      | Privilege
+| `"TRANTAB",_num_`                 | `_dst_=_src_` (globals)    | Privilege
+| `"VOL",_vol_,"BLOCK"`             | Block size in volume       | No
+| `"VOL",_vol_,"FILE"`              | File name of volume        | Mount volume
+| `"VOL",_vol_,"FREE"`              | Free blocks in volume      | No
+| `"VOL",_vol_,"HEADER"`            | Header block size (volume) | No
+| `"VOL",_vol_,"JOURNAL_AVAILABLE"` | Current journal status     | No
+| `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume) | Single user
+| `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume) | 0 to truncate
+| `"VOL",_vol_,"JOURNAL_REQUESTED"` | Enable/Disable journaling  | Privilege
+| `"VOL",_vol_,"NAME"`              | Name of volume             | Single user
+| `"VOL",_vol_,"SIZE"`              | Size of volume in blocks   | Single user
+| `"VOL",_vol_,"UCI",_uci_`         | Environment (UCI) name     | Create UCI
+| `"VOL",_vol_,"WRITELOCK"`         | Write lock status (volume) | Yes (0 or 1)
+| `"VOL",_vol_,"BLKALLOC"`          | Block Allocations          | No
+| `"VOL",_vol_,"BLKDEALL"`          | Block Deallocations        | No
+| `"VOL",_vol_,"BLKREORG"`          | Block Reorganizations      | No
+| `"VOL",_vol_,"DBDAT"`             | Global ``$DATA``s          | No
+| `"VOL",_vol_,"DBGET"`             | Global Gets                | No
+| `"VOL",_vol_,"DBKIL"`             | Global Kills               | No
+| `"VOL",_vol_,"DBORD"`             | Global ``$ORDER``s         | No
+| `"VOL",_vol_,"DBQRY"`             | Global ``$QUERY``s         | No
+| `"VOL",_vol_,"DBSET"`             | Global Sets                | No
+| `"VOL",_vol_,"LASTOK"`            | Search Last Successes      | No
+| `"VOL",_vol_,"LASTTRY"`           | Search Last Tries          | No
+| `"VOL",_vol_,"LOGRD"`             | Logical Block Reads        | No
+| `"VOL",_vol_,"LOGWT"`             | Logical Block Writes       | No
+| `"VOL",_vol_,"PHYRD"`             | Physical Block Reads       | No
+| `"VOL",_vol_,"PHYWT"`             | Physical Block Writes      | No
+|===
+
+==== Action
+
+This SSV may be set and killed by privileged jobs where indicated. `$ORDER` is
+available for `^$SYSTEM("VOL",_vol_)` and `^$SYSTEM("VOL",_vol_,"UCI",_uci_)`.
+
+==== Standard
+
+Does not conform.
+
+==== Examples
+
+[source,m]
+----
+write ^$system("vol",1,"dbget")      ; Print DB GETS
+set ^$system("vol",1,"uci",2)="FRED" ; Create UCI environment
+----
+
+== Operators
+
+NOTE: All M operations are parsed in a strict left-to-right order; parentheses
+may be used to alter this order
+
+[source,m]
+----
+write 1+2*3   ; -> 9
+write 1+(2*3) ; -> 7
+----
+
+=== `*-*` Underscore
+
+==== Usage
+
+String concatenation.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write "A"_"B" ; -> "AB"
+----
+
+=== `*+*` Plus
+
+==== Usage
+
+Addition.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 1+1 ; -> 2
+----
+
+=== `*-*` Minus
+
+==== Usage
+
+Subtraction.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 4-3 ; -> 1
+----
+
+=== `***` Asterisk
+
+==== Usage
+
+Multiplication.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 2*2 ; -> 4
+----
+
+=== `*/*` Slash
+
+==== Usage
+
+Division.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 8/2 ; -> 4
+----
+
+=== `*\*` Backslash
+
+==== Usage
+
+Integer division.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 5\2 ; -> 2
+----
+
+=== `*#*` Hash
+
+==== Usage
+
+Modulo.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 5#2 ; -> 1
+----
+
+=== `****` Asterisk (2)
+
+==== Usage
+
+Exponentiation.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 3**2 ; -> 9
+----
+
+=== `*=*` Equals
+
+==== Usage
+
+Equality test.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 2=2 ; -> 1
+----
+
+=== `*<*` Less Than
+
+==== Usage
+
+Compare for less than.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 1<2 ; -> 1
+----
+
+=== `*>*` Greater Than
+
+==== Usage
+
+Compare for greater than.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 1>2 ; -> 0
+----
+
+=== `*]*` Right Square Bracket
+
+==== Usage
+
+Compare for follows.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write "B"]"A" ; -> 1
+----
+
+=== `*[*` Left Square Bracket
+
+==== Usage
+
+Contains.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write "ABC"["A" ; -> 1
+----
+
+=== `*]]*` Right Square Bracket (2)
+
+==== Usage
+
+Sorts after.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write " "]]2 ; -> 1
+----
+
+=== `*'*` Single Quote
+
+==== Usage
+
+Logical not -- may be used with any relational operator.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write '4 ; -> 0
+----
+
+=== `*&*` Ampersand
+
+==== Usage
+
+Logical and.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 4&0 ; -> 0
+----
+
+=== `*!*` Exclamation Mark
+
+==== Usage
+
+Logical or.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write 4!0 ; -> 1
+----
+
+=== `*?*` Question Mark
+
+==== Usage
+
+Pattern match -- see the <<_pattern_match>> section for more details.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+write "ABC"?1.UNP ; -> 1
+----
+
+=== `*@*` Commercial At
+
+==== Usage
+
+Indirection -- see the <<_indirection>> section for more details.
+
+==== Standard
+
+Complies exactly.
+
+==== Examples
+
+[source,m]
+----
+set A="B",@A=1 ; sets B to 1
+----
+
+== Pattern Match
+
+[%autowidth]
+.Pattern Match
+|===
+| Code | Class       | Valid Characters
+
+| `E`  | Everything  | ASCII codes 0-255
+| `A`  | Alphabetic  | A-Z, a-z
+| `U`  | Uppercase   | A-Z
+| `L`  | Lowercase   | a-z
+| `N`  | Numeric     | 0-9
+| `P`  | Punctuation | ASCII codes 32-47, 58-64, 91-96, 123-126
+| `C`  | Control     | ASCII codes 0-31, 127-255
+|      | Literal     | As specified
+|===
+
+A pattern is specified as a list of one or more _patternatoms_. A _patternatom_
+consists of a minimum, dot, maximum (e.g., 1.3) and one or more codes, where at
+least one of minimum, dot, maximum must be specified, and the default minimum is
+zero and the default maximum is infinite. If the dot is not used then an exact
+number of that _patternatom_ is required.
+
+Alternation where a number of _patternatoms_ may be enclosed in parathenses
+separated by commas indicates logical or of each specified _patternatom_ (e.g.,
+2(1U,1N,1P) -> 2UNP).
+
+== Indirection
+
+There are two forms of indirection, name indirection and argument indirection.
+
+Name indirection is where the name of a variable (or part of the name of a
+variable) is replaced by _@indirect_ (or _@indirect@_).
+
+[source,m]
+----
+set A="ABC" write @A        ; Will write the contents of ABC
+write @A@(1)                ; Will write the contents of ABC(1)
+set A="ABC(2)" write @A@(1) ; Will write the contents of ABC(2,1)
+----
+
+Argument indirection is where one or more arguments are replaced by _@indirect_.
+
+[source,m]
+----
+set A="B=1,C=2" set @A ; Will assign 1 to B and 2 to C
+----
+
+NOTE: Argument indirection may not be used with the `BREAK`, `FOR`, and `VIEW`
+commands
+
+== Routine Format
+
+A routine name is of the form `1"%".31AN` in UCI 1 only, or `1A.31AN` in any
+UCI.
+
+A routine source consists of one or more lines of the form:
+
+`[_label_[_formallist_]]_<space>_[_levelindicator_][_command_][;__comment__]` +
+or +
+`;__comment__`
+
+Where:
+
+* _label_ is one of `1"%".31AN`, `1A.31AN`, or `1.32N`
+* _formallist_ is `(_var1_[,_var2_[,_var3_...]])`
+* _levelindicator_ is one or more dots (with zero or more optional spaces)
+* _command_ is a valid M command including its arguments
+
+After the first space additional spaces may be inserted for readability.
+Everything in the line from (and including) the first unquoted `;` is a comment.
+
+The routine source is stored at `^$ROUTINE(_routine_,_linenum_)=_source_`. The
+compiled routine is stored at `^$ROUTINE(_routine_,0)=_bytecode_`. Where
+_routine_ is the name of the routine, and _linenum_ is an integer greater than
+`0`.
 
 [role="right"]
-link:index.adoc[Site Directory]
+link:index.adoc[Index]

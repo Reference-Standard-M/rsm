@@ -7,23 +7,42 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 We are dedicated to keeping the M language and database alive.
 
-=== Site Directory:
+'''
+
+=== Copyright and License
+
+This manual is for Reference Standard M +
+David Wicksell <dlw@linux.com> +
+Copyright © 2020-2021 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
+
+Permission is granted to copy, distribute and/or modify this document under the
+terms of the GNU Free Documentation License, Version 1.3 or any later version
+published by the Free Software Foundation; with no Invariant Sections, with no
+Front-Cover texts, and with no Back-Cover Texts.
+
+=== Index
+
 * link:../README.adoc[README]
 * link:../CHANGELOG.adoc[CHANGELOG]
+* link:conformance.adoc[Conformance Clause]
 * link:database.adoc[Database Management]
+* link:upgrade.adoc[Database Upgrade Instructions]
 * link:language.adoc[Language Guide]
-* link:seqio.adoc[Sequential IO Interface]
+* link:seqio.adoc[Sequential I/O Interface]
 * link:xcall.adoc[External Call Interface]
 * link:util.adoc[Supplemental Utilities]
-* link:web.adoc[Web Server]
-* link:upgrade.adoc[Database Upgrade Instructions]
+* link:web.adoc[Web Server Utility]
 
-=== Other implementations that may be of interest:
+=== Other implementations that may be of interest
+
 * https://sourceforge.net/projects/fis-gtm/[GT.M]
 * https://yottadb.com[YottaDB]
 * https://freem.coherent-logic.com[FreeM]
+* https://www.cs.uni.edu/~okane/[Mumps II]
 
-=== For more information on M:
+=== For more information on M
+
 * http://71.174.62.16/Demo/AnnoStd?Frame=Main&Page=a100006[MUMPS by Example]
 * https://mumps.org[Mumps Site]
 * https://www.mumpster.org[Mumpster Site]

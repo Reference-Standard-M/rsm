@@ -1,7 +1,7 @@
 /*
  * Package:  Reference Standard M
- * File:     rsm/include/opcodes.h
- * Summary:  module RSM header file - internal op codes (and only real opcodes)
+ * File:     rsm/include/opcode.h
+ * Summary:  module RSM header file - internal opcodes (and only real opcodes)
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2021 Fourth Watch Software LC
@@ -74,8 +74,8 @@
 
 //spare          40
 #define CMSET    41                                                             // set
-#define CMSETE   42                                                             // set $E()
-#define CMSETP   43                                                             // set $P()
+#define CMSETE   42                                                             // set $EXTRACT()
+#define CMSETP   43                                                             // set $PIECE()
 #define OPNAKED  44                                                             // set NAKED from mvar on addstk
 #define CMFLUSH  45                                                             // flush inputs
 #define CMREADS  46                                                             // read star
@@ -200,6 +200,11 @@
 #define CMLCK    161                                                            // LOCK #args()
 #define CMLCKP   162                                                            // LOCK + #args()
 #define CMLCKM   163                                                            // LOCK - #args()
+
+#ifdef _AIX
+#    undef CMNEW                                                                // CMNEW is used by JFS on AIX
+#endif
+
 #define CMNEW    164                                                            // NEW
 #define CMNEWB   165                                                            // NEW #args() - new except
 #define CMKILL   166                                                            // kill 1 variable

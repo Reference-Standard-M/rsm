@@ -28,12 +28,10 @@
 #ifndef _RSM_DATABASE_H_                                                        // only do this once
 #define _RSM_DATABASE_H_
 
-// *** Defines ***
-
+// Defines
 #define READ            -1                                                      // Locking defines makes
 #define WRITE           -systab->maxjob                                         // easy reading code
 #define WR_TO_R         (systab->maxjob - 1)                                    // from write to read
-
 #define NODE_UNDEFINED  (MAX_STR_LEN + 1)                                       // junk record (was -1)
 #define PTR_UNDEFINED   0                                                       // junk pointer
 
@@ -43,26 +41,22 @@
  * NOTE: With a minimum block size of 4 KiB a depth of 12 allows for
  *       potentially about 8.649e+012 data blocks available.
  */
-
 #define MAXTREEDEPTH    12                                                      // max level down
 #define LAST_USED_LEVEL 3                                                       // when last used works
-
 #define MAXREKEY        (MAXTREEDEPTH * 3)                                      // max re-keys
-
 #define GBD_EXPIRED     60                                                      // seconds to expire
 
-// *** DB_Block flags ***
+// DB_Block flags
 #define BLOCK_DIRTY     1                                                       // block needs tidying
 
-// *** Write Daemon defines ***
+// Write Daemon defines
 #define DOING_NOTHING   0                                                       // nothing
 #define DOING_MAP       1                                                       // cleaning the map
 #define DOING_WRITE     2                                                       // writing
 #define DOING_GARB      3                                                       // garbage collect
 #define DOING_DISMOUNT  4                                                       // dismounting
 
-// *** Structures ***
-
+// Structures
 typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK {                  // database block layout
     u_char  type;                                                               // block type
     u_char  flags;                                                              // flags
@@ -81,7 +75,7 @@ typedef struct __attribute__ ((__packed__)) GBD {                               
     struct DB_BLOCK *mem;                                                       // memory address of blk
     struct GBD      *dirty;                                                     // to write -> next
     time_t          last_accessed;                                              // last time used
-} gbd;                                                                          // end gbd struct
+} gbd;                                                                          // end GBD struct
 
 typedef struct __attribute__ ((__packed__)) JRNREC {                            // journal record
     u_short size;                                                               // size of record
@@ -111,69 +105,63 @@ typedef struct __attribute__ ((__packed__)) JRNREC {                            
  *       The next 8 bytes (off_t) in the file point at the next free byte.
  *       Initially 12 and always rounded to the next 4 byte boundary.
  *       Journal file is only accessed while a write lock is held.
- *       Protection on the file is changed to g:rw by init_start.
  */
 
-// *** External declarations ***
+// External declarations
 
-// Defined in database/db_main.c
+// File: rsm/database/main.c
 extern int     curr_lock;                                                       // lock on globals
 extern int     gbd_expired;
 extern mvar    db_var;                                                          // local copy of var
 extern int     volnum;                                                          // current volume
-
 extern gbd     *blk[MAXTREEDEPTH];                                              // current tree
 extern int     level;                                                           // level in above
-                                                                                // 0 = global dir
 extern u_int   rekey_blk[MAXREKEY];                                             // to be re-keyed
 extern int     rekey_lvl[MAXREKEY];                                             // from level
-
 extern int     Index;                                                           // index # into above
 extern cstring *chunk;                                                          // chunk at index
 extern cstring *record;                                                         // record at index
-                                                                                // points at dbc
 extern u_char  keybuf[MAX_KEY_SIZE + 5];                                        // for storing keys
 extern u_short *idx;                                                            // for indexes
 extern int     *iidx;                                                           // int ver of index
-
 extern int     writing;                                                         // set when writing
 extern int     hash_start;                                                      // start searching here
 
-// *** Function Prototypes ***
+// Function Prototypes
 
-// File: database/db_buffer.c
+// File: rsm/database/buffer.c
 short Get_block(u_int blknum);                                                  // Get block
 short New_block(void);                                                          // get new block
 void  Get_GBD(void);                                                            // get a GBD
 void  Get_GBDs(int greqd);                                                      // get n free GBDs
 void  Free_GBD(gbd *free);                                                      // Free a GBD
 
-// File: database/db_get.c
+// File: rsm/database/get.c
 int   Get_data(int dir);                                                        // get db_var node
 
-// File: database/db_kill.c
+// File: rsm/database/kill.c
 short Kill_data(void);                                                          // remove tree
 
-// File: database/db_locate.c
+// File: rsm/database/locate.c
 short Locate(u_char *key);                                                      // find key
 short Locate_next(void);                                                        // point at next key
 
-// File: database/db_rekey.c
+// File: rsm/database/rekey.c
 short Add_rekey(u_int block, int level);                                        // add to re-key table
 short Re_key(void);                                                             // re-key blocks
 void  Un_key(void);                                                             // un-key blk[level]
 
-// File: database/db_set.c
+// File: rsm/database/set.c
 int   Set_data(cstring *data);                                                  // set a record
 
-// File: database/db_util.c
+// File: rsm/database/util.c
 void  Align_record(void);                                                       // align record (int)
 void  Copy_data(gbd *fptr, int fidx);                                           // copy records
 void  DoJournal(jrnrec *jj, cstring *data);                                     // Write journal
 void  Free_block(int blknum);                                                   // free blk in map
-void  Garbit(int blknum);                                                       // que a blk for garb
+void  Garbit(int blknum);                                                       // queue a blk for garb
 short Insert(u_char *key, cstring *data);                                       // insert a node
-void  Queit(void);                                                              // que a gbd for write
+void  Queit(void);                                                              // queue a GBD for write
 void  Tidy_block(void);                                                         // tidy current blk
 void  Used_block(int blknum);                                                   // set blk in map
 short Compress1(void);                                                          // compress 1 block

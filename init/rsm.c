@@ -27,60 +27,28 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
+#include <sys/shm.h>                                                            // shared memory
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
 #include <ctype.h>
+#include <fcntl.h>                                                              // file stuff
 #include <unistd.h>                                                             // for getopt
 #include <errno.h>                                                              // error stuff
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // function prototypes
 #include "init.h"                                                               // init prototypes
 
-// *** Give help if they entered -h or similar ***
-void help(void)                                                                 // give some help
-{
-    char str[100];                                                              // a string
-
-    (void) rsm_version((u_char *) str);                                         // get version into str[]
-
-    printf("%s\n", str);                                                        // print version string
-    printf("Database version: %d   Compiler version: %d\n", DB_VER, COMP_VER);
-    printf("Set environment variable RSM_DBFILE=<database file> or pass it to each command\n\n");
-    printf("David Wicksell <dlw@linux.com>\n");
-    printf("Copyright (c) 2020-2021 Fourth Watch Software LC\n");
-    printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
-    printf("Create database:\n");
-    printf("  rsm -v <volume name>\t\tName of volume (1-%d alpha characters)\n", VAR_LEN);
-    printf("      -b <block size>\t\tSize of database blocks (4-256 KiB)\n");
-    printf("      -s <database size>\tInitial size of database (100-%u blocks)\n", MAX_DATABASE_BLKS);
-    printf("     [-m <map size>]\t\tSize of map block (0-%u KiB)\n", MAX_MAP_SIZE);
-    printf("     [-e <environment name>]\tName of manager UCI (1-%d alpha characters)\n", VAR_LEN);
-    printf("     [<database file>]\t\tName of the database file\n\n");
-    printf("Initialize and start environment:\n");
-    printf("  rsm -j <max jobs>\t\tMaximum attached jobs for environment (1-%d jobs)\n", MAX_JOBS);
-    printf("     [-g <global buffers>]\tSize of global buffers (1-%d MiB)\n", MAX_GLOBAL_BUFFERS);
-    printf("     [-r <routine buffers>]\tSize of routine buffers (1-%d MiB)\n", MAX_ROUTINE_BUFFERS);
-    printf("     [-a <additional buffers>]\tSize of additional buffers (not yet supported)\n");
-    printf("     [<database file>]\t\tName of the database file\n\n");
-    printf("Start job and attach to environment:\n");
-    printf("  rsm \t\t\t\tStarts in direct mode in manager UCI\n");
-    printf("     [-e <environment name>]\tName of initial UCI environment\n");
-    printf("     [-x <M command(s)>]\tString of M commands to execute\n");
-    printf("     [<database file>]\t\tName of the database file\n\n");
-    printf("Stop and shut down environment:\n");
-    printf("  rsm -k\t\t\tKill the environment\n");
-    printf("     [<database file>]\t\tName of the database file\n\n");
-    printf("Show help menu:\n");
-    printf("  rsm -h\t\t\tOutput the help menu\n");
-
-    exit(0);                                                                    // give help and exit
-}
+void help(void);                                                                // give some help
+void info(char *file);                                                          // give some info
+void shutdown(char *file);                                                      // defined in rsm/init/shutdown.c
 
 // *** Main entry for create, init and run ***
 int main(int argc, char **argv)                                                 // main entry point
 {
     int  c;                                                                     // for case
     int  bsize = 0;                                                             // block size
+    char i = FALSE;                                                             // for info()
+    char k = FALSE;                                                             // for shutdown()
     char *env = NULL;                                                           // start environment name
     int  gmb = 0;                                                               // global buf MiB
     int  jobs = 0;                                                              // max jobs
@@ -93,47 +61,76 @@ int main(int argc, char **argv)                                                 
     char *dbfile = getenv("RSM_DBFILE");                                        // pass volume in environment
     char file[VOL_FILENAME_MAX];
 
-    if (argc < 2 && dbfile == NULL) help();                                     // they need help
+    if ((argc < 2) && (dbfile == NULL)) help();                                 // they need help
 
-    while ((c = getopt(argc, argv, "a:b:e:g:hj:km:r:s:v:x:")) != EOF) {
+    while ((c = getopt(argc, argv, "a:b:e:g:hij:km:r:s:v:x:V")) != EOF) {
         switch (c) {
         case 'a':                                                               // switch -a
-            addmb = atoi(optarg);                                               // additional buffer
+            addmb = atoi(optarg);                                               // additional buffer (init - not ready yet)
             break;
+
         case 'b':                                                               // switch -b
             bsize = atoi(optarg);                                               // database block size (create)
             break;
+
         case 'e':                                                               // switch -e
-            env = optarg;                                                       // environment name    (run)
+            env = optarg;                                                       // environment name (init or run)
             break;
+
         case 'g':                                                               // switch -g
-            gmb = atoi(optarg);                                                 // global buffer MiB   (init)
+            gmb = atoi(optarg);                                                 // global buffer MiB (init)
             break;
+
         case 'h':                                                               // switch -h
-            help();                                                             // exit via help()
+            if (!i && !k) help();                                               // exit via help()
             break;
+
+        case 'i':                                                               // switch -i
+            i = TRUE;                                                           // call info() below
+            break;
+
         case 'j':                                                               // switch -j
-            jobs = atoi(optarg);                                                // max number of jobs  (init)
+            jobs = atoi(optarg);                                                // max number of jobs (init)
             break;
+
         case 'k':                                                               // switch -k
-            cmd = "K ^$J";                                                      // shut down environment
+            k = TRUE;                                                           // call shutdown() below
             break;
+
         case 'm':                                                               // switch -m
-            map = atoi(optarg);                                                 // size of map block   (create)
+            map = atoi(optarg);                                                 // size of map block (create)
             break;
+
         case 'r':                                                               // switch -r
-            rmb = atoi(optarg);                                                 // routine buffer MiB  (init)
+            rmb = atoi(optarg);                                                 // routine buffer MiB (init)
             break;
+
         case 's':                                                               // switch -s
             blocks = atoi(optarg);                                              // number of data blks (create)
             break;
+
         case 'v':                                                               // switch -v
-            volnam = optarg;                                                    // volume name         (create)
+            volnam = optarg;                                                    // volume name (create)
             break;
+
         case 'x':                                                               // switch -x
-            if (cmd == NULL) cmd = optarg;                                      // initial command     (run)
+            if (cmd == NULL) cmd = optarg;                                      // initial command (run)
             break;
+
+        case 'V':                                                               // switch -V
+            if (i || k) break;
+
+            if (VERSION_TEST) {                                                 // if an internal version
+                printf("V%d.%d.%d T%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TEST);
+            } else {                                                            // else normal release
+                printf("V%d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+            }
+
+            exit(0);                                                            // give help and exit
+            break;
+
         default:                                                                // some sort of error
+            putchar('\n');
             help();                                                             // just give help
             break;
         }
@@ -142,9 +139,18 @@ int main(int argc, char **argv)                                                 
     argc -= optind;                                                             // adjust for used args
     argv += optind;                                                             // should point at parameter
 
-    if (argc == 1) strcpy(file, *argv);
-    else if (dbfile != NULL) strcpy(file, dbfile);
-    else help();                                                                // must have database name
+    if (argc == 1) {
+        strcpy(file, *argv);
+    } else if (dbfile != NULL) {
+        strcpy(file, dbfile);
+    } else {
+        if (i) info(NULL);                                                      // exit via info()
+        if (k) shutdown(NULL);                                                  // exit via shutdown()
+        help();                                                                 // must have database name
+    }
+
+    if (i) info(file);                                                          // exit via info()
+    if (k) shutdown(file);                                                      // exit via shutdown()
 
     if (volnam != NULL) {                                                       // do a create
         exit(INIT_Create_File(blocks,                                           // number of blocks
@@ -166,14 +172,19 @@ int main(int argc, char **argv)                                                 
     c = INIT_Run(file, env, cmd);                                               // run a job
 
     if (c != 0) {
-        fprintf(stderr, "Error occurred in process - %s\n",                     // complain
-                strerror(c));                                                   // what was returned
+        fprintf(stderr, "Error occurred in process - %s\n", strerror(c));       // what was returned
     }
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
-    if (c == ENOENT) fprintf(stderr, "\tRSM database not loaded\n");
-    else if (c == ENOMEM) fprintf(stderr, "\tRSM job table is full\n");
+    if (c == ENOENT) {
+        fprintf(stderr, "\tRSM database not loaded\n");
+    } else if (c == ENOMEM) {
+        fprintf(stderr, "\tRSM job table is full\n");
+    }
 #endif
 
+    (void) fclose(stdin);                                                       // close standard I/O
+    (void) fclose(stdout);                                                      // close standard I/O
+    (void) fclose(stderr);                                                      // close standard I/O
     exit(c);                                                                    // exit with value
 }
