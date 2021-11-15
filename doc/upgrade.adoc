@@ -1,51 +1,59 @@
 :source-highlighter: pygments
 
+[role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
+
+[role="right"]
+link:index.adoc[Index]
 
 '''
 
 = Reference Standard M
 
-=== Upgrade Instructions
+=== Database Upgrade Instructions
 
 '''
 
-RSM version 1.73.0 introduces a major change to the format of both the database
-and the compiled bytecode of routines. These changes were required to support
-the change to 32 character names that were added throughout RSM.
+RSM version 1.73.0 introduced some changes to the format of both the database
+and the routine bytecode. These changes were required to support the change to
+32 character names that were added throughout RSM.
 
-However, you can compile RSM version 1.73.0 with the `dbver=1` flag and the
-resulting runtime image will work with the older database and bytecode formats,
-which used 8 character names. This will allow you to effectively upgrade an
-older RSM or Mumps V1 database, to the new RSM database format, by connecting to
-an older database, and exporting all the routines and globals you wish to move
-to your new RSM database.
+However, you can compile RSM version 1.73.0 (or later) with the `dbver=1` flag
+and the resulting runtime image will work with the older database and bytecode
+formats, which used 8 character names. This will allow you to effectively
+upgrade an older RSM or MV1 database, to the new RSM database format, by
+connecting to an older database, and exporting all the routines and globals you
+wish to move to your new RSM database.
 
-There is an experimental upgrade script that you can run to upgrade an older
-database to the new format. It attempts to transfer every routine and global
-from every UCI, as well as setting up and configuring your new database to match
-your old database.
+There is an link:../bin/upgrade[upgrade] script that you can run to automate
+this process. It attempts to transfer every routine and global from every UCI,
+as well as setting up and configuring your new database to match your old
+database.
 
 If you wish to do this process manually, follow the steps outlined in this
-document. This example process will upgrade 'old-database.dat' to
-'new-database.dat', and assumes the old database environment has been shut down.
-First, build RSM for database version 1, and then start the old database
-environment in single user mode. E.g.
+document. This example process will upgrade '`old-database.dat`' to
+'`new-database.dat`', and assumes the old database environment has been shut
+down. In order to use this process, you must load the routines in `utils.rsm`
+in both the old and new databases, in order to run the export and import
+routines. See the link:../README.adoc[README] file for more information.
+
+Build RSM for database version 1, and then start the old database environment in
+single user mode:
 
 [source,bash]
 ----
-make dbver=1
+make clean && make dbver=1
 ./rsm -j 1 old-database.dat
 ./rsm old-database.dat
 ----
 
-Next, export the routines and globals from the manager UCI that you wish to move
-to the new database. E.g.
+Export the routines and globals from the manager UCI that you wish to move to
+the new database:
 
 [source,m]
 ----
-RSM> do ^%RS
+RSM [MGR]> do ^%RS
 
 Routine(s): *
 Filename:   mgr.ro
@@ -57,62 +65,70 @@ Header Txt: RSM MGR routines
 %X364     %ZOSV     %ZRCHG    %ZRS      %ZRSE     %ZRSEL    %ZUCI     BENCH
 COMPRESS  DECOMP    FBENCH    FIX       FIX1      FIX2      IC        JOURNLST
 LOG2      MATH      MUMTRIS   MUMTRIS2  SSD       UCI
-RSM> do ^%GS
+RSM [MGR]> do ^%GS
 
 Global(s):  *
 Filename:   mgr.go
 Header Txt: RSM MGR globals
 %AUTH     %C        %UTILITY  FOR       OVR       SET       UTILITY
-RSM> h
+RSM [MGR]> halt
 ----
 
-Next, do the same process for every other UCI that has routines and globals that
-you wish to move to the new database, taking care to name the routine and global
-out files according to their UCI, so you can import them in to the correct
+Do the same process for every other UCI that has routines and globals that you
+wish to move to the new database, taking care to name the routine and global out
+files according to their UCI, so you can import them in to the correct
 environment in the new database. In this example, we'll assume there is one more
-UCI we care about named USR. After exporting the last of the routines and
-globals that we want to move to the new database, shut down the old environment.
-E.g.
+UCI we care about named `USR`. After exporting the last of the routines and
+globals that we want to move to the new database, shut down the old environment:
 
 [source,m]
 ----
-RSM> do ^%RS
+RSM [MGR]> do ^%RS
 
 Routine(s): *
 Filename:   usr.ro
 Header Txt: RSM USR routines
 GETDOCS   PATINFO   NAMEINFO
-RSM> do ^%GS
+RSM [MGR]> do ^%GS
 
 Global(s):  *
 Filename:   usr.go
 Header Txt: RSM USR globals
-DLW       PATIENTS  XVEMS     UTILITY
-RSM> kill ^$job
+TST       PATIENTS  XVEMS     UTILITY
+RSM [MGR]> kill ^$job
 ----
 
-Then, compile RSM without the `dbver` flag, using the latest build, with
-database version 2, create a new database, start the new environment in single
-user mode, and import the routines and globals you exported from your old
-database. For this example, we'll assume the new database volume will be named
-DEFAULT. Consult the link:../README.adoc[README.adoc] documentation for more
-information about creating a new RSM database and environment. E.g.
+Compile RSM without the `dbver` flag, using the latest build, with database
+version 2. Create a new database and start the new environment in single user
+mode. For this example, we'll assume the new database volume will be named
+`TST`. See the link:../README.adoc[README] file for more information about
+creating a new RSM database and environment:
 
 [source,bash]
 ----
-make clean
-make
-./rsm -v DEFAULT -b 16 -s 4096 new-database.dat
+make clean && make
+./rsm -v TST -b 16 -s 4096 new-database.dat
 ./rsm -j 1 new-database.dat
+----
+
+Load the new vendor utility routines, so that you have the import routines
+available, and start an RSM job:
+
+[source,bash]
+----
+./rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' new-database.dat
 ./rsm new-database.dat
 ----
 
+Import the routines and globals you exported from the older database and shut
+down the environment:
+
 [source,m]
 ----
-RSM> d ^%RR
+RSM [MGR]> do ^%RR
 Restore from file: mgr.ro
 
-Saved by %RS from [MGR,DEFAULT] on 24 Dec 2020 at 12:00:00 PM
+Saved by %RS from [MGR,TST] on 24 Dec 2020 at 12:00:00 PM
 RSM MGR routines
 Restore N> y
 %BLKDMP   %C        %D        %DD       %DED      %ED       %ET       %ETDISP
@@ -123,46 +139,32 @@ Restore N> y
 COMPRESS  DECOMP    FBENCH    FIX       FIX1      FIX2      IC        JOURNLST
 LOG2      MATH      MUMTRIS   MUMTRIS2  SSD       UCI
 
-RSM> d ^%GR
+RSM [MGR]> do ^%GR
 Restore from file: mgr.go
 
-Saved by %GS from [MGR,DEFAULT] on 24 Dec 2020 at 12:05:00 PM
+Saved by %GS from [MGR,TST] on 24 Dec 2020 at 12:05:00 PM
 RSM MGR globals
 Restore N> y
 ^%AUTH    ^%C       ^%UTILITY ^FOR      ^OVR      ^SET      ^UTILITY
-RSM> d ^%RR
+RSM [MGR]> do ^%RR
 Restore from file: usr.ro
 
-Saved by %RS from [USR,DEFAULT] on 24 Dec 2020 at 12:10:00 PM
+Saved by %RS from [USR,TST] on 24 Dec 2020 at 12:10:00 PM
 RSM USR routines
 Restore N> y
 GETDOCS   PATINFO   NAMEINFO
 
-RSM> d ^%GR
+RSM [MGR]> do ^%GR
 Restore from file: usr.go
 
-Saved by %GS from [USR,DEFAULT] on 24 Dec 2020 at 12:15:00 PM
+Saved by %GS from [USR,TST] on 24 Dec 2020 at 12:15:00 PM
 RSM USR globals
 Restore N> y
-^DLW      ^PATIENTS ^XVEMS    ^UTILITY
-RSM> h
+^TST      ^PATIENTS ^XVEMS    ^UTILITY
+RSM [MGR]> kill ^$job
 ----
 
-Finally, load the new vendor utility routines, so that you get the upgraded
-versions, and then shut down your single user environment.
-
-[source,bash]
-----
-./rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' new-database.dat
-./rsm new-database.dat
-----
-
-[source,m]
-----
-RSM> kill ^$job
-----
-
-Now you have a fully upgraded RSM system.
+Now you have a fully upgraded RSM database.
 
 [role="right"]
-link:index.adoc[Site Directory]
+link:index.adoc[Index]
