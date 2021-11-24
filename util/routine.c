@@ -73,7 +73,7 @@ void Dump_rbd(void)                                                             
     t = current_time(FALSE);
     printf("Dump of all Routine Buffer Descriptors on %s\r\n", ctime(&t));
     printf("Free at %10p\r\n", systab->vol[0]->rbd_hash[RBD_HASH]);
-    printf("       Address     fwd_link chunk_size attach last_access UCI VOL routine_size routine_name\r\n");
+    printf("       Address       fwd_link chunk_size attach last_access UCI VOL routine_size routine_name\r\n");
     tmp[VAR_LEN] = '\0';                                                        // null terminate temp
 
     while (TRUE) {                                                              // for all
@@ -84,7 +84,7 @@ void Dump_rbd(void)                                                             
             tmp[i] = p->rnam.var_cu[i];
         }
 
-        printf("%10p %12p %10u %6d %11lld %3d %3d %12d %s\r\n",
+        printf("%10p %14p %10u %6d %11lld %3d %3d %12d %s\r\n",
                p, p->fwd_link, p->chunk_size, p->attached,
                (long long) p->last_access, p->uci, p->vol, p->rou_size, tmp);
 
@@ -326,8 +326,8 @@ rbd *Routine_Attach(var_u routine)                                              
     uci = partab.jobtab->ruci;                                                  // get current UCI
     vol = partab.jobtab->rvol;                                                  // and vol
 
-    if (test->var_cu[0] == '%') {
-        uci = 1;                                                                // check for a % routine
+    if (test->var_cu[0] == '%') {                                               // check for a % routine
+        uci = 1;
         vol = 1;
     }
 
@@ -419,7 +419,7 @@ ENABLE_WARN
     ptr->var_tbl += RBD_OVERHEAD;                                               // adjust for RBD junk
     ptr->code += RBD_OVERHEAD;                                                  // adjust for RBD junk
 
-    if (ptr->comp_ver != COMP_VER) {                                            // check comp version
+    if (ptr->comp_ver != COMP_VER) {                                            // check compiler version
         ptr->attached--;                                                        // decrement the count
         Routine_Free(ptr);                                                      // free the space
         s = SemOp(SEM_ROU, systab->maxjob);                                     // release the lock

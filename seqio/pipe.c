@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential named pipe IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020 Fourth Watch Software LC
+ * Copyright © 2020-2021 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman

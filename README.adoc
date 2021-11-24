@@ -7,7 +7,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 = Reference Standard M
 
-*Version 1.75.0 - 2021 Nov 12*
+*Version 1.75.1 - 2021 Nov 23*
 
 === Implementation of ANSI Standard M X11.1-1995 and ISO/IEC 11756:1999
 
@@ -54,12 +54,20 @@ The RSM link:doc/index.adoc[documentation] is a work-in-progress.
 
 === Installation
 
-RSM builds and runs on Linux x86 and x86_64 (little or big-endian), AIX (little
-or big-endian), FreeBSD, NetBSD, OpenBSD, MacOS X 10.4 through 11.4, in 32 and
-64 bit mode (using GCC or Clang), Solaris on x86 and x86_64, the Raspberry Pi
-(ARMv6 and ARMv7) running Raspbian, and Windows 10, under Cygwin and Windows
-Subsystem for Linux (WSL) versions 1 and 2. It might also run on Windows 7 and
-Windows XP, under Cygwin, but it has not been built or tested there recently.
+RSM builds and runs on most Unix, and Unix-derived platforms, running 32-bit and
+64-bit processors, in little-endian and big-endian mode. The platforms that have
+been tested, or known to build and run RSM, are:
+
+* Linux (Ubuntu, Debian, Red Hat, OpenSUSE, and Slackware) on i386 and x86_64
+* AIX on ppc32be
+* FreeBSD on amd64
+* NetBSD on amd64
+* OpenBSD on amd64
+* MacOS X 10.4 through 11.6 in 32 and 64-bit mode, and M1 ARMv8 (Clang or GCC)
+* Solaris on i86pc
+* Raspberry Pi on armv6l and armv7l running Raspbian
+* Windows XP, 7, and 10, under Cygwin and Windows Subsystem for Linux 1 and 2
+* Mobian (Mobile Debian Linux) on aarch64
 
 Thanks to John Willis for providing access to his build farm for testing.
 
@@ -67,43 +75,43 @@ To build RSM, clone the RSM git repository:
 
 [source,bash]
 ----
-git clone https://gitlab.com/Reference-Standard-M/rsm.git
+$ git clone https://gitlab.com/Reference-Standard-M/rsm.git
 ----
 
 Change to the `rsm` directory and build the `rsm` executable:
 
 [source,bash]
 ----
-make
+$ make
 ----
 or
 [source,bash]
 ----
-make -j
+$ make -j
 ----
 
 On FreeBSD, NetBSD, and OpenBSD:
 
 [source,bash]
 ----
-make -f BSDmakefile
+$ make -f BSDmakefile
 ----
 or
 [source,bash]
 ----
-make -j -f BSDmakefile
+$ make -j -f BSDmakefile
 ----
 
 On Solaris:
 
 [source,bash]
 ----
-gmake
+$ gmake
 ----
 or
 [source,bash]
 ----
-gmake -j
+$ gmake -j
 ----
 
 The resulting `rsm` executable will be optimized for your system.
@@ -112,31 +120,31 @@ Install the `rsm` executable in a system location [/usr/local/bin]:
 
 [source,bash]
 ----
-sudo make install
+$ sudo make install
 ----
 or
 [source,bash]
 ----
-sudo make install path=<path-to-system-location>
+$ sudo make install path=<path-to-system-location>
 ----
 
 Clean up the build environment after installation:
 
 [source,bash]
 ----
-make clean
+$ make clean
 ----
 
 Uninstall the `rsm` executable from a system location [/usr/local/bin]:
 
 [source,bash]
 ----
-sudo make uninstall
+$ sudo make uninstall
 ----
 or
 [source,bash]
 ----
-sudo make uninstall path=<path-to-system-location>
+$ sudo make uninstall path=<path-to-system-location>
 ----
 
 === Usage
@@ -148,27 +156,27 @@ Output a short version string:
 
 [source,bash]
 ----
-rsm -V
+$ rsm -V
 ----
 
 Output a helpful options menu:
 
 [source,bash]
 ----
-rsm -h
+$ rsm -h
 ----
 
 Output a database and environment configuration:
 
 [source,bash]
 ----
-rsm -i tst.dat
+$ rsm -i tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm -i
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -i
 ----
 
 To use RSM, create a database:
@@ -183,13 +191,13 @@ To use RSM, create a database:
 # [-e <environment-name>]  Name of manager UCI        (1-32 alpha characters)
 # [<database-file>]        Name of the database file
 
-rsm -v TST -b 16 -s 4096 tst.dat
+$ rsm -v TST -b 16 -s 4096 tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm -v TST -b 16 -s 4096
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -v TST -b 16 -s 4096
 ----
 
 NOTE: In order to load the supplied M utilities, use a block size of 14 KiB or
@@ -205,13 +213,13 @@ Initialize and start the environment:
 # [-r <routine-buffers>]  Size of routine buffers    (1-4095 MiB)
 # [<database-file>]       Name of the database file
 
-rsm -j 12 tst.dat
+$ rsm -j 12 tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm -j 12
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -j 12
 ----
 
 On MacOS X, you might need to increase the accessible shared memory before
@@ -221,8 +229,8 @@ resources:
 
 [source,bash]
 ....
-sudo sysctl -w kern.sysv.shmmax=536870912
-sudo sysctl -w kern.sysv.shmall=131072
+$ sudo sysctl -w kern.sysv.shmmax=536870912
+$ sudo sysctl -w kern.sysv.shmall=131072
 ....
 
 On Cygwin, you need to configure and start `cygserver` (as administrator) before
@@ -230,8 +238,8 @@ starting the RSM environment, as it provides the SysV shared memory support.
 
 [source,bash]
 ----
-cygserver-config
-cygrunsrv -S cygserver
+$ cygserver-config
+$ cygrunsrv -S cygserver
 ----
 
 Load the M utilities:
@@ -242,17 +250,14 @@ Load the M utilities:
 # -x <M-command(s)>  String of M commands
 # [<database-file>]  Name of the database file
 
-rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' tst.dat
+$ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code' tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code'
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
 ----
-
-NOTE: On Solaris and Cygwin, `$horolog` is in UTC as these implementations don't
-have a local time offset
 
 Start direct mode:
 
@@ -263,13 +268,13 @@ Start direct mode:
 # [-x <M-command(s)>]      String of M commands to execute
 # [<database-file>]        Name of the database file
 
-rsm tst.dat
+$ rsm tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm
 ----
 
 Run an M routine in indirect mode:
@@ -281,26 +286,36 @@ Run an M routine in indirect mode:
 # -x <M-command(s)>  String of M commands
 # [<database-file>]  Name of the database file
 
-rsm -x "do ^%M" tst.dat
+$ rsm -x "do ^%M" tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm -x "do ^%M"
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -x "do ^%M"
+----
+
+When upgrading to a new version of RSM, you might occasionally run in to an
+issue executing a routine. Normally this will not be an issue, but if it is, you
+can fix it by recompiling the routines:
+
+[source,m]
+----
+RSM [MGR]> merge ^$routine("%RECOMP")=^$routine("%RECOMP")
+RSM [MGR]> do ^%RECOMP
 ----
 
 Stop and shut down environment:
 
 [source,bash]
 ----
-rsm -k tst.dat
+$ rsm -k tst.dat
 ----
 or
 [source,bash]
 ----
-export RSM_DBFILE="/home/user/rsm/tst.dat"
-rsm -k
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -k
 ----
 
 From within an RSM job:

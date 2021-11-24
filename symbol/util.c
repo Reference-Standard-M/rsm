@@ -118,7 +118,7 @@ short ST_LocateIdx(int idx)                                                     
 
     fwd = partab.jobtab->dostk[partab.jobtab->cur_do].symbol[idx];
     if (fwd > -1) return fwd;                                                   // got it
-    p = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+    p = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
     vt = (var_u *) (((u_char *) p) + p->var_tbl);                               // point at var table
     VAR_COPY(var, vt[idx]);                                                     // get the var name
     fwd = ST_SymAtt(var);                                                       // attach and get index

@@ -92,7 +92,7 @@ short Insert(u_char *key, cstring *data)                                        
 
     ccc = 0;                                                                    // start here
 
-    if ((key[0]) && (keybuf[0])) {                                              // if any there
+    if (key[0] && keybuf[0]) {                                                  // if any there
         while (key[ccc + 1] == keybuf[ccc + 1]) {                               // while the same
             if ((ccc == key[0]) || (ccc == keybuf[0])) break;                   // at end of either we're done
             ccc++;                                                              // increment ptr
@@ -339,7 +339,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
 
         ccc = 0;                                                                // start here
 
-        if ((fk[0]) && (keybuf[0])) {                                           // if any there
+        if (fk[0] && keybuf[0]) {                                               // if any there
             while (fk[ccc + 1] == keybuf[ccc + 1]) {                            // while the same
                 if ((ccc == fk[0]) || (ccc == keybuf[0])) break;                // at end of either, done
                 ccc++;                                                          // increment ptr

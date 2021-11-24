@@ -298,7 +298,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
     }
 
     chunk = (cstring *) &iidx[idx[IDX_START]];                                  // point at 1st chunk
-    left_edge = (!chunk->buf[1]);                                               // check for first
+    left_edge = !chunk->buf[1];                                                 // check for first
 
     if (chunk->buf[0]) {                                                        // non-zero ccc
         outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - non-zero ccc on first key", block, points_at); // error msg
@@ -321,7 +321,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 
         for (Lidx = IDX_START; Lidx <= Llast; Lidx++) {
             level = Llevel;                                                     // restore this
-            if ((!level) && (Lidx == IDX_START)) continue;                      // ignore entry for $GLOBAL in GD
+            if (!level && (Lidx == IDX_START)) continue;                        // ignore entry for $GLOBAL in GD
             blk[level] = Lgbd;                                                  // and this
             idx = (u_short *) blk[level]->mem;                                  // point at the block
             iidx = (int *) blk[level]->mem;                                     // point at the block
@@ -338,7 +338,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
             Align_record();                                                     // ensure aligned
             b1 = *(u_int *) record;                                             // get blk#
 
-            if ((b1 > volsiz) || (!b1)) {                                       // out of range
+            if ((b1 > volsiz) || !b1) {                                         // out of range
                 outc->len = sprintf((char *) &outc->buf[0], "%10u <- %10u - (%d) block %u outside vol - skipped",
                                     block, points_at, Lidx, b1);                // error msg
 
@@ -349,7 +349,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
             }
 
             for (i = 0; i < level; i++) {                                       // scan above
-                if ((blk[level]) && (blk[level]->block == b1)) {                // check for loop
+                if (blk[level] && (blk[level]->block == b1)) {                  // check for loop
                     outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - points at itself", b1, block); // error msg
                     icerr++;                                                    // count it
                     (void) SQ_Write(outc);                                      // output it
@@ -362,7 +362,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
             if (!b1) continue;                                                  // check again
             if (doing_full) ic_bits(b1, 2 + (left_edge || !level), block);      // check bits
 
-            if ((lb) && (level)) {                                              // if we have a lb
+            if (lb && level) {                                                  // if we have a lb
                 if (brl != b1) {                                                // if not the same
                     outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - right is %10d next down is %10d",
                                         lb, block, brl, b1);                    // error msg
@@ -406,7 +406,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         (void) SQ_WriteFormat(SQ_LF);                                           // and a !
     }
 
-    isdata = ((blk[level]->mem->type > 64) && (level));
+    isdata = ((blk[level]->mem->type > 64) && level);
     isx = (u_short *) blk[level]->mem;
     iix = (u_int *) blk[level]->mem;
     k1[0] = 0;
@@ -424,7 +424,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         r = (cstring *) &c->buf[c->buf[1] + 2];
 
         if (isdata && (r->len != NODE_UNDEFINED)) {
-            if (&r->buf[(r->len == 0) ? 0 : (r->len - 1)] > eob) {
+            if (&r->buf[r->len - 1] > eob) {
                 outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - dbc is too big - overflows block", block, points_at);
                 icerr++;                                                        // count it
                 (void) SQ_Write(outc);                                          // output it
