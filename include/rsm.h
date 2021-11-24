@@ -55,7 +55,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       75                                                  // Minor version number
-#define VERSION_PATCH       0                                                   // Patch version number
+#define VERSION_PATCH       1                                                   // Patch version number
 #define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
@@ -76,12 +76,12 @@
 #define MAX_PREC            64                                                  // max number of decimal places
 #define MAX_NUM_BYTES       256                                                 // max size of a number
 
-#define MAX_STR_LEN         65534                                               // max size of a string (65535 for NODE_UNDEFINED)
+#define MAX_STR_LEN         65534                                               // max size of a string (65535 VAR/NODE_UNDEFINED)
 #define MAX_KEY_SIZE        255                                                 // max size of a key
 #define MAX_SUB_LEN         127                                                 // max size of a subscript
 #define MAX_NUM_SUBS        63                                                  // max number of subscripts
 
-#define MAX_NUM_ARGS        127                                                 // max number of arguments
+#define MAX_NUM_ARGS        (127 - 1)                                           // max number of arguments
 #define MAX_NUM_TAGS        256                                                 // max number of tags/labels
 #define MAX_NUM_VARS        256                                                 // max number of routine variables
 
@@ -167,7 +167,7 @@
 
 #define LOCKTAB_SIZE        8192                                                // 8 KiB per job
 #define UCI_IS_LOCALVAR     255                                                 // for struct mvar
-#define VAR_UNDEFINED       (MAX_STR_LEN + 1)                                   // undefined variable
+#define VAR_UNDEFINED       (MAX_STR_LEN + 1)                                   // undefined variable (also NODE_UNDEFINED)
 
 #define MAX_ASTK            1024                                                // max depth of addstk
 #define MAX_SSTK            (MBYTE * 2)                                         // max string stack (2 MiB)

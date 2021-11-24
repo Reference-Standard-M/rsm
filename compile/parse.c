@@ -129,8 +129,8 @@ void parse_do(int runtime)                                                      
                 source_ptr++;                                                   // skip the (
 
                 while (TRUE) {                                                  // while we have args
+                    if (args > MAX_NUM_ARGS) SYNTX;                             // too many
                     args++;                                                     // count an argument
-                    if (args > (MAX_NUM_ARGS + 1)) SYNTX;                       // too many - arg count is one ahead here
 
                     if (*source_ptr == ')') {                                   // trailing bracket ?
                         source_ptr++;                                           // skip the )
@@ -174,7 +174,6 @@ void parse_do(int runtime)                                                      
                     SYNTX;                                                      // all else is an error
                 }                                                               // end of while
 
-                args--;                                                         // back to real count
                 bcopy(save, comp_ptr, savecount);                               // copy the code back
                 comp_ptr += savecount;                                          // and add to the pointer
             }                                                                   // end of argument decode
@@ -333,8 +332,8 @@ void parse_job(int runtime)                                                     
                 source_ptr++;                                                   // skip the (
 
                 while (TRUE) {                                                  // while we have args
+                    if (args > MAX_NUM_ARGS) SYNTX;                             // too many
                     args++;                                                     // count an argument
-                    if (args > (MAX_NUM_ARGS + 1)) SYNTX;                       // too many - arg count is one ahead here
 
                     if (*source_ptr == ')') {                                   // trailing bracket ?
                         source_ptr++;                                           // skip the )
@@ -357,7 +356,6 @@ void parse_job(int runtime)                                                     
                     SYNTX;                                                      // all else is an error
                 }                                                               // end of while
 
-                args--;                                                         // back to real count
                 bcopy(save, comp_ptr, savecount);                               // copy the code back
                 ptr = comp_ptr;                                                 // move save pointer for timeout
                 comp_ptr += savecount;                                          // and add to the pointer
@@ -910,8 +908,8 @@ void write_fmt(void)                                                            
         source_ptr++;                                                           // skip the (
 
         while (TRUE) {                                                          // while we have args
+            if (args > MAX_NUM_ARGS) SYNTX;                                     // too many
             args++;                                                             // count an argument
-            if (args > (MAX_NUM_ARGS + 1)) SYNTX;                               // too many - arg count is one ahead here
 
             if (*source_ptr == ')') {                                           // trailing bracket ?
                 source_ptr++;                                                   // skip the )
@@ -936,7 +934,6 @@ void write_fmt(void)                                                            
             SYNTX;                                                              // all else is an error
         }                                                                       // end of while
 
-        args--;                                                                 // back to real count
         bcopy(save, comp_ptr, savecount);                                       // copy the code back
         comp_ptr += savecount;                                                  // and add to the pointer
     }                                                                           // end of argument decode

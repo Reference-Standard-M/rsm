@@ -601,7 +601,7 @@ short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
             mask &= ~DISCARD_LEADING;                                           // clear leading flag
         } else {
             if (islower((int) c) && (mask & CONVERT_TO_UPPER)) c &= ~0x20;      // lower to upper
-            if (isupper((int) c) && (mask & CONVERT_TO_LOWER)) c |= 0x20;                              // upper to lower
+            if (isupper((int) c) && (mask & CONVERT_TO_LOWER)) c |= 0x20;       // upper to lower
 
             if (c > ' ') {
                 *ostr++ = c;                                                    // store output char

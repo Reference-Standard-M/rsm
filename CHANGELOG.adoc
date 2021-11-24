@@ -9,6 +9,19 @@ link:doc/index.adoc[Index]
 
 = Reference Standard M Changelog
 
+=== v1.75.1 -- 2021 Nov 23
+
+* Fix false positive dbc overflow bug in the integrity checker
+* Revert fix of argument encoding from previous release
+* Improve the formatting of the `$&debug("rbd")` XCall
+* Improve the platform support section of the documentation
+* Add a helpful note about recompiling routines to the documentation
+* Make various small improvements to source code formatting
+
+This version reverted the previous version's change to the bytecode format. If
+you compiled any routines on the previous version you might need to recompile
+them.
+
 === v1.75.0 -- 2021 Nov 12
 
 * Add use of all ASCII characters [0-127] as input terminators
@@ -17,6 +30,7 @@ link:doc/index.adoc[Index]
 * Improve the `-k` option to the `rsm` executable, making it native and robust
 * Increase max I/O channels from 32 to 64
 * Restructure the help menu and add the new `-V` and `-i` options to it
+* Move the database/compiler version info from the help menu to the info menu
 * Add `uninstall` rule to the build files
 * Add `path=` option to the `install` and `uninstall` rules in the build files
 * Finish support for big-endian architectures
@@ -33,7 +47,6 @@ link:doc/index.adoc[Index]
 * Improve output of shell commands in pipe/shell modes of the `^$&%spawn` XCall
 * Remove terminal hacks in `utils.rsm` that are no longer necessary
 * Change database permissions on creation to 640 to match the journal file
-* Improve error handling for label offsets
 * Improve fix to double free bug preventing a possible leak during error frames
 * Fix bug that prevented display of some error messages when starting a job
 * Fix non-existent volume bug that leads to a segfault
@@ -66,6 +79,10 @@ link:doc/index.adoc[Index]
 * Add support for AIX to the source and build files
 * Make several improvements to the build files to make them more robust
 
+This version made a slight change to the bytecode format, but the compiler
+version was not updated. As a consequence you might need to recompile your
+routines.
+
 === v1.74.0 -- 2021 Jul 28
 
 * Increase max string length from 32767 characters to 65534 characters
@@ -95,7 +112,7 @@ link:doc/index.adoc[Index]
 * Fix bug that prevented the debugger from hitting a breakpoint more than once
 * Fix breakpoint bug in RSM debugger
 * Fix `$text` bug that returned the name of routines that did not exist
-* Fix bug that displays non-existent locks with the `$&debug` XCall
+* Fix bug that displays non-existent locks with the `$&debug("ltd")` XCall
 * Fix and improve the display of the `$&debug` XCall
 * Change the arguments to the `$&debug` XCall to be case-insensitive
 * Expose the "`struct`" argument to the `$&debug` XCall on all platforms
@@ -142,6 +159,9 @@ link:doc/index.adoc[Index]
 === v1.73.1 -- 2021 Mar 4
 
 * Add fix to support ISC Cache routine export format, supplied by Sam Habiel
+
+This version erroneously displays V1.73.0 instead of V1.73.1 when using `write
+$system` and `rsm -h`.
 
 === v1.73.0 -- 2020 Dec 26
 

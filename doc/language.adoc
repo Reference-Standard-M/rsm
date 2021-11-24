@@ -1727,6 +1727,9 @@ The current datetime.
 The number of days since 31 Dec 1840, a comma, the number of seconds since
 midnight.
 
+NOTE: On Solaris and Cygwin, `$horolog` is in UTC as these implementations don't
+have a local time offset
+
 ==== Standard
 
 Complies exactly.

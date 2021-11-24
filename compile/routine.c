@@ -363,7 +363,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
             ss = UTIL_Key_Extract(&rou->key[i], temp, &cnt);                    // key to extract
             if (ss < 0) return ss;                                              // die on error
             if ((ss > VAR_LEN) || (ss < 1)) return -ERRM38;                     // outside routine length (1 to VAR_LEN) then junk
-            i = i + cnt;                                                        // count used bytes
+            i += cnt;                                                           // count used bytes
             nsubs++;                                                            // count it
         }
 

@@ -1514,10 +1514,10 @@ short run(int savasp, int savssp)                                               
 
             for (i = 0; i < args; i++) {
                 s = Dchar(&cptr->buf[cptr->len], cstringtoi((cstring *) addstk[asp - args + i])); // do it
-                cptr->len = cptr->len + s;                                      // add the count
+                cptr->len += s;                                                 // add the count
             }
 
-            asp = asp - args;                                                   // remove the args
+            asp -= args;                                                        // remove the args
             ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
@@ -2118,11 +2118,6 @@ short run(int savasp, int savssp)                                               
                     ERROR(-(ERRZ70 + ERRMLAST));                                // if not permitted then complain
                 }
 
-                if (*rsmpc == OPERROR) {
-                    s = *(short *) ++rsmpc;                                     // get the offset error
-                    ERROR(s);
-                }
-
                 assert(sizeof(us) == sizeof(u_short));
                 bcopy(rsmpc, &us, sizeof(u_short));                             // get the offset
                 rsmpc += sizeof(u_short);
@@ -2137,7 +2132,7 @@ short run(int savasp, int savssp)                                               
                 ERROR(-(ERRZ7 + ERRMLAST));                                     // too many
             }
 
-            if ((var_empty(rou)) && (opc != CMDON)) {                           // check for no such
+            if (var_empty(rou) && (opc != CMDON)) {                             // check for no such
                 for (i = partab.jobtab->cur_do - 1; i > 0; i--) {
                     if (!var_empty(partab.jobtab->dostk[i].rounam)) {
                         VAR_COPY(rou, partab.jobtab->dostk[i].rounam);
@@ -2202,7 +2197,7 @@ short run(int savasp, int savssp)                                               
 
                 for (i = 0; i < rouadd->num_tags; i++) {                        // scan the tags
                     if (var_equal(ttbl[i].name, tag)) {                         // found it
-                        curframe->pc = curframe->pc + ttbl[i].code;             // adjust pc
+                        curframe->pc += ttbl[i].code;                           // adjust pc
                         j = 1;                                                  // flag ok
                         break;                                                  // and exit
                     }
@@ -2257,7 +2252,7 @@ short run(int savasp, int savssp)                                               
             rsmpc = curframe->pc;                                               // get the new pc
             args &= 127;                                                        // clear $$ bit of count
 
-            if ((args > 0) || (*rsmpc == LOADARG)) {                            // check for formal or actual args
+            if (args > 0) {                                                     // check for args
                 if (*rsmpc++ != LOADARG) {                                      // any there?
                     if (curframe->symbol != NULL) {
                         free(curframe->symbol);
@@ -2277,9 +2272,9 @@ short run(int savasp, int savssp)                                               
 
                 j = *rsmpc++;                                                   // number of them
 
-                if (args > j) {                                                 // too many supplied?
+                if ((args - 1) > j) {                                           // too many supplied?
                     if (curframe->symbol != NULL) {
-                        free(curframe->symbol);
+                        //free(curframe->symbol);                                 // DLW - causes segfault in some cases (M errors)
                         curframe->symbol = NULL;
                     }
 
@@ -2299,7 +2294,7 @@ short run(int savasp, int savssp)                                               
                 var->slen = 0;                                                  // no subscripts
                 t = 0;                                                          // clear error flag
 
-                for (i = (args - 1); i >= 0; --i) {                             // for each supplied arg
+                for (i = args - 2; i >= 0; --i) {                               // for each supplied arg
                     var->volset = rsmpc[i] + 1;                                 // get the index
                     cptr = (cstring *) addstk[--asp];                           // get data ptr
 
@@ -2431,7 +2426,7 @@ short run(int savasp, int savssp)                                               
             if (args) {
                 strstk[i++] = '(';                                              // an open bracket
 
-                for (j = args; j > 0; --j) {                                    // for each arg
+                for (j = args - 1; j > 0; --j) {                                // for each arg
                     strstk[i++] = '"';                                          // quote it
                     cptr = (cstring *) addstk[asp - j];                         // get the arg
                     bcopy(cptr->buf, &strstk[i], cptr->len);                    // copy the arg
@@ -2719,7 +2714,7 @@ short run(int savasp, int savssp)                                               
                 Routine_Detach((rbd *) curframe->routine);                      // detach routine
             }
 
-            cptr = NULL;                                                        // shut up the c compiler
+            cptr = NULL;                                                        // shut up the C compiler
             if (opc == CMQUITA) cptr = (cstring *) addstk[--asp];               // if there was an arg then pick it up
             savasp = curframe->savasp;
             savssp = curframe->savssp;

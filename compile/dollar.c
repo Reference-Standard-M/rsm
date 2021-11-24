@@ -70,19 +70,20 @@ void dodollar(void)                                                             
             return;                                                             // and exit
         }
 
-        args = 128;                                                             // number of args (128=$$)
+        args = 129;                                                             // number of args (128=$$)
         if (i == -2) *ptr = CMDORT;                                             // tag and routine
         if (i == -3) *ptr = CMDOROU;                                            // just a routine
 
         if (*source_ptr == '(') {                                               // any args?
+            args--;                                                             // back to 128
             savecount = comp_ptr - ptr;                                         // bytes that got compiled
             bcopy(ptr, save, savecount);                                        // save that lot
             comp_ptr = ptr;                                                     // back where we started
             source_ptr++;                                                       // skip the (
 
             while (TRUE) {                                                      // while we have args
+                if (args > (MAX_NUM_ARGS | 128)) SYNTX;                         // too many (128=$$)
                 args++;                                                         // count an argument
-                if (args > 256) SYNTX;                                          // too many - arg count is one ahead here (128=$$)
 
                 if (*source_ptr == ')') {                                       // trailing bracket ?
                     source_ptr++;                                               // skip the )
@@ -126,7 +127,6 @@ void dodollar(void)                                                             
                 SYNTX;                                                          // all else is an error
             }                                                                   // end of while
 
-            args--;                                                             // back to real count
             bcopy(save, comp_ptr, savecount);                                   // copy the code back
             comp_ptr += savecount;                                              // and add to the pointer
         }                                                                       // end of argument decode
@@ -162,7 +162,7 @@ void dodollar(void)                                                             
             source_ptr--;                                                       // else backup the source ptr
         }
 
-        if (args > 2) {                                                         // all xcalls take 2 args
+        if (args > 2) {                                                         // all XCalls take 2 args
             comperror(-(ERRZ18 + ERRMLAST));                                    // junk
             return;
         }

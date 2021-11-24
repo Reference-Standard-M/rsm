@@ -32,7 +32,7 @@
 #define READ            -1                                                      // Locking defines makes
 #define WRITE           -systab->maxjob                                         // easy reading code
 #define WR_TO_R         (systab->maxjob - 1)                                    // from write to read
-#define NODE_UNDEFINED  (MAX_STR_LEN + 1)                                       // junk record (was -1)
+#define NODE_UNDEFINED  VAR_UNDEFINED                                           // junk record (was -1 now MAX_STR_LEN + 1)
 #define PTR_UNDEFINED   0                                                       // junk pointer
 
 /*
