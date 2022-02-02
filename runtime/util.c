@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/runtime/util.c
- * Summary:  module runtime - RunTime Utilities
+ * Summary:  module runtime - Runtime Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -42,9 +42,9 @@
 
 int cstringtoi(cstring *str)                                                    // convert cstring to int
 {
-    int ret = 0;                                                                // return value
-    int i;                                                                      // for loops
-    int minus = FALSE;                                                          // sign check
+    long ret = 0;                                                               // return value
+    int  i;                                                                     // for loops
+    int  minus = FALSE;                                                         // sign check
 
     for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++) { // check leading characters
         if (str->buf[i] == '-') minus = !minus;                                 // count minus signs
@@ -52,14 +52,18 @@ int cstringtoi(cstring *str)                                                    
 
     for (; i < (int) str->len; i++) {                                           // for each character
         if ((str->buf[i] > '9') || (str->buf[i] < '0')) break;                  // check for digit
-        if (ret > 214748363) return INT_MAX;                                    // check for possible overflow
-        ret = (ret * 10) + ((int) str->buf[i] - 48);                            // Cvt to int
+        ret = (ret * 10) + ((int) str->buf[i] - '0');                           // convert to int
+
+        if (ret > INT_MAX) {                                                    // check for possible overflow or underflow
+            if (minus) return INT_MIN;
+            return INT_MAX;
+        }
     }                                                                           // end convert loop
 
     if ((systab->historic & HISTORIC_EOK) && (i < (str->len - 1)) && (str->buf[i] == 'E')) {
-        int exp = 0;                                                            // an exponent
-        int expsgn = 1;                                                         // and the sign
-        int j = 10;                                                             // for E calc
+        int  exp = 0;                                                           // an exponent
+        int  expsgn = 1;                                                        // and the sign
+        long j = 10;                                                            // for E calc
 
         i++;                                                                    // point past the 'E'
 
@@ -72,13 +76,18 @@ int cstringtoi(cstring *str)                                                    
 
         for (; i < str->len; i++) {                                             // scan remainder
             if ((str->buf[i] < '0') || (str->buf[i] > '9')) break;              // quit when done
-            exp = (exp * 10) + (str->buf[i] - '0');                             // add to exponent
+            exp = (exp * 10) + ((int) str->buf[i] - '0');                       // add to exponent
         }
 
         if (exp) {                                                              // if there was an exponent
             while (exp > 1) {                                                   // for each
                 j = j * 10;                                                     // multiply
                 exp--;                                                          // and count it
+
+                if (j > INT_MAX) {                                              // check for possible overflow or underflow
+                    if (expsgn > 0) return INT_MAX;
+                    return INT_MIN;
+                }
             }
 
             if (expsgn > 0) {                                                   // if positive
@@ -86,11 +95,17 @@ int cstringtoi(cstring *str)                                                    
             } else {                                                            // if negative
                 ret = ret / j;                                                  // do this
             }
+
+            if (ret > INT_MAX) {                                                // check for possible overflow or underflow
+                if (minus) return INT_MIN;
+                return INT_MAX;
+            }
+
         }
     }
 
     if (minus) ret = -ret;                                                      // change sign if reqd
-    return ret;                                                                 // return the value
+    return (int) ret;                                                           // return the value
 }                                                                               // end cstringtoi()
 
 int cstringtob(cstring *str)                                                    // convert cstring to boolean

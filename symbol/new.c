@@ -4,7 +4,7 @@
  * Summary:  module symbol - Symbol Table New'ing and UnNew'ing Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -52,7 +52,7 @@ short ST_New(int count, var_u *list)
     newtab->count_enn = 0;                                                      // not applicable
     newtab->stindex = NULL;                                                     // not needed
     newtab->count_new = count;                                                  // how many we are to new
-    newtab->locdata = (ST_locdata *) (((u_char *) &(newtab->locdata)) + sizeof(ST_locdata *)); // point at next free address
+    newtab->locdata = (ST_locdata *) (((u_char *) &newtab->locdata) + sizeof(ST_locdata *)); // point at next free address
 
     for (i = (count - 1); i >= 0; i--) {                                        // for all vars in list
         s = ST_SymAtt(list[i]);                                                 // attach to variable
@@ -116,8 +116,8 @@ short ST_NewAll(int count, var_u *list)
     newtab->fwd_link = (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab; // setup for link in
     newtab->count_enn = count;                                                  // existing non new count
     newtab->count_new = 0;                                                      // num vars new'd
-    newtab->stindex = (short *) (((u_char *) &(newtab->locdata)) + sizeof(ST_locdata *));
-    newtab->locdata = (ST_locdata *) (((u_char *) &(newtab->locdata)) + sizeof(ST_locdata *) + (cntnon * sizeof(short)));
+    newtab->stindex = (short *) (((u_char *) &newtab->locdata) + sizeof(ST_locdata *));
+    newtab->locdata = (ST_locdata *) (((u_char *) &newtab->locdata) + sizeof(ST_locdata *) + (cntnon * sizeof(short)));
 
     for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST
         if (symtab[i].varnam.var_cu[0] == '$') continue;                        // ignore $ vars, so go to next one

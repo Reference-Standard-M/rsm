@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, UCI manipulation
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -93,7 +93,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record ptr
         Align_record();                                                         // align it
         *(u_int *) record = blk[level]->block;                                  // point at self
-        bzero(&(record->buf[2]), sizeof(u_int));                                // zero flags
+        bzero(&record->buf[2], sizeof(u_int));                                  // zero flags
         blk[level]->dirty = blk[level];                                         // setup for write
         Queit();                                                                // queue for write
     }                                                                           // end new block code

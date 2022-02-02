@@ -4,7 +4,7 @@
  * Summary:  module database - Database keying functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -436,7 +436,7 @@ void Un_key(void)
     idx = (u_short *) blk[level]->mem;                                          // point at the block
     iidx = (int *) blk[level]->mem;                                             // point at the block
     chunk = (cstring *) &iidx[idx[IDX_START]];                                  // point at first chunk
-    uptr = &(chunk->buf[1]);                                                    // point at key
+    uptr = &chunk->buf[1];                                                      // point at key
 
     for (level = level - 1; level; level--) {                                   // for each above level
         s = Locate(uptr);                                                       // look for key
@@ -471,7 +471,7 @@ void Un_key(void)
                     idx = (u_short *) blk[level + 1]->mem;                      // point at the block
                     iidx = (int *) blk[level + 1]->mem;                         // point at the block
                     chunk = (cstring *) &iidx[idx[IDX_START]];                  // point at first chunk
-                    lptr = &(chunk->buf[1]);                                    // point at key
+                    lptr = &chunk->buf[1];                                      // point at key
                     xptr = (cstring *) cstr;                                    // point at spare
 DISABLE_WARN(-Warray-bounds)
                     xptr->len = 4;                                              // one int

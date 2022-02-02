@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential file IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -68,6 +68,10 @@ int SQ_File_Open (char *file, int op)
 
     case APPEND:
         flag = (O_WRONLY | O_APPEND | O_CREAT);
+        break;
+
+    case IO:
+        flag = (O_RDWR | O_CREAT);
         break;
 
     default:

@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential IO signal handling
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -30,7 +30,8 @@
  * may be delivered to a process (except SIGSTOP and SIGKILL), in order to
  * handle them internally. It provides the following function:
  *
- *     setSignals - Sets up the system defined set of signals.
+ *     setSignal -  Sets up specific signals
+ *     setSignals - Sets up the system defined set of signals
  */
 
 #include <errno.h>
@@ -79,7 +80,7 @@ int setSignal(int sig, int flag)
  * Note, if a signal arrives during one of the primitive operations (i.e., open,
  * read etc.), the operation will exit with -1, with "errno" set to EINTR.
  */
-int setSignals (void)
+int setSignals(void)
 {
     struct sigaction action;                                                    // man 2 sigaction
     sigset_t         handlermask;                                               // man 2 sigaction
@@ -90,28 +91,22 @@ int setSignals (void)
     action.sa_mask = handlermask;
     action.sa_flags = 0;
     action.sa_handler = signalHandler;
-
     action.sa_handler = SIG_IGN;
     ret = sigaction(SIGHUP, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
-
     ret = sigaction(SIGINT, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     action.sa_flags = SA_RESTART;
     ret = sigaction(SIGQUIT, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
     action.sa_flags = 0;
-
     action.sa_handler = SIG_DFL;                                                // let Unix do this one
     ret = sigaction(SIGILL, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
-
     ret = sigaction(SIGTRAP, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGABRT, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
 
@@ -126,12 +121,10 @@ int setSignals (void)
     ret = sigaction(SIGFPE, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
-
     action.sa_handler = SIG_DFL;                                                // let Unix do this one
     ret = sigaction(SIGBUS, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
-
     action.sa_handler = SIG_DFL;                                                // SIGSEGV is desirable
     ret = sigaction(SIGSEGV, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
@@ -146,19 +139,14 @@ int setSignals (void)
 
     ret = sigaction(SIGPIPE, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGALRM, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGTERM, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGURG, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGTSTP, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     action.sa_handler = SIG_IGN;
     ret = sigaction(SIGCONT, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
@@ -173,25 +161,18 @@ int setSignals (void)
 
     ret = sigaction(SIGTTIN, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGTTOU, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGIO, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGXCPU, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGXFSZ, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGVTALRM, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGPROF, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     action.sa_handler = SIG_IGN;                                                // Ignore for now
     ret = sigaction(SIGWINCH, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
@@ -206,7 +187,6 @@ int setSignals (void)
 
     ret = sigaction(SIGUSR1, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
-
     ret = sigaction(SIGUSR2, &action, NULL);
     if (ret == -1) return getError(SYS, errno);
     return 0;

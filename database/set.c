@@ -4,7 +4,7 @@
  * Summary:  module database - Set Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -45,7 +45,7 @@
  *         Insert point for G2 (a single node)
  *         v
  * +-------+-------+       +---------------+
- * |  G1   |   G3  +--->---+  G4           |
+ * |  G1   |   G3  +--->---+      G4       |
  * +-------+-------+       +---------------+
  *
  *
@@ -125,9 +125,8 @@ int Set_data(cstring *data)                                                     
     Get_GBDs(MAXTREEDEPTH * 2);                                                 // ensure this many
     s = Get_data(0);                                                            // try to find that
 
-    if ((s < 0) && (s != -ERRM7)) {                                             // check for errors
-        return s;                                                               // return the error
-    }                                                                           // WARNING: Leaves GBDs reserved
+    // WARNING: Leaves GBDs reserved
+    if ((s < 0) && (s != -ERRM7)) return s;                                     // check for errors and return the error
 
     if ((s == -ERRM7) && !level) {                                              // is global there
         level++;                                                                // no - where it goes

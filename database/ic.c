@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, Integrity Check
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -75,7 +75,7 @@ int DB_ic(int vol, int block)                                                   
     icerr = 0;                                                                  // clear errors
     doing_full = 0;                                                             // and this
     outc = (cstring *) wrt_buf;                                                 // for reporting
-    used = ((u_char *) systab->vol[volnum - 1]->map);                           // point at map
+    used = (u_char *) systab->vol[volnum - 1]->map;                             // point at map
     volsiz = systab->vol[volnum - 1]->vollab->max_block;                        // number of blocks
     gbd_expired = 0;                                                            // clear this
     for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL) continue;
@@ -110,8 +110,8 @@ int DB_ic(int vol, int block)                                                   
 /*
  * Function: ic_full
  * Descript: Do full integrity check on volnum (updates icerr)
- * Input(s): none
- * Return:   none
+ * Input(s): None
+ * Return:   None
  */
 void ic_full(void)                                                              // full check
 {
@@ -152,7 +152,7 @@ void ic_full(void)                                                              
 
     for (i = 0; i < (volsiz / 8); i++) {                                        // for each byte in map
         for (j = 0; j < 8; j++) {                                               // for each bit
-            off = (1U << j);                                                    // setup offset
+            off = 1U << j;                                                      // setup offset
             b1 = ((u_int) i * 8) + j;                                           // and block#
             bcopy("both pointers\0", msg, 14);                                  // default msg
 
@@ -185,11 +185,11 @@ void ic_full(void)                                                              
 
 /*
  * Function: ic_bits
- * Descript: check/set bits in rlnk and dlnk
+ * Descript: Check/set bits in rlnk and dlnk
  * Input(s): Block number to check
- *           flag: 1 = chk RL, 2 = chk DL, 3 = check both
- *           block that points at this block (if any)
- * Return:   none
+ *           Flag: 1 = chk RL, 2 = chk DL, 3 = check both
+ *           Block that points at this block (if any)
+ * Return:   None
  */
 void ic_bits(u_int block, int flag, u_int points_at)                            // check bits
 {
@@ -233,9 +233,12 @@ void ic_bits(u_int block, int flag, u_int points_at)                            
 
 /*
  * Function: ic_block
- * Descript: check supplied block
+ * Descript: Check supplied block
  * Input(s): Block number to check
- * Return:   none
+ *           Block that points at this block (if any)
+ *           Key from down pointer (if any)
+ *           Name of global from pointer block (if any)
+ * Return:   Right pointer (if any)
  */
 u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         // check block
 {
@@ -348,8 +351,8 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
                 continue;                                                       // ignore
             }
 
-            for (i = 0; i < level; i++) {                                       // scan above
-                if (blk[level] && (blk[level]->block == b1)) {                  // check for loop
+            for (i = 0; i <= level; i++) {                                      // scan above
+                if (blk[i] && (blk[i]->block == b1)) {                          // check for loop
                     outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - points at itself", b1, block); // error msg
                     icerr++;                                                    // count it
                     (void) SQ_Write(outc);                                      // output it
@@ -389,7 +392,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
     blk[level] = Lgbd;                                                          // and this
     idx = (u_short *) blk[level]->mem;                                          // point at the block
     iidx = (int *) blk[level]->mem;                                             // point at the block
-    if ((blk[level]->mem->right_ptr) && doing_full) ic_bits(blk[level]->mem->right_ptr, 1, block); // if we have a RL then say so
+    if (blk[level]->mem->right_ptr && doing_full) ic_bits(blk[level]->mem->right_ptr, 1, block); // if we have a RL then say so
     if (blk[level]->dirty == (gbd *) 3) blk[level]->dirty = NULL;               // if we reserved it then clear it
 
     if (blk[level]->mem->last_idx < IDX_START) {
@@ -434,14 +437,14 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 
         if (c->buf[0] == 255) continue;
 
-        if ((i == IDX_START) && (c->buf[0])) {
+        if ((i == IDX_START) && c->buf[0]) {
             outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - non-zero ccc in first record", block, points_at); // error
             icerr++;                                                            // count it
             (void) SQ_Write(outc);                                              // output it
             (void) SQ_WriteFormat(SQ_LF);                                       // and a !
         }
 
-        if ((i > IDX_START) && (!c->buf[1])) {
+        if ((i > IDX_START) && !c->buf[1]) {
             outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - zero ucc found", block, points_at); // error msg
             icerr++;                                                            // count it
             (void) SQ_Write(outc);                                              // output it
@@ -451,7 +454,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         bcopy(&c->buf[2], &k2[c->buf[0] + 1], c->buf[1]);
         k2[0] = c->buf[0] + c->buf[1];
 
-        if ((k2[0]) || (i > IDX_START)) {
+        if (k2[0] || (i > IDX_START)) {
             if (UTIL_Key_KeyCmp(&k1[1], &k2[1], k1[0], k2[0]) != K2_GREATER) {
                 outc->len = sprintf((char *) &outc->buf[0], "%10d <- %10d - (%d) key does not follow previous",
                                     block, points_at, i);
@@ -470,9 +473,9 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 
 /*
  * Function: ic_map
- * Descript: check map block
- * Input(s): flag, -1 = Check only, -2 = Check and fix, -3 as -2 + track upto
- * Return:   none
+ * Descript: Check map block
+ * Input(s): Flag, -1 = Check only, -2 = Check and fix, -3 as -2 + track upto
+ * Return:   None
  */
 void ic_map(int flag)                                                           // check the map
 {

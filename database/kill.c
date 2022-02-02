@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, Kill
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -171,7 +171,7 @@ cont:
             bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);   // fix the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
 
-            if ((keybuf[0] < db_var.slen) || (bcmp(&keybuf[1], &db_var.key, db_var.slen))) { // new key too small OR different
+            if ((keybuf[0] < db_var.slen) || bcmp(&keybuf[1], &db_var.key, db_var.slen)) { // new key too small OR different
                 break;                                                          // quit loop
             }
 

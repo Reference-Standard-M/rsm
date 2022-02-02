@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - standard includes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,21 +28,6 @@
 #ifndef _RSM_RSM_H_                                                             // only do this once
 #define _RSM_RSM_H_
 
-// Compiler warning suppression
-#define PRAGMA(x) _Pragma(#x)
-
-#if __GNUC__ >= 11
-#    define ENABLE_WARN _Pragma("GCC diagnostic pop")
-#else
-#    define ENABLE_WARN
-#endif
-
-#if __GNUC__ >= 11
-#    define DISABLE_WARN(name) _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
-#else
-#    define DISABLE_WARN(name)
-#endif
-
 // General constant definitions
 #define RSM_STRING(num)     RSM_STRINGIFY(num)
 #define RSM_STRINGIFY(num)  #num
@@ -54,8 +39,8 @@
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       75                                                  // Minor version number
-#define VERSION_PATCH       1                                                   // Patch version number
+#define VERSION_MINOR       76                                                  // Minor version number
+#define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
@@ -480,7 +465,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     long    addoff;                                                             // off from systab to add buff
     long    addsize;                                                            // add buff size
     vol_def *vol[MAX_VOL];                                                      // array of vol ptrs
-    u_int   last_blk_used[1];                                                   // actually setup for real jobs
+    u_int   last_blk_used[1];                                                   // actually setup for real jobs - NEEDS TO BE BY VOL
 } systab_struct;                                                                // end of systab
                                                                                 // Followed by jobtab
                                                                                 // sizeof(systab_struct) = 136 + (16 * VAR_LEN)
@@ -511,6 +496,21 @@ extern partab_struct partab;                                                    
 extern u_char        *addstk[];                                                 // address stack
 extern u_char        strstk[];                                                  // string stack
 extern u_char        *rsmpc;                                                    // RSM prog pointer
+
+// Compiler warning suppression
+#define PRAGMA(x) _Pragma(#x)
+
+#if __GNUC__ >= 11
+#    define ENABLE_WARN _Pragma("GCC diagnostic pop")
+#else
+#    define ENABLE_WARN
+#endif
+
+#if __GNUC__ >= 11
+#    define DISABLE_WARN(name) _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
+#else
+#    define DISABLE_WARN(name)
+#endif
 
 // VAR_U macros and inline functions
 #define VAR_CLEAR(var) \

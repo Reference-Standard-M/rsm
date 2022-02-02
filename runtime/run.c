@@ -4,7 +4,7 @@
  * Summary:  module runtime - run it
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -51,37 +51,37 @@ extern short in_hist;                                                           
  */
 short run(int savasp, int savssp)                                               // run compiled code
 {
-    int            opc;                                                         // current opcode
-    int            infor = 0;                                                   // for flag
-    int            offset;                                                      // for DO, GO, JOB offset
-    short          s = 0;                                                       // for function returns
-    u_short        us = 0;                                                      // for offsets
-    int            t = 0;                                                       // for function returns
-    short          hist;                                                        // for history buffer
-    int            i;                                                           // a handy int
-    int            j;                                                           // and another
-    int            args;                                                        // num arguments
-    int            flag;                                                        // a random flag
-    cstring        *cptr;                                                       // a cstring ptr
-    cstring        *ptr1 = NULL;                                                // a cstring ptr
-    cstring        *ptr2;                                                       // a cstring ptr
-    cstring        *tmp;                                                        // and another
-    mvar           *var;                                                        // an mvar pointer
-    mvar           *var2;                                                       // an mvar pointer
-    u_char         *p;                                                          // useful ptr
-    u_short        var_undefined = VAR_UNDEFINED;                               // for CMDO undefined vars
-    var_u          rou;                                                         // a routine name
-    var_u          tag;                                                         // a tag name
-    var_u          *list;                                                       // pointer to var_u things
-    tags           *ttbl;                                                       // a structure of tags
-    rbd            *rouadd;                                                     // routine pointer
-    do_frame       *curframe;                                                   // a do frame pointer
-    int            asp;                                                         // copy of asp
-    int            ssp;                                                         // and ssp
-    u_char         temp[MAX_NUM_BYTES];                                         // some temp storage for arithmetic
-    for_stack      *forx;                                                       // point at a for stack
-    var_u          *vt;                                                         // pointer for var tab
-    struct ST_DATA *data;                                                       // for direct symbol access
+    int       opc;                                                              // current opcode
+    int       infor = 0;                                                        // for flag
+    int       offset;                                                           // for DO, GO, JOB offset
+    short     s = 0;                                                            // for function returns
+    u_short   us = 0;                                                           // for offsets
+    int       t = 0;                                                            // for function returns
+    short     hist;                                                             // for history buffer
+    int       i;                                                                // a handy int
+    int       j;                                                                // and another
+    int       args;                                                             // num arguments
+    int       flag;                                                             // a random flag
+    cstring   *cptr;                                                            // a cstring ptr
+    cstring   *ptr1 = NULL;                                                     // a cstring ptr
+    cstring   *ptr2;                                                            // a cstring ptr
+    cstring   *tmp;                                                             // and another
+    mvar      *var;                                                             // an mvar pointer
+    mvar      *var2;                                                            // an mvar pointer
+    u_char    *p;                                                               // useful ptr
+    u_short   var_undefined = VAR_UNDEFINED;                                    // for CMDO undefined vars
+    var_u     rou;                                                              // a routine name
+    var_u     tag;                                                              // a tag name
+    var_u     *list;                                                            // pointer to var_u things
+    tags      *ttbl;                                                            // a structure of tags
+    rbd       *rouadd;                                                          // routine pointer
+    do_frame  *curframe;                                                        // a do frame pointer
+    int       asp;                                                              // copy of asp
+    int       ssp;                                                              // and ssp
+    u_char    temp[MAX_NUM_BYTES];                                              // some temp storage for arithmetic
+    for_stack *forx;                                                            // point at a for stack
+    var_u     *vt;                                                              // pointer for var tab
+    ST_data   *data;                                                            // for direct symbol access
 
     asp = savasp;
     ssp = savssp;
@@ -737,7 +737,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, ptr1);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, ptr1);                                          // do it - global
             }
 
@@ -778,7 +778,7 @@ short run(int savasp, int savssp)                                               
             var = (mvar *) addstk[asp-1];                                       // get the variable
 
             if ((var->uci != UCI_IS_LOCALVAR) && (var->name.var_cu[0] != '$')) { // a real global
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
             }
 
             break;                                                              // done
@@ -803,7 +803,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -828,7 +828,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -851,7 +851,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -876,7 +876,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -900,7 +900,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -925,7 +925,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -1508,6 +1508,33 @@ short run(int savasp, int savssp)                                               
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
+        case FUNI1:                                                             // $I[NCREMENT] 1 arg
+            var = (mvar *) addstk[--asp];                                       // get the variable pointer
+            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
+            s = Dincrement1(cptr->buf, var);                                    // do it
+            if (s < 0) ERROR(s);                                                // complain on error
+            cptr->len = s;                                                      // the count
+            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            addstk[asp++] = (u_char *) cptr;                                    // stack it
+            break;
+
+        case FUNI2:                                                             // $I[NCREMENT] 2 arg
+            cptr = (cstring *) addstk[--asp];
+            p = cptr->buf;
+            ptr1 = (cstring *) &strstk[ssp];
+            s = ncopy(&p, ptr1->buf);                                           // convert to canonic number
+            if (s < 0) ERROR(s);                                                // complain on error
+            ptr1->len = s;
+            ssp = ssp + sizeof(u_short) + ptr1->len + 1;                        // point past it
+            var = (mvar *) addstk[--asp];                                       // get first arg
+            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
+            s = Dincrement2(cptr->buf, var, ptr1);                              // do it
+            if (s < 0) ERROR(s);                                                // complain on error
+            cptr->len = s;                                                      // the count
+            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            addstk[asp++] = (u_char *) cptr;                                    // stack it
+            break;
+
         case FUNJ2:                                                             // $J[USTIFY] 2 arg
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             i = cstringtoi((cstring *) addstk[--asp]);                          // get second arg
@@ -1689,13 +1716,20 @@ short run(int savasp, int savssp)                                               
             }                                                                   // end environment stuff
 
             if (j == 0) {                                                       // the name?
-                for (i = 0; i < VAR_LEN; i++) {                                 // max VAR_LEN chars
-                    if (var->name.var_cu[i] == '\0') break;                     // done
-                    cptr->buf[i] = var->name.var_cu[i];                         // copy a character
+                int k = 0;
+
+                if (var->uci != UCI_IS_LOCALVAR) {                              // if it's a global
+                    cptr->buf[0] = '^';                                         // copy the caret
+                    k++;                                                        // increment past it
                 }
 
-                cptr->buf[i] = '\0';                                            // null terminate
-                cptr->len = i;                                                  // save the length
+                for (i = 0; i < VAR_LEN; i++) {                                 // max VAR_LEN chars
+                    if (var->name.var_cu[i] == '\0') break;                     // done
+                    cptr->buf[i + k] = var->name.var_cu[i];                     // copy a character
+                }
+
+                cptr->buf[i + k] = '\0';                                        // null terminate
+                cptr->len = i + k;                                              // save the length
                 ssp = ssp + sizeof(u_short) + cptr->len + 1;                    // point past it
                 break;                                                          // done
             }
@@ -2710,7 +2744,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 s = SS_Kill(var);                                               // do it - SSVN
             } else {
-                bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen); // update naked
+                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
                 s = DB_Kill(var);                                               // do it - global
             }
 
@@ -3433,6 +3467,7 @@ short run(int savasp, int savssp)                                               
             j = cstringtoi((cstring *) addstk[--asp]);                          // get arg 2 (type)
             i = cstringtoi((cstring *) addstk[--asp]);                          // get arg 1 (vol)
             if ((i > MAX_VOL) || (i < 1)) ERROR(-ERRM26);                       // out of range
+            if (j < -2) ERROR(-(ERRZ64 + ERRMLAST));                            // range check
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             t = DB_ic(i, j);                                                    // do it
             if (t < 0) ERROR(t);                                                // give up on error
@@ -3442,7 +3477,7 @@ short run(int savasp, int savssp)                                               
             break;                                                              // done
 
         default:                                                                // can't happen
-            ERROR(-(ERRZ14 + ERRMLAST));                                        // i hope
+            ERROR(-(ERRZ14 + ERRMLAST));                                        // I hope
         }                                                                       // end of switch(opc)
     }                                                                           // end main while loop
 }

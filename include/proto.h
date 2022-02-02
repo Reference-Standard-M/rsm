@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - prototypes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -126,6 +126,8 @@ int   Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code);
 int   Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd);
 int   Dget1(u_char *ret_buffer, mvar *var);
 int   Dget2(u_char *ret_buffer, mvar *var, cstring *expr);
+short Dincrement1(u_char *ret_buffer, mvar *var);
+short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr);
 int   Djustify2(u_char *ret_buffer, cstring *expr, int size);
 int   Djustify3(u_char *ret_buffer, cstring *expr, int size, int round);
 short Dlength1(u_char *ret_buffer, cstring *expr);
@@ -150,8 +152,8 @@ int   Dtext(u_char *ret_buffer, cstring *str);
 int   Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
 int   Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3);
 int   Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value);   // $VIEW()
-int   DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2); // Set $PIECE()
 int   DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2);       // Set $EXTRACT()
+int   DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2); // Set $PIECE()
 
 // Runtime variables
 int   Vecode(u_char *ret_buffer);

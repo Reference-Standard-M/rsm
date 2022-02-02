@@ -4,7 +4,7 @@
  * Summary:  module runtime - debug
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -47,6 +47,7 @@ extern char    history[MAX_HISTORY][MAX_STR_LEN];                               
 extern u_short hist_next;                                                       // next history pointer
 extern u_short hist_curr;                                                       // history entry pointer
 extern short   in_hist;                                                         // are we in the history buffer
+extern u_short prompt_len;                                                      // length of the current direct mode prompt
 
 void Debug_off(void)                                                            // turn off debugging
 {
@@ -272,6 +273,7 @@ short Debug(int savasp, int savssp, int dot)                                    
             ptr->buf[ptr->len++] = '>';                                         // and that bit
             ptr->buf[ptr->len++] = ' ';                                         // and that bit
             ptr->buf[ptr->len] = '\0';                                          // null terminate
+            prompt_len = ptr->len;                                              // update the prompt length for direct mode editing
             s = SQ_Write(ptr);                                                  // write it
         }
 

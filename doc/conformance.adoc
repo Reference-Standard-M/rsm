@@ -11,8 +11,8 @@ link:index.adoc[Index]
 
 === Under Construction
 
-Reference Standard M Version 1.75.0 conforms to ANSI X11.1-1995 and ISO/IEC
-11756:1999 with the following exceptions:
+Reference Standard M Version 1.76.0 conforms to ANSI X11.1-1995 (ISO/IEC
+11756:1999) with the following exceptions:
 
 * Only supports the M Character Set Profile
 * Uniqueness of the values of `$SYSTEM` is guaranteed by compiler build macros

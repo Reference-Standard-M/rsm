@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions - Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -328,7 +328,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
         bcopy(&c->buf[2], &fk[c->buf[0] + 1], c->buf[1]);                       // copy key
         fk[0] = c->buf[0] + c->buf[1];                                          // and the length
         if (i < fidx) continue;                                                 // copy this one? no - just continue
-        c = (cstring *) &(c->buf[c->buf[1] + 2]);                               // point at dbc/ptr
+        c = (cstring *) &c->buf[c->buf[1] + 2];                                 // point at dbc/ptr
 
         if (isdata) {                                                           // if data
             if (c->len == NODE_UNDEFINED) continue;                             // junk record? then ignore it
@@ -622,15 +622,15 @@ void DoJournal(jrnrec *jj, cstring *data)                                       
     jptr = lseek(partab.jnl_fds[volnum - 1], systab->vol[volnum - 1]->jrn_next, SEEK_SET); // address to locn
     if (jptr != systab->vol[volnum  - 1]->jrn_next) goto fail;                  // if failed
     jj->size = 13 + sizeof(var_u) + jj->slen;
-    if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) jj->size = 12;     // not SET of KILL, set size is 12
-    i = jj->size;
+    if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) jj->size = 12;     // not SET or KILL, small size is 12
+    i = jj->size;                                                               // store full size, but data is written below
     if (jj->action == JRN_SET) jj->size += (sizeof(short) + data->len);
     jj->time = (u_int64) current_time(TRUE);                                    // store the time
     j = write(partab.jnl_fds[volnum - 1], jj, i);                               // write header
     if (j != i) goto fail;                                                      // if that failed
 
     if (jj->action == JRN_SET) {
-        i = (sizeof(short) + data->len);                                        // data size
+        i = sizeof(short) + data->len;                                          // data size
         j = write(partab.jnl_fds[volnum - 1], data, i);                         // write data
         if (j != i) goto fail;                                                  // if that failed
     }

@@ -4,7 +4,7 @@
  * Summary:  module database - Key Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -85,7 +85,7 @@ short UTIL_Key_Build(cstring *src, u_char *dest)                                
 
     if ((dp != -1) && (src->buf[src->len - 1] == '0')) goto string;             // check trailing 0 after dp
     if (dp == (src->len - 1)) goto string;                                      // or dp is last char in str
-    if (dp == -1) dp = (src->len - minus);                                      // get dp posn (assumed)
+    if (dp == -1) dp = (src->len - minus);                                      // get dp position (assumed)
     if (dp > 63) goto string;                                                   // max 63 digits b4 dp
 
     if (!minus) {                                                               // do a positive number
@@ -520,7 +520,7 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *
             for (i++; Key[i]; i++) continue;                                    // loop til find NULL
             i++;                                                                // skip NULL char
         } else {                                                                // else if -ve
-            for (i++; (Key[i] != -1); i++) continue;                            // loop til find $C(255)
+            for (i++; Key[i] != -1; i++) continue;                              // loop til find $C(255)
             i++;                                                                // skip past 255
         }
 

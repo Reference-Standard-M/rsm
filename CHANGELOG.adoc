@@ -9,16 +9,51 @@ link:doc/index.adoc[Index]
 
 = Reference Standard M Changelog
 
+=== v1.76.0 -- 2022 Feb 1
+
+* Add `$increment` intrinsic function
+* Add `^$character` system variable
+* Add `^$device` system variable
+* Add Dockerfile to create a simple RSM Docker container image
+* Add daemon PID information to the system information menu
+* Add new vendor utility for forward journal recovery [`^JOURNREC`]
+* Add multi-line input editing capability to the direct and debug modes
+* Improve multi-line editing in the MCL vendor utility routine [`^%M`]
+* Add support for read-write operations (`IO`) on files to the `open` command
+* Improve translation table syntax to allow globals without extended references
+* Reformat the M code in `utils.rsm`
+* Add `big_endian` node to the `^$system` system variable
+* Add `"collate"` node to the `^$global` system variable
+* Add `docker` script to run RSM in the RSM Docker container
+* Modify vendor utility routine `BIGEND^%U` to use `^$system("big_endian")`
+* Fix `$qsubscript` bug which returns global names without the caret [`^`]
+* Fix bug in the integrity checker loop test that prevents full checks
+* Improve overflow and underflow checks in string to int conversion function
+* Improve the formatting of the `$&debug("rbd")` and `$&debug("ltd")` XCalls
+* Fix error trap bugs in the global extended lister vendor routine [`^%G`]
+* Fix bug in the error trap of the integrity checker vendor routine [`^IC`]
+* Fix 12 hour mode in the time display vendor routine [`^%T`]
+* Add 24 hour mode option to the time display vendor routine [`^%T`]
+* Fix bug in UCI editor vendor routine [`^UCI`], preventing proper editing
+* Add documentation for the new instrinsic function and the new system variables
+* Add missing documentation to the language guide
+* Fix mistake in the documentation for `break` in the language guide
+* Fix description of standard compliance for `set` in the language guide
+* Change `make test` to `make debug`
+* Move asserts to debug build
+* Remove redundant vendor routine [`^MUMTRIS2`] -- already in `^MUMTRIS`
+
 === v1.75.1 -- 2021 Nov 23
 
 * Fix false positive dbc overflow bug in the integrity checker
 * Revert fix of argument encoding from previous release
+* Fix tag/label offset bug with offsets of 2
 * Improve the formatting of the `$&debug("rbd")` XCall
 * Improve the platform support section of the documentation
 * Add a helpful note about recompiling routines to the documentation
 * Make various small improvements to source code formatting
 
-This version reverted the previous version's change to the bytecode format. If
+This version reverts the previous version's change to the bytecode format. If
 you compiled any routines on the previous version you might need to recompile
 them.
 
@@ -41,22 +76,22 @@ them.
 * Reformat all source files that haven't already been reformatted
 * Rename most of the source files and restructure init utilities
 * Fix argument encoding to work with full argument limits
-* Improve error handling of tag offsets that are too large
-* Fix bug in debugger that prevented proper reset in certain scenarios
+* Improve error handling of tag/label offsets that are too large
+* Fix bug in debugger that prevents proper reset in certain scenarios
 * Add current volume to the M Command Language (MCL) prompt
 * Improve output of shell commands in pipe/shell modes of the `^$&%spawn` XCall
 * Remove terminal hacks in `utils.rsm` that are no longer necessary
 * Change database permissions on creation to 640 to match the journal file
 * Improve fix to double free bug preventing a possible leak during error frames
-* Fix bug that prevented display of some error messages when starting a job
+* Fix bug that prevents display of some error messages when starting a job
 * Fix non-existent volume bug that leads to a segfault
-* Fix bug with "`t`" option not adding a trailing space in `$fnumber`
+* Fix bug with `"t"` option not adding a trailing space in `$fnumber`
 * Fix the semantics of timeouts of 0 with the `open` and `read` commands
-* Fix bug that mangled arguments to the `job` command when run via `rsm -x`
+* Fix bug that mangles arguments to the `job` command when run via `rsm -x`
 * Fix bug in the inline function that tests for empty names (`VAR_U`)
 * Fix bug that left an open database file descriptor when starting the daemons
-* Fix bug that opened the database file a second time during a `job` command
-* Fix bug in the `$&paschk` XCall that closed the password file prematurely
+* Fix bug that opens the database file a second time during a `job` command
+* Fix bug in the `$&paschk` XCall that closes the password file prematurely
 * Fix issues with some XCalls on MacOS X
 * Improve, and fix, some of the M language error messages
 * Rework some of the error macros
@@ -64,7 +99,7 @@ them.
 * Optimize part of the sequential I/O initialization
 * Add new vendor utility routine to show current breakpoints [`^%SHOWBP`]
 * Fix bug in the big-endian M vendor utility routine entryref [`$$BIGEND^%U`]
-* Fix bug in vendor global lister utility routine [`%G`]
+* Fix bug in vendor global extended lister utility routine [`%G`]
 * Fix display bug in vendor routine directory utility routine [`^%RD`]
 * Improve output of the block dumping vendor utility routine [`^%BLKDMP`]
 * Improve the screen handling of the MCL vendor utility routine [`^%M`]
@@ -86,7 +121,8 @@ routines.
 === v1.74.0 -- 2021 Jul 28
 
 * Increase max string length from 32767 characters to 65534 characters
-* Increase max jobs from 256 to 512, and max write/garbage daemons from 10 to 20
+* Increase max jobs from 256 to 512
+* Increase max write/garbage daemons from 10 to 20
 * Add history recall functionality to direct and debug modes [127 line buffer]
 * Add `-k` option to `rsm` executable, to stop an environment from the shell
 * Add message when shutting down an environment
@@ -109,9 +145,8 @@ routines.
 * Fix `^$system` bug that leads to a segfault
 * Fix display bug when retrieving historic features support values in `^$system`
 * Fix bug when setting historic features support values in `^$system`
-* Fix bug that prevented the debugger from hitting a breakpoint more than once
-* Fix breakpoint bug in RSM debugger
-* Fix `$text` bug that returned the name of routines that did not exist
+* Fix bug that prevents the debugger from hitting a breakpoint more than once
+* Fix `$text` bug that returns the name of routines that did not exist
 * Fix bug that displays non-existent locks with the `$&debug("ltd")` XCall
 * Fix and improve the display of the `$&debug` XCall
 * Change the arguments to the `$&debug` XCall to be case-insensitive
@@ -146,11 +181,11 @@ routines.
 * Improve variable scoping in vendor utility routines
 * Modify vendor utility routines to use `^$system("string_max")`
 * Improve support for long output to vendor utility routine [`^%U`]
-* Fix bug in the way labels are defined in the `^MATH` utility routines
+* Fix bug in the way tags/labels are defined in the `^MATH` utility routines
 * Fix bug preventing the `^%ZUCI` routine from handling user error inputs
 * Improve formatting of vendor utility routines
 * Improve the upgrade script
-* Fix bug on Cygwin that prevented a privileged job from shutting RSM down
+* Fix bug on Cygwin that prevents a privileged job from shutting RSM down
 * Fix various minor bugs
 * Improve data typing throughout
 * Improve parts of the documentation
@@ -169,7 +204,7 @@ $system` and `rsm -h`.
   - Global variable names
   - Local variable names
   - Routine names
-  - Routine tag names
+  - Routine tag/label names
   - UCI names
   - Volume names
 * Add `name_length` node to the `^$system` system variable for version support
@@ -241,7 +276,7 @@ Douglas Newman, located at https://gitlab.com/Reference-Standard-M/mumpsv1.
 The initial release notes refer to changes between MUMPS V1.71 and Reference
 Standard M V1.72.0.
 
-* Change repository to refer to new name, maintainer, copyright, and licence
+* Change repository to refer to new name, maintainer, copyright, and license
 * Update build rules to maintain support on the platforms we are targeting
 * Fix various compiler warnings on supported platforms
 * Fix various linter errors and warnings

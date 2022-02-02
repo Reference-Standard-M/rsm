@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate functions, vars etc.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -100,7 +100,7 @@ void dodollar(void)                                                             
                         atom();                                                 // eval the string
                         *comp_ptr++ = INDMVAR;
                     } else {
-                        p = comp_ptr;                                           // save current posn
+                        p = comp_ptr;                                           // save current position
                         s = localvar();                                         // get a variable
 
                         if (s < 0) {                                            // if we got an error
@@ -162,7 +162,7 @@ void dodollar(void)                                                             
             source_ptr--;                                                       // else backup the source ptr
         }
 
-        if (args > 2) {                                                         // all XCalls take 2 args
+        if (args > 2) {                                                         // all XCalls take two args
             comperror(-(ERRZ18 + ERRMLAST));                                    // junk
             return;
         }
@@ -387,8 +387,10 @@ function:                                                                       
     ptr = comp_ptr;                                                             // remember where this goes
     sel = ((name[0] == 'S') && (toupper((int) name[1]) != 'T'));                // is $SELECT
 
-    if ((name[0] == 'D') || (name[0] == 'G') || (name[0] == 'N') || (name[0] == 'O') || // $DATA, $GET, $NAME/$NEXT, $ORDER
-      ((name[0] == 'Q') && (toupper((int) name[1]) != 'S') && (toupper((int) name[1]) != 'L'))) { // $QUERY, not $QS, and not $QL
+    // $DATA, $GET, $INCREMENT, $NAME/$NEXT, $ORDER
+    if ((name[0] == 'D') || (name[0] == 'G') || (name[0] == 'I') || (name[0] == 'N') || (name[0] == 'O') ||
+      // $QUERY, but not $QSUBSCRIPT, and not $QLENGTH
+      ((name[0] == 'Q') && (toupper((int) name[1]) != 'S') && (toupper((int) name[1]) != 'L'))) {
         if (*source_ptr == '@') {                                               // indirection ?
             atom();                                                             // eval it
             ptr = comp_ptr - 1;                                                 // remember where this goes
@@ -553,7 +555,22 @@ function:                                                                       
         if (args == 1) {
             *comp_ptr++ = FUNG1;                                                // one arg form
         } else if (args == 2) {
-            *comp_ptr++ = FUNG2;                                                // the 2 arg opcode
+            *comp_ptr++ = FUNG2;                                                // the two arg opcode
+        } else {
+            EXPRE;                                                              // all others junk
+        }
+
+        return;                                                                 // done
+
+    case 'I':                                                                   // $I[NCREMENT]
+        if (len > 1) {                                                          // check for extended name
+            if (strncasecmp(name, "increment\0", 10) != 0) EXPRE;
+        }
+
+        if (args == 1) {
+            *comp_ptr++ = FUNI1;                                                // one arg form
+        } else if (args == 2) {
+            *comp_ptr++ = FUNI2;                                                // the two arg opcode
         } else {
             EXPRE;                                                              // all others junk
         }
@@ -603,9 +620,9 @@ function:                                                                       
             assert(sizeof(s) == sizeof(short));
             bcopy(&s, comp_ptr, sizeof(short));
             comp_ptr += sizeof(short);
-            *comp_ptr++ = '2';                                                  // $N kludge
+            *comp_ptr++ = '2';                                                  // $NEXT kludge
             *comp_ptr++ = '\0';                                                 // null terminated
-            *comp_ptr++ = FUNO2;                                                // 2 arg form of $O()
+            *comp_ptr++ = FUNO2;                                                // two arg form of $ORDER()
             return;
         }
 
@@ -616,7 +633,7 @@ function:                                                                       
         if (args == 1) {
             *comp_ptr++ = FUNNA1;                                               // one arg form
         } else if (args == 2) {
-            *comp_ptr++ = FUNNA2;                                               // 2 arg opcode
+            *comp_ptr++ = FUNNA2;                                               // two arg opcode
         } else {                                                                // all else is junk
             EXPRE;
         }
@@ -629,9 +646,9 @@ function:                                                                       
         }
 
         if (args == 1) {
-            *comp_ptr++ = FUNO1;                                                // 1 arg form
+            *comp_ptr++ = FUNO1;                                                // one arg form
         } else if (args == 2) {
-            *comp_ptr++ = FUNO2;                                                // 2 arg form
+            *comp_ptr++ = FUNO2;                                                // two arg form
         } else {
             EXPRE;
         }

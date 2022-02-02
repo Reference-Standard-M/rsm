@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - internal opcodes (and only real opcodes)
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -128,7 +128,9 @@
 #define VART     94                                                             // $T[EST]
 #define VARX     95                                                             // $X
 #define VARY     96                                                             // $Y
-//spare          97 -> 99
+//spare          97
+#define FUNI1    98                                                             // $I[NCREMENT] 1 arg
+#define FUNI2    99                                                             // $I[NCREMENT] 2 arg
 
 #define FUNA1    100                                                            // $A[SCII] 1 arg
 #define FUNA2    101                                                            // $A[SCII] 2 arg

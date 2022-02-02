@@ -1,0 +1,48 @@
+#!/bin/bash -
+#
+# Package:  Reference Standard M
+# File:     rsm/bin/docker
+# Summary:  Run an RSM Docker container
+#
+# David Wicksell <dlw@linux.com>
+# Copyright © 2022 Fourth Watch Software LC
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License (AGPL) as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see http://www.gnu.org/licenses/.
+
+# Start the RSM environment, passing the max number of jobs via the 'docker run...' command, defaulting to 12
+rsm -j ${1:-12}
+
+echo -e "\nReference Standard M $(rsm -V) Docker Container\n"
+
+if [[ $# > 1 ]]
+then
+    shift
+
+    # Pass the rest of the arguments from the 'docker run...' command to RSM
+    rsm -x "$@"
+else
+    # Run RSM in direct mode when not in daemon mode, keep the container open while in daemon mode
+    rsm
+
+    # Check to see if RSM is running and if not, due to single-user configuration, keep the container open while in daemon mode
+    rsm -i &> /dev/null
+    [[ $? == 1 ]] && read rsm
+fi
+
+echo
+
+# Stop and remove the RSM environment
+rsm -k
+
+exit 0

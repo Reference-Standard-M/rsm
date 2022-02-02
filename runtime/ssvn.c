@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/runtime/ssvn.c
- * Summary:  module runtime - RunTime Variables
+ * Summary:  module runtime - Runtime Variables
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -52,7 +52,9 @@ extern struct termios tty_settings;                                             
  * SSVNs use the same structures as
  * ST_* and DB_ *functions (as SS_ *functions)
  *
- * Note valid SSVNs are:  $GLOBAL
+ * Note valid SSVNs are:  $CHARACTER
+ *                        $DEVICE
+ *                        $GLOBAL
  *                        $JOB
  *                        $LOCK
  *                        $ROUTINE
@@ -71,6 +73,32 @@ short SS_Norm(mvar *var)                                                        
     for (i = 0; i < VAR_LEN; i++) var->name.var_cu[i] = toupper(var->name.var_cu[i]); // scan the supplied name & copy to upper case
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
+    case 'C':                                                                   // $CHARACTER
+        if ((var->name.var_cu[2] == '\0') || (bcmp("CHARACTER\0", &var->name.var_cu[1], 10) == 0)) { // short form of name or if OK
+            VAR_CLEAR(var->name);
+            bcopy("$CHARACTER", &var->name.var_cu[0], 10);                      // copy in full name
+            if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
+            if (var->volset == 0) var->volset = 1;                              // ensure volset is set
+            if (var->uci != 1) return -ERRM59;                                  // Environment reference not OK
+            if (var->volset != 1) return -ERRM59;                               // Environment reference not OK
+            return 0;                                                           // and return saying OK
+        }
+
+        return -ERRM60;                                                         // Undefined SSVN
+
+    case 'D':                                                                   // $DEVICE
+        if ((var->name.var_cu[2] == '\0') || (bcmp("DEVICE\0", &var->name.var_cu[1], 7) == 0)) { // short form of name or if OK
+            VAR_CLEAR(var->name);
+            bcopy("$DEVICE", &var->name.var_cu[0], 7);                          // copy in full name
+            if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
+            if (var->volset == 0) var->volset = 1;                              // ensure volset is set
+            if (var->uci != 1) return -ERRM59;                                  // Environment reference not OK
+            if (var->volset != 1) return -ERRM59;                               // Environment reference not OK
+            return 0;                                                           // and return saying OK
+        }
+
+        return -ERRM60;                                                         // Undefined SSVN
+
     case 'G':                                                                   // $GLOBAL
         if ((var->name.var_cu[2] == '\0') || (bcmp("GLOBAL\0", &var->name.var_cu[1], 7) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
@@ -169,7 +197,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
 
         if (s < 0) return s;                                                    // die on error
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
-        ptmp = ptmp + s + sizeof(u_short) + 1;                                  // move up temp area
+        ptmp += s + sizeof(u_short) + 1;                                        // move up temp area
         i = i + cnt;                                                            // count used bytes
     }
 
@@ -177,11 +205,223 @@ int SS_Get(mvar *var, u_char *buf)                                              
     if (i < 0) return i;                                                        // return on error
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
+    case 'C':                                                                   // $CHARACTER
+        if (strncasecmp((char *) subs[0]->buf, "m\0", 2) != 0) return -ERRM38;  // only the M character set is supported
+
+        if (nsubs == 2) {                                                       // two sub case
+            if (strncasecmp((char *) subs[1]->buf, "collate\0", 8) == 0) return 0; // empty string refers to M collation
+            if (strncasecmp((char *) subs[1]->buf, "ident\0", 6) == 0) return 0; // empty string refers to default ident algorithm
+        } else if (nsubs == 3) {                                                // end of two sub case - three sub case
+            // patcode algoref is not yet implemented
+            if (strncasecmp((char *) subs[1]->buf, "patcode\0", 8) == 0) return -ERRM38; // subs[2] = CLEANUP
+            if (strncasecmp((char *) subs[2]->buf, "m\0", 2) != 0) return -ERRM38; // only the M character set is supported
+            if (strncasecmp((char *) subs[1]->buf, "input\0", 6) == 0) return 0; // empty string refers to M collation
+            if (strncasecmp((char *) subs[1]->buf, "output\0", 7) == 0) return 0; // empty string refers to M collation
+        }                                                                       // end 3 subs
+
+        return -ERRM38;                                                         // junk
+
+    case 'D':                                                                   // $DEVICE
+        if (nsubs == 2) {                                                       // two sub case
+            i = cstringtoi(subs[0]);                                            // make an int of I/O channel#
+            if ((i < 0) || (i > (MAX_SEQ_IO - 1))) return -ERRM38;              // out of I/O channel range
+            if (partab.jobtab->seqio[i].type == 0) return -ERRM38;              // no currently opened device
+
+            if (strncasecmp((char *) subs[1]->buf, "$x\0", 3) == 0) {
+                return itocstring(buf, partab.jobtab->seqio[i].dx);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "$y\0", 3) == 0) {
+                return itocstring(buf, partab.jobtab->seqio[i].dy);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "character\0", 10) == 0) {
+                return mcopy((u_char *) "M", buf, 1);                           // just an M
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "fd\0", 4) == 0) {
+                return itocstring(buf, partab.jobtab->seqio[i].fid);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "mode\0", 5) == 0) {
+                if (partab.jobtab->seqio[i].mode == 0) {
+                    return mcopy((u_char *) "PRINCIPAL", buf, 9);
+                } else if (partab.jobtab->seqio[i].mode == 1) {
+                    return mcopy((u_char *) "WRITE", buf, 5);
+                } else if (partab.jobtab->seqio[i].mode == 2) {
+                    return mcopy((u_char *) "READ", buf, 4);
+                } else if (partab.jobtab->seqio[i].mode == 3) {
+                    return mcopy((u_char *) "APPEND", buf, 6);
+                } else if (partab.jobtab->seqio[i].mode == 4) {
+                    return mcopy((u_char *) "IO", buf, 2);
+                } else if (partab.jobtab->seqio[i].mode == 5) {
+                    return mcopy((u_char *) "TCPIP", buf, 5);
+                } else if (partab.jobtab->seqio[i].mode == 6) {
+                    return mcopy((u_char *) "SERVER", buf, 6);
+                } else if (partab.jobtab->seqio[i].mode == 7) {
+                    return mcopy((u_char *) "NOFORK", buf, 6);
+                } else if (partab.jobtab->seqio[i].mode == 8) {
+                    return mcopy((u_char *) "FORKED", buf, 6);
+                } else if (partab.jobtab->seqio[i].mode == 9) {
+                    return mcopy((u_char *) "PIPE", buf, 4);
+                } else if (partab.jobtab->seqio[i].mode == 10) {
+                    return mcopy((u_char *) "NEWPIPE", buf, 7);
+                } else {
+                    return mcopy((u_char *) "UNKNOWN", buf, 7);
+                }
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "name\0", 5) == 0) {
+                return mcopy((u_char *) partab.jobtab->seqio[i].name, buf, MAX_SEQ_NAME);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "namespace\0", 10) == 0) {
+                for (j = 0; j < VAR_LEN; j++) {
+                    if (partab.jobtab->seqio[i].namespace.var_cu[j] == '\0') break;
+                }
+
+                return mcopy((u_char *) partab.jobtab->seqio[i].namespace.var_cu, buf, j);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "type\0", 5) == 0) {
+                if (partab.jobtab->seqio[i].type == 1) {
+                    return mcopy((u_char *) "1,FILE", buf, 6);
+                } else if (partab.jobtab->seqio[i].type == 2) {
+                    return mcopy((u_char *) "2,SOCKET", buf, 8);
+                } else if (partab.jobtab->seqio[i].type == 3) {
+                    return mcopy((u_char *) "3,PIPE", buf, 6);
+                } else if (partab.jobtab->seqio[i].type == 4) {
+                    return mcopy((u_char *) "4,TERMINAL", buf, 10);
+                }
+            }
+        } else if (nsubs == 3) {                                                // end of two sub case - three sub case
+            if (strncasecmp((char *) subs[1]->buf, "options\0", 8) == 0) {
+                if (strncasecmp((char *) subs[2]->buf, "delete\0", 7) == 0) {
+                    if ((partab.jobtab->seqio[i].options & 32) && (partab.jobtab->seqio[i].options & 16)) {
+                        return mcopy((u_char *) "BOTH", buf, 4);
+                    } else if (partab.jobtab->seqio[i].options & 32) {
+                        return mcopy((u_char *) "DELETE", buf, 6);
+                    } else if (partab.jobtab->seqio[i].options & 16) {
+                        return mcopy((u_char *) "BACK", buf, 4);
+                    } else {
+                        return mcopy((u_char *) "NONE", buf, 4);
+                    }
+                }
+
+                if (strncasecmp((char *) subs[2]->buf, "echo\0", 5) == 0) {
+                    if (partab.jobtab->seqio[i].options & 8) {
+                        return mcopy((u_char *) "1", buf, 1);
+                    } else {
+                        return mcopy((u_char *) "0", buf, 1);
+                    }
+                }
+
+                if (strncasecmp((char *) subs[2]->buf, "escape\0", 7) == 0) {
+                    if (partab.jobtab->seqio[i].options & 4) {
+                        return mcopy((u_char *) "1", buf, 1);
+                    } else {
+                        return mcopy((u_char *) "0", buf, 1);
+                    }
+                }
+
+                if (strncasecmp((char *) subs[2]->buf, "output\0", 7) == 0) {
+                    if (partab.jobtab->seqio[i].options & 2) {
+                        char temp_buf[24];
+                        s = 0;
+
+                        for (j = 0; j < partab.jobtab->seqio[i].out_len; j++) {
+                            if (iscntrl(partab.jobtab->seqio[i].out_term[j])) temp_buf[s++] = '\\';
+
+                            switch (partab.jobtab->seqio[i].out_term[j]) {
+                            case '\a':
+                                temp_buf[s++] = 'a';
+                                break;
+
+                            case '\b':
+                                temp_buf[s++] = 'b';
+                                break;
+
+                            case '\f':
+                                temp_buf[s++] = 'f';
+                                break;
+
+                            case '\n':
+                                temp_buf[s++] = 'n';
+                                break;
+
+                            case '\r':
+                                temp_buf[s++] = 'r';
+                                break;
+
+                            case '\t':
+                                temp_buf[s++] = 't';
+                                break;
+
+                            case '\v':
+                                temp_buf[s++] = 'v';
+                                break;
+
+                            default:
+                                if (iscntrl(partab.jobtab->seqio[i].out_term[j])) {
+                                    sprintf(&temp_buf[s], "%03o", partab.jobtab->seqio[i].out_term[j]);
+                                    s += 3;
+                                } else {
+                                    temp_buf[s++] = partab.jobtab->seqio[i].out_term[j];
+                                }
+                            }
+                        }
+
+                        return mcopy((u_char *) temp_buf, buf, s);
+                    } else {
+                        return 0;
+                    }
+                }
+
+                if (strncasecmp((char *) subs[2]->buf, "terminator\0", 11) == 0) {
+                    if (partab.jobtab->seqio[i].options & 1) {
+                        u_int64 in_term = partab.jobtab->seqio[i].in_term.interm[0];
+                        int cnt = 0;
+                        u_char temp_buf[402];                                   // enough to hold all ASCII characters with ,
+                        s = 0;
+
+                        for (j = 0; cnt < in_term; j++) {
+                            cnt = 1U << j;
+
+                            if (in_term & cnt) {
+                                s += itocstring(&temp_buf[s], j);
+                                temp_buf[s++] = ',';
+                            }
+                        }
+
+                        in_term = partab.jobtab->seqio[i].in_term.interm[1];
+                        cnt = 0;
+
+                        for (j = 0; cnt < in_term; j++) {
+                            cnt = 1U << j;
+
+                            if (in_term & cnt) {
+                                s += itocstring(&temp_buf[s], j + 64);
+                                temp_buf[s++] = ',';
+                            }
+                        }
+
+                        return mcopy((u_char *) temp_buf, buf, --s);
+                    } else {
+                        return 0;
+                    }
+                }
+            }
+        }                                                                       // end 3 subs
+
+        return -ERRM38;                                                         // junk
+
     case 'G':                                                                   // $GLOBAL
         if (nsubs == 2) {                                                       // two sub case
             if (strncasecmp((char *) subs[1]->buf, "character\0", 10) == 0) {
                 return mcopy((u_char *) "M", buf, 1);                           // just an M
             }
+
+            if (strncasecmp((char *) subs[1]->buf, "collate\0", 8) == 0) return 0; // empty string refers to M collation
 
             if (strncasecmp((char *) subs[1]->buf, "journal\0", 8) == 0) {
                 var->slen = strlen((char *) var->key) + 1;                      // first subscript only
@@ -211,7 +451,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
 
         if (nsubs == 2) {                                                       // two sub case
             if (strncasecmp((char *) subs[1]->buf, "$io\0", 4) == 0) {
-                return itocstring(buf, systab->jobtab[i].io);                   // ^$J(n,"$io")
+                return itocstring(buf, systab->jobtab[i].io);                   // ^$JOB(n,"$IO")
             }
 
             if (strncasecmp((char *) subs[1]->buf, "$reference\0", 11) == 0) {
@@ -221,7 +461,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
                 vp = (mvar *) tmp;                                              // point at tmp
                 if (vp->uci == 0) vp->uci = systab->jobtab[i].uci;
                 if (vp->volset == 0) vp->volset = systab->jobtab[i].vol;
-                return UTIL_String_Mvar(vp, buf, MAX_NUM_SUBS);                 // ^$J(n,"$reference")
+                return UTIL_String_Mvar(vp, buf, MAX_NUM_SUBS);                 // ^$JOB(n,"$REFERENCE")
             }
 
             if (strncasecmp((char *) subs[1]->buf, "$stack\0", 7) == 0) {
@@ -267,8 +507,29 @@ int SS_Get(mvar *var, u_char *buf)                                              
                 return itocstring(buf, systab->jobtab[i].user);
             }
 
+            if (strncasecmp((char *) subs[1]->buf, "pid\0", 4) == 0) {
+                return itocstring(buf, systab->jobtab[i].pid);
+            }
+
             if (strncasecmp((char *) subs[1]->buf, "precision\0", 10) == 0) {
                 return itocstring(buf, systab->jobtab[i].precision);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "priority\0", 9) == 0) {
+                errno = 0;
+                j = getpriority(PRIO_PROCESS, systab->jobtab[i].pid);
+                if (errno != 0) return -(ERRMLAST + ERRZLAST + errno);
+                return itocstring(buf, j);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "priv\0", 5) == 0) {
+                return itocstring(buf, systab->jobtab[i].priv);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "process_start\0", 14) == 0) {
+                return mcopy(systab->jobtab[i].start_dh,                        // the data
+                             buf,                                               // the destination
+                             systab->jobtab[i].start_len);                      // and length
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
@@ -290,27 +551,6 @@ int SS_Get(mvar *var, u_char *buf)                                              
             if (strncasecmp((char *) subs[1]->buf, "routine_vol\0", 12) == 0) {
                 return itocstring(buf, systab->jobtab[i].rvol);
             }
-
-            if (strncasecmp((char *) subs[1]->buf, "pid\0", 4) == 0) {
-                return itocstring(buf, systab->jobtab[i].pid);
-            }
-
-            if (strncasecmp((char *) subs[1]->buf, "priority\0", 9) == 0) {
-                errno = 0;
-                j = getpriority(PRIO_PROCESS, systab->jobtab[i].pid);
-                if (errno != 0) return -(ERRMLAST + ERRZLAST + errno);
-                return itocstring(buf, j);
-            }
-
-            if (strncasecmp((char *) subs[1]->buf, "priv\0", 5) == 0) {
-                return itocstring(buf, systab->jobtab[i].priv);
-            }
-
-            if (strncasecmp((char *) subs[1]->buf, "process_start\0", 14) == 0) {
-                return mcopy(systab->jobtab[i].start_dh,                        // the data
-                             buf,                                               // the destination
-                             systab->jobtab[i].start_len);                      // and length
-            }
         } else if (nsubs == 3) {                                                // end of two sub case - three sub case
             if (strncasecmp((char *) subs[1]->buf, "$io\0", 4) == 0) {
                 j = cstringtoi(subs[2]);                                        // get chan as int
@@ -323,7 +563,6 @@ int SS_Get(mvar *var, u_char *buf)                                              
             if (strncasecmp((char *) subs[1]->buf, "$stack\0", 7) == 0) {
                 return Dstack1x(buf, cstringtoi(subs[2]), i);                   // do it elsewhere
             }
-
         } else if (nsubs == 4) {                                                // end 3 sub case - four sub case
             if (strncasecmp((char *) subs[1]->buf, "$stack\0", 7) == 0)
             return Dstack2x(buf, cstringtoi(subs[2]), subs[3], i);              // do it elsewhere
@@ -356,6 +595,10 @@ int SS_Get(mvar *var, u_char *buf)                                              
     case 'S':                                                                   // $SYSTEM
         if (nsubs == 0) return -ERRM38;                                         // junk
 
+        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0)) {
+            return itocstring(buf, (systab->historic & HISTORIC_DNOK) / HISTORIC_DNOK); // return the value
+        }
+
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "eok\0", 4) == 0)) {
             return itocstring(buf, (systab->historic & HISTORIC_EOK));          // return the value
         }
@@ -364,16 +607,17 @@ int SS_Get(mvar *var, u_char *buf)                                              
             return itocstring(buf, (systab->historic & HISTORIC_OFFOK) / HISTORIC_OFFOK); // return the value
         }
 
-        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0)) {
-            return itocstring(buf, (systab->historic & HISTORIC_DNOK) / HISTORIC_DNOK); // return the value
-        }
-
-        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "precision\0", 10) == 0)) {
-            return itocstring(buf, systab->precision);                          // return the value
+        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "big_endian\0", 11) == 0)) {
+            u_int end = 0x1;
+            return itocstring(buf, (*(u_char *) &end == 0x1) ? 0 : 1);          // little-endian is 0, big-endian is 1
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "name_length\0", 12) == 0)) {
             return itocstring(buf, VAR_LEN);
+        }
+
+        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "precision\0", 10) == 0)) {
+            return itocstring(buf, systab->precision);                          // return the value
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "string_max\0", 11) == 0)) {
@@ -426,17 +670,17 @@ int SS_Get(mvar *var, u_char *buf)                                              
                 return itocstring(buf, systab->vol[i]->vollab->journal_available);
             }
 
+            if (strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) {
+                (void) strcpy((char *) buf, systab->vol[i]->vollab->journal_file);
+                return (int) strlen((char *) buf);
+            }
+
             if (strncasecmp((char *) subs[2]->buf, "journal_requested\0", 18) == 0) {
                 return itocstring(buf, systab->vol[i]->vollab->journal_requested);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_size\0", 13) == 0) {
                 return itocstring(buf, systab->vol[i]->jrn_next);
-            }
-
-            if (strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) {
-                (void) strcpy((char *) buf, systab->vol[i]->vollab->journal_file);
-                return (int) strlen((char *) buf);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "name\0", 5) == 0) {
@@ -564,7 +808,7 @@ short SS_Set(mvar *var, cstring *data)                                          
 
         if (s < 0) return s;                                                    // die on error
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
-        ptmp = ptmp + s + sizeof(short) + 1;                                    // move up temp area
+        ptmp += s + sizeof(short) + 1;                                          // move up temp area
         i = i + cnt;                                                            // count used bytes
     }
 
@@ -572,6 +816,12 @@ short SS_Set(mvar *var, cstring *data)                                          
     if (s < 0) return s;                                                        // return on error
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
+    case 'C':                                                                   // $CHARACTER
+        return -ERRM29;                                                         // SET on SSVN not on
+
+    case 'D':                                                                   // $DEVICE
+        return -ERRM29;                                                         // SET on SSVN not on
+
     case 'G':                                                                   // $GLOBAL
         if (nsubs == 2) {                                                       // two sub case
             if (strncasecmp((char *) subs[1]->buf, "journal\0", 8) == 0) {
@@ -584,7 +834,7 @@ short SS_Set(mvar *var, cstring *data)                                          
             }                                                                   // end journal
         }                                                                       // end 2 subs
 
-        return -ERRM29;                                                         // SET or KILL on SSVN not on
+        return -ERRM29;                                                         // SET on SSVN not on
 
     case 'J':                                                                   // $JOB
         if (nsubs != 2) return -ERRM38;                                         // junk
@@ -667,7 +917,7 @@ short SS_Set(mvar *var, cstring *data)                                          
     case 'R':                                                                   // $ROUTINE
         if (nsubs > 2) return -ERRM38;                                          // junk
         return -ERRM29;                                                         // SET on SSVN not on
-        // We may eventually allow SET ^$R(rou,0) with tests
+        // We may eventually allow SET ^$ROUTINE(rou,0) with tests
 
     case 'S':                                                                   // $SYSTEM
         if (!priv()) return -ERRM38;                                            // need privs
@@ -713,6 +963,7 @@ short SS_Set(mvar *var, cstring *data)                                          
             cnt = cstringtoi(subs[1]) - 1;                                      // make an int of entry#
             if (!(cnt < MAX_TRANTAB) || (cnt < 0)) return -ERRM38;              // validate it, junk
             if (nsubs != 2) return -ERRM38;                                     // must be 2 subs
+
             if (data->len == 0) {                                               // if null
                 bzero(&systab->tt[cnt], sizeof(trantab));                       // clear it
                 systab->max_tt = 0;                                             // clear this for now
@@ -746,9 +997,41 @@ DISABLE_WARN(-Warray-bounds)
 ENABLE_WARN
             s = UTIL_MvarFromCStr(subs[2], &partab.src_var);                    // encode
             if (s < 0) return s;                                                // complain on error
+
+            if (partab.src_var.uci == UCI_IS_LOCALVAR) {                        // if local var, just return
+                return 0;
+            } else if (!partab.src_var.uci) {                                   // if no UCI
+                if (partab.src_var.name.var_cu[0] == '%') {                     // if % var
+                    partab.src_var.uci = 1;                                     // manager UCI
+                } else {
+                    partab.src_var.uci = partab.jobtab->uci;                    // default
+                }
+            }
+
+            if (!partab.src_var.volset) partab.src_var.volset = partab.jobtab->vol; // if no volset, set default
             bcopy(&partab.src_var, &tt.from_global, sizeof(var_u) + 2);
             s = UTIL_MvarFromCStr(subs[3], &partab.src_var);                    // encode
             if (s < 0) return s;                                                // complain on error
+
+            if (partab.src_var.uci == UCI_IS_LOCALVAR) {                        // if local var, just return - remove for triggers
+                return 0;
+            } else if (!partab.src_var.uci) {                                   // if no UCI
+                if (partab.src_var.name.var_cu[0] == '%') {                     // if % var
+                    partab.src_var.uci = 1;                                     // manager UCI
+                } else {
+                    partab.src_var.uci = partab.jobtab->uci;                    // default
+                }
+            }
+
+            if (!partab.src_var.volset) partab.src_var.volset = partab.jobtab->vol; // if no volset, set default
+
+            /*
+            if (partab.src_var.uci == UCI_IS_LOCALVAR) {                        // use trantab for triggers via local as to_global
+                partab.src_var.volset = 0;
+                partab.src_var.uci = 0;
+            }
+            */
+
             bcopy(&partab.src_var, &tt.to_global, sizeof(var_u) + 2);
             bcopy(&tt, &systab->tt[cnt], sizeof(trantab));
             if ((cnt + 1) > systab->max_tt) systab->max_tt = cnt + 1;           // check flag and ensure current is there
@@ -756,7 +1039,7 @@ ENABLE_WARN
         }                                                                       // end trantab stuff
 
         if ((nsubs == 4) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
-          (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$S(vol,n,uci,n)
+          (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             j = cstringtoi(subs[3]) - 1;                                        // and UCI#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
@@ -786,7 +1069,7 @@ ENABLE_WARN
             return 0;                                                           // return OK
         }
 
-        if ((nsubs == 3) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) { // ^$S(vol,j,..)
+        if ((nsubs == 3) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) { // ^$SYSTEM("VOL",n,..)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
 
@@ -884,7 +1167,7 @@ short SS_Data(mvar *var, u_char *buf)                                           
 
         if (s < 0) return s;                                                    // die on error
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
-        ptmp = ptmp + s + sizeof(short) + 1;                                    // move up temp area
+        ptmp += s + sizeof(short) + 1;                                          // move up temp area
         i = i + cnt;                                                            // count used bytes
     }
 
@@ -892,6 +1175,12 @@ short SS_Data(mvar *var, u_char *buf)                                           
     if (s < 0) return s;                                                        // return on error
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
+    case 'C':                                                                   // $CHARACTER
+        return -ERRM38;                                                         // junk
+
+    case 'D':                                                                   // $DEVICE
+        return -ERRM38;                                                         // junk
+
     case 'G':                                                                   // $GLOBAL
         if (nsubs > 1) return -ERRM38;                                          // junk
         return DB_Data(var, buf);                                               // let the database module do it
@@ -956,17 +1245,23 @@ short SS_Kill(mvar *var)                                                        
 
         if (s < 0) return s;                                                    // die on error
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
-        ptmp = ptmp + s + sizeof(short) + 1;                                    // move up temp area
-        i = i + cnt;                                                            // count used bytes
+        ptmp += s + sizeof(short) + 1;                                          // move up temp area
+        i += cnt;                                                               // count used bytes
     }
 
     s = SS_Norm(var);                                                           // normalize the name
     if (s < 0) return s;                                                        // return on error
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
+    case 'C':                                                                   // $CHARACTER
+        return -ERRM29;                                                         // KILL on SSVN not on
+
+    case 'D':                                                                   // $DEVICE
+        return -ERRM29;                                                         // KILL on SSVN not on
+
     case 'G':                                                                   // $GLOBAL
         if (nsubs > 1) return -ERRM38;                                          // junk
-        return -ERRM29;                                                         // SET or KILL on SSVN not on
+        return -ERRM29;                                                         // KILL on SSVN not on
 
     case 'J':                                                                   // $JOB
         if (nsubs > 1) return -ERRM38;                                          // junk
@@ -978,7 +1273,7 @@ short SS_Kill(mvar *var)                                                        
             if (i == 0) return -ERRM23;                                         // complain if no such
 
             if (!priv() && (systab->jobtab[j].user != partab.jobtab->user)) {
-                return -ERRM29;                                                 // SET or KILL on SSVN not on
+                return -ERRM29;                                                 // KILL on SSVN not on
             }
 
             if (!kill(i, SIGTERM)) return 0;                                    // tell in to go home
@@ -1052,7 +1347,7 @@ short SS_Kill(mvar *var)                                                        
 
     case 'S':                                                                   // $SYSTEM
         if ((nsubs == 4) && priv() && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
-          (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$S(vol,n,uci,n)
+          (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             j = cstringtoi(subs[3]) - 1;                                        // and UCI#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
@@ -1089,7 +1384,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 
         if (s < 0) return s;                                                    // die on error
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
-        ptmp = ptmp + s + sizeof(short) + 1;                                    // move up temp area
+        ptmp += s + sizeof(short) + 1;                                          // move up temp area
         i = i + cnt;                                                            // count used bytes
     }
 
@@ -1097,6 +1392,32 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
     if (s < 0) return s;                                                        // return on error
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
+    case 'C':                                                                   // $CHARACTER
+        return -ERRM38;                                                         // junk
+
+    case 'D':                                                                   // $DEVICE
+        if (nsubs != 1) return -ERRM38;                                         // junk
+        i = cstringtoi(subs[0]);                                                // make an int of I/O channel#
+        buf[0] = '\0';                                                          // null terminate
+
+        if (dir < 0) {                                                          // backwards
+            if (subs[0]->buf[0] == '\0') i = MAX_SEQ_IO;                        // setup the seed
+            if (i == 0) return 0;
+
+            for (i -= 1; i > -1; i--) {                                         // scan backwards
+                if (partab.jobtab->seqio[i].type != 0) break;                   // found one
+            }
+        } else {                                                                // forward
+            if (subs[0]->buf[0] == '\0') return itocstring(buf, 0);
+
+            for (i += 1; i < MAX_SEQ_IO; i++) {                                 // scan the list
+                if (partab.jobtab->seqio[i].type != 0) break;                   // found one
+            }
+        }
+
+        if (i != MAX_SEQ_IO) return itocstring(buf, i);                         // return channel number
+        return 0;                                                               // or nothing
+
     case 'G':                                                                   // $GLOBAL
         if (nsubs != 1) return -ERRM38;                                         // junk
         return DB_Order(var, buf, dir);                                         // let the database module do it
@@ -1177,7 +1498,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
         }
 
         if ((nsubs == 4) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
-          (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$S(vol,n,uci,n)
+          (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             j = cstringtoi(subs[3]) - 1;                                        // and UCI#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
