@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/runtime/func.c
- * Summary:  module runtime - RunTime Functions
+ * Summary:  module runtime - Runtime Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -92,7 +92,7 @@ short Ddata(u_char *ret_buffer, mvar *var)
 {
     if (var->uci == 255) return ST_Data(var, ret_buffer);                       // for a local var
     if (var->name.var_cu[0] == '$') return SS_Data(var, ret_buffer);            // SSVN? then do it
-    bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+    bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen);
     return DB_Data(var, ret_buffer);                                            // else it's global
 }
 
@@ -423,7 +423,7 @@ int Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
         if (s >= 0) return s;                                                   // if we got data, return it
         if ((s == -ERRM38) || (s == -ERRM7)) s = 0;                             // flag undefined SSVN
     } else {                                                                    // for a global var
-        bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+        bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen);
         s = DB_Get(var, ret_buffer);                                            // attempt to get the data
         if (s >= 0) return s;                                                   // if we got data, return it
         if (s == -ERRM7) s = 0;                                                 // flag undefined global var
@@ -433,6 +433,54 @@ int Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
     bcopy(&expr->buf[0], &ret_buffer[0], expr->len);                            // copy here
     ret_buffer[expr->len] = '\0';                                               // ensure null terminated
     return expr->len;                                                           // and return the length
+}
+
+// $INCREMENT(variable)
+short Dincrement1(u_char *ret_buffer, mvar *var)
+{
+    u_char  tmp[MAX_NUM_BYTES];                                                 // some temp storage for arithmetic
+    cstring *cptr;                                                              // for the call
+
+    cptr = (cstring *) tmp;                                                     // point at the space
+DISABLE_WARN(-Warray-bounds)
+    cptr->len = 1;                                                              // length of one
+    cptr->buf[0] = '1';                                                         // default to 1
+    cptr->buf[1] = '\0';                                                        // null terminated
+ENABLE_WARN
+    return Dincrement2(ret_buffer, var, cptr);                                  // do it below
+}
+
+// $INCREMENT(variable[,numexpr])
+short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
+{
+    int    s;                                                                   // for return values
+    u_char temp[MAX_STR_LEN];                                                   // some temp storage for arithmetic
+    u_char *tmp;
+
+    tmp = temp;
+
+    if (var->uci == UCI_IS_LOCALVAR) {                                          // for a local var
+        s = ST_Get(var, temp);                                                  // attempt to get the data
+    } else {                                                                    // for a global var
+        bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen);
+        s = DB_Get(var, temp);                                                  // attempt to get the data
+    }
+
+    if ((s == -ERRM6) || (s == -ERRM7)) {                                       // use '0' for undefined var
+        ret_buffer[0] = '0';
+        s = 0;
+    } else if (s < 0) {
+        return s;
+    } else {
+        s = ncopy(&tmp, ret_buffer);
+    }
+
+    if (s < 0) return s;
+    numexpr->len = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
+    bcopy(&numexpr->buf[0], &ret_buffer[0], numexpr->len);                      // copy here
+    ret_buffer[numexpr->len] = '\0';                                            // ensure null terminated
+    if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, numexpr);               // set it back and return
+    return DB_Set(var, numexpr);                                                // set it back and return
 }
 
 // $JUSTIFY(expr,int1[,int2])
@@ -485,7 +533,7 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
             len = dp + round + 1;
             if ((len < expr->len) && (expr->buf[len] > '4')) ru = len - 1;
         } else {
-            len += (round + 1);
+            len += round + 1;
         }
     }
 
@@ -503,13 +551,13 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
     if (len < expr->len) cop = len - j;
     bcopy(&expr->buf[j], &ret_buffer[i], cop);                                  // copy the rest
     i += cop;
-    len += (zer + spc);
+    len += zer + spc;
     if ((dp == -2) && (i < len)) ret_buffer[i++] = '.';
     while (i < len) ret_buffer[i++] = '0';                                      // possible trailing zeroes
     ret_buffer[len] = '\0';                                                     // null terminate
 
     if (ru != -2) {
-        ru += (zer + spc);                                                      // adjust round up
+        ru += zer + spc;                                                        // adjust round up
 
         while (TRUE) {
             ret_buffer[ru]++;                                                   // increment it
@@ -622,7 +670,7 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
 
     if (dir == -1) {                                                            // is it backwards?
         if ((var->key[var->slen - 1] == '\0') && (var->key[var->slen - 2] == '\0')) { // is it a nul?
-            i = var->slen - 2;                                                  // posn of first 0
+            i = var->slen - 2;                                                  // position of first 0
             var->key[i] = '\377';                                               // change to 255
         }
     }
@@ -632,7 +680,7 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
     } else if (var->name.var_cu[0] == '$') {                                    // SSVN?
         s = SS_Order(var, ret_buffer, realdir);                                 // yes
     } else {
-        bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+        bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen);
         if (i != -1) partab.jobtab->last_ref.key[i] = '\0';                     // unfix from above
         s = DB_Order(var, ret_buffer, realdir);                                 // else it's global
     }
@@ -734,7 +782,7 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 
     if (var->uci == UCI_IS_LOCALVAR) return ST_Query(var, ret_buffer, dir);     // for local var
     if (var->name.var_cu[0] == '$') return -ERRM38;                             // SSVN? then no such
-    bcopy(var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+    bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen);
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0';                         // unfix from above
     return DB_Query(var, ret_buffer, dir);                                      // else it's global
 }
@@ -890,7 +938,7 @@ DISABLE_WARN(-Warray-bounds)
         return mcopy((u_char *) "XECUTE", ret_buffer, 6);                       // "PLACE"
     }
 
-    rounam = &(systab->jobtab[job].dostk[level].rounam);                        // point at routine name
+    rounam = &systab->jobtab[job].dostk[level].rounam;                          // point at routine name
     line = systab->jobtab[job].dostk[level].line_num;                           // get line number
 
     if (arg2 == 2) {                                                            // "MCODE"

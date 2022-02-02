@@ -4,7 +4,7 @@
  * Summary:  module database - Get Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -70,7 +70,7 @@ int Get_data(int dir)                                                           
     if (systab->vol[db_var.volset - 1] == NULL) return -ERRM26;                 // vol still mounted? if not - error
 
     if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || (dir != 0) ||    // if ^$G or level or backward
-     (systab->vol[volnum - 1]->vollab->journal_available && writing)) {         // or journaling and writing
+      (systab->vol[volnum - 1]->vollab->journal_available && writing)) {        // or journaling and writing
         systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;              // zot this
     } else {
         // NOTE - LASTUSED NEEDS TO BE BY VOLUME SET
@@ -128,10 +128,10 @@ int Get_data(int dir)                                                           
     s = Get_block(i);                                                           // get the block
     if (s < 0) return s;                                                        // error? then give up
 
-    if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) {                    // if ^$G
+    if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) {                    // if ^$GLOBAL
         s = Locate(&db_var.slen);                                               // look for it
         if (s >= 0) Align_record();                                             // if found
-        return s;                                                               // end ^$G() lookup
+        return s;                                                               // end ^$GLOBAL() lookup
     }
 
     tmp[1] = 128;                                                               // start string key

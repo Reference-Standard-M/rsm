@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a line
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -147,7 +147,7 @@ void parse_do(int runtime)                                                      
                             atom();                                             // eval the string
                             *comp_ptr++ = INDMVAR;
                         } else {
-                            p = comp_ptr;                                       // save current posn
+                            p = comp_ptr;                                       // save current position
                             s = localvar();                                     // get a variable
 
                             if (s < 0) {                                        // if we got an error
@@ -473,7 +473,7 @@ void parse_kill(int indkillb)                                                   
         *comp_ptr++ = args;                                                     // number of args
     } else {
         while (TRUE) {                                                          // loop thru normal kill
-            ptr = comp_ptr;                                                     // save posn
+            ptr = comp_ptr;                                                     // save position
 
             if (*source_ptr == '@') {                                           // indirection ?
                 atom();                                                         // eval the string
@@ -485,7 +485,7 @@ void parse_kill(int indkillb)                                                   
                     if (*(comp_ptr - 3) == OPVAR) *(comp_ptr - 3) = OPMVAR;     // change to OPMVAR
                 }
             } else {
-                ptr = comp_ptr;                                                 // save posn
+                ptr = comp_ptr;                                                 // save position
                 s = localvar();                                                 // we need a var
 
                 if (s < 0) {
@@ -627,7 +627,7 @@ void parse_merge(void)                                                          
                     if (*ptr3 == OPVAR) *ptr3 = OPMVARF;                        // change to OPMVARF
                 }
             } else {
-                ptr3 = comp_ptr;                                                // save posn
+                ptr3 = comp_ptr;                                                // save position
                 s = localvar();                                                 // we need a var
 
                 if (s < 0) {
@@ -657,7 +657,7 @@ void parse_merge(void)                                                          
         }                                                                       // end indirect processing
 
         // Parse the destination
-        ptr1 = comp_ptr;                                                        // save posn
+        ptr1 = comp_ptr;                                                        // save position
 
         if (*source_ptr == '@') {                                               // indirection ?
             atom();                                                             // eval the string
@@ -1130,7 +1130,7 @@ void parse_set(void)                                                            
                 type = (toupper(source_ptr[1]) == 'P') ? CMSETP : (toupper(source_ptr[1]) == 'E') ? CMSETE : CMSETQS; // Set type
                 while ((*source_ptr != '(') && *source_ptr) source_ptr++;       // skip to bracket
                 source_ptr++;                                                   // skip opening bracket
-                p = comp_ptr;                                                   // save posn
+                p = comp_ptr;                                                   // save position
 
                 if (*source_ptr == '@') {                                       // indirection ?
                     atom();                                                     // eval the string
@@ -1528,7 +1528,7 @@ void parse(void)                                                                
             }
 
             source_ptr--;                                                       // back up the source
-            ptr = comp_ptr;                                                     // save current posn
+            ptr = comp_ptr;                                                     // save current position
             s = localvar();                                                     // get a variable
 
             if (s < 0) {                                                        // if we got an error
@@ -1540,7 +1540,7 @@ void parse(void)                                                                
             if (*source_ptr++ != '=') SYNTX;                                    // check for equals
             *ptr = CMFORSET;                                                    // setup a for
             ptr = comp_ptr;                                                     // for code and quit offsets
-            comp_ptr += (2 * sizeof(short));                                    // leave space
+            comp_ptr += (sizeof(short) * 2);                                    // leave space
 
             while (TRUE) {                                                      // now get the arguments
                 eval();                                                         // get the arg

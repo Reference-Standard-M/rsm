@@ -4,7 +4,7 @@
  * Summary:  module init - create a database file
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -210,7 +210,7 @@ int INIT_Create_File(u_int blocks,                                              
     mgrblk->type = 65;                                                          // type is data blk + UCI
     mgrblk->last_idx = IDX_START;                                               // have one rec
     mgrblk->last_free = (u_short) (bsize / 4 - 7);                              // minus extra for rec length
-    bcopy("$GLOBAL", &(mgrblk->global), 7);                                     // init the name
+    bcopy("$GLOBAL", &mgrblk->global, 7);                                       // init the name
     us = (bsize / 4) - 6;                                                       // point at the record
     memcpy(&x.cuff[sizeof(DB_Block)], &us, sizeof(u_short));                    // save in index
     chunk = (cstring *) &x.buff[us];                                            // point at the chunk

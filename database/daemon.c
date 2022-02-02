@@ -4,7 +4,7 @@
  * Summary:  module database - Database Daemon Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -116,7 +116,7 @@ int DB_Daemon(int slot, int vol)                                                
             strtok(ctime(&t), "\n"), pid, myslot, systab->vol[0]->file_name);   // success
 
     fflush(stderr);                                                             // flush to the file
-    if ((systab->vol[0]->upto) && !myslot) ic_map(-3);                          // if map needs check then do it
+    if (systab->vol[0]->upto && !myslot) ic_map(-3);                            // if map needs check then do it
     i = sleep(2);                                                               // wait a bit
 
     while (TRUE) {                                                              // forever
@@ -146,7 +146,7 @@ start:
     daemon_check();                                                             // ensure all running
 
     if (systab->vol[volnum - 1]->wd_tab[myslot].doing == DOING_NOTHING) {
-        if ((!myslot) && (systab->vol[volnum - 1]->map_dirty_flag)) {           // first daemon
+        if (!myslot && systab->vol[volnum - 1]->map_dirty_flag) {               // first daemon
             file_off = lseek(dbfd, 0, SEEK_SET);                                // move to start of file
 
             if (file_off < 0) {

@@ -4,7 +4,7 @@
  * Summary:  module RSM - mount a dataset
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -111,7 +111,7 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
 
     volset_size = sizeof(vol_def)                                               // size of VOL_DEF (one for now)
                 + hbuf[2]                                                       // size of head and map block
-                + (n_gbd * sizeof(struct GBD))                                  // the GBD
+                + (n_gbd * sizeof(gbd))                                         // the GBD
                 + ((long) gmb * MBYTE)                                          // MiB of global buffers
                 + hbuf[3]                                                       // size of block (zero block)
                 + ((long) rmb * MBYTE);                                         // MiB of routine buffers
@@ -263,7 +263,7 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
     ptr = (u_char *) systab->vol[volnum]->global_buf;                           // get start of Globuff
 
     for (i = 0; i < systab->vol[volnum]->num_gbd; i++) {                        // for each GBD
-        gptr[i].mem = (struct DB_BLOCK *) ptr;                                  // point at block
+        gptr[i].mem = (DB_Block *) ptr;                                         // point at block
         ptr += systab->vol[volnum]->vollab->block_size;                         // point at next
 
         if (i < (systab->vol[volnum]->num_gbd - 1)) {                           // all but the last

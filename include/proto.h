@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - prototypes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -128,6 +128,8 @@ int   Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code);
 int   Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd);
 int   Dget1(u_char *ret_buffer, mvar *var);
 int   Dget2(u_char *ret_buffer, mvar *var, cstring *expr);
+short Dincrement1(u_char *ret_buffer, mvar *var);
+short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr);
 int   Djustify2(u_char *ret_buffer, cstring *expr, int size);
 int   Djustify3(u_char *ret_buffer, cstring *expr, int size, int round);
 short Dlength1(u_char *ret_buffer, cstring *expr);

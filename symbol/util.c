@@ -4,7 +4,7 @@
  * Summary:  module symbol - Symbol Table Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -779,7 +779,7 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
             if (depPtr == ST_DEPEND_NULL) return -ERRM6;                        // if no exist then return same
             i = (int) depPtr->keylen;                                           // get key length
             if (i & 1) i++;                                                     // ensure even
-            *add = (cstring *) &(depPtr->bytes[i]);                             // send data addr as cstring
+            *add = (cstring *) &depPtr->bytes[i];                               // send data addr as cstring
             return (*add)->len;                                                 // and return the length
         } else {                                                                // data block
             *add = (cstring *) &symtab[ptr1].data->dbc;                         // setup the address
@@ -817,7 +817,7 @@ DISABLE_WARN(-Warray-bounds)
             cdata->buf[cdata->len++] = '=';                                     // tack on equal sign
             s = SQ_Write(cdata);                                                // dump var name =
             if (s < 0) return (short) s;                                        // die on error
-            s = SQ_Write((cstring *) &(symtab[i].data->dbc));                   // dump data block
+            s = SQ_Write((cstring *) &symtab[i].data->dbc);                     // dump data block
             if (s < 0) return (short) s;                                        // die on error
             s = SQ_WriteFormat(SQ_LF);                                          // line feed
             if (s < 0) return (short) s;                                        // die on error
@@ -888,7 +888,7 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
     var->slen = current->keylen;                                                // key and len
     i = (int) current->keylen;                                                  // get key length
     if ((i & 1) != 0) i++;                                                      // up it to next even boundary
-    cdata = (cstring *) &(current->bytes[i]);                                   // convert to cstring
+    cdata = (cstring *) &current->bytes[i];                                     // convert to cstring
     return mcopy(cdata->buf, buf, cdata->len);                                  // get data into buf
 }                                                                               // end ST_QueryD
 
@@ -928,12 +928,12 @@ DISABLE_WARN(-Warray-bounds)
             global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
 
             // set rest of global key and len
-            t = DB_Set(global, (cstring *) &(symtab[i].data->dbc));             // try to set it
+            t = DB_Set(global, (cstring *) &symtab[i].data->dbc);               // try to set it
 
             if (t == -ERRM75) {                                                 // if string too long
                 j = symtab[i].data->dbc;                                        // save this
                 symtab[i].data->dbc = 900;                                      // that's enough - DLW: 900 when block is >= 4052?
-                t = DB_Set(global, (cstring *) &(symtab[i].data->dbc));         // try again
+                t = DB_Set(global, (cstring *) &symtab[i].data->dbc);           // try again
                 symtab[i].data->dbc = j;                                        // restore this
             }
         }                                                                       // end if data exists

@@ -4,7 +4,7 @@
  * Summary:  module database - Buffer Management Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -232,7 +232,7 @@ void Get_GBDs(int greqd)                                                        
     int    pass = 0;                                                            // pass number
 
 start:
-    while (SemOp(SEM_GLOBAL, WRITE)) continue;                                  // get write lock
+    while (SemOp(SEM_GLOBAL, WRITE)) continue;                                  // get write semaphore lock
     ptr = systab->vol[volnum - 1]->gbd_hash[GBD_HASH];                          // head of free list
     curr = 0;                                                                   // clear current
 

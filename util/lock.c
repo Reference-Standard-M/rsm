@@ -4,7 +4,7 @@
  * Summary:  module database - Lock Utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -574,8 +574,8 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                         size = 0;                               // reset size for safety
 
                                         while (removedone < toremove) {         // while more removals to do
-                                            LCK_Kill((cstring *) &((u_char *)list)[posr]); // rem entry
-                                            tempc = (cstring *) &((u_char *)list)[posr]; // extract
+                                            LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry
+                                            tempc = (cstring *) &((u_char *) list)[posr]; // extract
                                             size = sizeof(short) + tempc->len + sizeof(char); // size
                                             if (size & 1) size++;               // ensure even
                                             posr += size;                       // posr to start of next entry
@@ -610,8 +610,8 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                     size = 0;                                   // reset size for safety
 
                                     while (removedone < toremove) {             // while more removals to do
-                                        LCK_Kill((cstring *) &((u_char *)list)[posr]); // rem entry at posr
-                                        tempc = (cstring *) &((u_char *)list)[posr]; // extract this entry
+                                        LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
+                                        tempc = (cstring *) &((u_char *) list)[posr]; // extract this entry
                                         size = sizeof(short) + tempc->len + sizeof(char); // find size
                                         if (size & 1) size++;                   // ensure even
                                         posr += size;                           // posr to start of next entry
@@ -667,8 +667,8 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         size = 0;                                               // reset size for safety
 
                         while (removedone < toremove) {                         // while more removals to do
-                            LCK_Kill((cstring *) &((u_char *)list)[posr]);      // rem entry at posr
-                            tempc = (cstring *) &((u_char *)list)[posr];        // extract this entry
+                            LCK_Kill((cstring *) &((u_char *) list)[posr]);     // rem entry at posr
+                            tempc = (cstring *) &((u_char *) list)[posr];       // extract this entry
                             size = sizeof(short) + tempc->len + sizeof(char);   // find size
                             if (size & 1) size++;                               // ensure even
                             posr += size;                                       // posr to start of next entry
@@ -689,8 +689,8 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                             size = 0;                                           // reset size for safety
 
                             while (removedone < toremove) {                     // while more removals to do
-                                LCK_Kill((cstring *) &((u_char *)list)[posr]);  // rem entry at posr
-                                tempc = (cstring *) &((u_char *)list)[posr];    // extract this entry
+                                LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
+                                tempc = (cstring *) &((u_char *) list)[posr];   // extract this entry
                                 size = sizeof(short) + tempc->len + sizeof(char); // find size
                                 if (size & 1) size++;                           // ensure even
                                 posr += size;                                   // posr to start of next entry
@@ -724,8 +724,8 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                 size = 0;                                       // reset size for safety
 
                                 while (removedone < toremove) {                 // while more removals to do
-                                    LCK_Kill((cstring *) &((u_char *)list)[posr]); // rem entry at posr
-                                    tempc = (cstring *) &((u_char *)list)[posr]; // extract this entry
+                                    LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
+                                    tempc = (cstring *) &((u_char *) list)[posr]; // extract this entry
                                     size = sizeof(short) + tempc->len + sizeof(char); // find size
                                     if (size & 1) size++;                       // ensure even
                                     posr += size;                               // posr to start of next entry
@@ -779,7 +779,7 @@ short LCK_Sub(int count, cstring *list)                                         
     if (x < 0) return x;                                                        // return the error
 
     while (done < count) {                                                      // while more to do
-        current = (cstring *) &((u_char *)list)[pos];                           // extract this entry
+        current = (cstring *) &((u_char *) list)[pos];                          // extract this entry
         lptr = systab->lockhead;                                                // start at first locktab
 
         while (lptr != NULL) {                                                  // while more locktabs to see
@@ -852,7 +852,7 @@ void Dump_lt(void)
     printf("Dump of Lockspace starting at %p\r\n\r\n", lptr);
     printf("Lock Head starts at %p\r\n", systab->lockhead);
     printf("Lock Free starts at %p\r\n", systab->lockfree);
-    printf("      Lock_ptr       Fwd_link  Size    Job Lock_cnt Byte_cnt  Vol  Uci  Var(Key)\r\n");
+    printf("      Lock_Ptr       Fwd_Link  Size    Job Lock_Cnt Byte_Cnt  VOL  UCI  Var(Key)\r\n");
 
     while (lptr != NULL) {
         keystr[0] = '\0';

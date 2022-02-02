@@ -1,9 +1,31 @@
-image: gcc
-
 stages:
- - build
+  - build
 
-build:
+host-build:
   stage: build
+  image: gcc:11.2.0
   script:
+    - export USER=root
     - make -j
+    - make install
+    - rsm -v TST -b 16 -s 16384 tst.dat
+    - rsm -j 2 tst.dat
+    - rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code' tst.dat
+    - rsm -i tst.dat
+    - rsm -k tst.dat
+    - make uninstall
+    - make clean
+
+docker-build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t rsm .
+    - docker run -d --name rsm rsm
+    - sleep 5
+    - docker exec rsm rsm -i
+    - docker stop rsm
+    - docker rm rsm
+    - docker rmi rsm

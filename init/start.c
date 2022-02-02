@@ -4,7 +4,7 @@
  * Summary:  module RSM - startup code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -179,7 +179,7 @@ int INIT_Start(char  *file,                                                     
 
     volset_size = sizeof(vol_def)                                               // size of VOL_DEF (one for now)
                 + hbuf[2]                                                       // size of head and map block
-                + (n_gbd * sizeof(struct GBD))                                  // the GBD
+                + (n_gbd * sizeof(gbd))                                         // the GBD
                 + ((long) gmb * MBYTE)                                          // MiB of global buffers
                 + hbuf[3]                                                       // size of block (zero block)
                 + ((long) rmb * MBYTE);                                         // MiB of routine buffers
@@ -240,7 +240,7 @@ int INIT_Start(char  *file,                                                     
         return errno;                                                           // exit with error
     }
 
-    fprintf(stderr, "Systab attached at %lx\n", (u_long) systab);
+    fprintf(stdout, "Systab attached at %lx\n", (u_long) systab);
     bzero(systab, share_size);                                                  // zot the lot
     systab->address = systab;                                                   // store the address for ron
     systab->jobtab = (jobtab *) &systab->last_blk_used[jobs + 1];               // setup jobtab pointer
@@ -323,7 +323,7 @@ int INIT_Start(char  *file,                                                     
     }                                                                           // all daemons started
 
     if (systab->maxjob == 1) {                                                  // if in single user mode
-        fprintf(stderr, "WARNING: Single user, journaling not started.\n");
+        fprintf(stdout, "WARNING: Single user, journaling not started.\n");
     } else if (systab->vol[0]->vollab->journal_requested && systab->vol[0]->vollab->journal_file[0]) {
         struct stat sb;                                                         // File attributes
         off_t       jptr;                                                       // file ptr
@@ -401,7 +401,7 @@ int INIT_Start(char  *file,                                                     
     ptr = (u_char *) systab->vol[0]->global_buf;                                // get start of global buffers
 
     for (i = 0; i < systab->vol[0]->num_gbd; i++) {                             // for each GBD
-        gptr[i].mem = (struct DB_BLOCK *) ptr;                                  // point at block
+        gptr[i].mem = (DB_Block *) ptr;                                         // point at block
         ptr += systab->vol[0]->vollab->block_size;                              // point at next
 
         if (i < (systab->vol[0]->num_gbd - 1)) {                                // all but the last

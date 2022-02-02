@@ -15,7 +15,7 @@ link:index.adoc[Index]
 [discrete]
 = Reference Standard M Language Guide
 David Wicksell <dlw@linux.com> +
-Copyright © 2020-2021 Fourth Watch Software LC +
+Copyright © 2020-2022 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 == Introduction
@@ -34,11 +34,18 @@ protocol has not yet been implemented.
 The ANSI X11.6-1995 (ISO/IEC 15852:1999) M Windowing Application Programming
 Interface [MWAPI] has not yet been implemented.
 
+=== Character Sets
+
+Currently, the only supported character set is the M character set, based on
+ASCII (ANSI X3.41-1990). The only difference is with its collation, which sorts
+canonical numeric strings before ASCII NUL, and after the empty string. Support
+for Unicode, via the UTF-8 encoding, is planned for the future.
+
 === Mnemonic Namespaces
 
 The ANSI X3.64-1979 (terminal device control mnemonics) binding has been
-implemented as a terminal mnemonic namespace, written in M. It is provided by
-the included vendor utility routine `%X364`, found in `utils.rsm`, and must be
+implemented as a mnemonic namespace, written in M. It is provided by the
+included vendor utility routine `%X364`, found in `utils.rsm`, and must be
 loaded in to the database in order to use it. You can enable it on your current
 I/O terminal device with the `USE` command (e.g., `use $io::"%X364"`).
 
@@ -48,9 +55,10 @@ Transaction processing has not yet been implemented.
 
 === Structured System Variables
 
-The Structured System Variables `^$CHARACTER` and `^$DEVICE` have not yet been
-implemented. However, the other SSVs defined in the standard have been
-implemented (i.e., `^$GLOBAL`, `^$ROUTINE`, `^$LOCK`, `^$JOB`, and `^$SYSTEM`).
+All the Structured System Variables from the standard are implemented in RSM
+(i.e., `^$CHARACTER`, `^$DEVICE`, `^$GLOBAL`, `^$JOB`, `^$LOCK`, `^$ROUTINE`,
+and `^$SYSTEM`). However, `^$CHARACTER` isn't particularly useful at this time,
+since RSM only supports the M character set.
 
 === Implementation Specific Syntax
 
@@ -167,9 +175,12 @@ The break specifier may be one of the following:
 Where _breakref_ is `[+_linenum_]^_routine_` and _code_ is valid M code that
 will be executed when the _breakref_ is hit.
 
-The debugger is terminated with an argumentless `QUIT`. A `QUIT` may be followed
-by a positive integer to execute that many commands (not lines) before breaking
-again.
+While stepping through code in the debugger, an argumentless `QUIT` will stop
+the stepping, and execute the rest of the code until another breakpoint is
+encountered. To turn off debugging completely, clear all the breakpoints in the
+current routine, then use an argumentless `QUIT` to finish executing it. A
+`QUIT` may be followed by a positive integer to execute that many commands (not
+lines) before breaking again.
 
 The `$ZBP` array (case-sensitive), stores all the currently active breakpoints.
 Its format is `$ZBP(_routine_,_linenumber_)`. You can `$ORDER` or `$QUERY`
@@ -691,12 +702,15 @@ only, and is case-insensitive.
 |===
 | First Parameter    | Second Parameter
 
-| _/directory/file_  | `"READ"`\|`"WRITE"`\|`"APPEND"`
+| _/directory/file_  | `"READ"`\|`"WRITE"`\|`"APPEND"`\|`"IO"`
 | _/dev/device_      | `"READ"`\|`"WRITE"`\|`"IO"`
 | _host.domain port_ | `"TCPIP"`
 | _port_             | `"SERVER[=_int_]"`
 | _pipename_         | `"PIPE"`\|`"NEWPIPE"`
 |===
+
+IMPORTANT: If you open a file in `IO` mode (read-write), it will set the file
+pointer to the beginning of the file
 
 ==== Standard
 
@@ -827,7 +841,10 @@ position(s) of variable.
 
 ==== Standard
 
-Complies exactly with the extension of allowing `set var1=@var2`.
+Does not fully comply with the standard. It evaluates the expression on the
+right-hand side of the `=` before it evaluates the subscripts on the left-hand
+side of the `=`, which is non-standard. This will very likely be fixed in a
+future version of RSM.
 
 ==== Examples
 
@@ -876,8 +893,8 @@ Valid parameters (passed as strings) by file/device type are:
 
 IMPORTANT: `TERMINATOR` arguments must be ASCII characters [0-127]
 
-NOTE: `"TERMINATOR="_$C(13,10)` means that the following is placed in `$KEY` not
-returned in the data
+NOTE: `"TERMINATOR="_$CHAR(13,10)` means that the following is placed in `$KEY`
+not returned in the data
 
 ==== Standard
 
@@ -887,8 +904,8 @@ Complies with the exception of the vague areas in the standard.
 
 [source,m]
 ----
-use term read *chk:0 use file                    ; See if the user has hit a key
-use 0:("terminator="_$C(1,5,10,13):"nocontrolc") ; Set terminators, disable ^C
+use term read *chk:0 use file                      ; See if user has hit a key
+use 0:("terminator="_$char(1,5,7,13):"nocontrolc") ; Set terminators, disable ^C
 ----
 
 === V[IEW]
@@ -943,7 +960,7 @@ Where _writeargument_ is one of the following:
 ** `!` -> Carrige return, linefeed combination, or specified output terminators
 ** `?_n_` -> Tab to character position _n_ (left most position is `0`)
 ** `/_cmd_[(_params_)]` -> Provide device specific control [X3.64-1979]
-* _expr_ -> Any valid M expression
+* `_expr_` -> Any valid M expression
 * `*_intexpr_` -> Output the ASCII character (`_intexpr_#256`)
 
 ==== Usage
@@ -1207,6 +1224,36 @@ Complies exactly.
 [source,m]
 ----
 write $get(^DATABASE(1),"Undefined") ; -> "Undefined" if $data(^DATABASE(1))#2=0
+----
+
+=== $I[NCREMENT]
+
+Atomically increments or decrements the value of a variable, by a specified
+number (default 1).
+
+==== Format
+
+`$INCREMENT(_var_[,_numexpr_])`
+
+==== Returns
+
+The value of _var_ after being incremented or decremented.
+
+==== Standard
+
+This is not in the current standard, but is implemented by most other M
+implementations, and will likely be added to the next standard.
+
+==== Examples
+
+[source,m]
+----
+set value=500
+write $increment(value)     ; -> 501
+write value                 ; -> 501
+set value="Not a number"
+write $increment(value,-35) ; -> -35
+write value                 ; -> -35
 ----
 
 === $J[USTIFY]
@@ -1498,7 +1545,7 @@ Complies exactly.
 
 [source,m]
 ----
-kill A write $select($D(A):1,1:4) ; -> 4
+kill A write $select($data(A):1,1:4) ; -> 4
 ----
 
 === $ST[ACK]
@@ -1786,7 +1833,7 @@ The read terminator sequence.
 ==== Returns
 
 Control sequence which terminated the last read from the current device. May be
-set.
+set. End-of-file (EOF) is indicated by a `$KEY` value of `$CHAR(255)`.
 
 ==== Standard
 
@@ -1796,7 +1843,8 @@ Complies exactly.
 
 [source,m]
 ----
-write $key ; -> $C(27,91,65) (the <up-arrow> key)
+write $key ; -> $char(27,91,65) (the <up-arrow> key)
+write $key ; -> $char(255) (EOF)
 ----
 
 === $P[RINCIPAL]
@@ -1990,11 +2038,111 @@ except to compile a routine into `^$ROUTINE`:
 merge ^$routine("routine")=^UTILITY($job)
 ----
 
+=== ^$C[HARACTER]
+
+==== Format
+
+`^$CHARACTER("M","COLLATE"|"IDENT")` +
+`^$CHARACTER("M","INPUT"|"OUTPUT","M")`
+
+==== Usage
+
+Provides a list of all the suppported character sets (currently only M), and
+information about their collation, legal identifiers, and input/output
+transformations between them. `^$CHARACTER` is read-only at this time.
+
+NOTE: All nodes are case-insensitive
+
+==== Action
+
+This SSV may be used as the source of any M command, but may not be used as the
+destination.
+
+==== Standard
+
+Mostly complies; but doesn't provide a lot of usefulness with only the M
+character set, and doesn't provide a "PATCODE" node or algorithm.
+
+==== Examples
+
+[source,m]
+----
+write ^$character("M","COLLATE")    ; -> "" - empty string for M collation
+write ^$character("M","IDENT")      ; -> "" - empty string for M identifiers
+write ^$character("M","INPUT","M")  ; -> "" - empty string for no transformation
+write ^$character("M","OUTPUT","M") ; -> "" - empty string for no transformation
+----
+
+=== ^$D[EVICE]
+
+==== Format
+
+`^$DEVICE(_channel_[,"$X"|"$Y"|"CHARACTER"|"FD"])` +
+`^$DEVICE(_channel_[,"MODE"|"NAME"|"NAMESPACE"|"TYPE"])` +
+`^$DEVICE(_channel_[,"OPTIONS","DELETE"|"ECHO"|"ESCAPE"|"OUTPUT"|"TERMINATOR"])`
+
+==== Usage
+
+Provides a list of all the currently open device channels in the job. `$ORDER`
+may be used for the device channel. Stores per-device information about a number
+of device characteristics. `^$DEVICE` is read-only at this time.
+
+[%autowidth]
+.^$DEVICE Usage
+|===
+| Subscripts                         | Contains
+
+| `_channel_,"$X"`                   | Current horizontal cursor position
+| `_channel_,"$Y"`                   | Current vertical cursor position
+| `_channel_,"CHARACTER"`            | Always returns "M"
+| `_channel_,"FD"`                   | Operating system file descriptor
+| `_channel_,"MODE"`                 | Current I/O mode of the device
+| `_channel_,"NAME"`                 | Operating system device/file name
+| `_channel_,"NAMESPACE"`            | Mnemonic namespace routine name
+| `_channel_,"TYPE"`                 | Type of device or file
+| `_channel_,"OPTIONS","DELETE"`     | Which keys are delete characters
+| `_channel_,"OPTIONS","ECHO"`       | Whether input keys are echoed
+| `_channel_,"OPTIONS","ESCAPE"`     | Whether escape processing is on
+| `_channel_,"OPTIONS","OUTPUT"`     | The output sequence when using `write !`
+| `_channel_,"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
+|===
+
+NOTE: All nodes are case-insensitive
+
+==== Action
+
+This SSV may be used as the source of any M command, but may not be used as the
+destination.
+
+==== Standard
+
+Complies exactly, as most nodes are implementation-specific in the standard.
+
+==== Examples
+
+[source,m]
+----
+write ^$device(1,"$x")        ; horizontal cursor position
+write ^$device(1,"$y")        ; vertical cursor position
+write ^$device(1,"character") ; "M" - the only supported character set
+write ^$device(1,"fd")        ; operating system file descriptor
+write ^$device(1,"mode")      ; either "PRINCIPAL", "WRITE", "READ", "APPEND",
+                              ; "IO", "TCPIP", "SERVER", "NOFORK", "FORKED",
+                              ; "PIPE", or "NEWPIPE"
+write ^$device(1,"name")      ; operating system device or file name
+write ^$device(1,"namespace") ; mnemonic device routine name
+write ^$device(1,"type")      ; either "1,FILE", "2,SOCKET", "3,PIPE", or
+                              ; "4,TERMINAL"
+
+; List all open devices in this job
+set dev="" for  set dev=$order(^$device(dev)) quit:dev=""  write dev,!
+----
+
 === ^$G[LOBAL]
 
 ==== Format
 
-`^$GLOBAL(_global_[,"JOURNAL"|"CHARACTER"])`
+`^$GLOBAL(_global_[,"CHARACTER"|"COLLATE"|"JOURNAL"])`
 
 ==== Usage
 
@@ -2009,13 +2157,14 @@ as well.
 
 | `_global_`             | Top pointer block number of _global_  | No
 | `"$GLOBAL"`            | Global directory block number for UCI | No
+| `_global_,"CHARACTER"` | Always returns "M"                    | No
+| `_global_,"COLLATE"`   | Always returns ""                     | No
 | `_global_,"JOURNAL"`   | Returns whether to journal _global_   | Yes
 | `"$GLOBAL","JOURNAL"`  | Returns the default journal action    | Yes
-| `_global_,"CHARACTER"` | Always returns "`M`"                  | No
 |===
 
-NOTE: While the name of a global is case-sensitive, including `$GLOBAL`, both
-`"JOURNAL"` and `"CHARACTER"` are case-insenstive
+NOTE: While the name of a global is case-sensitive, including `$GLOBAL`, the
+`"CHARACTER"`, `"COLLATE"`, and `"JOURNAL"` subscripts are case-insenstive
 
 ==== Action
 
@@ -2025,52 +2174,91 @@ truth-value expression.
 
 ==== Standard
 
-Mostly complies; but does not provide collation sequence algorithm in
-`"COLLATE"` subscript.
-
-==== Examples
-
-[source,m]
-----
-write ^$global("RSM")             ; -> block number of "RSM" global root
-write ^$global("RSM","journal")   ; -> 1|0 - whether "RSM" journaling is on
-write ^$global("RSM","character") ; -> "M" - the only supported character set
-
-; List all globals in this UCI
-set gvn="" for  set gvn=$order(^$global(gvn)) quit:gvn=""  write gvn,!
-----
-
-=== ^$R[OUTINE]
-
-==== Format
-
-`^$ROUTINE(_routine_,0|_linenum_)`
-
-==== Usage
-
-Provides storage for all routines in a UCI as:
-
-* `^$ROUTINE(_routine_,0)` ; -> _bytecode_
-* `^$ROUTINE(_routine_,_linenum_)` ; -> _source_
-
-==== Action
-
-This SSV may be used as the source of any M command and may be merged and killed
-by privileged jobs. Note that a `MERGE` to `^$ROUTINE` must be from a suitable
-source -- this re-stores the routine source and compiles it into
-`^$ROUTINE(_routine_,0)`. `$ORDER` is available on the _routine_ names, `merge
-pass:[^]$routine(_routine_)=^$routine(_routine_)` may be used to re-compile a
-routine, and `^$ROUTINE(_routine_,"CHARACTER")` will return "`M`".
-
-==== Standard
-
 Mostly complies, but provides more functionality than in the standard.
 
 ==== Examples
 
 [source,m]
 ----
-merge ^$routine("ROUTINE")=^UTILITY($job)
+write ^$global("RSM")             ; -> block number of "RSM" global root
+write ^$global("RSM","character") ; -> "M" - the only supported character set
+write ^$global("RSM","collate")   ; -> ""  - empty string - default M collation
+write ^$global("RSM","journal")   ; -> 1|0 - whether ^RSM journaling is on
+
+; List all globals in this UCI
+set gvn="" for  set gvn=$order(^$global(gvn)) quit:gvn=""  write gvn,!
+----
+
+=== ^$J[OB]
+
+==== Format
+
+`^$JOB(_jobnum_[,_opt_...])`
+
+==== Usage
+
+Provides a list of all jobs in the environment. This SSV exists once for each
+environment and is assumed to be in UCI number 1, volume 1. `^$JOB` returns the
+maximum permitted number of jobs in this environment. `$ORDER` may be used on
+the job number only; it returns the job numbers of currently active jobs only.
+
+The following second level (and higher) subscripts are also provided:
+
+NOTE: The `^$JOB` subscripts listed below are case-insensitive
+
+[%autowidth]
+.^$JOB Usage
+|===
+| Subscripts                 | Contains                         | Settable
+
+| `"$IO"`                    | Current channel number           | No
+| `"$IO",_channel_`          | Name of device/file on channel   | No
+| `"$REFERENCE"`             | Last global reference            | No
+| `"$STACK"`                 | Current stack level              | No
+| `"$STACK",_level_`         | As for `$STACK(_level_)`         | No
+| `"$STACK",_level_,"ECODE"` | As for `$STACK(_level_,"ECODE")` | No
+| `"$STACK",_level_,"MCODE"` | As for `$STACK(_level_,"MCODE")` | No
+| `"$STACK",_level_,"PLACE"` | As for `$STACK(_level_,"PLACE")` | No
+| `"CHARACTER"`              | Always returns "M"               | No
+| `"COMMANDS"`               | Number of commands executed      | No
+| `"GLOBAL"`                 | Global environment (UCI #)       | Current job
+| `"GLOBAL_VOL"`             | Global environment (VOL #)       | Current job
+| `"GREFS"`                  | Number of global references      | No
+| `"LOCK"`                   | Lock environment (UCI #)         | Current job
+| `"LOCK_VOL"`               | Lock environment (VOL #)         | Current job
+| `"OWNER"`                  | OS process owner name            | No
+| `"OWNER_ID"`               | OS process owner UID             | Privilege
+| `"PID"`                    | OS process ID                    | No
+| `"PRECISION"`              | Current numeric precision        | Current job
+| `"PRIORITY"`               | Current process priority         | Privilege
+| `"PRIV"`                   | Current process privilege        | Privilege
+| `"PROCESS_START"`          | `$HOROLOG` when process started  | No
+| `"ROUTINE"`                | Routine environment (UCI #)      | Current job
+| `"ROUTINE_NAME"`           | Routine name                     | No
+| `"ROUTINE_VOL"`            | Routine environment (VOL #)      | Current job
+|===
+
+==== Action
+
+This SSV may be used as the source of any M command and a `^$JOB(_jobnum_)` node
+may be killed by a privileged user or process.
+
+NOTE: A `kill ^$job` is a signal to shutdown the environment
+
+==== Standard
+
+Mostly complies; does not provide character information, but does provide
+additional info.
+
+==== Examples
+
+[source,m]
+----
+; Write last global reference and current routine line source for job JN
+write ^$job(JN,"$reference"),!,^$job(JN,"$stack",^$job(JN,"$stack"),"mcode"),!
+
+kill ^$job(104) ; Stop job number 104
+kill ^$job      ; Shutdown the system
 ----
 
 === ^$L[OCK]
@@ -2103,72 +2291,38 @@ write ^$lock("^lock") ; -> "1,2"
 set L="" for  set L=$order(^$lock(L)) quit:L=""  write ^$lock(L),?10,L,!
 ----
 
-=== ^$J[OB]
+=== ^$R[OUTINE]
 
 ==== Format
 
-`^$JOB(_jobnum_[,_opt_...])`
+`^$ROUTINE(_routine_,0|_linenum_)`
 
 ==== Usage
 
-Provides a list of all jobs in the environment. This SSV exists once for each
-environment and is assumed to be in UCI number 1, volume 1. `^$JOB` returns the
-maximum permitted number of jobs in this environment. `$ORDER` may be used on
-the job number only; it returns the job numbers of currently active jobs only.
+Provides storage for all routines in a UCI as:
 
-The following second level (and higher) subscripts are also provided:
-
-[%autowidth]
-.^$JOB Usage
-|===
-| Subscripts                 | Contains                         | Settable
-
-| `"$IO"`                    | Current channel number           | No
-| `"$IO",_channel_`          | Name of device/file on channel   | No
-| `"$REFERENCE"`             | Last global reference            | No
-| `"$STACK"`                 | Current stack level              | No
-| `"$STACK",_level_`         | As for `$STACK(_level_)`         | No
-| `"$STACK",_level_,"MCODE"` | As for `$STACK(_level_,"MCODE")` | No
-| `"$STACK",_level_,"PLACE"` | As for `$STACK(_level_,"PLACE")` | No
-| `"CHARACTER"`              | Always returns "M"               | No
-| `"COMMANDS"`               | Number of commands executed      | No
-| `"GLOBAL"`                 | Global environment (UCI #)       | Current job
-| `"GLOBAL_VOL"`             | Global environment (VOL #)       | Current job
-| `"GREFS"`                  | Number of global references      | No
-| `"LOCK"`                   | Lock environment (UCI #)         | Current job
-| `"LOCK_VOL"`               | Lock environment (VOL #)         | Current job
-| `"OWNER"`                  | OS process owner name            | No
-| `"OWNER_ID"`               | OS process owner UID             | Privilege
-| `"PID"`                    | OS process ID                    | No
-| `"PRIORITY"`               | Current process priority         | Privilege
-| `"PRIV"`                   | Current process privilege        | Privilege
-| `"PROCESS_START"`          | `$HOROLOG` when process started  | No
-| `"ROUTINE"`                | Routine environment (UCI #)      | Current job
-| `"ROUTINE_NAME"`           | Routine name                     | No
-| `"ROUTINE_VOL"`            | Routine environment (VOL #)      | Current job
-|===
+* `^$ROUTINE(_routine_,0)` ; -> _bytecode_
+* `^$ROUTINE(_routine_,_linenum_)` ; -> _source_
+* `^$ROUTINE(_routine_,"CHARACTER")` ; -> "M"
 
 ==== Action
 
-This SSV may be used as the source of any M command and a `^$JOB(_jobnum_)` node
-may be killed by a privileged user or process.
-
-NOTE: A `kill ^$job` is a signal to shutdown the environment
+This SSV may be used as the source of any M command and may be merged and killed
+by privileged jobs. Note that a `MERGE` to `^$ROUTINE` must be from a suitable
+source -- this re-stores the routine source and compiles it into
+`^$ROUTINE(_routine_,0)`. `$ORDER` is available on the _routine_ names, `merge
+pass:[^]$routine(_routine_)=^$routine(_routine_)` may be used to re-compile a
+routine, and `^$ROUTINE(_routine_,"CHARACTER")` will return "M".
 
 ==== Standard
 
-Mostly complies; does not provide character information, but does provide
-additional info.
+Mostly complies, but provides more functionality than in the standard.
 
 ==== Examples
 
 [source,m]
 ----
-; Write last global reference and current routine line source for job JN
-write ^$job(JN,"$reference"),!,^$job(JN,"$stack",^$job(JN,"$stack"),"mcode"),!
-
-kill ^$job(104) ; Stop job number 104
-kill ^$job      ; Shutdown the system
+merge ^$routine("ROUTINE")=^UTILITY($job)
 ----
 
 === ^$S[YSTEM]
@@ -2188,18 +2342,20 @@ Provides system specific data (e.g., database statistics).
 
 | `"NAME_LENGTH"`                   | Length of all names        | No
 | `"STRING_MAX"`                    | Maximum size of strings    | No
+| `"BIG_ENDIAN"`                    | Hardware endianness        | No
 | `"$NEXTOK"`                       | On/Off `$NEXT`             | Privilege
 | `"EOK"`                           | On/Off exponent notation   | Privilege
 | `"OFFOK"`                         | On/Off `DO/GO` offset      | Privilege
-| `"TRANTAB",_num_`                 | `_dst_=_src_` (globals)    | Privilege
+| `"PRECISION"`                     | Default numeric precision  | Privilege
+| `"TRANTAB",_num_`                 | `_to=from_` (global alias) | Privilege
 | `"VOL",_vol_,"BLOCK"`             | Block size in volume       | No
 | `"VOL",_vol_,"FILE"`              | File name of volume        | Mount volume
 | `"VOL",_vol_,"FREE"`              | Free blocks in volume      | No
 | `"VOL",_vol_,"HEADER"`            | Header block size (volume) | No
 | `"VOL",_vol_,"JOURNAL_AVAILABLE"` | Current journal status     | No
 | `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume) | Single user
-| `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume) | 0 to truncate
 | `"VOL",_vol_,"JOURNAL_REQUESTED"` | Enable/Disable journaling  | Privilege
+| `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume) | 0 to truncate
 | `"VOL",_vol_,"NAME"`              | Name of volume             | Single user
 | `"VOL",_vol_,"SIZE"`              | Size of volume in blocks   | Single user
 | `"VOL",_vol_,"UCI",_uci_`         | Environment (UCI) name     | Create UCI

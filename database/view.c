@@ -4,7 +4,7 @@
  * Summary:  module database - Database Functions, View
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -45,7 +45,7 @@
  * Input(s): Vol# and Block# to get
  * Return:   Address of GBD or null on error
  */
-struct GBD *DB_ViewGet(int vol, int block)                                      // return GBD for blk
+gbd *DB_ViewGet(int vol, int block)                                             // return GBD for blk
 {
     short s;                                                                    // for func
 
@@ -70,7 +70,7 @@ struct GBD *DB_ViewGet(int vol, int block)                                      
  * Input(s): Vol# and GBD ptr of block
  * Return:   none
  */
-void DB_ViewPut(int vol, struct GBD *ptr)                                       // queue block for write
+void DB_ViewPut(int vol, gbd *ptr)                                              // queue block for write
 {
     short s;                                                                    // for funcs
 
@@ -105,7 +105,7 @@ void DB_ViewPut(int vol, struct GBD *ptr)                                       
  * Input(s): Vol# and GBD ptr of block
  * Return:   none
  */
-void DB_ViewRel(int vol, struct GBD *ptr)                                       // release block, GBD
+void DB_ViewRel(int vol, gbd *ptr)                                              // release block, GBD
 {
     short s;                                                                    // for functions
 

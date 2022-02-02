@@ -4,7 +4,7 @@
  * Summary:  module RSM routine - routine functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -73,7 +73,7 @@ void Dump_rbd(void)                                                             
     t = current_time(FALSE);
     printf("Dump of all Routine Buffer Descriptors on %s\r\n", ctime(&t));
     printf("Free at %10p\r\n", systab->vol[0]->rbd_hash[RBD_HASH]);
-    printf("       Address       fwd_link chunk_size attach last_access UCI VOL routine_size routine_name\r\n");
+    printf("       Address       Fwd_Link Chunk_Size Attach Last_Access VOL UCI Routine_Size Routine_Name\r\n");
     tmp[VAR_LEN] = '\0';                                                        // null terminate temp
 
     while (TRUE) {                                                              // for all
@@ -86,7 +86,7 @@ void Dump_rbd(void)                                                             
 
         printf("%10p %14p %10u %6d %11lld %3d %3d %12d %s\r\n",
                p, p->fwd_link, p->chunk_size, p->attached,
-               (long long) p->last_access, p->uci, p->vol, p->rou_size, tmp);
+               (long long) p->last_access, p->vol, p->uci, p->rou_size, tmp);
 
         p = (rbd *) ((u_char *) p + p->chunk_size);                             // point at next
         if (p >= (rbd *) systab->vol[0]->rbd_end) break;                        // quit when done

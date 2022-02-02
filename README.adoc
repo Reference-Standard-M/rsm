@@ -7,16 +7,16 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 = Reference Standard M
 
-*Version 1.75.1 - 2021 Nov 23*
+*Version 1.76.0 - 2022 Feb 1*
 
-=== Implementation of ANSI Standard M X11.1-1995 and ISO/IEC 11756:1999
+=== Implementation of ANSI Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 '''
 
 === Copyright and License
 
 Developed and maintained by David Wicksell dlw@linux.com +
-Copyright © 2020-2021 Fourth Watch Software LC +
+Copyright © 2020-2022 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 Originally based on MUMPS V1 by Raymond Douglas Newman +
@@ -37,7 +37,7 @@ with this program. If not, see https://www.gnu.org/licenses/.
 
 Full license text: link:COPYING[AGPL-3.0]
 
-=== Summary and Info
+=== Summary and Information
 
 Reference Standard M (RSM) is an implementation of the M programming language
 and database, which was originally created by Ray Douglas Newman as MUMPS V1
@@ -166,19 +166,6 @@ Output a helpful options menu:
 $ rsm -h
 ----
 
-Output a database and environment configuration:
-
-[source,bash]
-----
-$ rsm -i tst.dat
-----
-or
-[source,bash]
-----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
-$ rsm -i
-----
-
 To use RSM, create a database:
 
 [source,bash]
@@ -228,10 +215,10 @@ using `sudo`, run the following commands, adjusted based on your system
 resources:
 
 [source,bash]
-....
+----
 $ sudo sysctl -w kern.sysv.shmmax=536870912
 $ sudo sysctl -w kern.sysv.shmall=131072
-....
+----
 
 On Cygwin, you need to configure and start `cygserver` (as administrator) before
 starting the RSM environment, as it provides the SysV shared memory support.
@@ -240,6 +227,19 @@ starting the RSM environment, as it provides the SysV shared memory support.
 ----
 $ cygserver-config
 $ cygrunsrv -S cygserver
+----
+
+Output a database and environment configuration:
+
+[source,bash]
+----
+$ rsm -i tst.dat
+----
+or
+[source,bash]
+----
+$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ rsm -i
 ----
 
 Load the M utilities:
@@ -338,6 +338,115 @@ From within the MCL shell:
 ----
 MCL [MGR,TST]> shutdown
 ----
+
+=== Docker Container
+
+To download the latest RSM Docker image from Docker Hub:
+
+[source,bash]
+----
+$ docker pull dlwicksell/rsm
+----
+
+To build the RSM Docker image from source, while in the `rsm` directory:
+
+[source,bash]
+----
+$ docker build -t rsm .
+----
+
+You can change a few build parameters, by passing them as follows:
+
+[source,bash]
+----
+# Pass each build argument with a separate --build-arg  - as below
+# journal=on       Turns journaling on in the image     - defaults to off
+# bsize=<bsize>    The size of a database block in KiB  - defaults to 16
+# blocks=<blocks>  The number of blocks in the database - defaults to 16384
+
+$ docker build -t rsm --build-arg journal=on \
+      --build-arg bsize=32 \
+      --build-arg blocks=32768 .
+----
+
+NOTE: If you build the image from source, using the previous example, replace
+dlwicksell/rsm with rsm below
+
+To create and run the Docker container with RSM in direct mode:
+
+[source,bash]
+----
+$ docker run -it --rm --name rsm dlwicksell/rsm
+----
+
+To create and run it as a daemon:
+
+[source,bash]
+----
+$ docker run -itd --name rsm dlwicksell/rsm
+----
+
+The RSM Docker container runs with port 80 open. To map an open port on your
+host machine to the container port (replace 8080 with an available local port):
+
+[source,bash]
+----
+$ docker run -itd --name rsm -p 8080:80 dlwicksell/rsm
+----
+
+You can change a few runtime parameters, by passing them as follows:
+
+[source,bash]
+----
+# The first argument [32|2] will set the number of maximum RSM jobs - default 12
+# The second argument ['write...'] will run that M code and remove the container
+
+$ docker run -it --rm --name rsm dlwicksell/rsm 32
+$ docker run -it --rm --name rsm dlwicksell/rsm 2 'write $system,!'
+----
+
+To run RSM in direct mode while in daemon mode:
+
+[source,bash]
+----
+$ docker exec -it rsm rsm
+----
+
+To run RSM commands while in daemon mode:
+
+[source,bash]
+----
+$ docker exec -it rsm rsm -i
+$ docker exec -it rsm rsm -h
+$ docker exec -it rsm rsm -V
+$ docker exec -it rsm rsm -x 'write $system,!'
+----
+
+To run the Bash shell while in daemon mode:
+
+[source,bash]
+----
+$ docker exec -it rsm bash
+----
+
+To start the container while in daemon mode:
+
+[source,bash]
+----
+$ docker start rsm
+----
+
+To stop the container while in daemon mode:
+
+[source,bash]
+----
+$ docker stop rsm
+----
+
+Consult the Docker link:https://docs.docker.com/[documentation] to learn about
+other ways you can run and manage the RSM Docker image and container.
+
+=== Database Upgrade
 
 A previous version of RSM introduced a change from 8 character identifiers to 32
 character identifiers. This necessitated a change to the database format, the

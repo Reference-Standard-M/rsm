@@ -4,7 +4,7 @@
  * Summary:  module RSM - command line utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2021 Fourth Watch Software LC
+ * Copyright © 2021-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include <unistd.h>                                                             // for getopt
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // function prototypes
+#include "math.h"                                                               // math prototypes
 
 // *** Give help if they entered -h or need help ***
 void help(void)                                                                 // give some help
@@ -39,7 +40,7 @@ void help(void)                                                                 
     (void) rsm_version((u_char *) str);                                         // get version into str[]
     printf("%s\n", str);                                                        // print version string
     printf("David Wicksell <dlw@linux.com>\n");
-    printf("Copyright (c) 2020-2021 Fourth Watch Software LC\n");
+    printf("Copyright (c) 2020-2022 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
     printf("Show information:\n");
     printf("  rsm -V\t\t\tOutput the short version string\n");
@@ -75,12 +76,14 @@ void info(char *file)                                                           
     int  i = 0;                                                                 // an int
     int  dbfd = 0;                                                              // database file descriptor
     char str[100];                                                              // a string
+    char pidlen;                                                                // calculate length of daemon PID
+    char margin = 24;                                                           // calculate margin for daemon PID list
 
     (void) rsm_version((u_char *) str);                                         // get version into str[]
     printf("%s\n", str);                                                        // print version string
     printf("Database Version: %d\tCompiler Version: %d\n\n", DB_VER, COMP_VER);
     printf("David Wicksell <dlw@linux.com>\n");
-    printf("Copyright (c) 2020-2021 Fourth Watch Software LC\n");
+    printf("Copyright (c) 2020-2022 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
     printf("Database and Environment Configuration Information:\n\n");
 
@@ -127,6 +130,27 @@ void info(char *file)                                                           
     printf("Routine Buffer Space:\t%d\tMiB\n", (int) ((systab->vol[0]->rbd_end - systab->vol[0]->rbd_head) / 1048576));
     printf("Lock Table Size:\t%d\tKiB\n", systab->locksize / 1024);
     printf("Job Table Slots:\t%u\tJob%s\n", systab->maxjob, ((systab->maxjob > 1) ? "s" : ""));
+    printf("Daemon Process IDs:\t");
+
+    for (i = 0; i < MAX_DAEMONS; i++) {
+        if (systab->vol[0]->wd_tab[i].pid == 0) break;
+#ifdef _AIX
+        pidlen = 10;                                                            // AIX doesn't always have libm (PID_MAX is 10)
+#else
+        pidlen = floor(log10(systab->vol[0]->wd_tab[i].pid)) + 1;
+#endif
+
+        if ((margin + pidlen) > 80) {
+            margin = pidlen + 25;
+            printf("\n\t\t\t");
+        } else {
+            margin += (pidlen + 1);
+        }
+
+        printf("%d ", systab->vol[0]->wd_tab[i].pid);
+    }
+
+    putchar('\n');
     i = shmdt(systab);                                                          // detach the shared mem
     i = close(dbfd);                                                            // close the database
     exit(0);                                                                    // give info and exit

@@ -1,3 +1,8 @@
+.git
+.gitignore
+.gitlab-ci.yml
+.dockerignore
+Dockerfile
 **/*.o
 rsm
 daemon.log

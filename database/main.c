@@ -4,7 +4,7 @@
  * Summary:  module database - Main Database Functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -96,7 +96,7 @@ short Copy2local(mvar *var)
     if ((var->volset == 0) && (var->uci == 0)) {                                // no vol or UCI
         for (i = 0; i < systab->max_tt; i++) {                                  // scan trantab
             if (bcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) {        // if a match
-                if (systab->tt[i].to_vol == 0) return (i + 1);                  // flag routine proc
+                if (systab->tt[i].to_vol == 0) return (i + 1);                  // flag routine proc (for triggers in the future)
                 bcopy((char *) &systab->tt[i] + offsetof(trantab, to_global), &db_var.name, sizeof(var_u) + 2);
                 break;
             }                                                                   // end found one
@@ -127,7 +127,7 @@ int DB_Get(mvar *var, u_char *buf)                                              
     if (s < 0) return s;                                                        // exit on error
 
     if (s > 0) {                                                                // ROU process
-        s++;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab ent
         /*
          * This code needs to invoke XXX^<systab->tt[s].to_global.var_cu>
          * as a routine where XXX is GET (this example), SET, KILL etc.
@@ -166,8 +166,12 @@ int DB_Set(mvar *var, cstring *data)                                            
     int i;                                                                      // a handy int
 
     s = Copy2local(var);                                                        // get local copy
-
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     i = 4 + db_var.slen + 2 + data->len;                                        // space reqd
     if (i & 3) i += (4 - (i & 3));                                              // if required then round up
     i += 4;                                                                     // add Index
@@ -180,7 +184,7 @@ int DB_Set(mvar *var, cstring *data)                                            
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
     }                                                                           // end writelock check
 
-    i = systab->vol[volnum - 1]->vollab->max_block >> 3;                        // last map byte
+    i = systab->vol[volnum - 1]->vollab->max_block >> 3;                        // last map byte necessary for current database size
 
     while (i) {                                                                 // check from the end
         if ((((u_char *) systab->vol[volnum - 1]->map)[i--]) == 0) break;       // OK if byte is free
@@ -207,6 +211,11 @@ short DB_Data(mvar *var, u_char *buf)                                           
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     systab->vol[volnum - 1]->stats.dbdat++;                                     // update stats
     t = Get_data(0);                                                            // attempt to get it
     i = 1;                                                                      // assume data found
@@ -260,6 +269,11 @@ short DB_Kill(mvar *var)                                                        
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return (short) s;                                                // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     systab->vol[volnum - 1]->stats.dbkil++;                                     // update stats
 
     while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
@@ -320,6 +334,11 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     systab->vol[volnum - 1]->stats.dbord++;                                     // update stats
     last_key = UTIL_Key_Last(&db_var);                                          // get start of last
     buf[0] = '\0';                                                              // null terminate ret
@@ -393,6 +412,11 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     systab->vol[volnum - 1]->stats.dbqry++;                                     // update stats
 
     if (dir < 0) {                                                              // if it's backward
@@ -478,6 +502,11 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     t = Get_data(0);                                                            // try to find that
 
     if ((t < 0) && (t != -ERRM7)) {                                             // check for errors
@@ -548,6 +577,10 @@ int DB_GetLen(mvar *var, int lock, u_char *buf)                                 
     if (s < 0) {                                                                // check for error
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
         return s;                                                               // and return
+    }
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
     }
 
     s = Get_data(0);                                                            // attempt to get it
@@ -691,6 +724,11 @@ int DB_GetFlags(mvar *var)                                                      
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     t = Get_data(0);                                                            // try to find that
 
     if ((t < 0) && (t != -ERRM7)) {                                             // check for errors
@@ -724,6 +762,11 @@ int DB_SetFlags(mvar *var, int flags)                                           
 
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return s;                                                        // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     systab->vol[volnum - 1]->stats.dbset++;                                     // update stats
     writing = 1;                                                                // say we are writing
 
@@ -775,6 +818,11 @@ short DB_Compress(mvar *var, int flags)                                         
     flags &= 15;                                                                // clear high bits
     s = Copy2local(var);                                                        // get local copy
     if (s < 0) return (short) s;                                                // exit on error
+
+    if (s > 0) {                                                                // ROU process
+        s--;                                                                    // point at trantab ent
+    }
+
     bzero(rekey_blk, MAXREKEY * sizeof(u_int));                                 // clear that table
     bzero(rekey_lvl, MAXREKEY * sizeof(int));                                   // and that table
     bcopy(&db_var, var, sizeof(mvar));                                          // copy the data back

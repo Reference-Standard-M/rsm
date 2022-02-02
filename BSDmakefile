@@ -4,7 +4,7 @@
 # Summary:  Makefile for FreeBSD, NetBSD, and OpenBSD
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020-2021 Fourth Watch Software LC
+# Copyright © 2020-2022 Fourth Watch Software LC
 # https://gitlab.com/Reference-Standard-M/rsm
 #
 # Based on MUMPS V1 by Raymond Douglas Newman
@@ -30,10 +30,11 @@ CC     = gcc
 FLAGS  = -fsigned-char -fwrapv -Wall -std=gnu99 -Iinclude
 LIBS   = -lm -lcrypt
 
-.ifmake test
+.ifmake debug
     EXTRA = -O0 -g3
 .else
     EXTRA = -O3
+    FLAGS += -DNDEBUG
 .endif
 
 .ifdef dbver
@@ -110,7 +111,7 @@ OBJS = compile/dollar.o \
 all: ${OBJS}
 	${CC} ${EXTRA} ${FLAGS} -o ${PROG} ${OBJS} ${LIBS}
 
-test: ${OBJS}
+debug: ${OBJS}
 	${CC} ${EXTRA} ${FLAGS} -o ${PROG} ${OBJS} ${LIBS}
 
 install: ${PROG}
@@ -138,4 +139,4 @@ uninstall:
 clean:
 	${RM} ${OBJS} ${PROG} ${PROG}.core
 
-.PHONY: all test install uninstall clean
+.PHONY: all debug install uninstall clean

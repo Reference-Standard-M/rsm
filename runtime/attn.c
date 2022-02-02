@@ -4,7 +4,7 @@
  * Summary:  module runtime - look after attention conditions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -125,7 +125,7 @@ void DoInfo(void)
         i += UTIL_String_Mvar(var, (u_char *) &ct[i], MAX_NUM_SUBS);            // decode it
     }
 
-    if ((ioctl(0, TIOCGWINSZ, &w) != -1) && (i > (w.ws_col + 9))) {
+    if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) && (i > (w.ws_col + 9))) {
         i = w.ws_col + 9;                                                       // fit on terminal
     } else if (i > 89) {
         i = 89;                                                                 // fit on terminal if ioctl failed

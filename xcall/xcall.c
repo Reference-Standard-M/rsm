@@ -4,7 +4,7 @@
  * Summary:  module xcall - Supplied XCALLs
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -549,7 +549,7 @@ short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
         } else {                                                                // It's the string type
             mask = 0;                                                           // clear the mask
 
-            for (i = 0; i != (int)STR_mask->len; i++) {                         // For all characters
+            for (i = 0; i != (int) STR_mask->len; i++) {                        // For all characters
                 switch (toupper(STR_mask->buf[i])) {
                 case 'P':
                     mask |= TRIM_PARITY;

@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential device IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -54,7 +54,7 @@ int SQ_Device_Read_TTY(int fid, u_char *buf, int tout);
  * non-negative integer, termed a descriptor. Otherwise, it returns a negative
  * integer to indicate the error that has occurred.
  */
-int SQ_Device_Open (char *device, int op)
+int SQ_Device_Open(char *device, int op)
 {
     int flag;
     int did;
@@ -121,6 +121,7 @@ int SQ_Device_Read(int did, u_char *readbuf, int tout)
     int ret;
 
     ret = isatty(did);
+
     if (ret == 1) {
         return SQ_Device_Read_TTY(did, readbuf, tout);
     } else {

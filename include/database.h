@@ -4,7 +4,7 @@
  * Summary:  module database header file - standard includes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -32,6 +32,7 @@
 #define READ            -1                                                      // Locking defines makes
 #define WRITE           -systab->maxjob                                         // easy reading code
 #define WR_TO_R         (systab->maxjob - 1)                                    // from write to read
+
 #define NODE_UNDEFINED  VAR_UNDEFINED                                           // junk record (was -1 now MAX_STR_LEN + 1)
 #define PTR_UNDEFINED   0                                                       // junk pointer
 

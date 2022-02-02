@@ -1,9 +1,11 @@
 #!/bin/bash -
 #
-# upgrade - Upgrade an RSM or MV1 database from version 1 to 2
+# Package:  Reference Standard M
+# File:     rsm/bin/upgrade
+# Summary:  Upgrade an RSM or MV1 database from version 1 to 2
 #
-# Written by David Wicksell <dlw@linux.com>
-# Copyright © 2020-2021 Fourth Watch Software LC
+# David Wicksell <dlw@linux.com>
+# Copyright © 2020-2022 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -46,7 +48,7 @@ echo -e "${LOG}Reference Standard M Database Upgrade Utility${DEF}\n"
 echo -e "Upgrades an RSM or MUMPS V1 (MV1) database from version 1 to 2\n"
 echo -e "${ERR}WARNING:${DEF} This script is experimental.\n"
 echo "David Wicksell <dlw@linux.com>"
-echo "Copyright (c) 2020-2021 Fourth Watch Software LC"
+echo "Copyright (c) 2020-2022 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 
 [[ $1 == "-h" ]] && echo -e "\n${LOG}Usage:${DEF}\t$0 [<database file to upgrade>]\n\t$0 -h" && exit 0

@@ -4,7 +4,7 @@
  * Summary:  module RSM - startup (main) code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -62,6 +62,7 @@ char    history[MAX_HISTORY][MAX_STR_LEN];                                      
 u_short hist_next = 0;                                                          // next history pointer
 u_short hist_curr = 0;                                                          // history entry pointer
 short   in_hist = FALSE;                                                        // are we in the history buffer
+u_short prompt_len = 8;                                                         // length of the current direct mode prompt
 
 void ser(int s)                                                                 // display errors
 {
@@ -352,6 +353,7 @@ start:
             ssp = 0;                                                            // and the string stack
             uci_ptr = &systab->vol[partab.jobtab->vol - 1]->vollab->uci[partab.jobtab->uci - 1]; // get ptr to UCI
             sptr->len = strlen((char *) uci_ptr->name.var_cu) + 8;              // find the length
+            prompt_len = sptr->len;                                             // update the prompt length for direct mode editing
 
             if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s]> ", uci_ptr->name.var_cu) < 0) {
                 return errno;                                                   // copy in the prompt

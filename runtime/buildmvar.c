@@ -4,7 +4,7 @@
  * Summary:  module runtime - build an mvar
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -113,7 +113,7 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
         if (var_empty(partab.jobtab->last_ref.name)) return -ERRM1;             // say "Naked indicator undef"
         i = UTIL_Key_Last(&partab.jobtab->last_ref);                            // start of last key
         if (i < 0) return -ERRM1;                                               // say "Naked indicator undef"
-        bcopy(&(partab.jobtab->last_ref), var, sizeof(var_u) + 5 + i);          // copy naked naked
+        bcopy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + i);            // copy naked reference
         var->slen = (u_char) i;                                                 // stuff in the count
     } else if (type == TYPVARIND) {                                             // it's an indirect
         ind = (mvar *) addstk[asp - subs - 1];                                  // point at mvar so far
