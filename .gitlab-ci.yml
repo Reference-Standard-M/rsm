@@ -5,6 +5,7 @@ host-build:
   stage: build
   image: gcc:11.2.0
   script:
+    - export USER=root
     - make -j
     - make install
     - rsm -v TST -b 16 -s 16384 tst.dat
@@ -22,8 +23,8 @@ docker-build:
     - docker:dind
   script:
     - docker build -t rsm .
-    - docker run -itd --name rsm -p 8080:80 rsm
-    - docker exec -it rsm rsm -i
+    - docker run -d --name rsm rsm
+    - docker exec rsm rsm -i
     - docker stop rsm
     - docker rm rsm
     - docker rmi rsm
