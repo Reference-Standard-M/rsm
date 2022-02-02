@@ -24,6 +24,7 @@ docker-build:
   script:
     - docker build -t rsm .
     - docker run -d --name rsm rsm
+    - sleep 5
     - docker exec rsm rsm -i
     - docker stop rsm
     - docker rm rsm
