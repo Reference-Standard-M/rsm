@@ -300,7 +300,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
     } else {
         // Otherwise, open the directory and return the first matching directory entry or NULL
         i = snprintf(path, MAX_SEQ_NAME, "%s", file->buf);                      // Make a local copy of the
-        if (i < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+        if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
         len = strlen(path);                                                     //  filename
         patptr = path;                                                          // Move pointer to the
         patptr += len;                                                          //  filenames NULL terminator

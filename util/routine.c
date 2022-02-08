@@ -439,7 +439,7 @@ void Routine_Detach(rbd *pointer)                                               
     if ((pointer->uci == 0) && (pointer->attached == 0)) Routine_Free(pointer); // if invalid and nothing attached, free the space
     if (partab.debug > 0) partab.debug = -1;                                    // if in the debugger, reset it
     s = SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
-    if (s < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+    if (s < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
     return;                                                                     // done
 }
 

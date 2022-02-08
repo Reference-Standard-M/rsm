@@ -9,13 +9,34 @@ link:index.adoc[Index]
 
 = Reference Standard M Conformance Clause
 
-=== Under Construction
+== Summary
 
-Reference Standard M Version 1.76.0 conforms to ANSI X11.1-1995 (ISO/IEC
-11756:1999) with the following exceptions:
+Reference Standard M Version 1.76.1 conforms to ANSI X11.1-1995 (ISO/IEC
+11756:1999) with the following exceptions (there may be more):
 
-* Only supports the M Character Set Profile
-* Uniqueness of the values of `$SYSTEM` is guaranteed by compiler build macros
+* Only supports the M character set profile
+* Transaction processing is not implemented
+* Scientific notation using '`E`' is disabled by default, but can be enabled
+* A comment can start in the first column
+* `CLOSE` device parameters are not implemented
+* Label offsets are disabled by default, but can be enabled
+* `HANG 0` is not ignored, it gives up the process timeslice
+* `SET` evaluates the expression on the right-hand side of the '`=`' before it
+  evaluates the subscripts on the left-hand side of the '`=`'
+* `$INCREMENT` is implemented
+* Reverse `$QUERY` is implemented
+* Use of `$QUERY` does not result in the naked indicator and `$REFERENCE`
+  becoming empty, it behaves like `$ORDER`
+* `$DEVICE` may not be set
+* `$STORAGE` does not return the number of characters of free space remaining,
+  it returns the number of free local variable slots in the symbol table
+* The uniqueness of `$SYSTEM` is only guaranteed by compiler build macros, so
+  may not be unique under certain conditions
+* `^$CHARACTER` does not include a `"PATCODE"` node or algorithm
+* `^$GLOBAL` includes extra nodes
+* `^$JOB` includes extra nodes
+* `^$ROUTINE` includes extra nodes
+* `^$SYSTEM` includes many extra nodes, and is missing a `"CHARACTER"` node
 
 [role="right"]
 link:index.adoc[Index]

@@ -4,7 +4,7 @@
  * Summary:  module RSM strerror - return full name of error
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2022 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -210,8 +210,8 @@ void panic(char *msg)                                                           
     int    j;                                                                   // and another
     time_t t;                                                                   // for time
 
-    fprintf(stderr, "\n\rFATAL RSM ERROR occurred!!\n\r%s\n\r", msg);           // print
-    if (errno) fprintf(stderr, "errno = %d %s\n\r", errno, strerror(errno));
+    fprintf(stderr, "\r\nFATAL RSM ERROR occurred!!\r\n%s\r\n", msg);           // print
+    if (errno) fprintf(stderr, "errno = %d - %s\n\r", errno, strerror(errno));
     fflush(stderr);
     a = freopen("RSM_CRASH", "a", stderr);                                      // redirect stderr
 
@@ -221,7 +221,7 @@ void panic(char *msg)                                                           
         i = rsm_version((u_char *) tmp);
         fprintf(stderr, "%s", tmp);
         fprintf(stderr, "\nFATAL RSM ERROR occurred - pid %d!!\n%s\n", getpid(), msg); // print
-        if (errno) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+        if (errno) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
         if (partab.jobtab != NULL) {                                            // if not a daemon
             fprintf(stderr, "Job Number: %d\n", ((int) (partab.jobtab - systab->jobtab) + 1));

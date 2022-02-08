@@ -109,14 +109,14 @@ int INIT_Start(char  *file,                                                     
     dbfd = open(file, O_RDWR);                                                  // open the database read/write
 
     if (dbfd < 1) {                                                             // if that failed
-        fprintf(stderr, "Open of database %s failed\n - %s\n", file, strerror(errno)); // what was returned
+        fprintf(stderr, "Open of database %s failed - %s\n", file, strerror(errno)); // what was returned
         return errno;                                                           // exit with error
     }                                                                           // end file create test
 
     i = read(dbfd, hbuf, sizeof(label_block));                                  // read label block
 
     if (i < sizeof(label_block)) {                                              // in case of error
-        fprintf(stderr, "Read of label block failed\n - %s\n", strerror(errno)); // what was returned
+        fprintf(stderr, "Read of label block failed - %s\n", strerror(errno));  // what was returned
         return errno;                                                           // exit with error
     }
 
@@ -140,7 +140,7 @@ int INIT_Start(char  *file,                                                     
     shar_mem_key = ftok(file, RSM_SYSTEM);                                      // get a unique key
 
     if (shar_mem_key == -1) {                                                   // die on error
-        fprintf(stderr, "Unable to access database file %s - %s\n", file, strerror(errno)); // give an error
+        fprintf(stderr, "Unable to access database file: %s - %s\n", file, strerror(errno)); // give an error
         return errno;                                                           // and return with error
     }
 
@@ -240,7 +240,7 @@ int INIT_Start(char  *file,                                                     
         return errno;                                                           // exit with error
     }
 
-    fprintf(stdout, "Systab attached at %lx\n", (u_long) systab);
+    printf("Systab attached at %lx\n", (u_long) systab);
     bzero(systab, share_size);                                                  // zot the lot
     systab->address = systab;                                                   // store the address for ron
     systab->jobtab = (jobtab *) &systab->last_blk_used[jobs + 1];               // setup jobtab pointer
@@ -289,7 +289,7 @@ int INIT_Start(char  *file,                                                     
     i = read(dbfd, systab->vol[0]->vollab, hbuf[2]);                            // read label & map block
 
     if (i < hbuf[2]) {                                                          // in case of error
-        fprintf(stderr, "Read of label/map block failed\n - %s\n", strerror(errno)); // what was returned
+        fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // what was returned
         i = shmdt(systab);                                                      // detach the shared mem
         i = shmctl(shar_mem_id, IPC_RMID, &sbuf);                               // remove the share
         i = semctl(sem_id, 0, IPC_RMID, NULL);                                  // and the semaphores
@@ -323,7 +323,7 @@ int INIT_Start(char  *file,                                                     
     }                                                                           // all daemons started
 
     if (systab->maxjob == 1) {                                                  // if in single user mode
-        fprintf(stdout, "WARNING: Single user, journaling not started.\n");
+        printf("WARNING: Single user, journaling not started.\n");
     } else if (systab->vol[0]->vollab->journal_requested && systab->vol[0]->vollab->journal_file[0]) {
         struct stat sb;                                                         // File attributes
         off_t       jptr;                                                       // file ptr
@@ -335,13 +335,13 @@ int INIT_Start(char  *file,                                                     
         i = stat(systab->vol[0]->vollab->journal_file, &sb);                    // check for file
 
         if ((i < 0) && (errno != ENOENT)) {                                     // if that's junk
-            fprintf(stderr, "Failed to access journal file %s\n", systab->vol[0]->vollab->journal_file);
+            fprintf(stderr, "Failed to access journal file: %s\n", systab->vol[0]->vollab->journal_file);
         } else {                                                                // do something
             if (i < 0) ClearJournal(0);                                         // if doesn't exist, create it
             jfd = open(systab->vol[0]->vollab->journal_file, O_RDWR);
 
             if (jfd < 0) {                                                      // on fail
-                fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
+                fprintf(stderr, "Failed to open journal file: %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
             } else {                                                            // if open OK
                 union {
                     u_int magic;
@@ -353,12 +353,12 @@ int INIT_Start(char  *file,                                                     
                 i = read(jfd, temp.tmp, 4);                                     // read the magic
 
                 if ((i != 4) || (temp.magic != (RSM_MAGIC - 1))) {
-                    fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n", systab->vol[0]->vollab->journal_file);
+                    fprintf(stderr, "Failed to open journal file: %s\nWRONG MAGIC\n", systab->vol[0]->vollab->journal_file);
                     close(jfd);
                 } else {
                     i = read(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
                     if (i != sizeof(off_t)) {
-                        fprintf(stderr, "Failed to use journal file %s\nRead failed - %d\n",
+                        fprintf(stderr, "Failed to use journal file: %s\nRead failed - %d\n",
                                 systab->vol[0]->vollab->journal_file, errno);
 
                         close(jfd);
@@ -366,7 +366,7 @@ int INIT_Start(char  *file,                                                     
                         jptr = lseek(jfd, systab->vol[0]->jrn_next, SEEK_SET);
 
                         if (jptr != systab->vol[0]->jrn_next) {
-                            fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
+                            fprintf(stderr, "Failed journal file: %s\nlseek failed - %d\n",
                                     systab->vol[0]->vollab->journal_file, errno);
 
                             close(jfd);
@@ -386,7 +386,7 @@ int INIT_Start(char  *file,                                                     
                             i = write(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
                             i = close(jfd);                                     // and close it
                             systab->vol[0]->vollab->journal_available = 1;
-                            fprintf(stderr, "Journaling started to %s\n", systab->vol[0]->vollab->journal_file); // say it worked
+                            printf("Journaling started to %s\n", systab->vol[0]->vollab->journal_file); // say it worked
                         }
                     }
                 }

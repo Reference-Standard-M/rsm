@@ -206,6 +206,7 @@ short SQ_Init(void)
         if (ret == -1) return (short) getError(SYS, errno);
         len = sizeof(sin.sin_addr);
         (void) snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+
         /*
         host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, AF_INET);
 
@@ -372,7 +373,7 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
     c->mode = (u_char) oper;
     c->fid = oid;
     i = snprintf((char *) c->name, MAX_SEQ_NAME, "%s", object->buf);
-    if (i < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+    if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
     // Set SQ_Chan appropriately (if server socket)
     if (oper == SERVER) {
@@ -1406,9 +1407,9 @@ int initObject(int chan, int type)
 #endif
             settings.c_cc[VINTR] = '\003';                                      // ^C
             settings.c_cc[VQUIT] = '\024';                                      // ^T (use for status)
-            ret = tcsetattr(STDCHAN, TCSANOW, &settings);
 
             // Set parameters
+            ret = tcsetattr(STDCHAN, TCSANOW, &settings);
             if (ret == -1) return getError(SYS, errno);
         }
 
@@ -1811,8 +1812,8 @@ int signalCaught(SQ_Chan *c)
  * number of bytes read. Otherwise, it returns a negative integer value to
  * indicate the error that has occurred.
  *
- * Note: Terminal input buffer handling, including editing and history
- *       conforms to ANSI X3.64-1979 (ECMA-48:1991)
+ * Note: Terminal input buffer handling, including editing and history,
+ *       conforms to ANSI X3.64-1979 (ISO 6429:1992 / ECMA-48:1991)
  */
 int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 {
@@ -1827,9 +1828,8 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     u_char         curr;                                                        // Current character
     cstring        writebuf;                                                    // Bytes to echo
     struct winsize w;                                                           // For ioctl
-    char           rcp[16];                                                     // For report cursor position
-    char           *curpos = &rcp[2];                                           // Current position
-    int            j = 0;
+    char           cpr[12];                                                     // For cursor position report
+    int            j;                                                           // Current cursor row
     static char    editing = FALSE;                                             // In editing mode
 
     // Aquire a pointer to the appropriate channel structure
@@ -1845,7 +1845,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     // Get the current terminal device screen dimensions
     ret = ioctl(oid, TIOCGWINSZ, &w);
     if (ret == -1) return getError(SYS, errno);
-    if (w.ws_col <= 0) ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);                    // If oid isn't a terminal device, use STDOUT
+    if (w.ws_col <= 0) ret = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);              // If oid isn't a terminal device, use STDOUT
     if (ret == -1) return getError(SYS, errno);
     if (!isatty(STDOUT_FILENO) || (w.ws_col <= 0)) w.ws_col = 80;               // If STDOUT is redirected, default to 80 columns
 
@@ -1889,8 +1889,8 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
         if ((curr == 8) || (curr == 127)) {
             if ((in_hist > -1) || ((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
                 if ((bytesread > 0) && ((c->dx > prompt_len) || (in_hist == -1))) {
-                    if (!(c->dx % w.ws_col)) {                                  // Cursor has hit beginning of line
-                        // Move cursor to beginning of previous line
+                    if (!(c->dx % w.ws_col)) {                                  // Cursor has hit the beginning of the line
+                        // Move cursor to the beginning of the previous line
                         ret = SQ_WriteStar((char) 27);
                         if (ret < 0) return ret;
                         ret = SQ_WriteStar('[');
@@ -1898,7 +1898,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         ret = SQ_WriteStar('F');
                         if (ret < 0) return ret;
 
-                        // Move cursor to end of current line
+                        // Move cursor to the end of the line
                         ret = SQ_WriteStar((char) 27);
                         if (ret < 0) return ret;
                         ret = SQ_WriteStar('[');
@@ -1914,7 +1914,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         if (ret < 0) return ret;
                     }
 
-                    // Delete character and shift in line
+                    // Delete current character
                     ret = SQ_WriteStar((char) 27);
                     if (ret < 0) return ret;
                     ret = SQ_WriteStar('[');
@@ -1922,8 +1922,8 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     ret = SQ_WriteStar('P');
                     if (ret < 0) return ret;
 
-                    if (editing && ((prompt_len + bytesread) > w.ws_col)) {
-                        // Erase from current position to end of line
+                    if (editing && ((prompt_len + bytesread) > w.ws_col)) {     // Input buffer is longer than a single line
+                        // Erase from current position to the end of the display
                         ret = SQ_WriteStar((char) 27);
                         if (ret < 0) return ret;
                         ret = SQ_WriteStar('[');
@@ -1931,17 +1931,17 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         ret = SQ_WriteStar('J');
                         if (ret < 0) return ret;
 
-                        // Save cursor position (private)
+                        // Save cursor position (DEC private)
                         ret = SQ_WriteStar((char) 27);
                         if (ret < 0) return ret;
                         ret = SQ_WriteStar('7');
                         if (ret < 0) return ret;
 
-                        // Write from current position in buffer to end of buffer
+                        // Write from the current position in the buffer to the end of the buffer
                         ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - prompt_len], prompt_len + bytesread - c->dx);
                         if (ret < 0) return ret;
 
-                        // Restore cursor position (private)
+                        // Restore cursor position (DEC private)
                         ret = SQ_WriteStar((char) 27);
                         if (ret < 0) return ret;
                         ret = SQ_WriteStar('8');
@@ -2001,7 +2001,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         if ((in_hist > -1) && (c->dkey_len == 3) && ((value == 'A') || (value == 'B'))) {
                             if (!in_hist) in_hist = TRUE;
 
-                            // Move to beginning of line that starts current command buffer
+                            // Move to beginning of the line that starts the current command buffer
                             if (c->dx >= w.ws_col) {
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
@@ -2015,7 +2015,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                                 if (ret < 0) return ret;
                             }
 
-                            // Move to beginning of input buffer that starts current command buffer (after the prompt)
+                            // Move to the beginning of the input buffer that starts the current command buffer (after the prompt)
                             ret = SQ_WriteStar((char) 27);
                             if (ret < 0) return ret;
                             ret = SQ_WriteStar('[');
@@ -2027,7 +2027,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             ret = SQ_WriteStar('G');
                             if (ret < 0) return ret;
 
-                            // Erase from current position to end of display
+                            // Erase from the current position to the end of the display
                             ret = SQ_WriteStar((char) 27);
                             if (ret < 0) return ret;
                             ret = SQ_WriteStar('[');
@@ -2035,7 +2035,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             ret = SQ_WriteStar('J');
                             if (ret < 0) return ret;
 
-                            // Change input buffer to previous or next command in history buffer
+                            // Change the input buffer to the previous or next command in the history buffer
                             if (value == 'A') {
                                 if (hist_curr == 0) {
                                     hist_curr = ((history[MAX_HISTORY - 1][0] != '\0') ? (MAX_HISTORY - 1) : hist_next);
@@ -2053,11 +2053,14 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             len = strlen((char *) history[hist_curr]);
                             c->dx = prompt_len + len;
                             bytesread = len;
-                            ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out buffer from history
+                            ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
                             if (ret < 0) return ret;
                             (void) sprintf((char *) buf, "%s", history[hist_curr]);
 
-                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit end of line
+                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
+                                j = 0;
+                                value = '\0';
+
                                 // Report cursor position (we want the current line)
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
@@ -2067,13 +2070,23 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('n');
                                 if (ret < 0) return ret;
-                                ret = read(oid, rcp, 16);
-                                if (ret == -1) return getError(SYS, errno);
-                                rcp[ret] = '\0';
-                                curpos = strtok(curpos, ";");
-                                j = atoi(curpos);                               // Cursor's current line number
 
-                                if (j == w.ws_row) {                            // Cursor is on last line
+                                while ((ret = read(oid, cpr, 1))) {             // Read the current position report
+                                    if (ret == -1) return getError(SYS, errno);
+
+                                    if (cpr[0] == 27) {
+                                        ret = read(oid, cpr, 12);
+                                        if (ret == -1) return getError(SYS, errno);
+                                        ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
+                                        if (ret == -1) return getError(SYS, errno);
+                                        if (value == 'R') break;
+                                        ret = read(oid, cpr, 12);
+                                        if (ret == -1) return getError(SYS, errno);
+                                        break;
+                                    }
+                                }
+
+                                if (j == w.ws_row) {                            // Cursor is on the last line
                                     // Scroll display up one line
                                     ret = SQ_WriteStar((char) 27);
                                     if (ret < 0) return ret;
@@ -2083,7 +2096,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                                     if (ret < 0) return ret;
                                 }
 
-                                // Move cursor to beginning of next line
+                                // Move cursor to the beginning of the next line
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('[');
@@ -2098,8 +2111,8 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             if (c->dx >= (prompt_len + bytesread)) break;
                             c->dx++;
 
-                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit end of line
-                                // Move cursor to first column of next line
+                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
+                                // Move cursor to the beginning of the next line
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('[');
@@ -2122,8 +2135,8 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             if (c->dx <= prompt_len) break;
                             c->dx--;
 
-                            if (!((c->dx + 1) % w.ws_col)) {                    // Cursor has hit beginning of line
-                                // Move cursor to beginning of previous line
+                            if (!((c->dx + 1) % w.ws_col)) {                    // Cursor has hit the beginning of the line
+                                // Move cursor to the beginning of the previous line
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('[');
@@ -2131,7 +2144,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                                 ret = SQ_WriteStar('F');
                                 if (ret < 0) return ret;
 
-                                // Move cursor to end of current line
+                                // Move cursor to the end of the current line
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('[');
@@ -2158,7 +2171,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             if (c->dx >= (prompt_len + bytesread)) break;
 
                             if ((prompt_len + bytesread) > w.ws_col) {          // Input buffer is longer than a single line
-                                // Erase from current position to end of display
+                                // Erase from the current position to the end of the display
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('[');
@@ -2166,25 +2179,25 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                                 ret = SQ_WriteStar('J');
                                 if (ret < 0) return ret;
 
-                                // Save cursor position (private)
+                                // Save cursor position (DEC private)
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('7');
                                 if (ret < 0) return ret;
 
-                                // Write from current position in buffer to end of buffer
+                                // Write from the current position in the buffer to the end of the buffer
                                 ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - prompt_len + 1],
                                       prompt_len + bytesread - c->dx - 1);
 
                                 if (ret < 0) return ret;
 
-                                // Restore cursor position (private)
+                                // Restore cursor position (DEC private)
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('8');
                                 if (ret < 0) return ret;
                             } else {
-                                // Delete character and shift in line
+                                // Delete current character
                                 ret = SQ_WriteStar((char) 27);
                                 if (ret < 0) return ret;
                                 ret = SQ_WriteStar('[');
@@ -2240,7 +2253,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 
         if (editing) {
             if ((prompt_len + bytesread) < w.ws_col) {                          // Input buffer is a single line
-                // Insert space and move line to right
+                // Insert space and move the line to the right
                 ret = SQ_WriteStar((char) 27);
                 if (ret < 0) return ret;
                 ret = SQ_WriteStar('[');
@@ -2250,7 +2263,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
             }
 
             for (i = bytesread - 1; i >= (c->dx - prompt_len); i--) buf[i + 1] = buf[i]; // Shift buffer to the right by one
-            buf[c->dx - prompt_len] = curr;                                     // Add new character in the right position
+            buf[c->dx - prompt_len] = curr;                                     // Add new character in the correct position
         } else {
             buf[bytesread] = curr;
         }
@@ -2264,7 +2277,10 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
         }
 
         if (in_hist > -1) {
-            if (!((prompt_len + bytesread + 1) % w.ws_col)) {                   // End of input buffer has hit edge of right column
+            if (!((prompt_len + bytesread + 1) % w.ws_col)) {                   // End of input buffer has hit the edge of the line
+                j = 0;
+                value = '\0';
+
                 // Report cursor position (we want the current line)
                 ret = SQ_WriteStar((char) 27);
                 if (ret < 0) return ret;
@@ -2274,15 +2290,24 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                 if (ret < 0) return ret;
                 ret = SQ_WriteStar('n');
                 if (ret < 0) return ret;
-                ret = read(oid, rcp, 16);
-                if (ret == -1) return getError(SYS, errno);
-                rcp[ret] = '\0';
-                curpos = strtok(curpos, ";");
-                j = atoi(curpos);                                               // Cursor's current line number
-            }
 
-            if (!(c->dx % w.ws_col)) {                                          // Cursor has hit end of line
-                if (!editing && (j == w.ws_row)) {                              // Cursor is on last line
+                while ((ret = read(oid, cpr, 1))) {                             // Read the current position report
+                    if (ret == -1) return getError(SYS, errno);
+
+                    if (cpr[0] == 27) {
+                        ret = read(oid, cpr, 12);
+                        if (ret == -1) return getError(SYS, errno);
+                        ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
+                        if (ret == -1) return getError(SYS, errno);
+                        if (value == 'R') break;
+                        ret = read(oid, cpr, 12);
+                        if (ret == -1) return getError(SYS, errno);
+                        break;
+                    }
+                }
+
+                // End of input buffer is on the last line
+                if (((prompt_len + bytesread + 1 - c->dx) / w.ws_col + j) == w.ws_row) {
                     // Scroll display up one line
                     ret = SQ_WriteStar((char) 27);
                     if (ret < 0) return ret;
@@ -2290,46 +2315,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     if (ret < 0) return ret;
                     ret = SQ_WriteStar('S');
                     if (ret < 0) return ret;
-                }
 
-                // Move cursor to beginning of next line
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('E');
-                if (ret < 0) return ret;
-            }
-        }
-
-        if (editing) {
-            if ((prompt_len + bytesread + 1) >= w.ws_col) {                     // Input buffer is longer than one line
-                // Erase from current position to end of display
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('J');
-                if (ret < 0) return ret;
-
-                // Save cursor position (private)
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('7');
-                if (ret < 0) return ret;
-
-                // Write from current position in buffer to end of buffer
-                ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - prompt_len], prompt_len + bytesread - c->dx + 1);
-                if (ret < 0) return ret;
-
-                // Restore cursor position (private)
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('8');
-                if (ret < 0) return ret;
-
-                // End of input buffer has hit edge of right column and is on the last line
-                if (!((prompt_len + bytesread) % w.ws_col) && (j == w.ws_row)) {
                     // Move cursor up one line
                     ret = SQ_WriteStar((char) 27);
                     if (ret < 0) return ret;
@@ -2339,6 +2325,42 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     if (ret < 0) return ret;
                 }
             }
+
+            if (!(c->dx % w.ws_col)) {                                          // Cursor has hit the end of the line
+                // Move cursor to the beginning of the next line
+                ret = SQ_WriteStar((char) 27);
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('[');
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('E');
+                if (ret < 0) return ret;
+            }
+        }
+
+        if (editing && ((prompt_len + bytesread + 1) >= w.ws_col)) {            // Input buffer is longer than one line
+            // Erase from current position to the end of the display
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('[');
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('J');
+            if (ret < 0) return ret;
+
+            // Save cursor position (DEC private)
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('7');
+            if (ret < 0) return ret;
+
+            // Write from current position in the buffer to the end of the buffer
+            ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - prompt_len], prompt_len + bytesread - c->dx + 1);
+            if (ret < 0) return ret;
+
+            // Restore cursor position (DEC private)
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('8');
+            if (ret < 0) return ret;
         }
 
         bytesread++;                                                            // Increment number of bytes read

@@ -132,7 +132,7 @@ start:
         dbfd = open(file, O_RDONLY);                                            // open the database for read
 
         if (dbfd < 0) {                                                         // if that failed
-            fprintf(stderr, "RSM database - %s\n", file);
+            fprintf(stderr, "RSM database error - %s\n", file);
             return errno;
         }
 
@@ -261,7 +261,7 @@ start:
         partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
 
         if (partab.jnl_fds[0] < 0) {
-            fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
+            fprintf(stderr, "Failed to open journal file: %s\r\nerrno = %d\r\n", systab->vol[0]->vollab->journal_file, errno);
             ret = -1;
             if (cmd != NULL) goto exit;
         }

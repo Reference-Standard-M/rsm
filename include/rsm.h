@@ -40,7 +40,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       76                                                  // Minor version number
-#define VERSION_PATCH       0                                                   // Patch version number
+#define VERSION_PATCH       1                                                   // Patch version number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs

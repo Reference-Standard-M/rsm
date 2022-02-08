@@ -575,7 +575,7 @@ void ClearJournal(int vol)                                                      
 
     jfd = open(systab->vol[vol]->vollab->journal_file,                          // open this file
                O_CREAT | O_TRUNC | O_WRONLY,                                    // create the file
-               S_IRUSR | S_IWUSR | S_IRGRP);                                    // make 0640
+               S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);                          // make 0660 - jobs write their own journal entries
 
     if (jfd > 0) {                                                              // if OK
         tmp.magic = (RSM_MAGIC - 1);
@@ -585,7 +585,7 @@ void ClearJournal(int vol)                                                      
         tmp.free = 24;                                                          // next free byte
 #endif
         i = write(jfd, (u_char *) &tmp, 12);
-        if (i < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+        if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 #if RSM_DBVER == 1
         jj.size = 8;
         jj.time = current_time(TRUE);
@@ -596,7 +596,7 @@ void ClearJournal(int vol)                                                      
         jj.action = JRN_CREATE;
         jj.uci = 0;
         i = write(jfd, &jj, jj.size);                                           // write the create rec
-        if (i < 0) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+        if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
         (void) close(jfd);                                                      // and close it
         systab->vol[vol]->jrn_next = (off_t) tmp.free;                          // where it's upto
     }

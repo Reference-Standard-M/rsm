@@ -1,5 +1,5 @@
-image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption="Fourth
-Watch Software Logo", width="480", height="80"]
+image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
+="Fourth Watch Software Logo", width="480", height="80"]
 
 '''
 

@@ -13,7 +13,7 @@ We are dedicated to keeping the M language and database alive.
 
 This manual is for Reference Standard M +
 David Wicksell <dlw@linux.com> +
-Copyright © 2020-2021 Fourth Watch Software LC +
+Copyright © 2020-2022 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 Permission is granted to copy, distribute and/or modify this document under the
@@ -25,7 +25,6 @@ Front-Cover texts, and with no Back-Cover Texts.
 
 * link:../README.adoc[README]
 * link:../CHANGELOG.adoc[CHANGELOG]
-* link:conformance.adoc[Conformance Clause]
 * link:database.adoc[Database Management]
 * link:upgrade.adoc[Database Upgrade Instructions]
 * link:language.adoc[Language Guide]
@@ -33,17 +32,18 @@ Front-Cover texts, and with no Back-Cover Texts.
 * link:xcall.adoc[External Call Interface]
 * link:util.adoc[Supplemental Utilities]
 * link:web.adoc[Web Server Utility]
+* link:conformance.adoc[Conformance Clause]
 
 === Other implementations that may be of interest
 
-* https://sourceforge.net/projects/fis-gtm/[GT.M]
-* https://yottadb.com[YottaDB]
 * https://freem.coherent-logic.com[FreeM]
-* https://www.cs.uni.edu/~okane/[Mumps II]
+* https://yottadb.com[YottaDB]
+* https://sourceforge.net/projects/fis-gtm/[GT.M]
+* https://www.cs.uni.edu/~okane/[Open Mumps]
 
 === For more information on M
 
-* http://71.174.62.16/Demo/AnnoStd?Frame=Main&Page=a100006[MUMPS by Example]
 * https://mumps.org[Mumps Site]
 * https://www.mumpster.org[Mumpster Site]
+* http://71.174.62.16/Demo/AnnoStd?Frame=Main&Page=a100006[MUMPS by Example]
 * http://www.hardhats.org[Hardhats Site]
