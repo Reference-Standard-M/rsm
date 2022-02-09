@@ -138,7 +138,7 @@ int INIT_Create_File(u_int blocks,                                              
     fid = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP);
 
     if (fid < 1) {                                                              // if that failed
-        fprintf(stderr, "Create of %s failed\n - %s\n", file, strerror(errno)); // what was returned
+        fprintf(stderr, "Create of %s failed - %s\n", file, strerror(errno));   // what was returned
         return errno;                                                           // exit with error
     }                                                                           // end file create test
 

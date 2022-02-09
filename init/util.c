@@ -194,7 +194,7 @@ void shutdown(char *file)                                                       
         partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
 
         if (partab.jnl_fds[0] < 0) {
-            fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
+            fprintf(stderr, "Failed to open journal file: %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
             exit(1);
         }
     }

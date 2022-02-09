@@ -153,7 +153,7 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
     i = read(dbfd, systab->vol[volnum]->vollab, hbuf[2]);                       // read label & map block
 
     if (i < hbuf[2]) {                                                          // in case of error
-        fprintf(stderr, "Read of label/map block failed\n - %s\n", strerror(errno)); // complain
+        fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // complain
         i = shmdt(systab);                                                      // detach the shared mem
         i = shmctl(shar_mem_id, IPC_RMID, &sbuf);                               // remove the share
         i = semctl(sem_id, 0, IPC_RMID, NULL);                                  // and the semaphores
@@ -196,13 +196,13 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
         i = stat(systab->vol[volnum]->vollab->journal_file, &sb);               // check for file
 
         if ((i < 0) && (errno != ENOENT)) {                                     // if that's junk
-            fprintf(stderr, "Failed to access journal file %s\n", systab->vol[volnum]->vollab->journal_file);
+            fprintf(stderr, "Failed to access journal file: %s\n", systab->vol[volnum]->vollab->journal_file);
         } else {                                                                // do something
             if (i < 0) ClearJournal(0);                                         // if doesn't exist then create it
             jfd = open(systab->vol[volnum]->vollab->journal_file, O_RDWR);
 
             if (jfd < 0) {                                                      // on fail
-                fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n", systab->vol[volnum]->vollab->journal_file, errno);
+                fprintf(stderr, "Failed to open journal file: %s\nerrno = %d\n", systab->vol[volnum]->vollab->journal_file, errno);
             } else {                                                            // if open OK
                 union {
                     u_int magic;
@@ -214,13 +214,13 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
                 i = read(jfd, temp.tmp, 4);                                     // read the magic
 
                 if ((i != 4) || (temp.magic != (RSM_MAGIC - 1))) {
-                    fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n", systab->vol[volnum]->vollab->journal_file);
+                    fprintf(stderr, "Failed to open journal file: %s\nWRONG MAGIC\n", systab->vol[volnum]->vollab->journal_file);
                     close(jfd);
                 } else {
                     i = read(jfd, &systab->vol[volnum]->jrn_next, sizeof(off_t));
 
                     if (i != sizeof(off_t)) {
-                        fprintf(stderr, "Failed to use journal file %s\nRead failed - %d\n",
+                        fprintf(stderr, "Failed to use journal file: %s\nRead failed - %d\n",
                                 systab->vol[volnum]->vollab->journal_file, errno);
 
                         close(jfd);
@@ -228,7 +228,7 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
                         jptr = lseek(jfd, systab->vol[volnum]->jrn_next, SEEK_SET);
 
                         if (jptr != systab->vol[volnum]->jrn_next) {
-                            fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
+                            fprintf(stderr, "Failed journal file: %s\nlseek failed - %d\n",
                                     systab->vol[volnum]->vollab->journal_file, errno);
 
                             close(jfd);
@@ -248,7 +248,7 @@ short DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb)
                             i = write(jfd, &systab->vol[volnum]->jrn_next, sizeof(off_t));
                             i = close(jfd);                                     // and close it
                             systab->vol[volnum]->vollab->journal_available = 1;
-                            fprintf(stderr, "Journaling started to %s\n", systab->vol[volnum]->vollab->journal_file); // it worked
+                            printf("Journaling started to %s\n", systab->vol[volnum]->vollab->journal_file); // it worked
                         }
                     }
                 }

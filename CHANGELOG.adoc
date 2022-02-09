@@ -9,6 +9,15 @@ link:doc/index.adoc[Index]
 
 = Reference Standard M Changelog
 
+=== v1.76.1 -- 2022 Feb 8
+
+* Improve multi-line input editing on slow terminal displays
+* Fix bug with multi-line buffers on the last line of the terminal display
+* Change journal permissions on creation to 660 to allow group member usage
+* Add more information to the conformance clause
+* Fix mistakes in the language guide
+* Improve the format of various error messages
+
 === v1.76.0 -- 2022 Feb 1
 
 * Add `$increment` intrinsic function

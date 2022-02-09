@@ -202,11 +202,11 @@ int ForkIt(int cft)                                                             
     if (cft < 0) {
         if (!i) {
             j = freopen("/dev/null", "w", stdin);                               // redirect stdin
-            if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
             j = freopen("/dev/null", "w", stdout);                              // redirect stdout
-            if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
             j = freopen("/dev/null", "w", stderr);                              // redirect stderr
-            if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
         }
 
         return i;
@@ -258,11 +258,11 @@ int ForkIt(int cft)                                                             
 
     for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) continue;                        // close all open files
     j = freopen("/dev/null", "r", stdin);                                       // redirect stdin
-    if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stdout);                                      // redirect stdout
-    if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stderr);                                      // redirect stderr
-    if (j == NULL) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
     return ret;                                                                 // return -parent job#
 }

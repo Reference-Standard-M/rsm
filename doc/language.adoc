@@ -842,8 +842,8 @@ position(s) of variable.
 ==== Standard
 
 Does not fully comply with the standard. It evaluates the expression on the
-right-hand side of the `=` before it evaluates the subscripts on the left-hand
-side of the `=`, which is non-standard. This will very likely be fixed in a
+right-hand side of the '`=`' before it evaluates the subscripts on the left-hand
+side of the '`=`', which is non-standard. This will very likely be fixed in a
 future version of RSM.
 
 ==== Examples
@@ -2247,8 +2247,7 @@ NOTE: A `kill ^$job` is a signal to shutdown the environment
 
 ==== Standard
 
-Mostly complies; does not provide character information, but does provide
-additional info.
+Mostly complies, but provides more functionality than in the standard.
 
 ==== Examples
 
@@ -2384,7 +2383,7 @@ available for `^$SYSTEM("VOL",_vol_)` and `^$SYSTEM("VOL",_vol_,"UCI",_uci_)`.
 
 ==== Standard
 
-Does not conform.
+Does not conform, though the standard is vague.
 
 ==== Examples
 
