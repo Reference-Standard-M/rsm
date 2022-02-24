@@ -1,5 +1,5 @@
- set %I=$io read B xecute B use 0 close %I do ^%C kill ^$routine("%C") write !,"Done",! quit
- for  read R quit:R=""  use 0 write R,! use %I kill A for I=1:1 read A(I) if A(I)="" merge ^$routine(R)=A quit
+ set %i=$io,n=0 read code xecute code use 0 close %i do ^%C kill ^$routine("%C") write !,"Loaded "_n_" routines",! quit
+ for  read rou quit:rou=""  use 0 write rou,! use %i kill ln for i=1:1 read ln(i) if ln(i)="" merge ^$routine(rou)=ln set n=n+1 quit
 %RR
 %RR ;Routine Restore from file
  new FILE
@@ -210,6 +210,16 @@ D(D,M,Y,%,ZR) set ZR="D^%D" if D<1!(D>423316) quit ""
  for %=31,28+(Y#4=0),31,30,31,30,31,31,30,31,30,31 quit:D'>%  set M=M+1,D=D-%
  set M=$piece("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",",",M)
  quit $translate($justify(D,2)," ",0)_" "_M_" "_Y
+
+%T
+%T ;Convert %T to printable time
+ set:$data(%T)#2=0 %T=$piece($horolog,",",2) set %T=$$T(%T) quit
+;---
+T(H,TYP,M,S,%,ZR) set ZR="T^%T" if H<0!(H>86399) quit ""
+ set TYP=$get(TYP,0),%=""
+ set S=H#60,H=H\60,M=H#60,H=H\60
+ if 'TYP set %=$select(H<12:" AM",1:" PM"),H=H#13+('H*12)+(H>12)
+ quit $translate($justify(H,2)," ",0)_":"_$translate($justify(M,2)," ",0)_":"_$translate($justify(S,2)," ",0)_%
 
 %DD
 %DD ;Do a document directory
@@ -718,17 +728,18 @@ ERROR use 0 if $estack<2 set $ecode="" goto %M
 
 %MH
 %MH ;Help on MCL
- write "Enter any RSM command (short form only) or one of (case-insensitive):",!
+ write !,E_"[1m"_E_"[4m","M Command Language Help Menu",E_"[0m"," - commands are case-insensitive",!
+ write "Enter any M command (short form only) or one of the following:",!!
  set %="@" for  set %=$order(^%C(%)) quit:%'?1U.E  write %,?12,^%C(%,1),!
- write "Key usage:  <F1> or <Help> this message",!
- write "            <Up> and <Down> move through entered lines",!
- write "            <Left> and <Right> move in current command",!
- write "            <Ctrl><A> move to begining of line",!
- write "            <Ctrl><D> delete to end of line",!
- write "            <Ctrl><E> move to end of line",!
- write "            <Ctrl><U> delete to begining of line",!
- write "            <Ctrl><W> referesh screen",!
- write "            <Ctrl><Z> exit MCL",!
+ write !,"Key usage:  <F1> or <Help> this message",!
+ write ?12,"<Up> and <Down> move through entered lines",!
+ write ?12,"<Left> and <Right> move in current command",!
+ write ?12,"<Ctrl><A> move to begining of line",!
+ write ?12,"<Ctrl><D> delete to end of line",!
+ write ?12,"<Ctrl><E> move to end of line",!
+ write ?12,"<Ctrl><U> delete to begining of line",!
+ write ?12,"<Ctrl><W> refresh screen",!
+ write ?12,"<Ctrl><Z> exit MCL",!
  quit
 
 %RD
@@ -851,7 +862,7 @@ GET for I=1:1:$length(LS,",") set N($piece(LS,",",I))=^$system("vol",1,$piece(LS
  set N=$horolog quit
 ;---
 PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
- write " (",$piece(N,",",2)-$piece(O,",",2)," secs)",!
+ write " ("_INT_" secs)",!
  write "Volume: ",^$system("vol",1,"name")
  write " in file: ",^$system("vol",1,"file"),!
  write ^$system("vol",1,"size")," x ",^$system("vol",1,"block")/1024," KiB blocks - "
@@ -863,16 +874,6 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
  set %=N("logrd")-O("logrd") if '% write $justify("",11),!
  else  write $justify(%-(N("phyrd")-O("phyrd"))/%*100,10,2),"%",!
  quit
-
-%T
-%T ;Convert %T to printable time
- set:$data(%T)#2=0 %T=$piece($horolog,",",2) set %T=$$T(%T) quit
-;---
-T(H,TYP,M,S,%,ZR) set ZR="T^%T" if H<0!(H>86399) quit ""
- set TYP=$get(TYP,0),%=""
- set S=H#60,H=H\60,M=H#60,H=H\60
- if 'TYP set %=$select(H<12:" AM",1:" PM"),H=H#13+('H*12)+(H>12)
- quit $translate($justify(H,2)," ",0)_":"_$translate($justify(M,2)," ",0)_":"_$translate($justify(S,2)," ",0)_%
 
 %TYP
 %TYP ;Type a routine
@@ -1216,7 +1217,7 @@ UCICHECK(X) ;
  new %,%1,U,V,Y
  if '(X?3U!(X?3U1","3U)) quit ""
  if $piece(X,",",2)'="",$piece(X,",",2)'=^$system("vol",1,"name") quit ""
- set U=$piece(X,","),Y="" for %=1:1:63 if ^$system("vol",1,"uci",%)="U" set Y=U_","_^$s("vol",1,"name") quit
+ set U=$piece(X,","),Y="" for %=1:1:64 if ^$system("vol",1,"uci",%)=U set Y=U_","_^$s("vol",1,"name") quit
  quit Y
 ;---
 SHARELIC(TYPE) ;See if can share a C/S license DSM 7.2
@@ -2730,7 +2731,7 @@ DECDMS ;
  set X=+$justify(X,0,$select((PREC-$length(X\1))'<0:PREC-$length(X\1),1:0))
  quit X\3600_":"_(X\60#60)_":"_(X#60)
 ;---
-DEGRAD quit X*3.14159265358979/180
+DEGRAD quit X*$$PI^MATH()/180
 ;---
 DMSDEC ;
  quit $piece(X,":")+($piece(X,":",2)/60)+($piece(X,":",3)/3600)
@@ -2738,7 +2739,12 @@ DMSDEC ;
 MATH3
 MATH3 ;
 ;---
-E quit 2.71828182845905
+E new prec,e
+ set prec=^$job($job,"precision")
+ set e=2+$extract(.7182818284590452353602874713526624977572470936999595749669676277,1,prec+2)
+ if prec=0 quit 2
+ if prec=64 quit e
+ quit $extract(e,1,$length(e)-2)_($extract(e,$length(e)-1)+$select($extract(e,$length(e))>4:1,1:0))
 ;---
 EXP ;
  new L,LIM,K,VALUE
@@ -2762,6 +2768,7 @@ LOG ;
  set X=(X-1)/(X+1),(VALUE,L)=X
  set LIM=$select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  for K=3:2 set L=L*X*X,M=L/K,VALUE=M+VALUE set:M<0 M=-M quit:M<LIM
+;DLW - log10: E**2.3025850929940456840179914546843642076011014886287729760333279009=10
  set VALUE=VALUE*2+(N*2.30258509298749)
  quit VALUE
 ;---
@@ -2993,7 +3000,12 @@ MTXUNIT ;
 MATH4
 MATH4 ;
 ;---
-PI quit 3.14159265358979
+PI new prec,pi
+ set prec=^$job($job,"precision")
+ set pi=3+$extract(.1415926535897932384626433832795028841971693993751058209749445923,1,prec+2)
+ if prec=0 quit 3
+ if prec=64 quit pi
+ quit $extract(pi,1,$length(pi)-2)_($extract(pi,$length(pi)-1)+$select($extract(pi,$length(pi))>4:1,1:0))
 ;---
 PRODUCE ;
  new VALUE,AGAIN,P1,P2,I,COUNT
@@ -3015,7 +3027,7 @@ PRODUCE ;
  . quit
  quit VALUE
 ;---
-RADDEG quit X*180/3.14159265358979
+RADDEG quit X*180/$$PI^MATH()
 ;---
 REPLACE ;
  new L,MASK,K,I,LT,F,VALUE

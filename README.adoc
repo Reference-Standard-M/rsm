@@ -7,7 +7,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 = Reference Standard M
 
-*Version 1.76.1 - 2022 Feb 8*
+*Version 1.76.2 - 2022 Feb 23*
 
 === Implementation of ANSI Standard M X11.1-1995 (ISO/IEC 11756:1999)
 

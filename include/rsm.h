@@ -40,7 +40,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       76                                                  // Minor version number
-#define VERSION_PATCH       1                                                   // Patch version number
+#define VERSION_PATCH       2                                                   // Patch version number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
@@ -184,7 +184,7 @@
 #define SIG_U2              (1U << 31)                                          // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define MAX_VOL             2                                                   // max number of vols
+#define MAX_VOL             1                                                   // max number of vols
 #define VOL_FILENAME_MAX    256                                                 // max chars in stored filename
 #define JNL_FILENAME_MAX    226                                                 // max chars in journal filename
 

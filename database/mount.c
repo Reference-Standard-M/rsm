@@ -49,7 +49,7 @@
 /*
  * Mount an environment:
  *     Database file
- *     Mount as volnum 2 -> MAX_VOL
+ *     Mount as volume 2 -> MAX_VOL (volnum is passed as index - 1 less)
  *     MiB of global buffers
  *     MiB of routine buffers
  */

@@ -100,6 +100,8 @@ int    Set_Error(int err, cstring *user, cstring *space);                       
 time_t current_time(short local);                                               // get current time with/without local offset
 short  run(int asp, int ssp);                                                   // run compiled code
 short  buildmvar(mvar *var, int nul_ok, int asp);                               // build an mvar
+short  getvol(cstring *vol);                                                    // get vol number for vol
+short  getuci(cstring *uci, int vol);                                           // get uci number
 short  patmat(cstring *str, cstring *code);                                     // pattern match
 short  attention(void);                                                         // process attention
 int    ForkIt(int cft);                                                         // Fork (copy file table)

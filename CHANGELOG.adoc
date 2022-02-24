@@ -9,6 +9,17 @@ link:doc/index.adoc[Index]
 
 = Reference Standard M Changelog
 
+=== v1.76.2 -- 2022 Feb 23
+
+* Improve escape processing while editing M input [`read`]
+* Fix `precision` node in `^$job` so jobs can set their own decimal precision
+* Fix incorrect permissions on the UCI and volume configuration nodes in `^$job`
+* Fix bug that causes jobs to hang when setting UCI to a non-existent one
+* Change constants in the math library [`^MATH`] to support decimal precision
+* Reformat some of the M code in `utils.rsm`
+* Fix some minor bugs in `utils.rsm`
+* Lower max volumes to 1 until additional volumes are fully supported
+
 === v1.76.1 -- 2022 Feb 8
 
 * Improve multi-line input editing on slow terminal displays
@@ -32,7 +43,7 @@ link:doc/index.adoc[Index]
 * Improve translation table syntax to allow globals without extended references
 * Reformat the M code in `utils.rsm`
 * Add `big_endian` node to the `^$system` system variable
-* Add `"collate"` node to the `^$global` system variable
+* Add `collate` node to the `^$global` system variable
 * Add `docker` script to run RSM in the RSM Docker container
 * Modify vendor utility routine `BIGEND^%U` to use `^$system("big_endian")`
 * Fix `$qsubscript` bug which returns global names without the caret [`^`]
@@ -50,7 +61,7 @@ link:doc/index.adoc[Index]
 * Fix description of standard compliance for `set` in the language guide
 * Change `make test` to `make debug`
 * Move asserts to debug build
-* Remove redundant vendor routine [`^MUMTRIS2`] -- already in `^MUMTRIS`
+* Remove redundant vendor routine [`^MUMTRIS2`] -- already have `^MUMTRIS`
 
 === v1.75.1 -- 2021 Nov 23
 
@@ -94,7 +105,7 @@ them.
 * Improve fix to double free bug preventing a possible leak during error frames
 * Fix bug that prevents display of some error messages when starting a job
 * Fix non-existent volume bug that leads to a segfault
-* Fix bug with `"t"` option not adding a trailing space in `$fnumber`
+* Fix bug with `t` option not adding a trailing space in `$fnumber`
 * Fix the semantics of timeouts of 0 with the `open` and `read` commands
 * Fix bug that mangles arguments to the `job` command when run via `rsm -x`
 * Fix bug in the inline function that tests for empty names (`VAR_U`)
@@ -159,7 +170,7 @@ routines.
 * Fix bug that displays non-existent locks with the `$&debug("ltd")` XCall
 * Fix and improve the display of the `$&debug` XCall
 * Change the arguments to the `$&debug` XCall to be case-insensitive
-* Expose the "`struct`" argument to the `$&debug` XCall on all platforms
+* Expose the `struct` argument to the `$&debug` XCall on all platforms
 * Coalesce all daemon_*.log files in to one daemon.log file
 * Improve log message format, adding more detailed information
 * Fix symbol table bug preventing symbol table full error [`Z56`]

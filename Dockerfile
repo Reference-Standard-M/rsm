@@ -34,7 +34,7 @@ ENV SHELL=/bin/bash
 # Install dependencies and upgrade packages
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-    apt-get -qq --no-install-recommends install apt-utils libc6-dev file make gcc vim-nox 2> /dev/null && \
+    apt-get -qq --no-install-recommends install apt-utils libc6-dev file make gcc vim-nox 2>/dev/null && \
     apt-get -qq upgrade && \
     apt-get -qq clean
 
@@ -60,8 +60,7 @@ RUN if [ "$journal" = "on" ]; \
     then \
         rsm -v TST -b $bsize -s $blocks; \
         rsm -j 1; \
-        echo "Installing vendor utility routines.."; \
-        rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code' > /dev/null; \
+        rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'; \
         rsm -x 'set ^$system("vol",1,"journal_file")="/opt/rsm/tst.jnl"'; \
         rsm -x 'set ^$system("vol",1,"journal_requested")=1'; \
         rsm -x 'set ^$global("$GLOBAL","journal")=1'; \
@@ -69,8 +68,7 @@ RUN if [ "$journal" = "on" ]; \
     else \
         rsm -v TST -b $bsize -s $blocks; \
         rsm -j 1; \
-        echo "Installing vendor utility routines.."; \
-        rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code' > /dev/null; \
+        rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'; \
         rsm -k; \
     fi
 
