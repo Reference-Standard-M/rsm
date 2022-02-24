@@ -131,8 +131,8 @@ short Get_block(u_int blknum)                                                   
     file_off = (file_off * (off_t) systab->vol[volnum - 1]->vollab->block_size)
              + (off_t) systab->vol[volnum - 1]->vollab->header_bytes;
 
-    if ((volnum - 1) > 0) {
-        if (volnum > MAX_VOL) return -(ERRZ72 + ERRMLAST);                      // Must be in range
+    if (volnum > 1) {
+        if (volnum > MAX_VOL) return -ERRM26;                                   // Must be in range
 
         if (partab.vol_fds[volnum - 1] == 0) {                                  // if not open
             if (systab->vol[volnum - 1]->file_name[0] == 0) return -(ERRZ72 + ERRMLAST); // need a filename

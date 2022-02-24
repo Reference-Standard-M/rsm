@@ -23,7 +23,7 @@
 # Start the RSM environment, passing the max number of jobs via the 'docker run...' command, defaulting to 12
 rsm -j ${1:-12}
 
-echo -e "\nReference Standard M $(rsm -V) Docker Container\n"
+echo -e "\nReference Standard M $(rsm -V) Docker Container"
 
 if [[ $# > 1 ]]
 then
@@ -32,11 +32,13 @@ then
     # Pass the rest of the arguments from the 'docker run...' command to RSM
     rsm -x "$@"
 else
+    echo
+
     # Run RSM in direct mode when not in daemon mode, keep the container open while in daemon mode
     rsm
 
     # Check to see if RSM is running and if not, due to single-user configuration, keep the container open while in daemon mode
-    rsm -i &> /dev/null
+    rsm -i &>/dev/null
     [[ $? == 1 ]] && read rsm
 fi
 

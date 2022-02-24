@@ -455,7 +455,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[1]->buf, "$reference\0", 11) == 0) {
-                vp = &systab->jobtab[i].last_ref;                               // addr of $R
+                vp = &systab->jobtab[i].last_ref;                               // addr of $REFERENCE
                 if (vp->name.var_cu[0] == '\0') return 0;                       // return null string
                 bcopy(vp, tmp, vp->slen + sizeof(var_u) + 4);                   // copy to tmp
                 vp = (mvar *) tmp;                                              // point at tmp
@@ -643,7 +643,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
         if (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) {
             i = cstringtoi(subs[1]) - 1;                                        // make an int of vol#
 
-            if ((!(i < MAX_VOL)) || (i < 0) || (systab->vol[i] == NULL)) {      // validate it
+            if (!(i < MAX_VOL) || (i < 0) || (systab->vol[i] == NULL)) {        // validate it
                 return -ERRM38;                                                 // junk
             }
 
@@ -842,47 +842,31 @@ short SS_Set(mvar *var, cstring *data)                                          
         if ((i < 0) || (i >= systab->maxjob)) return -ERRM23;                   // in range? no - complain
         if (systab->jobtab[i].pid == 0) return -ERRM23;                         // process id? complain if no such
         j = cstringtoi(data);                                                   // convert to int
-        if ((j < 1) || (j > 64)) j = 65;                                        // limit size
 
-        if (((partab.jobtab - systab->jobtab) == i) && priv()) {                // same job? and has privs
+        if ((partab.jobtab - systab->jobtab) == i) {                            // same job?
             if (strncasecmp((char *) subs[1]->buf, "global\0", 7) == 0) {
+                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
                 systab->jobtab[i].uci = j;                                      // set it
-                VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $R
+                VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $REFERENCE
                 return 0;                                                       // and quit
             }
 
             if (strncasecmp((char *) subs[1]->buf, "global_vol\0", 11) == 0) {
+                if ((j < 1) || (j > MAX_VOL)) return -ERRM26;                   // out of range
                 systab->jobtab[i].vol = j;                                      // set it
-                VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $R
+                VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $REFERENCE
                 return 0;                                                       // and quit
             }
 
             if (strncasecmp((char *) subs[1]->buf, "lock\0", 5) == 0) {
+                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
                 systab->jobtab[i].luci = j;                                     // set it
                 return 0;                                                       // and quit
             }
 
             if (strncasecmp((char *) subs[1]->buf, "lock_vol\0", 9) == 0) {
+                if ((j < 1) || (j > MAX_VOL)) return -ERRM26;                   // out of range
                 systab->jobtab[i].lvol = j;                                     // set it
-                return 0;                                                       // and quit
-            }
-
-            if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
-                systab->jobtab[i].ruci = j;                                     // set it
-                return 0;                                                       // and quit
-            }
-
-            if (strncasecmp((char *) subs[1]->buf, "routine_vol\0", 12) == 0) {
-                systab->jobtab[i].rvol = j;                                     // set it
-                return 0;                                                       // and quit
-            }
-        }
-
-        j = cstringtoi(data);                                                   // convert to int (again)
-
-        if (priv()) {                                                           // is it priveleged ?
-            if (strncasecmp((char *) subs[1]->buf, "owner_id\0", 9) == 0) {
-                systab->jobtab[i].user = j;                                     // SHOULD HAVE SOME CHECKS HERE
                 return 0;                                                       // and quit
             }
 
@@ -890,6 +874,25 @@ short SS_Set(mvar *var, cstring *data)                                          
                 if ((j < 0) || (j > MAX_PREC)) return -ERRM28;
                 systab->jobtab[i].precision = j;
                 return 0;
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
+                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                systab->jobtab[i].ruci = j;                                     // set it
+                return 0;                                                       // and quit
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "routine_vol\0", 12) == 0) {
+                if ((j < 1) || (j > MAX_VOL)) return -ERRM26;                   // out of range
+                systab->jobtab[i].rvol = j;                                     // set it
+                return 0;                                                       // and quit
+            }
+        }
+
+        if (priv()) {                                                           // is it priveleged ?
+            if (strncasecmp((char *) subs[1]->buf, "owner_id\0", 9) == 0) {
+                systab->jobtab[i].user = j;                                     // SHOULD HAVE SOME CHECKS HERE
+                return 0;                                                       // and quit
             }
 
             if (strncasecmp((char *) subs[1]->buf, "priority\0", 9) == 0) {
@@ -915,12 +918,22 @@ short SS_Set(mvar *var, cstring *data)                                          
         return -ERRM29;                                                         // SET on SSVN not on
 
     case 'R':                                                                   // $ROUTINE
+        // We may eventually allow SET ^$ROUTINE(rou,0) with tests
         if (nsubs > 2) return -ERRM38;                                          // junk
         return -ERRM29;                                                         // SET on SSVN not on
-        // We may eventually allow SET ^$ROUTINE(rou,0) with tests
 
     case 'S':                                                                   // $SYSTEM
         if (!priv()) return -ERRM38;                                            // need privs
+
+        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0)) {
+            if (cstringtob(data)) {
+                systab->historic |= HISTORIC_DNOK;
+            } else {
+                systab->historic &= ~HISTORIC_DNOK;
+            }
+
+            return 0;                                                           // and exit
+        }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "eok\0", 4) == 0)) {
             if (cstringtob(data)) {
@@ -937,16 +950,6 @@ short SS_Set(mvar *var, cstring *data)                                          
                 systab->historic |= HISTORIC_OFFOK;
             } else {
                 systab->historic &= ~HISTORIC_OFFOK;
-            }
-
-            return 0;                                                           // and exit
-        }
-
-        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0)) {
-            if (cstringtob(data)) {
-                systab->historic |= HISTORIC_DNOK;
-            } else {
-                systab->historic &= ~HISTORIC_DNOK;
             }
 
             return 0;                                                           // and exit
@@ -1060,15 +1063,6 @@ ENABLE_WARN
             return DB_UCISet(i + 1, j + 1, n);                                  // do it and return
         }
 
-        if ((nsubs == 3) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
-          (strncasecmp((char *) subs[2]->buf, "writelock\0", 10) == 0)) {
-            i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
-            if (abs(systab->vol[i]->writelock) == (MAX_JOBS + 1)) return 0;     // do nothing if system shutting down with (rsm -k)
-            systab->vol[i]->writelock = (cstringtob(data) ? -(partab.jobtab - systab->jobtab + 1) : 0); // set it or clear it
-            return 0;                                                           // return OK
-        }
-
         if ((nsubs == 3) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) { // ^$SYSTEM("VOL",n,..)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
@@ -1085,11 +1079,11 @@ ENABLE_WARN
                 return -ERRM38;                                                 // not yet supported
             }
 
-            if ((strncasecmp((char *) subs[2]->buf, "journal_size\0", 13) == 0) && (cstringtoi(data) == 0)) { // clear journal
-                while (SemOp(SEM_GLOBAL, -systab->maxjob)) continue;            // lock GLOBAL
-                ClearJournal(i);                                                // do it
-                SemOp(SEM_GLOBAL, systab->maxjob);                              // unlock global
-                return 0;                                                       // done
+            if ((strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) && (systab->maxjob == 1)) {
+                if (data->len > JNL_FILENAME_MAX) return -ERRM56;               // too long
+                (void) strcpy(systab->vol[i]->vollab->journal_file, (char *) data->buf);
+                systab->vol[i]->map_dirty_flag = 1;                             // tell them to write it
+                return 0;
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_requested\0", 18) == 0) {
@@ -1103,11 +1097,11 @@ ENABLE_WARN
                 return 0;
             }
 
-            if ((strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) && (systab->maxjob == 1)) {
-                if (data->len > JNL_FILENAME_MAX) return -ERRM56;               // too long
-                (void) strcpy(systab->vol[i]->vollab->journal_file, (char *) data->buf);
-                systab->vol[i]->map_dirty_flag = 1;                             // tell them to write it
-                return 0;
+            if ((strncasecmp((char *) subs[2]->buf, "journal_size\0", 13) == 0) && (cstringtoi(data) == 0)) { // clear journal
+                while (SemOp(SEM_GLOBAL, -systab->maxjob)) continue;            // lock GLOBAL
+                ClearJournal(i);                                                // do it
+                SemOp(SEM_GLOBAL, systab->maxjob);                              // unlock global
+                return 0;                                                       // done
             }
 
             if ((strncasecmp((char *) subs[2]->buf, "name\0", 5) == 0) && (systab->maxjob == 1) &&
@@ -1136,6 +1130,12 @@ ENABLE_WARN
                 }
 
                 return DB_Expand(i, vsiz);                                      // do it
+            }
+
+            if (strncasecmp((char *) subs[2]->buf, "writelock\0", 10) == 0) {
+                if (abs(systab->vol[i]->writelock) == (MAX_JOBS + 1)) return 0; // do nothing if system shutting down with (rsm -k)
+                systab->vol[i]->writelock = (cstringtob(data) ? -(partab.jobtab - systab->jobtab + 1) : 0); // set it or clear it
+                return 0;                                                       // return OK
             }
         }
 
@@ -1481,15 +1481,17 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
             buf[0] = '\0';                                                      // JIC
 
             if (dir > 0) {                                                      // forward?
-                for (j = i + 1; j < MAX_VOL; j++)
-                if (systab->vol[j] != NULL) break;
+                for (j = i + 1; j < MAX_VOL; j++) {
+                    if (systab->vol[j] != NULL) break;
+                }
+
                 if (j == MAX_VOL) return 0;                                     // ran out
                 return itocstring(buf, j + 1);                                  // return vol#
             }
 
             if (i == -1) i = MAX_VOL;                                           // fix the seed
 
-            for (j = i-1; j >= 0; j--) {
+            for (j = i - 1; j >= 0; j--) {
                 if (systab->vol[j] != NULL) break;
             }
 

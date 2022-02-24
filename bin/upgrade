@@ -76,14 +76,14 @@ cd $REPO
 
 echo -e "\n${LOG}Building RSM for database version 1 ...${DEF}"
 
-make clean 2> /dev/null
-make dbver=1 2> /dev/null
+make clean 2>/dev/null
+make dbver=1 2>/dev/null
 
 echo -e "\n${LOG}Making sure the $DBFILE environment is shut down for the database backup ...${DEF}"
 
 error_off
 
-$REPO/rsm -k $DBFILE 2> /dev/null
+$REPO/rsm -k $DBFILE 2>/dev/null
 if [[ $? == 0 ]]
 then
     echo -e "\n${LOG}The $DBFILE environment is now shut down${DEF}"
@@ -179,8 +179,8 @@ $REPO/rsm -k $DBFILE
 
 echo -e "\n${LOG}Building RSM for database version 2 ...${DEF}"
 
-make clean 2> /dev/null
-make 2> /dev/null
+make clean 2>/dev/null
+make 2>/dev/null
 
 echo -e "\n${LOG}Removing the old $DBFILE database ...${DEF}"
 
@@ -246,7 +246,7 @@ done
 
 $REPO/rsm -k $DBFILE
 
-while fuser $DBFILE &> /dev/null
+while fuser $DBFILE &>/dev/null
 do
     sleep 1
 done
@@ -269,7 +269,7 @@ rm -f $DBFILE-*.[rg]o
 
 echo -e "\n${LOG}Cleaning the build environment ...${DEF}"
 
-make clean 2> /dev/null
+make clean 2>/dev/null
 
 cd $CWD
 

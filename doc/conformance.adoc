@@ -11,7 +11,7 @@ link:index.adoc[Index]
 
 == Summary
 
-Reference Standard M Version 1.76.1 conforms to ANSI X11.1-1995 (ISO/IEC
+Reference Standard M Version 1.76.2 conforms to ANSI X11.1-1995 (ISO/IEC
 11756:1999) with the following exceptions (there may be more):
 
 * Only supports the M character set profile
