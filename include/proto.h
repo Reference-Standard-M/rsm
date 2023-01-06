@@ -168,6 +168,7 @@ short Vreference(u_char *ret_buffer);
 short Vsystem(u_char *ret_buffer);
 short Vx(u_char *ret_buffer);
 short Vy(u_char *ret_buffer);
+short Vzut(u_char *ret_buffer);
 int   Vset(mvar *var, cstring *cptr);                                           // set a special variable
 
 // Symbol table

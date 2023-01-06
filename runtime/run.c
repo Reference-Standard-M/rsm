@@ -1486,6 +1486,15 @@ short run(int savasp, int savssp)                                               
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
+        case VARZUT:                                                            // $ZUT
+            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
+            s = Vzut(cptr->buf);                                                // get the info
+            if (s < 0) ERROR(s);                                                // complain on error
+            cptr->len = s;                                                      // the count
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
+            addstk[asp++] = (u_char *) cptr;                                    // stack it
+            break;
+
         // ***** Start of Functions *****
         case FUNA1:                                                             // $A[SCII] 1 arg
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it

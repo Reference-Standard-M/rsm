@@ -42,7 +42,7 @@
 #define VERSION_MINOR       77                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release flag (0 for off, 1 for on)
-#define VERSION_TEST        1                                                   // Test version number
+#define VERSION_TEST        2                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
 #define DAEMONS             10                                                  // Jobs per daemon
