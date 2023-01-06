@@ -5,7 +5,7 @@
  *           used only by sequential Input/Output (IO) operations.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -85,4 +85,4 @@ int  SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes);
 int  SQ_Tcpip_Accept(int sid, int tout);
 int  SQ_Tcpip_Read(int sid, u_char *readbuf, int tout);
 
-#endif                                                                          // _RSM_SEQIO_H_
+#endif                                                                          // !_RSM_SEQIO_H_

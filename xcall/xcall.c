@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/xcall/xcall.c
- * Summary:  module xcall - Supplied XCALLs
+ * Summary:  module xcall - supplied external calls
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -31,7 +31,6 @@
 #include <sys/types.h>                                                          // for u_char def
 #include <sys/stat.h>                                                           // $&%FILE
 #include <string.h>
-#include <strings.h>
 #include <netdb.h>                                                              // $&%HOST
 #include <netinet/in.h>                                                         // $&%HOST
 #include <arpa/inet.h>                                                          // $&%HOST
@@ -47,7 +46,7 @@
 #include <sys/wait.h>                                                           // $&%WAIT
 
 #ifdef __sun__
-#    include <crypt.h>
+#   include <crypt.h>
 #endif
 
 #include "rsm.h"                                                                // standard includes
@@ -58,14 +57,14 @@
 #include "symbol.h"
 
 #ifdef __APPLE__
-#    include <DirectoryService/DirectoryService.h>
-#    include <assert.h>
+#   include <DirectoryService/DirectoryService.h>
+#   include <assert.h>
 #endif
 
 #ifdef linux
-#    define _XOPEN_SOURCE                                                       // define this
-#    define __USE_XOPEN                                                         // and this
-#    define _USE_BSD
+#   define _XOPEN_SOURCE                                                        // define this
+#   define __USE_XOPEN                                                          // and this
+#   define _USE_BSD
 #endif
 
 #include <unistd.h>                                                             // crypt et al
@@ -85,7 +84,6 @@ static u_long crcTable[256];                                                    
 void crcgen(void)                                                               // build the crcTable
 {
     static int blnitDone = FALSE;
-    u_long     crc;
     u_long     poly;
     int        i;
     int        j;
@@ -96,7 +94,7 @@ void crcgen(void)                                                               
     poly = 0xEDB88320L;
 
     for (i = 0; i < 256; i++) {
-        crc = i;
+        u_long crc = i;
 
         for (j = 8; j > 0; j--) {
             if (crc & 1) {
@@ -113,7 +111,7 @@ void crcgen(void)                                                               
 /*
  *  CALLING RULES
  *  -------------
- *  1. All XCALL functions are of type short.
+ *  1. All XCALL functions are of type short or int.
  *  2. The first argument is of type *char and is the destination
  *     for the value returned by the function (max size is MAX_STR_LEN).
  *  3. The subsequent two arguments are read only *cstring and are
@@ -123,23 +121,22 @@ void crcgen(void)                                                               
  *  5. The function name is Xcall_name where the call is $&name().
  *
  *  E.g. short Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
+ *    or   int Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
  */
 
 // FUNCTION DEFINITIONS
 
 // DEBUG() - Dump info on console
-short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *dummy)
+short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstring *dummy)
 {
     if (strcasecmp((char *) arg1->buf, "rbd") == 0) {                           // Routine Buffer Descriptors
         Dump_rbd();                                                             // do it
-    } else if (strcasecmp((char *) arg1->buf, "ltd") == 0) {                    // Lock table descriptors
+    } else if (strcasecmp((char *) arg1->buf, "ltd") == 0) {                    // Lock Table Descriptors
         Dump_lt();
     } else if (strcasecmp((char *) arg1->buf, "sems") == 0) {                   // Semaphores
-        int i, val, sempid;
-
-        for (i = 0; i < SEM_MAX; i++) {
-            val = semctl(systab->sem_id, i, GETVAL, 0);
-            sempid = semctl(systab->sem_id, i, GETPID, 0);
+        for (int i = 0; i < SEM_MAX; i++) {
+            int val = semctl(systab->sem_id, i, GETVAL, 0);
+            int sempid = semctl(systab->sem_id, i, GETPID, 0);
 
             fprintf(stderr, "%d) %s", i, ((i == SEM_SYS) ? "SEM_SYS" : ((i == SEM_ROU) ? "SEM_ROU" : ((i == SEM_LOCK) ?
                     "SEM_LOCK" : ((i == SEM_GLOBAL) ? "SEM_GLOBAL" : ((i == SEM_WD) ? "SEM_WD" : "?"))))));
@@ -189,9 +186,6 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *dummy)
 // %DIRECTORY() - Perform host directory list
 #define MAXFILENAME 4096                                                        // Maximum filename length (PATH_MAX?)
 #define PATHSEP     '/'                                                         // Path separator
-
-char *findNextChar(char ch, char *filename);
-int  isPatternMatch(char *pattern, char *filename);
 
 static DIR  *dirp = NULL;                                                       // Directory pointer
 static char pattern[MAXFILENAME];                                               // Pattern
@@ -266,14 +260,11 @@ int isPatternMatch(char *pattern, char *filename)
     return 1;                                                                   // Pattern match
 }
 
-short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
+short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) cstring *dummy)
 {
     struct dirent *dent;                                                        // Directory entry
     char          path[MAXFILENAME];                                            // Directory
     int           ret;                                                          // Return value
-    int           len;                                                          // Filename length
-    int           i;                                                            // handy int
-    char          *patptr;                                                      // Pointer to pattern
     cstring       env;                                                          // Current directory
 
     // If file is empty, then return the next matching directory entry or NULL
@@ -293,14 +284,18 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
             ret = isPatternMatch(pattern, dent->d_name);
 
             if (ret == 1) {                                                     // Found next matching directory entry
-                (void) sprintf(ret_buffer, "%s", dent->d_name);
+                sprintf(ret_buffer, "%s", dent->d_name);
                 return (short) strlen(ret_buffer);
             }
         }
     } else {
+        int  len;                                                               // Filename length
+        char *patptr;                                                           // Pointer to pattern
+
         // Otherwise, open the directory and return the first matching directory entry or NULL
-        i = snprintf(path, MAX_SEQ_NAME, "%s", file->buf);                      // Make a local copy of the
-        if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+        int  i = snprintf(path, MAX_SEQ_NAME, "%s", file->buf);                 // Make a local copy of the
+
+        if (i < 0) fprintf(stderr, "errno = %d - %s\r\n", errno, strerror(errno));
         len = strlen(path);                                                     //  filename
         patptr = path;                                                          // Move pointer to the
         patptr += len;                                                          //  filenames NULL terminator
@@ -317,7 +312,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
 
                 // If the first occurrence of PATHSEP is the first character in "path",
                 // then we want to search the root directory.
-                if (len == 0) (void) sprintf(path, "%c", PATHSEP);
+                if (len == 0) sprintf(path, "%c", PATHSEP);
                 patptr += 1;
                 len = -2;
             } else {
@@ -326,15 +321,15 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
             }
         }
 
-        (void) sprintf(pattern, "%s", patptr);                                  // Record pattern for subsequent calls
+        sprintf(pattern, "%s", patptr);                                         // Record pattern for subsequent calls
 
         // If path is empty, then assume current directory
         if (len == -1) {
-            (void) sprintf((char *) env.buf, "%s", "PWD");
+            sprintf((char *) env.buf, "%s", "PWD");
             env.len = strlen((char *) env.buf);
             ret = Xcall_getenv(path, &env, NULL);
             if (ret < 0) return (short) ret;
-            (void) strcat(path, "/");
+            strcat(path, "/");
         }
 
         dirp = opendir(path);                                                   // Open the directory
@@ -355,7 +350,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
             ret = isPatternMatch(pattern, dent->d_name);
 
             if (ret == 1) {                                                     // Found next matching directory entry
-                (void) sprintf(ret_buffer, "%s", dent->d_name);
+                sprintf(ret_buffer, "%s", dent->d_name);
                 return (short) strlen(ret_buffer);
             }
         }
@@ -363,15 +358,15 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
 }
 
 // %ERRMSG - Return error text
-short Xcall_errmsg(char *ret_buffer, cstring *err, cstring *dummy)
+short Xcall_errmsg(char *ret_buffer, cstring *err, __attribute__((unused)) cstring *dummy)
 {
     int errnum = 0;                                                             // init error number
 
     if (err->len < 1) return -ERRM11;                                           // they gotta pass something
 
     if (err->buf[0] == 'U') {                                                   // user error ?
-        bcopy("User error: ", ret_buffer, 12);
-        bcopy(err->buf, &ret_buffer[12], err->len);
+        memcpy(ret_buffer, "User error: ", 12);
+        memmove(&ret_buffer[12], err->buf, err->len);
         return (err->len + 12);
     }
 
@@ -426,21 +421,27 @@ short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
 short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
 {
     int    ret;
-    int    echk;
-    int    tchk;
-    int    err;
     int    tmp;
     FILE   *fp = NULL;
     struct termios save;
     struct termios term;
 
-    tmp = tcgetattr(0, &term);
+    if (restricted) {                                                   // -R was passed when job started
+        tmp = sprintf(ret_buffer, "RSM is in restricted mode\r\n");
+        if (tmp < 0) return -(ERRMLAST + ERRZLAST + errno);
+        return tmp;
+    }
+
+    tmp = tcgetattr(STDIN_FILENO, &term);
     if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
     if ((type->len == 1) && (type->buf[0] == '1')) {
+        int echk;
+        int err;
+
         // Change to sane settings for pipe read mode
         term.c_oflag |= ONLCR;
-        tmp = tcsetattr(0, TCSANOW, &term);
+        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &term);
         if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // Do command
@@ -457,7 +458,7 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         err = errno;
 
         // Close pipe
-        (void) pclose(fp);
+        pclose(fp);
 
         // Return error if necessary
         if (echk != 0) {
@@ -467,13 +468,13 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         }
     } else {
         // Store current settings
-        tchk = tcgetattr(0, &save);
+        int tchk = tcgetattr(STDIN_FILENO, &save);
 
         // Change to sane settings for shell out
         term.c_iflag |= ICRNL;
         term.c_oflag |= ONLCR;
         term.c_lflag |= (ICANON | ECHO);
-        tmp = tcsetattr(0, TCSANOW, &term);
+        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &term);
         if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // ret_buffer unused
@@ -487,7 +488,7 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
 
         if (tchk != -1) {
             // Restore original settings
-            tmp = tcsetattr(0, TCSANOW, &save);
+            tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
             if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
         }
 
@@ -502,9 +503,9 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
 
 /*
  * %VERSION - Supply version information - arg1 must be "NAME"
- * returns "Reference Standard M V<major.minor.patch> [T<test>] for <platform> <datetime> ..."
+ * returns "Reference Standard M V<major.minor.patch[-pre]> [T<test>] for <platform> <datetime> ..."
  */
-short Xcall_version(char *ret_buffer, cstring *name, cstring *dummy)
+short Xcall_version(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
 {
     return (short) rsm_version((u_char *) ret_buffer);                          // do it elsewhere
 }
@@ -513,7 +514,7 @@ short Xcall_version(char *ret_buffer, cstring *name, cstring *dummy)
  * %ZWRITE - Dump local symbol table (arg1/tmp can be a global reference)
  * returns 0 on success, or negative for errors - sets variables to empty string
  */
-short Xcall_zwrite(char *ret_buffer, cstring *tmp, cstring *dummy)
+short Xcall_zwrite(char *ret_buffer, cstring *tmp, __attribute__((unused)) cstring *dummy)
 {
     mvar  var;                                                                  // JIC
     short s;                                                                    // for functions
@@ -734,7 +735,7 @@ static void DoubleTheBufferSizeIfItsTooSmall(tDirStatus *errPtr, tDirNodeReferen
                 err = eDSAllocationFailed;
             } else {
 #if TEST_BUFFER_DOUBLING
-                fprintf(stderr, "Doubled buffer size to %lu.\n", tmpBuf->fBufferSize);
+                fprintf(stderr, "Doubled buffer size to %lu.\r\n", tmpBuf->fBufferSize);
 #endif
                 junk = dsDataBufferDeAllocate(dirRef, *bufPtrPtr);
                 assert(junk == eDSNoErr);
@@ -928,7 +929,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
      */
     if (err == eDSNoErr) {
         if (nodeCount > 1) {
-            fprintf(stderr, "GetSearchNodePathList: nodeCount = %u, weird.\n", nodeCount);
+            fprintf(stderr, "GetSearchNodePathList: nodeCount = %u, weird.\r\n", nodeCount);
         }
 
         err = dsGetDirNodeName(dirRef, buf, 1, searchNodePathListPtr);
@@ -1051,7 +1052,6 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
             tAttributeValueListRef  thisValue;
             tAttributeEntryPtr      thisAttrEntry;
             tAttributeValueEntryPtr thisValueEntry;
-            const char              *thisAttrName;
 
             thisValue = 0;
             thisAttrEntry = NULL;
@@ -1061,7 +1061,7 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
             err = dsGetAttributeEntry(nodeRef, buf, foundRecAttrList, attrIndex, &thisValue, &thisAttrEntry);
 
             if (err == eDSNoErr) {
-                thisAttrName = thisAttrEntry->fAttributeSignature.fBufferData;
+                const char *thisAttrName = thisAttrEntry->fAttributeSignature.fBufferData;
 
                 // We only care about attributes that have values.
                 if (thisAttrEntry->fAttributeValueCount > 0) {
@@ -1408,7 +1408,11 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
 }
 #else
 
+#ifndef __CYGWIN__
 short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
+#else
+short Xcall_paschk(char *ret_buffer, cstring *user, __attribute__((unused)) cstring *pwd)
+#endif
 {
     FILE *fd;                                                                   // secure user database
     char line[256];                                                             // line
@@ -1434,7 +1438,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
         err = fgets(line, 256, fd);                                             // fgets() failed
 
         if (err == NULL) {
-            (void) fclose(fd);
+            fclose(fd);
             ret_buffer[0] = '-';
             ret_buffer[1] = '1';
             ret_buffer[2] = '\0';
@@ -1451,16 +1455,16 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
                 postptr = strchr(preptr, ':');
                 *postptr = '\0';
 #ifndef __CYGWIN__
-                (void) strcpy(password, crypt((char *) pwd->buf, preptr));      // WON'T WORK ON CYGWIN
+                strcpy(password, crypt((char *) pwd->buf, preptr));             // WON'T WORK ON CYGWIN
 #endif
 
                 if (strcmp(password, preptr) == 0) {
-                    (void) fclose(fd);
+                    fclose(fd);
                     ret_buffer[0] = '1';
                     ret_buffer[1] = '\0';
                     return 1;
                 } else {
-                    (void) fclose(fd);
+                    fclose(fd);
                     ret_buffer[0] = '0';
                     ret_buffer[1] = '\0';
                     return 1;
@@ -1469,7 +1473,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
         }
     }
 
-    (void) fclose(fd);
+    fclose(fd);
     ret_buffer[0] = '-';                                                        // indicate fail
     ret_buffer[1] = '1';                                                        // indicate fail
     ret_buffer[2] = '\0';                                                       // null terminate
@@ -1498,7 +1502,6 @@ int Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
 {
     u_long crc;
     u_long ulldx;
-    int    c;
 
     if (flag->len == 0) {                                                       // check for the old type
         int tmp;
@@ -1513,12 +1516,13 @@ int Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
     crc = 0xFFFFFFFF;
 
     for (ulldx = 0; ulldx < str->len; ulldx++) {
-        c = *(str->buf + ulldx);
+        int c = *(str->buf + ulldx);
+
         crc = ((crc >> 8) & 0x00FFFFFF) ^ crcTable[(crc ^ c) & 0xFF];
     }
 
-    crc = crc ^ 0xFFFFFFFF;
-    bcopy(&crc, ret_buffer, 4);
+    crc ^= 0xFFFFFFFF;
+    memcpy(ret_buffer, &crc, 4);
     return sizeof(u_long);
 }
 
@@ -1530,17 +1534,16 @@ int Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
  *        of length "len". Note the magic number 0x1081 (or 010201 octal)
  *        which is required for the algorithm.
  */
-short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy)
+short Xcall_xrsm(char *ret_buffer, cstring *str, __attribute__((unused)) cstring *dummy)
 {
     int     tmp;
     u_char  *chp = &str->buf[0];
-    u_short c;                                                                  // (or unsigned char)
-    u_short q;                                                                  // (or unsigned char)
     u_short crc = 0;                                                            // CRC result number
 
     for (tmp = (int) str->len; tmp > 0; tmp--) {
-        c = *chp++ & 0xFF;
-        q = (crc ^ c) & 0x0F;                                                   // low nibble
+        u_short c = *chp++ & 0xFF;                                              // (or unsigned char)
+        u_short q = (crc ^ c) & 0x0F;                                           // (or unsigned char) - low nibble
+
         crc = (crc >> 4) ^ (q * 0x1081);
         q = (crc ^ (c >> 4)) & 0x0F;                                            // high nibble
         crc = (crc >> 4) ^ (q * 0x1081);
@@ -1554,7 +1557,7 @@ short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy)
 }
 
 // %GETENV - Returns the value of an environment variable
-int Xcall_getenv(char *ret_buffer, cstring *env, cstring *dummy)
+int Xcall_getenv(char *ret_buffer, cstring *env, __attribute__((unused)) cstring *dummy)
 {
     char *p;                                                                    // ptr for getenv
 
@@ -1597,11 +1600,10 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
  *          Parent: Child M job number
  *          Child:  Minus Parent M job number
  */
-short Xcall_fork(char *ret_buffer, cstring *dummy1, cstring *dummy2)
+short Xcall_fork(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
 {
-    int s;                                                                      // for returns
+    int s = ForkIt(1);                                                          // do it, copy file table
 
-    s = ForkIt(1);                                                              // do it, copy file table
     return itocstring((u_char *) ret_buffer, s);                                // return result
 }
 
@@ -1766,7 +1768,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
 /*
  * WAIT() - Wait on a child
  *
- * Author: Martin Kula <mkula@users.sourceforge.net>
+ * Original author: Martin Kula <mkula@users.sourceforge.net>
  *
  * Arguments:
  *   First:

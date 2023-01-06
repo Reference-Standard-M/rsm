@@ -4,7 +4,7 @@
  * Summary:  module runtime - debug
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include "rsm.h"                                                                // standard includes
@@ -41,7 +40,6 @@
 mvar   dvar;                                                                    // an mvar for debugging
 u_char src[1024];                                                               // some space for entered
 u_char cmp[1024];                                                               // ditto compiled
-u_char *debug;                                                                  // a pointer to compiled code
 
 extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
 extern u_short hist_next;                                                       // next history pointer
@@ -52,11 +50,11 @@ extern u_short prompt_len;                                                      
 void Debug_off(void)                                                            // turn off debugging
 {
     VAR_CLEAR(dvar.name);
-    bcopy("$ZBP", &dvar.name.var_cu[0], 4);
+    memcpy(&dvar.name.var_cu[0], "$ZBP", 4);
     dvar.volset = 0;                                                            // clear volume
     dvar.uci = UCI_IS_LOCALVAR;                                                 // local variable
     dvar.slen = 0;                                                              // no subscripts
-    (void) ST_Kill(&dvar);                                                      // dong it
+    ST_Kill(&dvar);                                                             // dong it
     partab.debug = 0;                                                           // turn off flag
     return;                                                                     // done
 }
@@ -68,24 +66,27 @@ void Debug_off(void)                                                            
  *     Debug_ref:        Add simple breakpoint
  *     Debug_ref:code    Add breakpoint with code to Xecute
  *     :code             Code to execute at QUIT n breakpoint
+ *     ""                Remove all breakpoints and turn off debugging
  */
 short Debug_on(cstring *param)                                                  // turn on/modify debug
 {
-    int     i = 0;                                                              // a handy int
     int     j = 0;                                                              // and another
-    int     s;
-    int     off = 1;                                                            // line offset
     cstring *ptr;                                                               // string pointer
+    u_char  temp_src[256];                                                      // some space for entered
+    u_char  temp_cmp[1024];                                                     // ditto compiled
 
-    debug = NULL;                                                               // clear auto debug
     VAR_CLEAR(dvar.name);
-    bcopy("$ZBP", &dvar.name.var_cu[0], 4);
+    memcpy(&dvar.name.var_cu[0], "$ZBP", 4);
     dvar.volset = 0;                                                            // clear volume
     dvar.uci = UCI_IS_LOCALVAR;                                                 // local variable
     dvar.slen = 0;                                                              // assume no key - aka :code
     dvar.key[0] = 128;                                                          // setup for string key
 
     if (param->buf[0] != ':') {                                                 // If not a : first
+        int i = 0;                                                              // a handy int
+        int s;
+        int off = 1;                                                            // line offset
+
         if (param->buf[i] == '+') {                                             // offset?
             i++;                                                                // point past it
             off = 0;                                                            // clear offset
@@ -95,6 +96,7 @@ short Debug_on(cstring *param)                                                  
             }
         }
 
+        if ((off < 1) || (off > MAXROULINE)) return -(ERRZ9 + ERRMLAST);        // we don't like it
         if (param->buf[i++] != '^') return -(ERRZ9 + ERRMLAST);                 // we don't like it
 
         for (j = 0; j < VAR_LEN; j++) {                                         // copy the routine name
@@ -107,7 +109,7 @@ short Debug_on(cstring *param)                                                  
 
         dvar.key[j + 1] = '\0';                                                 // null terminate it
         dvar.slen = j + 2;                                                      // save the length
-        j = j + i;                                                              // point to next char
+        j += i;                                                                 // point to next char
         if (isalnum(param->buf[j])) return -ERRM56;                             // complain about long names
 
         if ((param->buf[j] != ':') && (param->buf[j] != '\0')) {                // not : AND not eol
@@ -122,24 +124,26 @@ short Debug_on(cstring *param)                                                  
     }                                                                           // end of +off^rou code
 
     if (param->buf[j++] == '\0') return ST_Kill(&dvar);                         // end of string? then dong and exit
-    partab.debug = -1;                                                          // turn on debug
+    if (!partab.debug) partab.debug = -1;                                       // ensure it's on
 
     if (param->buf[j] == '\0') {                                                // end of string?
-        ptr = (cstring *) src;                                                  // make a cstring
+        ptr = (cstring *) temp_src;                                             // make a cstring
 DISABLE_WARN(-Warray-bounds)
         ptr->len = 0;                                                           // length
         ptr->buf[0] = '\0';                                                     // null terminated
+ENABLE_WARN
         return ST_Set(&dvar, ptr);                                              // set and return
     }
 
     if ((param->len - j) > 255) return -(ERRZ9 + ERRMLAST);                     // too bloody long
     source_ptr = &param->buf[j];                                                // point at the source
-    ptr = (cstring *) cmp;                                                      // where it goes
+    ptr = (cstring *) temp_cmp;                                                 // where it goes
     comp_ptr = ptr->buf;                                                        // for parse
     parse();                                                                    // compile it
     *comp_ptr++ = ENDLIN;                                                       // eol
     *comp_ptr++ = ENDLIN;                                                       // eor
-    ptr->len = (comp_ptr - ptr->buf);                                           // save the length
+DISABLE_WARN(-Warray-bounds)
+    ptr->len = comp_ptr - ptr->buf;                                             // save the length
 ENABLE_WARN
     return ST_Set(&dvar, ptr);                                                  // set and return
 }
@@ -161,7 +165,7 @@ short Debug(int savasp, int savssp, int dot)                                    
 
     if (!partab.debug) partab.debug = -1;                                       // ensure it's on
     VAR_CLEAR(dvar.name);
-    bcopy("$ZBP", &dvar.name.var_cu[0], 4);
+    memcpy(&dvar.name.var_cu[0], "$ZBP", 4);
     dvar.volset = 0;                                                            // clear volume
     dvar.uci = UCI_IS_LOCALVAR;                                                 // local variable
     dvar.slen = 0;                                                              // no key
@@ -181,7 +185,7 @@ short Debug(int savasp, int savssp, int dot)                                    
         dvar.slen = i + 1;                                                      // the length so far
         dvar.key[dvar.slen++] = '\0';                                           // null terminate it
         dvar.key[dvar.slen++] = 64;                                             // next key
-        s = itocstring(&dvar.key[dvar.slen], curframe->line_num);               // setup second key
+        s = uitocstring(&dvar.key[dvar.slen], curframe->line_num);              // setup second key
         dvar.key[dvar.slen - 1] |= s;                                           // fix type
         dvar.slen += s;                                                         // and length
         dvar.slen++;                                                            // count the null
@@ -189,9 +193,7 @@ short Debug(int savasp, int savssp, int dot)                                    
         if (s < 0) return 0;                                                    // just return if nothing
         ts = (short) s;                                                         // endian agnostic
         memcpy(cmp, &ts, sizeof(short));                                        // save the length
-    }
-
-    if (dot == -1) {                                                            // from a QUIT n
+    } else if (dot == -1) {                                                     // from a QUIT n
         s = ST_Get(&dvar, &cmp[sizeof(short)]);                                 // get whatever
         if (s < 0) s = 0;                                                       // ignore errors
         ts = (short) s;                                                         // endian agnostic
@@ -225,40 +227,42 @@ short Debug(int savasp, int savssp, int dot)                                    
         partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         s = run(savasp, savssp);                                                // do it
         if (s == OPHALT) return (short) s;                                      // just halt if reqd
-        --partab.jobtab->cur_do;                                                // restore do frame
+        partab.jobtab->cur_do--;                                                // restore do frame
         rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;                 // restore pc
 
         if (s & BREAK_QN) {
-            s = s & ~BREAK_QN;                                                  // clear the bit
+            s &= ~BREAK_QN;                                                     // clear the bit
 
             if (s > 0) {
                 partab.debug = s + partab.jobtab->commands;                     // when to stop
                 partab.jobtab->attention = 1;                                   // say to check this thing
                 s = 0;                                                          // don't confuse the return
             }
+        } else if (s > 0) {
+            return (short) s;                                                   // return whatever with quit sp sp
         }
-
-        return (short) s;                                                       // return whatever
     }
 
     io = partab.jobtab->io;                                                     // save current $IO
-    debug = NULL;                                                               // clear code ptr
     partab.jobtab->io = 0;                                                      // ensure 0
     partab.jobtab->seqio[0].options |= 8;                                       // ensure echo on
     ptr = (cstring *) src;                                                      // some space
 
     while (TRUE) {                                                              // see what they want
         if (in_hist == FALSE) {
-            if (partab.jobtab->seqio[0].dx) s = SQ_WriteFormat(SQ_LF);          // need a CRLF then do it
+            if (partab.jobtab->seqio[0].dx) {
+                s = SQ_WriteFormat(SQ_LF);                                      // need a CRLF then do it
+                if (s < 0) return s;                                            // if error, return it
+            }
 
             if (var_empty(curframe->rounam)) {
-                bcopy("Debug", ptr->buf, 5);
+                memcpy(ptr->buf, "Debug", 5);
                 ptr->len = 5;
                 partab.debug = -1;                                              // reset debug state
             } else {
                 ptr->len = 0;                                                   // clear ptr
                 ptr->buf[ptr->len++] = '+';                                     // lead off
-                ptr->len = (u_short) itocstring(&ptr->buf[ptr->len], curframe->line_num) + ptr->len; // setup line number
+                ptr->len += uitocstring(&ptr->buf[ptr->len], curframe->line_num); // setup line number
                 ptr->buf[ptr->len++] = '^';                                     // lead off routine
 
                 for (i = 0; i < VAR_LEN; i++) {
@@ -275,20 +279,25 @@ short Debug(int savasp, int savssp, int dot)                                    
             ptr->buf[ptr->len] = '\0';                                          // null terminate
             prompt_len = ptr->len;                                              // update the prompt length for direct mode editing
             s = SQ_Write(ptr);                                                  // write it
+            if (s < 0) return s;                                                // if error, return it
         }
 
         s = SQ_Read(ptr->buf, -1, 256);                                         // read something
         if (s < 1) continue;                                                    // ignore nulls and errors
-        strcpy(history[hist_next], (char *) ptr->buf);
 
-        if (hist_next == (MAX_HISTORY - 1)) {
-            hist_next = 0;
-        } else {
-            hist_next++;
+        if (!hist_next || strcmp(history[hist_next - 1], (char *) ptr->buf)) {
+            strcpy(history[hist_next], (char *) ptr->buf);
+
+            if (hist_next == (MAX_HISTORY - 1)) {
+                hist_next = 0;
+            } else {
+                hist_next++;
+            }
         }
 
         hist_curr = hist_next;
         s = SQ_WriteFormat(SQ_LF);                                              // return
+        if (s < 0) return s;                                                    // if error, return it
         source_ptr = ptr->buf;                                                  // point at source
         comp_ptr = cmp;                                                         // and where it goes
         parse();                                                                // compile it
@@ -316,11 +325,11 @@ short Debug(int savasp, int savssp, int dot)                                    
         partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
         s = run(savasp, savssp);                                                // do it
         if (s == OPHALT) return (short) s;                                      // just halt if reqd
-        --partab.jobtab->cur_do;                                                // restore do frame
+        partab.jobtab->cur_do--;                                                // restore do frame
         if (!partab.debug) break;                                               // go away if debug now off
 
         if (s & BREAK_QN) {
-            s = s - BREAK_QN;                                                   // clear the bit
+            s &= ~BREAK_QN;                                                     // clear the bit
 
             if (s > 0) {
                 partab.debug = s + partab.jobtab->commands;                     // when to stop
@@ -330,7 +339,10 @@ short Debug(int savasp, int savssp, int dot)                                    
             }
         }
 
-        if (s == CMQUIT) break;                                                 // exit on QUIT
+        if (s == CMQUIT) {
+            partab.debug = -1;                                                  // reset debug state
+            break;                                                              // exit on QUIT
+        }
 
         if (s == OPHALT) {
             partab.jobtab->io = io;                                             // restore io
@@ -340,18 +352,25 @@ short Debug(int savasp, int savssp, int dot)                                    
 
         var = (mvar *) &strstk[savssp];                                         // space to setup a var
         VAR_CLEAR(var->name);
-        bcopy("$ECODE", &var->name.var_cu[0], 6);
+        memcpy(&var->name.var_cu[0], "$ECODE", 6);
         var->volset = 0;
         var->uci = UCI_IS_LOCALVAR;
-        var->slen = 0;                                                          // setup for $EC
+        var->slen = 0;                                                          // setup for $ECODE
         ptr = (cstring *) (&strstk[savssp] + sizeof(mvar));                     // for result
-        bcopy("$ECODE=", ptr->buf, 7);
+        memcpy(ptr->buf, "$ECODE=", 7);
         s = ST_Get(var, &ptr->buf[7]);
         if (s < 1) continue;                                                    // ignore if nothing there
         ptr->len = s + 7;
-        if (partab.jobtab->seqio[0].dx) s = SQ_WriteFormat(SQ_LF);              // need a CRLF then do it
+
+        if (partab.jobtab->seqio[0].dx) {
+            s = SQ_WriteFormat(SQ_LF);                                          // need a CRLF then do it
+            if (s < 0) return s;                                                // if error, return it
+        }
+
         s = SQ_Write(ptr);                                                      // write the prompt
+        if (s < 0) return s;                                                    // if error, return it
         s = SQ_WriteFormat(SQ_LF);                                              // new line
+        if (s < 0) return s;                                                    // if error, return it
     }
 
     partab.jobtab->io = io;                                                     // restore io

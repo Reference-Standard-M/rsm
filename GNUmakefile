@@ -1,8 +1,8 @@
 #
 # Package:  Reference Standard M
-# File:     rsm/Makefile
-# Summary:  Makefile for FreeBSD, NetBSD, and OpenBSD
-#           See rsm/GNUmakefile for Linux, MacOS X, Solaris, and Raspberry Pi
+# File:     rsm/GNUmakefile
+# Summary:  Makefile for Linux, MacOS X, Solaris, and Raspberry Pi
+#           See rsm/Makefile for FreeBSD, NetBSD, and OpenBSD
 #
 # David Wicksell <dlw@linux.com>
 # Copyright © 2020-2023 Fourth Watch Software LC
@@ -25,53 +25,71 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
 
-OS      != uname
+OS      := $(shell uname)
 CC      := gcc
 PROG    := rsm
 RM      := rm -f
-DEPS    := include/*.h
-SRC     != ls */*.c
+DEPS    := $(wildcard include/*.h)
+SRC     := $(wildcard */*.c)
 OBJ     := $(SRC:.c=.o)
-CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude
-LDFLAGS := -lm -lcrypt
+CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude -D_FILE_OFFSET_BITS=64
+LDFLAGS := -lcrypt
 
-.ifmake debug
+ifeq ($(MAKECMDGOALS),debug)
     CONFIG := -O0 -g3
-.else
+else
     CONFIG := -O3
     CFLAGS += -DNDEBUG
-.endif
+endif
 
-.if ($(OS) == OpenBSD)
-    LDFLAGS := -lm
-.endif
+ifneq ($(OS),AIX)
+    LDFLAGS += -lm
+endif
 
-.ifdef dbver
+ifeq ($(OS),SunOS)
+    LDFLAGS += -lnsl -lsocket -lrt
+endif
+
+ifeq ($(OS),Darwin)
+    CFLAGS  += -Wno-deprecated-declarations
+    LDFLAGS := -lm -framework CoreServices -framework DirectoryService -framework Security
+endif
+
+ifdef dbver
     CFLAGS += -DRSM_DBVER=$(dbver)
-.endif
+endif
 
-.ifdef path
+ifdef path
     EXECDIR := $(path)
-.else
+else
     EXECDIR := /usr/local/bin
-.endif
+endif
 
-.c.o: ${DEPS}
+%.o: %.c ${DEPS}
 	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
 
 all: ${OBJ}
-	${CC} -o ${PROG} ${OBJ} ${LDFLAGS}
+	${CC} -o ${PROG} $^ ${LDFLAGS}
 
 debug: ${OBJ}
-	${CC} -o ${PROG} ${OBJ} ${LDFLAGS}
+	${CC} -o ${PROG} $^ ${LDFLAGS}
 
 install: ${PROG}
 
-	@if [ "$${USER}" != "root" ]; then \
+	@if [ "$(USER)" != "root" ]; then \
 	    echo "You must install ${PROG} as root"; \
 	    exit 1; \
 	fi
 
+ifeq ($(OS),AIX)
+	@if [ -d ${EXECDIR} ]; then \
+	    echo install -O root -G 0 -M 755 -S -f ${EXECDIR} ${PROG}; \
+	    install -O root -G 0 -M 755 -S -f ${EXECDIR} ${PROG}; \
+	else \
+	    echo "${EXECDIR} does not exist"; \
+	    exit 1; \
+	fi
+else
 	@if [ -d ${EXECDIR} ]; then \
 	    echo install -o root -g 0 -m 755 -s ${PROG} ${EXECDIR}; \
 	    install -o root -g 0 -m 755 -s ${PROG} ${EXECDIR}; \
@@ -79,10 +97,11 @@ install: ${PROG}
 	    echo "${EXECDIR} does not exist"; \
 	    exit 1; \
 	fi
+endif
 
 uninstall:
 
-	@if [ "$${USER}" != "root" ]; then \
+	@if [ "$(USER)" != "root" ]; then \
 	    echo "You must uninstall ${PROG} as root"; \
 	    exit 1; \
 	fi
@@ -93,6 +112,6 @@ uninstall:
 	fi
 
 clean:
-	${RM} ${OBJ} ${PROG} $(wildcard ${PROG}.core)
+	${RM} ${OBJ} ${PROG} $(wildcard *core)
 
 .PHONY: all debug install uninstall clean

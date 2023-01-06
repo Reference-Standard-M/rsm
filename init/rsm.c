@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/init/rsm.c
- * Summary:  module RSM - startup (main) code
+ * Summary:  module init - startup (main) code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -41,8 +41,9 @@
 void help(void);                                                                // give some help
 void info(char *file);                                                          // give some info
 void shutdown(char *file);                                                      // defined in rsm/init/shutdown.c
+int  restricted = FALSE;                                                        // whether RSM is in restricted mode or not
 
-// *** Main entry for create, init and run ***
+// *** Main entry for create, init, run, help, info, and shutdown ***
 int main(int argc, char **argv)                                                 // main entry point
 {
     int  c;                                                                     // for case
@@ -60,10 +61,11 @@ int main(int argc, char **argv)                                                 
     char *cmd = NULL;                                                           // startup command
     char *dbfile = getenv("RSM_DBFILE");                                        // pass volume in environment
     char file[VOL_FILENAME_MAX];
+    char version[20];                                                           // for the version string (-V)
 
     if ((argc < 2) && (dbfile == NULL)) help();                                 // they need help
 
-    while ((c = getopt(argc, argv, "a:b:e:g:hij:km:r:s:v:x:V")) != EOF) {
+    while ((c = getopt(argc, argv, "a:b:e:g:hij:km:r:s:v:x:RV")) != EOF) {
         switch (c) {
         case 'a':                                                               // switch -a
             addmb = atoi(optarg);                                               // additional buffer (init - not ready yet)
@@ -117,16 +119,15 @@ int main(int argc, char **argv)                                                 
             if (cmd == NULL) cmd = optarg;                                      // initial command (run)
             break;
 
+        case 'R':
+            restricted = TRUE;                                                  // turn on restricted mode
+            break;
+
         case 'V':                                                               // switch -V
             if (i || k) break;
-
-            if (VERSION_TEST) {                                                 // if an internal version
-                printf("V%d.%d.%d T%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TEST);
-            } else {                                                            // else normal release
-                printf("V%d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-            }
-
-            exit(0);                                                            // give help and exit
+            short_version((u_char *) version, sprintf((char *) &version[0], "V")); // get version string
+            printf("%s\n", version);                                            // print version string
+            exit(EXIT_SUCCESS);                                                 // give version and exit
             break;
 
         default:                                                                // some sort of error
@@ -183,8 +184,8 @@ int main(int argc, char **argv)                                                 
     }
 #endif
 
-    (void) fclose(stdin);                                                       // close standard I/O
-    (void) fclose(stdout);                                                      // close standard I/O
-    (void) fclose(stderr);                                                      // close standard I/O
+    fclose(stdin);                                                              // close standard I/O
+    fclose(stdout);                                                             // close standard I/O
+    fclose(stderr);                                                             // close standard I/O
     exit(c);                                                                    // exit with value
 }

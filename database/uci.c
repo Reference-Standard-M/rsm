@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/uci.c
- * Summary:  module database - Database Functions, UCI manipulation
+ * Summary:  module database - database functions, UCI manipulation
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // for semaphores
@@ -51,12 +50,13 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
 {
     short s;                                                                    // for functions
 
-    if ((vol > MAX_VOL) || (vol < 1)) return -ERRM26;                           // within limits? no - error
-    if ((uci > UCIS) || (uci < 1)) return -ERRM26;                              // too big
+    if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? no - error
+    if ((uci < 1) || (uci > UCIS)) return -ERRM26;                              // too big
     volnum = vol;                                                               // set this
+    if (systab->vol[volnum - 1] == NULL) return -ERRM26;                        // volume not mounted
 
     while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
-        (void) sleep(5);                                                        // wait a bit
+        sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
     }                                                                           // end writelock check
 
@@ -70,7 +70,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         return -ERRM26;                                                         // no - error
     }
 
-    if (!systab->vol[vol - 1]->vollab->uci[uci-1].global) {                     // if no GD
+    if (!systab->vol[vol - 1]->vollab->uci[uci - 1].global) {                   // if no GD
         s = New_block();                                                        // get a new block
 
         if (s < 0) {                                                            // if failed
@@ -82,23 +82,24 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         blk[level]->mem->type = uci + 64;                                       // block type
         blk[level]->mem->last_idx = IDX_START;                                  // one index
         VAR_CLEAR(blk[level]->mem->global);
-        bcopy("$GLOBAL", &blk[level]->mem->global, 7);                          // the global
+        memcpy(&blk[level]->mem->global, "$GLOBAL", 7);                         // the global
         blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 7; // use 6 words
         idx[IDX_START] = blk[level]->mem->last_free + 1;                        // the data
         chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at it
         chunk->len = 24;                                                        // 5 words
         chunk->buf[0] = 0;                                                      // zero ccc
         chunk->buf[1] = 9;                                                      // ucc
-        bcopy("\200$GLOBAL\0", &chunk->buf[2], 9);                              // the key
+        memcpy(&chunk->buf[2], "\200$GLOBAL\0", 9);                             // the key
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record ptr
         Align_record();                                                         // align it
         *(u_int *) record = blk[level]->block;                                  // point at self
-        bzero(&record->buf[2], sizeof(u_int));                                  // zero flags
+        memset(&record->buf[2], 0, sizeof(u_int));                              // zero flags
         blk[level]->dirty = blk[level];                                         // setup for write
         Queit();                                                                // queue for write
     }                                                                           // end new block code
 
     VAR_COPY(systab->vol[vol - 1]->vollab->uci[uci - 1].name, name);            // set the new name
+    systab->vol[vol - 1]->map_dirty_flag = 1;                                   // mark map dirty
     SemOp(SEM_GLOBAL, -curr_lock);
     return 0;                                                                   // and exit
 }
@@ -115,12 +116,13 @@ short DB_UCIKill(int vol, int uci)                                              
     short s;                                                                    // for functions
     u_int gb;                                                                   // block number
 
-    if ((vol > MAX_VOL) || (vol < 1)) return -ERRM26;                           // within limits? no - error
-    if ((uci > UCIS) || (uci < 1)) return -ERRM26;                              // too big
+    if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? no - error
+    if ((uci < 1) || (uci > UCIS)) return -ERRM26;                              // too big
     volnum = vol;                                                               // set this
+    if (systab->vol[volnum - 1] == NULL) return -ERRM26;                        // volume not mounted
 
     while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
-        (void) sleep(5);                                                        // wait a bit
+        sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
     }                                                                           // end writelock check
 
@@ -134,7 +136,7 @@ short DB_UCIKill(int vol, int uci)                                              
         return -ERRM26;                                                         // no - error
     }
 
-    if (systab->vol[vol - 1]->vollab->uci[uci-1].name.var_cu[0] == '\0') {      // does UCI exits?
+    if (systab->vol[vol - 1]->vollab->uci[uci - 1].name.var_cu[0] == '\0') {    // does UCI exits?
         SemOp(SEM_GLOBAL, -curr_lock);
         return 0;                                                               // no - just return
     }
@@ -159,7 +161,7 @@ short DB_UCIKill(int vol, int uci)                                              
     systab->vol[vol - 1]->map_dirty_flag = 1;                                   // mark map dirty
     blk[level]->mem->last_idx = IDX_START - 1;                                  // say no index
     Garbit(gb);                                                                 // garbage it
-    bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int));             // zot all
+    memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(int) * MAX_VOL); // zot all
     SemOp(SEM_GLOBAL, -curr_lock);
     return 0;                                                                   // exit
 }

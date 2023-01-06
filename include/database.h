@@ -4,7 +4,7 @@
  * Summary:  module database header file - standard includes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,8 +29,8 @@
 #define _RSM_DATABASE_H_
 
 // Defines
-#define READ            -1                                                      // Locking defines makes
-#define WRITE           -systab->maxjob                                         // easy reading code
+#define READ            ((int) -1)                                              // Locking defines makes
+#define WRITE           ((int) -systab->maxjob)                                 // easy reading code
 #define WR_TO_R         (systab->maxjob - 1)                                    // from write to read
 
 #define NODE_UNDEFINED  VAR_UNDEFINED                                           // junk record (was -1 now MAX_STR_LEN + 1)
@@ -68,7 +68,7 @@ typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK {                  
     var_u   global;                                                             // global name
 } DB_Block;                                                                     // end block header
 
-#define IDX_START   (sizeof(DB_Block) / 2)
+#define IDX_START ((u_int) sizeof(DB_Block) / 2)
 
 typedef struct __attribute__ ((__packed__)) GBD {                               // global buf desciptor
     u_int           block;                                                      // block number
@@ -119,7 +119,7 @@ extern gbd     *blk[MAXTREEDEPTH];                                              
 extern int     level;                                                           // level in above
 extern u_int   rekey_blk[MAXREKEY];                                             // to be re-keyed
 extern int     rekey_lvl[MAXREKEY];                                             // from level
-extern int     Index;                                                           // index # into above
+extern u_int   Index;                                                           // index # into above
 extern cstring *chunk;                                                          // chunk at index
 extern cstring *record;                                                         // record at index
 extern u_char  keybuf[MAX_KEY_SIZE + 5];                                        // for storing keys
@@ -160,7 +160,7 @@ void  Align_record(void);                                                       
 void  Copy_data(gbd *fptr, int fidx);                                           // copy records
 void  DoJournal(jrnrec *jj, cstring *data);                                     // Write journal
 void  Free_block(int blknum);                                                   // free blk in map
-void  Garbit(int blknum);                                                       // queue a blk for garb
+void  Garbit(u_int blknum);                                                     // queue a blk for garbage
 short Insert(u_char *key, cstring *data);                                       // insert a node
 void  Queit(void);                                                              // queue a GBD for write
 void  Tidy_block(void);                                                         // tidy current blk

@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - includes for symbol module
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,18 +28,14 @@
 #ifndef _RSM_SYMBOL_H_                                                          // only do this once
 #define _RSM_SYMBOL_H_
 
-#define DTBLKSIZE (sizeof(ST_depend *) + (sizeof(short) * 2) + sizeof(char))
-#define DTMINSIZE 32                                                            // leaves 21 for data
-
-#define DPBLKSIZE (sizeof(u_char) + sizeof(ST_depend *) \
-                  + sizeof(short) + sizeof(char))
-
-#define NTBLKSIZE (sizeof(ST_newtab *) + (sizeof(short) * 2) \
-                  + sizeof(short *) + sizeof(ST_locdata *))
+#define DTBLKSIZE (sizeof(short) + sizeof(u_short) + sizeof(u_char) + sizeof(ST_depend *)) // ST_data - empty data
+#define DTMINSIZE (sizeof(short) + sizeof(u_short) + (sizeof(u_char) * 20) + sizeof(ST_depend *)) // ST_data - 20 for data
+#define DPBLKSIZE ((sizeof(u_char) * 2) + sizeof(u_short) + sizeof(ST_depend *)) // ST_depend - empty bytes
+#define NTBLKSIZE ((sizeof(short) * 2) + sizeof(short *) + sizeof(ST_newtab *) + sizeof(ST_locdata *)) // not currently used
 
 struct ST_DATA;                                                                 // defined below
 
-typedef struct __attribute__ ((__packed__)) NEW_STACK {                         // define new stack
+typedef struct __attribute__ ((__packed__)) NEW_STACK {                         // define new stack - not used
     short  type;                                                                // type of new
     short  ptr;                                                                 // ptr to variable
     struct ST_DATA *data;                                                       // data address
@@ -49,9 +45,7 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK {                         
 #define ST_HASH     1023                                                        // hash size of symtab
 #define ST_FREE     ST_HASH                                                     // head of free list
 #define ST_MAX      ((ST_HASH + 1) * 3)                                         // max number of ST entries
-
-#define STORAGE     ST_MAX                                                      // $STORAGE uses this to loop through the
-                                                                                //   symbol table calculating free slots
+#define STORAGE     ST_MAX                                                      // $STORAGE uses this to calculate free slots
 
 // Structures for symbol table data
 #define SIZE_KEY_DATA (MAX_KEY_SIZE + MAX_STR_LEN + 5)                          // for the following

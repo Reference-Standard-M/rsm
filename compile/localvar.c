@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a local variable
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -74,6 +74,7 @@ short localvar(void)                                                            
     char   c;                                                                   // current character
     u_char idx = 0;                                                             // index
     int    i;                                                                   // a useful int
+    int    v;                                                                   // for vertical bar
     int    count = 0;                                                           // count subscripts
     var_u  var;                                                                 // to hold variable names
     u_char *sptr;                                                               // to save source_ptr
@@ -110,19 +111,20 @@ short localvar(void)                                                            
     if (c == '^') {                                                             // if it's global
         type = TYPVARGBL;                                                       // say it's global
         c = *source_ptr++;                                                      // point past it
+        v = (c == '|');                                                         // UCI/env specified
 
-        if (c == '[') {                                                         // UCI/env specified
+        if (v || (c == '[')) {                                                  // UCI/env specified
             type = TYPVARGBLUCI;                                                // we have a UCI specified
             atom();                                                             // eval the argument
             c = *source_ptr++;                                                  // get next
 
-            if (c == ',') {                                                     // if it's a comma
+            if (!v && (c == ',')) {                                             // if it's a comma with square bracket syntax
                 type = TYPVARGBLUCIENV;                                         // say we have vol as well
                 atom();                                                         // eval the argument
                 c = *source_ptr++;                                              // get next
             }
 
-            if (c != ']') return -(ERRZ12 + ERRMLAST);                          // that's junk
+            if ((v && (c != '|')) || (!v && (c != ']'))) return -(ERRZ12 + ERRMLAST); // that's junk
             c = *source_ptr++;                                                  // get next
         } else if (c == '(') {                                                  // naked reference ?
             type = TYPVARNAKED;                                                 // set type
@@ -199,7 +201,7 @@ subs:
     }
 
     if (type < TYPVARNAKED) {                                                   // normal local or global var
-        type = type + count;                                                    // add the count
+        type += count;                                                          // add the count
         *comp_ptr++ = (u_char) type;                                            // store it
         if (type & TYPVARIDX) *comp_ptr++ = idx;                                // index type? then save the index
     } else {                                                                    // funny type

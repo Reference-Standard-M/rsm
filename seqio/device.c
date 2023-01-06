@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential device IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -57,7 +57,6 @@ int SQ_Device_Read_TTY(int fid, u_char *buf, int tout);
 int SQ_Device_Open(char *device, int op)
 {
     int flag;
-    int did;
 
     switch (op) {
     case WRITE:
@@ -78,7 +77,7 @@ int SQ_Device_Open(char *device, int op)
 
     // If device is busy, keep trying until a timeout (i.e., alarm signal) has been received
     while (TRUE) {
-        did = open(device, flag, 0);
+        int did = open(device, flag, 0);
 
         if (did == -1) {
             if (errno != EBUSY) {
@@ -169,8 +168,7 @@ int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
 
     if (rret == -1) {
         if (errno == EAGAIN) {
-            ret = raise(SIGALRM);
-            if (ret == -1) return getError(SYS, errno);
+            if (raise(SIGALRM)) return getError(SYS, errno);
         }
 
         return getError(SYS, errno);

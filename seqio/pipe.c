@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential named pipe IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -186,8 +186,7 @@ start:
         return getError(SYS, errno);                                            // EOF received
     } else if (bytesread == 0) {                                                // Force read to time out
         if (tout == 0) {
-            ret = raise(SIGALRM);
-            if (ret == -1) return getError(SYS, errno);
+            if (raise(SIGALRM)) return getError(SYS, errno);
             return -1;
         }
 

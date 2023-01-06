@@ -4,7 +4,7 @@
  * Summary:  module RSM routine - routine functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,25 +28,23 @@
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <errno.h>                                                              // error stuff
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <time.h>                                                               // for ctime
-#include <unistd.h>                                                             // for sleep
 #include <sys/types.h>                                                          // for u_char def
 #include "rsm.h"                                                                // standard includes
 #include "compile.h"                                                            // RBD structures
 #include "proto.h"                                                              // the prototypes
 
-// The following is called ONLY from rsm/init/start.c
-void Routine_Init(void)                                                         // setup rdb for this vol
+// The following is called ONLY from rsm/init/start.c and rsm/database/mount.c
+void Routine_Init(int vol)                                                      // setup rdb for this vol
 {
     rbd   *rou;                                                                 // a routine pointer
     u_int i;                                                                    // an int
 
-    for (i = 0; i < RBD_HASH; i++) systab->vol[0]->rbd_hash[i] = NULL;          // the hash table, need to clear it out
-    rou = (rbd *) systab->vol[0]->rbd_head;                                     // free space entry
-    systab->vol[0]->rbd_hash[RBD_HASH] = rou;                                   // head of free list
-    i = (char *) systab->vol[0]->rbd_end - (char *) systab->vol[0]->rbd_head;   // memory available
+    for (i = 0; i < RBD_HASH; i++) systab->vol[vol]->rbd_hash[i] = NULL;        // the hash table, need to clear it out
+    rou = (rbd *) systab->vol[vol]->rbd_head;                                   // free space entry
+    systab->vol[vol]->rbd_hash[RBD_HASH] = rou;                                 // head of free list
+    i = (char *) systab->vol[vol]->rbd_end - (char *) systab->vol[vol]->rbd_head; // memory available
     rou->fwd_link = NULL;                                                       // no forward link
     rou->chunk_size = i;                                                        // size of this bit of free
     rou->attached = 0;                                                          // nothing attached
@@ -69,10 +67,10 @@ void Dump_rbd(void)                                                             
 
     s = SemOp(SEM_ROU, -systab->maxjob);                                        // write lock the RBDs
     if (s < 0) return;                                                          // exit on error
-    p = (rbd *) systab->vol[0]->rbd_head;                                       // get the start
+    p = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;                 // get the start
     t = current_time(FALSE);
     printf("Dump of all Routine Buffer Descriptors on %s\r\n", ctime(&t));
-    printf("Free at %10p\r\n", systab->vol[0]->rbd_hash[RBD_HASH]);
+    printf("Free at %10p\r\n", systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]);
     printf("       Address       Fwd_Link Chunk_Size Attach Last_Access VOL UCI Routine_Size Routine_Name\r\n");
     tmp[VAR_LEN] = '\0';                                                        // null terminate temp
 
@@ -84,15 +82,14 @@ void Dump_rbd(void)                                                             
             tmp[i] = p->rnam.var_cu[i];
         }
 
-        printf("%10p %14p %10u %6d %11lld %3d %3d %12d %s\r\n",
-               p, p->fwd_link, p->chunk_size, p->attached,
+        printf("%10p %14p %10u %6u %11lld %3d %3d %12d %s\r\n", p, p->fwd_link, p->chunk_size, p->attached,
                (long long) p->last_access, p->vol, p->uci, p->rou_size, tmp);
 
         p = (rbd *) ((u_char *) p + p->chunk_size);                             // point at next
-        if (p >= (rbd *) systab->vol[0]->rbd_end) break;                        // quit when done
+        if (p >= (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_end) break;  // quit when done
     }
 
-    s = SemOp(SEM_ROU, systab->maxjob);                                         // release lock
+    SemOp(SEM_ROU, systab->maxjob);                                             // release lock
     return;                                                                     // and exit
 }
 
@@ -127,10 +124,10 @@ void Routine_Combine(rbd *pointer)                                              
     rbd *p;                                                                     // and another
 
     ptr = (rbd *) ((u_char *) pointer + pointer->chunk_size);                   // point at next
-    p = systab->vol[0]->rbd_hash[RBD_HASH];                                     // see where it points
+    p = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH];               // see where it points
 
     if (p == ptr) {                                                             // if that's us
-        systab->vol[0]->rbd_hash[RBD_HASH] = ptr->fwd_link;                     // point at our fwd link
+        systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH] = ptr->fwd_link; // point at our fwd link
     } else {                                                                    // else find our entry
         while (p->fwd_link != ptr) p = p->fwd_link;                             // find previous entry
         p->fwd_link = ptr->fwd_link;                                            // point it at our forward link
@@ -148,17 +145,17 @@ void Routine_Free(rbd *pointer)                                                 
 
     pointer->rou_size = 0;                                                      // flag 'not used'
     hash = Routine_Hash(pointer->rnam);                                         // get the hash
-    ptr = systab->vol[0]->rbd_hash[hash];                                       // see where it points
+    ptr = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[hash];                 // see where it points
 
     if (ptr == pointer) {                                                       // if that's us
-        systab->vol[0]->rbd_hash[hash] = pointer->fwd_link;                     // point at our forward link
+        systab->vol[partab.jobtab->rvol - 1]->rbd_hash[hash] = pointer->fwd_link; // point at our forward link
     } else {                                                                    // else find our entry
         while (TRUE) {
             if (ptr == NULL) {                                                  // if end of list
-                ptr = systab->vol[0]->rbd_hash[RBD_HASH];                       //point at first free
+                ptr = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]; //point at first free
 
                 if (pointer == ptr) {
-                    systab->vol[0]->rbd_hash[RBD_HASH] = pointer->fwd_link;
+                    systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH] = pointer->fwd_link;
                 } else {
                     while (ptr != NULL) {                                       // scan free list
                         if (ptr->fwd_link == pointer) {                         // if in freelist
@@ -183,8 +180,8 @@ void Routine_Free(rbd *pointer)                                                 
         }
     }
 
-    pointer->fwd_link = systab->vol[0]->rbd_hash[RBD_HASH];                     //point at first free
-    systab->vol[0]->rbd_hash[RBD_HASH] = pointer;                               // add to free list
+    pointer->fwd_link = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]; // point at first free
+    systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH] = pointer;         // add to free list
     VAR_CLEAR(pointer->rnam);                                                   // zot rou name
     pointer->uci = 0;                                                           // and UCI
     pointer->vol = 0;                                                           // and vol
@@ -192,7 +189,7 @@ void Routine_Free(rbd *pointer)                                                 
 
     while (TRUE) {                                                              // until end of list
         ptr = (rbd *) ((u_char *) pointer + pointer->chunk_size);               // point at next
-        if (ptr >= (rbd *) systab->vol[0]->rbd_end) break;                      // quit when done
+        if (ptr >= (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_end) break; // quit when done
 
         if (ptr->rou_size == 0) {                                               // if there is no routine
             Routine_Combine(pointer);                                           // combine it in
@@ -202,7 +199,7 @@ void Routine_Free(rbd *pointer)                                                 
     }
 
     while (TRUE) {                                                              // look for previous
-        ptr = (rbd *) systab->vol[0]->rbd_head;                                 // start of RBDs
+        ptr = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;           // start of RBDs
         if (ptr == pointer) return;                                             // same - all done
 
         while (TRUE) {                                                          // scan for previous
@@ -225,17 +222,17 @@ void Routine_Collect(time_t off)                                                
     rbd *ptr;                                                                   // a pointer
 
     off = current_time(TRUE) - off;                                             // get compare time
-    ptr = (rbd *) systab->vol[0]->rbd_head;                                     // head of RBDs
+    ptr = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;               // head of RBDs
 
     while (TRUE) {                                                              // scan whole list
         // nothing attached and it fits the time and not already free
         if ((ptr->attached < 1) && (ptr->last_access < off) && (ptr->rou_size > 0)) {
             Routine_Free(ptr);                                                  // free it
-            ptr = (rbd *) systab->vol[0]->rbd_head;                             // start from the begining
+            ptr = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;       // start from the begining
         }
 
         ptr = (rbd *) ((u_char *) ptr + ptr->chunk_size);                       // point at next
-        if (ptr >= (rbd *) systab->vol[0]->rbd_end) break;                      // quit when done
+        if (ptr >= (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_end) break; // quit when done
     }
 
     return;                                                                     // all done
@@ -246,7 +243,7 @@ rbd *Routine_Find(u_int size)                                                   
     rbd *ptr;                                                                   // a pointer
     rbd *p;                                                                     // and another
 
-    ptr = systab->vol[0]->rbd_hash[RBD_HASH];                                   // get head of free list
+    ptr = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH];             // get head of free list
 
     while (ptr != NULL) {                                                       // while we have some
         if (ptr->chunk_size >= size) break;                                     // if big enough
@@ -255,7 +252,7 @@ rbd *Routine_Find(u_int size)                                                   
 
     if (ptr == NULL) {                                                          // found nothing
         Routine_Collect(RESERVE_TIME);                                          // do a collect using reserve
-        ptr = systab->vol[0]->rbd_hash[RBD_HASH];                               // get head of free list
+        ptr = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH];         // get head of free list
 
         while (ptr != NULL) {                                                   // while we have some
             if (ptr->chunk_size >= size) break;                                 // if big enough
@@ -264,7 +261,7 @@ rbd *Routine_Find(u_int size)                                                   
 
         if (ptr == NULL) {                                                      // found nothing
             Routine_Collect(0);                                                 // do a collect using zero
-            ptr = systab->vol[0]->rbd_hash[RBD_HASH];                           // get head of free list
+            ptr = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH];     // get head of free list
 
             while (ptr != NULL) {                                               // while we have some
                 if (ptr->chunk_size >= size) break;                             // if big enough
@@ -289,10 +286,10 @@ rbd *Routine_Find(u_int size)                                                   
         ptr->chunk_size = size;                                                 // the new size
     }
 
-    if (systab->vol[0]->rbd_hash[RBD_HASH] == ptr) {
-        systab->vol[0]->rbd_hash[RBD_HASH] = ptr->fwd_link;                     // new free bit
+    if (systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH] == ptr) {
+        systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH] = ptr->fwd_link; // new free bit
     } else {
-        p = systab->vol[0]->rbd_hash[RBD_HASH];                                 // get head of free list
+        p = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH];           // get head of free list
         while (p->fwd_link != ptr) p = p->fwd_link;                             // find our ptr
         p->fwd_link = ptr->fwd_link;                                            // change to new one
     }
@@ -315,35 +312,29 @@ rbd *Routine_Attach(var_u routine)                                              
     mvar    rouglob;                                                            // mvar for $ROUTINE
     u_char  uci;                                                                // current UCI
     u_char  vol;                                                                // current vol
-    var_u   *test;                                                              // for testing name
 
-    test = (var_u *) &routine;                                                  // map as a var_u
     hash = Routine_Hash(routine);                                               // get the hash
     s = SemOp(SEM_ROU, -systab->maxjob);                                        // write lock the RBDs
     if (s < 0) return NULL;                                                     // say can't find on error
-    p = systab->vol[0]->rbd_hash[hash];                                         // see where it points
+    p = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[hash];                   // see where it points
     ptr = p;                                                                    // use it in ptr
     uci = partab.jobtab->ruci;                                                  // get current UCI
     vol = partab.jobtab->rvol;                                                  // and vol
-
-    if (test->var_cu[0] == '%') {                                               // check for a % routine
-        uci = 1;
-        vol = 1;
-    }
+    if (routine.var_cu[0] == '%') uci = vol = 1;                               // check for a % routine
 
     while (ptr != NULL) {                                                       // while we have something
         if (var_equal(ptr->rnam, routine) && (ptr->uci == uci) && (ptr->vol == vol)) { // if this is the right one
             ptr->attached++;                                                    // count an attach
-            s = SemOp(SEM_ROU, systab->maxjob);                                 // release the lock
+            SemOp(SEM_ROU, systab->maxjob);                                     // release the lock
             return ptr;                                                         // and return the pointer
         }
 
         ptr = ptr->fwd_link;                                                    // point at the next one
     }                                                                           // end while loop
 
-    s = SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
+    SemOp(SEM_ROU, systab->maxjob);                                             // release the lock
     VAR_CLEAR(rouglob.name);
-    bcopy("$ROUTINE", rouglob.name.var_cu, 8);                                  // global name
+    memcpy(rouglob.name.var_cu, "$ROUTINE", 8);                                 // global name
     rouglob.volset = vol;                                                       // volume set
     rouglob.uci = uci;                                                          // UCI
     cptr = (cstring *) tmp;                                                     // get some temp space
@@ -363,18 +354,18 @@ DISABLE_WARN(-Warray-bounds)
     cptr->len = 1;                                                              // and the length
 ENABLE_WARN
     s = UTIL_Key_Build(cptr, &rouglob.key[s]);                                  // second subs
-    rouglob.slen = rouglob.slen + s;                                            // save count so far
+    rouglob.slen += s;                                                          // save count so far
     t = DB_GetLen(&rouglob, 0, NULL);                                           // get a possible length
     if (t < 1) return NULL;                                                     // no such
     s = SemOp(SEM_ROU, -systab->maxjob);                                        // write lock & try again
     if (s < 0) return NULL;                                                     // no such
-    p = systab->vol[0]->rbd_hash[hash];                                         // see where it points
+    p = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[hash];                   // see where it points
     ptr = p;                                                                    // use it in ptr
 
     while (ptr != NULL) {                                                       // while we have something
         if (var_equal(ptr->rnam, routine) && (ptr->uci == uci) && (ptr->vol == vol)) { // if this is the right one
             ptr->attached++;                                                    // count an attach
-            s = SemOp(SEM_ROU, systab->maxjob);                                 // release the lock
+            SemOp(SEM_ROU, systab->maxjob);                                     // release the lock
             return ptr;                                                         // and return the pointer
         }
 
@@ -385,8 +376,8 @@ ENABLE_WARN
     t = DB_GetLen(&rouglob, 1, NULL);                                           // lock the GBD
 
     if (t < 1) {                                                                // if it's gone
-        t = DB_GetLen(&rouglob, -1, NULL);                                      // un-lock the GBD
-        s = SemOp(SEM_ROU, systab->maxjob);                                     // release the lock
+        DB_GetLen(&rouglob, -1, NULL);                                          // un-lock the GBD
+        SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
         return NULL;                                                            // say no such
     }
 
@@ -395,13 +386,13 @@ ENABLE_WARN
     ptr = Routine_Find(size);                                                   // find location
 
     if (ptr == NULL) {                                                          // no space mate!!
-        s = SemOp(SEM_ROU, systab->maxjob);                                     // release the lock
-        t = DB_GetLen(&rouglob, -1, NULL);                                      // un-lock the GBD
+        SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
+        DB_GetLen(&rouglob, -1, NULL);                                          // un-lock the GBD
         return (rbd *) -1;                                                      // say no space
     }
 
     if (p == NULL) {                                                            // listhead for this hash
-        systab->vol[0]->rbd_hash[hash] = ptr;                                   // save it here
+        systab->vol[partab.jobtab->rvol - 1]->rbd_hash[hash] = ptr;             // save it here
     } else {
         p->fwd_link = ptr;                                                      // or here
     }
@@ -422,11 +413,11 @@ ENABLE_WARN
     if (ptr->comp_ver != COMP_VER) {                                            // check compiler version
         ptr->attached--;                                                        // decrement the count
         Routine_Free(ptr);                                                      // free the space
-        s = SemOp(SEM_ROU, systab->maxjob);                                     // release the lock
+        SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
         return (rbd *) -2;                                                      // yet another *magic* number
     }
 
-    s = SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
+    SemOp(SEM_ROU, systab->maxjob);                                             // release the lock
     return ptr;                                                                 // success
 }
 
@@ -437,7 +428,6 @@ void Routine_Detach(rbd *pointer)                                               
     while (SemOp(SEM_ROU, -systab->maxjob) < 0) continue;                       // lock the RBDs, check error
     if (pointer->attached > 0) pointer->attached--;                             // if not lost then decrement the count
     if ((pointer->uci == 0) && (pointer->attached == 0)) Routine_Free(pointer); // if invalid and nothing attached, free the space
-    if (partab.debug > 0) partab.debug = -1;                                    // if in the debugger, reset it
     s = SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
     if (s < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
     return;                                                                     // done
@@ -453,7 +443,7 @@ void Routine_Delete(var_u routine, int uci)                                     
     rbd *ptr;                                                                   // a pointer for this
 
     hash = Routine_Hash(routine);                                               // get the hash
-    ptr = systab->vol[0]->rbd_hash[hash];                                       // see where it points
+    ptr = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[hash];                 // see where it points
 
     while (ptr != NULL) {                                                       // while we have something
         if ((var_equal(ptr->rnam, routine)) && (ptr->uci == uci)) {             // if this is the right one

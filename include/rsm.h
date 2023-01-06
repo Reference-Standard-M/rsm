@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - standard includes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -39,8 +39,9 @@
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       76                                                  // Minor version number
-#define VERSION_PATCH       2                                                   // Patch version number
+#define VERSION_MINOR       77                                                  // Minor version number
+#define VERSION_PATCH       0                                                   // Patch version number
+#define VERSION_PRE         0                                                   // Pre-release flag (0 for off, 1 for on)
 #define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
@@ -51,12 +52,12 @@
 #define MAX_ROUTINE_BUFFERS 4095                                                // Maximum routine buffers in MiB
 
 #ifdef  __APPLE__
-#    define PRVGRP          80                                                  // admin in MacOS X
+#   define PRVGRP           80                                                  // admin in MacOS X
 #else
-#    define PRVGRP          0                                                   // Priv group FreeBSD and Linux
+#   define PRVGRP           0                                                   // Priv group FreeBSD and Linux
 #endif                                                                          // Darwin
 
-#define MAX_INT_DIGITS      10                                                  // can be an int at 10
+#define MAX_INT_DIGITS      10                                                  // can be an int at 10 - not currently used
 #define DEFAULT_PREC        18                                                  // default number of decimal places
 #define MAX_PREC            64                                                  // max number of decimal places
 #define MAX_NUM_BYTES       256                                                 // max size of a number
@@ -71,9 +72,9 @@
 #define MAX_NUM_VARS        256                                                 // max number of routine variables
 
 #if RSM_DBVER == 1
-#    define VAR_LEN         8                                                   // length of var_u - must be multiple of 8
+#   define VAR_LEN          8                                                   // length of var_u - must be multiple of 8
 #else
-#    define VAR_LEN         32                                                  // length of var_u - must be multiple of 8
+#   define VAR_LEN          32                                                  // length of var_u - must be multiple of 8
 #endif
 
 #define MAX_ECODE           1024                                                // max len for $ECODE
@@ -117,14 +118,14 @@
 #define SQ_NOCONTROLT       32768                                               // disable control t status
 
 #if defined(__APPLE__) && defined(__LP64__)
-#    define SHMAT_SEED      (void *) 0x200000000
+#   define SHMAT_SEED       (void *) 0x200000000
 #elif defined(__arm__) || defined(__aarch64__)
-#    define SHMAT_SEED      (void *) 0x1000000
+#   define SHMAT_SEED       (void *) 0x1000000
 #else
-#    define SHMAT_SEED      NULL
+#   define SHMAT_SEED       NULL
 #endif
 
-#define MIN_GBD             40                                                  // minumum number GBDs
+#define MIN_GBD             64                                                  // minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH            1024                                                // hash size for global buffers
@@ -139,18 +140,18 @@
 #define MAXROULINE          MAX_STR_LEN                                         // max rou lines
 
 #if RSM_DBVER == 1
-#    define DB_VER          1                                                   // database version
-#    define COMP_VER        7                                                   // compiler version
+#   define DB_VER           1                                                   // database version
+#   define COMP_VER         7                                                   // compiler version
 #else
-#    define DB_VER          2                                                   // database version
-#    define COMP_VER        8                                                   // compiler version
+#   define DB_VER           2                                                   // database version
+#   define COMP_VER         8                                                   // compiler version
 #endif
 
 // Global flags (from Global Directory) follow
 #define GL_JOURNAL          1                                                   // Journal global flag
 #define GL_TOP_DEFINED      2                                                   // Top node of global defined
 
-#define LOCKTAB_SIZE        8192                                                // 8 KiB per job
+#define LOCKTAB_SIZE        16384                                               // 16 KiB per job
 #define UCI_IS_LOCALVAR     255                                                 // for struct mvar
 #define VAR_UNDEFINED       (MAX_STR_LEN + 1)                                   // undefined variable (also NODE_UNDEFINED)
 
@@ -174,12 +175,12 @@
 
 // Signals we do something with (see jobtab->trap). (add as required)
 #define SIG_HUP             1                                                   // SIGHUP (ERR Z66)
-#define SIG_CC              (1U << 2)                                           // control c signal (sigint)
+#define SIG_CC              (1U << 2)                                           // Control-C signal (SIGINT)
 #define SIG_QUIT            (1U << 3)                                           // SIGQUIT (HALT)
 #define SIG_TERM            (1U << 15)                                          // SIGTERM (HALT)
 #define SIG_STOP            (1U << 17)                                          // SIGSTOP (HALT)
 #define SIG_WS              (1U << 28)                                          // window size changes (ignore)
-#define SIG_CT              (1U << 29)                                          // control t signal (siginfo)
+#define SIG_CT              (1U << 29)                                          // Control-T signal (SIGINFO)
 #define SIG_U1              (1U << 30)                                          // user signal 1 (ERR Z67)
 #define SIG_U2              (1U << 31)                                          // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
@@ -213,9 +214,9 @@ typedef union semun {
     int             val;                                                        // value for SETVAL
     struct semid_ds *buf;                                                       // buffer for IPC_STAT, IPC_SET
     u_short         *array;                                                     // array for GETALL, SETALL
-#if defined(linux) || defined(_AIX) || defined(__CYGWIN__)
+#   if defined(linux) || defined(_AIX) || defined(__CYGWIN__)
     struct seminfo  *__buf;                                                     // buffer for IPC_INFO
-#endif
+#   endif
 } semun_t;
 #else
 typedef union semun semun_t;
@@ -346,7 +347,7 @@ typedef struct __attribute__ ((__packed__)) DO_FRAME {
     var_u   rounam;                                                             // routine name
     u_char  vol;                                                                // rou source vol set #
     u_char  uci;                                                                // rou source UCI #
-    u_short line_num;                                                           // current routine line#
+    u_short line_num;                                                           // current routine line #
     u_char  estack;                                                             // current estack offset
     u_char  type;                                                               // see TYPE_??? def
     u_char  level;                                                              // current argless do level
@@ -463,16 +464,15 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     int     locksize;                                                           // how many bytes
     locktab *lockhead;                                                          // head of used locks
     locktab *lockfree;                                                          // head of lock free space
-    long    addoff;                                                             // off from systab to add buff
-    long    addsize;                                                            // add buff size
+    u_long  addoff;                                                             // off from systab to add buff
+    u_long  addsize;                                                            // add buff size
     vol_def *vol[MAX_VOL];                                                      // array of vol ptrs
-    u_int   last_blk_used[1];                                                   // actually setup for real jobs - NEEDS TO BE BY VOL
+    u_int   last_blk_used[MAX_VOL];                                             // actually setup for real jobs for all volumes
 } systab_struct;                                                                // end of systab
                                                                                 // Followed by jobtab
                                                                                 // sizeof(systab_struct) = 136 + (16 * VAR_LEN)
 
 extern systab_struct *systab;                                                   // make its ptr external
-extern int           sem_id;                                                    // global semaphore id
 
 // Process memory structures
 
@@ -486,6 +486,7 @@ typedef struct __attribute__ ((__packed__)) PARTAB {                            
     u_char  *strstk_last;                                                       // last byte of strstk
     var_u   *varlst;                                                            // var list for compiler
     int     checkonly;                                                          // used by compiler
+    u_int   errors;                                                             // used by compiler
     u_char  **sp;                                                               // source ptr for compile
     cstring **lp;                                                               // start of the line (ditto)
     int     *ln;                                                                // line num for $&%ROUCHK()
@@ -497,20 +498,17 @@ extern partab_struct partab;                                                    
 extern u_char        *addstk[];                                                 // address stack
 extern u_char        strstk[];                                                  // string stack
 extern u_char        *rsmpc;                                                    // RSM prog pointer
+extern int           restricted;                                                // whether RSM is in restricted mode or not
 
 // Compiler warning suppression
 #define PRAGMA(x) _Pragma(#x)
 
 #if __GNUC__ >= 11
-#    define ENABLE_WARN _Pragma("GCC diagnostic pop")
+#   define ENABLE_WARN _Pragma("GCC diagnostic pop")
+#   define DISABLE_WARN(name) _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
 #else
-#    define ENABLE_WARN
-#endif
-
-#if __GNUC__ >= 11
-#    define DISABLE_WARN(name) _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
-#else
-#    define DISABLE_WARN(name)
+#   define ENABLE_WARN
+#   define DISABLE_WARN(name)
 #endif
 
 // VAR_U macros and inline functions

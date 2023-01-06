@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/util/key.c
- * Summary:  module database - Key Utilities
+ * Summary:  module database - key utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,7 +28,6 @@
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy/memcmp
-#include <strings.h>
 #include <sys/types.h>                                                          // for u_char def
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes
@@ -134,7 +133,6 @@ short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
 {
     int s;                                                                      // size
     int i = 0;                                                                  // index
-    int j = 0;                                                                  // string count
     int idx = 0;                                                                // and another
     int flg;                                                                    // flag for quotes in string
 
@@ -148,6 +146,8 @@ short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
     }
 
     if (s & 128) {                                                              // if it's a string
+        int j = 0;                                                              // string count
+
         for (i = 0; key[i] != 0; i++) {                                         // loop thru
             str[j++] = key[i];                                                  // copy till done
             if ((key[i] == '"') && flg) str[j++] = '"';                         // double quote if reqd
@@ -209,18 +209,17 @@ short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
  */
 short UTIL_String_Key(u_char *key, u_char *str, int max_subs)
 {
-    int   count = 1;                                                            // bytes used and quote flag
-    int   len;                                                                  // bytes in key
-    int   idx = 0;                                                              // key index
-    int   clen = 0;                                                             // len of returned string
-    int   string = 0;                                                           // string indicator
-    short ret;                                                                  // return value
+    int count = 1;                                                              // bytes used and quote flag
+    int len;                                                                    // bytes in key
+    int idx = 0;                                                                // key index
+    int clen = 0;                                                               // len of returned string
 
     len = (int) key[idx++];                                                     // get key length
     str[clen++] = '(';                                                          // open bracket
 
     while (len > 1) {                                                           // while there are chars in key
-        string = 0;                                                             // clear string ind
+        int   string = 0;                                                       // clear string indicator
+        short ret;                                                              // return value
 
         if (key[idx] & 128) {                                                   // if it's a string
             string = 1;                                                         // flag it
@@ -278,19 +277,18 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
 {
     int     i;                                                                  // for loops
     int     p = 0;                                                              // string pointer
-    int     vol;                                                                // for volset
     uci_tab up;                                                                 // ptr to UCI tab
     var_u   *vt;                                                                // var table pointer
-    rbd     *r;                                                                 // a handy pointer
     u_char  *ptr;                                                               // string ptr
 
     if (var->uci != UCI_IS_LOCALVAR) {                                          // if it's a global var
         str[p++] = '^';                                                         // lead off with the caret
 
         if (var->uci != 0) {                                                    // if an environment specified
+            int vol = var->volset;                                              // get volume
+
             str[p++] = '[';                                                     // open bracket
             str[p++] = '"';                                                     // a leading quote
-            vol = var->volset;                                                  // get vol
             if (vol == 0) vol = partab.jobtab->vol;                             // if none, get default
             up = systab->vol[vol - 1]->vollab->uci[var->uci - 1];               // UCI tab pointer
 
@@ -319,7 +317,8 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
     }                                                                           // end global specific stuff
 
     if ((var->uci == UCI_IS_LOCALVAR) && var->volset) {                         // special index type
-        r = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
+        rbd *r = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
+
         vt = (var_u *) (((u_char *) r) + r->var_tbl);                           // point at var table
         VAR_COPY(var->name, vt[var->volset - 1]);                               // get the var name
         var->volset = 0;                                                        // clear the volset
@@ -348,8 +347,6 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
 short UTIL_MvarFromCStr(cstring *src, mvar *var)
 {
     int     i;                                                                  // a handy int
-    int     q;                                                                  // for quotes
-    short   s;                                                                  // for functions
     int     subs = 0;                                                           // number of subscripts
     u_char  *ptr;                                                               // a handy pointer
     cstring *kb;                                                                // for key builds
@@ -365,24 +362,26 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
     ptr = src->buf;                                                             // point at the source
 
     if (*ptr == '^') {                                                          // global?
+        int v;                                                                  // for vertical bars
+
         ptr++;                                                                  // skip the ^
         var->uci = 0;                                                           // not a local var
+        v = (*ptr == '|');                                                      // environment specified?
 
-        if (*ptr == '[') {                                                      // environment specified?
-            ptr++;                                                              // skip the [
+        if (v || (*ptr == '[')) {                                               // environment specified?
+            ptr++;                                                              // skip the [ or |
             VAR_CLEAR(nam);                                                     // clear quadword
             if (*ptr++ != '"') return -(ERRZ12 + ERRMLAST);                     // must be a quote so complain
             i = 0;                                                              // clear an index
 
             while (*ptr != '"') {                                               // scan to end of literal
-                if (i == VAR_LEN)                                               // check for too many
-                return -(ERRZ12 + ERRMLAST);                                    // complain
+                if (i == VAR_LEN) return -(ERRZ12 + ERRMLAST);                  // check for too many, then complain
                 nam.var_cu[i++] = *ptr++;                                       // copy a byte
             }
 
             ptr++;                                                              // go past closing "
 
-            if (*ptr == ',') {                                                  // vol name too ?
+            if (!v && (*ptr == ',')) {                                          // vol name too ? and not in a vertical bar
                 ptr++;                                                          // skip the ,
                 VAR_CLEAR(vol);                                                 // clear quadword
                 if (*ptr++ != '"') return -(ERRZ12 + ERRMLAST);                 // must be a quote so complain
@@ -415,7 +414,8 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
 
             if (i == UCIS) return -ERRM26;                                      // no such, complain
             var->uci = i + 1;                                                   // store the UCI#
-            if (*ptr++ != ']') return -ERRM26;                                  // don't allow volume for now so give error instead
+            if ((v && (*ptr != '|')) || (!v && (*ptr != ']'))) return -ERRM26;  // must end extended reference, or error instead
+            ptr++;                                                              // go past extended reference closing
         }
     }                                                                           // end special global stuff
 
@@ -428,6 +428,9 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
     if (*ptr++ != '(') return -(ERRZ12 + ERRMLAST);                             // must be a (, if not complain
 
     while (TRUE) {                                                              // till we run out of subs
+        int   q;                                                                // for quotes
+        short s;                                                                // for functions
+
         if (*ptr == '\0') return -(ERRZ12 + ERRMLAST);                          // junk
         q = (*ptr == '"');                                                      // check for quotes
         if (q) ptr++;                                                           // skip the quote
@@ -528,6 +531,6 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *
     }
 
     if (subs != NULL) *subs = cnt;                                              // if we should remember subs, then copy
-    if (KeyBuffer != NULL) bcopy(Key, KeyBuffer, i);                            // if we want the chars, then copy them
+    if (KeyBuffer != NULL) memcpy(KeyBuffer, Key, i);                           // if we want the chars, then copy them
     return i;                                                                   // return no. of chars
 }

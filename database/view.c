@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/view.c
- * Summary:  module database - Database Functions, View
+ * Summary:  module database - database functions, view
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memset
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // for semaphores
@@ -45,14 +44,12 @@
  * Input(s): Vol# and Block# to get
  * Return:   Address of GBD or null on error
  */
-gbd *DB_ViewGet(int vol, int block)                                             // return GBD for blk
+gbd *DB_ViewGet(u_int vol, u_int block)                                         // return GBD for blk
 {
     short s;                                                                    // for func
 
-    if ((block < 1) || (block > systab->vol[vol - 1]->vollab->max_block)) {
-        return NULL;                                                            // validate
-    }
-
+    if ((vol < 1) || (vol > MAX_VOL) || systab->vol[vol - 1] == NULL) return NULL; // validate volume
+    if ((block < 1) || (block > systab->vol[vol - 1]->vollab->max_block)) return NULL; // validate block
     level = 0;                                                                  // where it goes
     volnum = vol;                                                               // need this
     writing = 0;                                                                // clear this
@@ -70,7 +67,7 @@ gbd *DB_ViewGet(int vol, int block)                                             
  * Input(s): Vol# and GBD ptr of block
  * Return:   none
  */
-void DB_ViewPut(int vol, gbd *ptr)                                              // queue block for write
+void DB_ViewPut(u_int vol, gbd *ptr)                                            // queue block for write
 {
     short s;                                                                    // for funcs
 
@@ -84,7 +81,7 @@ void DB_ViewPut(int vol, gbd *ptr)                                              
         Used_block(ptr->block);                                                 // mark it so
     } else {                                                                    // trying to free it
         Free_block(ptr->block);                                                 // do so
-        bzero(ptr->mem, systab->vol[(volnum)-1]->vollab->block_size);           // clear it
+        memset(ptr->mem, 0, systab->vol[vol - 1]->vollab->block_size);          // clear it
     }
 
     level = 0;                                                                  // for Queit
@@ -105,15 +102,14 @@ void DB_ViewPut(int vol, gbd *ptr)                                              
  * Input(s): Vol# and GBD ptr of block
  * Return:   none
  */
-void DB_ViewRel(int vol, gbd *ptr)                                              // release block, GBD
+void DB_ViewRel(u_int vol, gbd *ptr)                                            // release block, GBD
 {
-    short s;                                                                    // for functions
-
     writing = 0;                                                                // clear this
+    volnum = vol;                                                               // need this
     ptr->last_accessed = current_time(TRUE);                                    // reset access
 
     if (ptr->dirty != NULL) {                                                   // not owned elsewhere
-        s = SemOp(SEM_GLOBAL, WRITE);                                           // write lock
+        short s = SemOp(SEM_GLOBAL, WRITE);                                     // write lock
 
         if (s < 0) {                                                            // check error
             return;                                                             // quit if so

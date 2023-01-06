@@ -1,49 +1,48 @@
 :source-highlighter: pygments
-:toc: left
+:toc: macro
 :toclevels: 2
-:toc-title: RSM Language Guide
 
 [role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
 
-[role="right"]
-link:index.adoc[Index]
-
 '''
 
 [discrete]
-= Reference Standard M Language Guide
+== Reference Standard M Language Guide
+
 David Wicksell <dlw@linux.com> +
-Copyright © 2020-2022 Fourth Watch Software LC +
+Copyright © 2020-2023 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
+
+toc::[]
 
 == Introduction
 
 This guide provides documentation of the M language elements implemented in
-Reference Standard M [RSM] and their relation to the ANSI X11.1-1995 (ISO/IEC
-11756:1999) M Programming Language standard.
+Reference Standard M [RSM] and their relation to the ANSI/MDC X11.1-1995
+(ISO/IEC 11756:1999) M Programming Language standard.
 
 === Open M Interconnect
 
-The ANSI X11.2-1995 (ISO/IEC 15851:1999) Open M Interconnect [OMI] communication
-protocol has not yet been implemented.
+The ANSI/MDC X11.2-1995 (ISO/IEC 15851:1999) Open M Interconnect [OMI]
+communication protocol has not yet been implemented.
 
 === M Windowing Application Programming Interface
 
-The ANSI X11.6-1995 (ISO/IEC 15852:1999) M Windowing Application Programming
+The ANSI/MDC X11.6-1995 (ISO/IEC 15852:1999) M Windowing Application Programming
 Interface [MWAPI] has not yet been implemented.
 
 === Character Sets
 
 Currently, the only supported character set is the M character set, based on
-ASCII (ANSI X3.41-1990). The only difference is with its collation, which sorts
+ASCII (ANSI X3.4-1990). The only difference is with its collation, which sorts
 canonical numeric strings before ASCII NUL, and after the empty string. Support
 for Unicode, via the UTF-8 encoding, is planned for the future.
 
 === Mnemonic Namespaces
 
-The ANSI X3.64-1979 (terminal device control mnemonics) binding has been
+The Terminal Device Control Mnemonics (ANSI X3.64-1979 R1990) binding has been
 implemented as a mnemonic namespace, written in M. It is provided by the
 included vendor utility routine `%X364`, found in `utils.rsm`, and must be
 loaded in to the database in order to use it. You can enable it on your current
@@ -87,11 +86,11 @@ examination and modification of database blocks, stored in global buffers in
 shared memory. Database corruption can occur if you change block contents and do
 not know what you are doing, so extreme care is advised.
 
-=== Scientific E Notation
+=== Scientific Exponent Notation
 
-Scientific notation using the '`E`' form of numbers is not supported by default
-(i.e., `+"2E3"` equals 2 not 2000). Scientific notation support may be turned on
-with `set ^$system("eok")=1` as a privileged user (see below).
+Scientific exponent notation using the '`E`' form of numbers is enabled by
+default (i.e., `+"2E3"` equals 2000 not 2). Scientific notation support may be
+turned off with `set ^$system("eok")=0` as a privileged user (see below).
 
 === Privilege
 
@@ -126,11 +125,11 @@ Not applicable.
 
 Everything from the `;` to the end of the current line, inclusive, is ignored.
 When the `;` is in the first column, the entire line is ignored and does not
-affect the line level (number of dots).
+affect the line level (number of dots), nor is it included in the bytecode.
 
 ==== Standard
 
-Mostly complies; the standard does not permit a `;` in the first column.
+Mostly complies, but the standard does not permit a `;` in the first column.
 
 ==== Examples
 
@@ -156,7 +155,7 @@ NOTE: Argument indirection is not permitted
 ==== Usage
 
 Suspends execution until receipt of a signal. The signal is `QUIT` as `BREAK`
-effectively runs as an `XECUTE` or `DO` command.
+effectively runs as an `XECUTE` or `DO` command (adding a level to the stack).
 
 The break specifier may be one of the following:
 
@@ -165,28 +164,30 @@ The break specifier may be one of the following:
 |===
 | Specifier                     | Description
 
-| `BREAK "_breakref_:__code__"` | Set breakpoint with handler
 | `BREAK "_breakref_:"`         | Set simple breakpoint
+| `BREAK "_breakref_:__code__"` | Set breakpoint with handler
+| `BREAK ":__code__"`           | Set `QUIT` handler
 | `BREAK "_breakref_"`          | Clear breakpoint
-| `BREAK ""`                    | Clear all breakpoints
-| `BREAK`                       | Break here
+| `BREAK ":"`                   | Clear `QUIT` handler
+| `BREAK ""`                    | Clear all breakpoints/handlers - stop debugger
+| `BREAK`                       | Break here (in routine code or direct mode)
 |===
 
 Where _breakref_ is `[+_linenum_]^_routine_` and _code_ is valid M code that
-will be executed when the _breakref_ is hit.
+will be executed when the _breakref_ is hit, or every time a `QUIT __n__` is
+entered.
 
 While stepping through code in the debugger, an argumentless `QUIT` will stop
 the stepping, and execute the rest of the code until another breakpoint is
 encountered. To turn off debugging completely, clear all the breakpoints in the
-current routine, then use an argumentless `QUIT` to finish executing it. A
-`QUIT` may be followed by a positive integer to execute that many commands (not
-lines) before breaking again.
+current routine. A `QUIT` may be followed by a positive integer to execute that
+many commands (not lines) before breaking again.
 
 The `$ZBP` array (case-sensitive), stores all the currently active breakpoints.
 Its format is `$ZBP(_routine_,_linenumber_)`. You can `$ORDER` or `$QUERY`
 through it to list current breakpoints. There is also an included vendor routine
 called `^%SHOWBP`, found in `utils.rsm`, which will list all current
-breakpoints.
+breakpoints, and report whether the `QUIT` handler has been set.
 
 WARNING: Code entered in the debugger must be 255 characters or less
 
@@ -237,7 +238,7 @@ NOTE: Closing channel 0 is always ignored
 
 ==== Standard
 
-Mostly complies; however, device parameters are not yet implemented.
+Complies exactly, as device parameters are implementation-specific in the standard.
 
 ==== Examples
 
@@ -250,7 +251,7 @@ close 1,2 ; Close channels 1 and 2
 
 Executes a subroutine (named or anonymous via a dotted-do block), then returns
 control to the next command after the `DO`; for multiple arguments, each
-subroutine in turn is executed.
+subroutine is executed in turn.
 
 ==== Condition
 
@@ -273,10 +274,10 @@ implicitly, while the form with arguments does not.
 
 ==== Standard
 
-Mostly complies, however the standard allows for an _entryref_ of the form
-`_tag_+_offset_[^_routine_]`. As this is a potential security risk, it is not
-enabled by default. This feature may be turned on with `set ^$system("offok")=1`
-as a privileged user.
+Complies exactly. The standard allows for an _entryref_ of the form
+`_tag_+_offset_[^_routine_]`, which is enabled by default. As this is a
+potential security risk, it may not be desirable to leave it on. This feature
+may be turned off with `set ^$system("offok")=0` as a privileged user.
 
 ==== Examples
 
@@ -387,9 +388,10 @@ lines of a lower (numerically less) level, otherwise error `M45` occurs.
 
 ==== Standard
 
-The standard allows for an _entryref_ of the form `_tag_+_offset_`. As this is a
-potential security risk, it is not enabled by default. This feature may be
-turned on with `set ^$system("offok")=1` as a privileged user.
+Complies exactly. The standard allows for an _entryref_ of the form
+`_tag_+_offset_[^_routine_]`, which is enabled by default. As this is a
+potential security risk, it may not be desirable to leave it on. This feature
+may be turned off with `set ^$system("offok")=0` as a privileged user.
 
 ==== Examples
 
@@ -516,7 +518,7 @@ NOTE: If a _timeout_ is present, `$TEST` is always set to `1`
 
 ==== Standard
 
-Complies exactly, as job parameters are implementation-specific in the standard.
+Complies exactly, as process parameters are implementation-specific in the standard.
 
 ==== Examples
 
@@ -694,19 +696,19 @@ Obtain ownership of a device or file. The _channel_ is from 1 to 63 inclusive
 (channel 0 is the principal device, and is always open). The _param1_ is the
 device or file that is being opened. The _param2_ describes how to open the
 device or file in that channel. One and only one second parameter must be
-supplied. It may be supplied in full or abbreviated to the initial character
-only, and is case-insensitive.
+supplied. It may be supplied in full or abbreviated form, and is
+case-insensitive.
 
 [%autowidth]
 .O[PEN] Parameters
 |===
 | First Parameter    | Second Parameter
 
-| _/directory/file_  | `"READ"`\|`"WRITE"`\|`"APPEND"`\|`"IO"`
-| _/dev/device_      | `"READ"`\|`"WRITE"`\|`"IO"`
-| _host.domain port_ | `"TCPIP"`
-| _port_             | `"SERVER[=_int_]"`
-| _pipename_         | `"PIPE"`\|`"NEWPIPE"`
+| _/directory/file_  | `"R[EAD]"`\|`"W[RITE]"`\|`"A[PPEND]"`\|`"I[O]"`
+| _/dev/device_      | `"R[EAD]"`\|`"W[RITE]"`\|`"I[O]"`
+| _host.domain port_ | `"T[CPIP]"`
+| _port_             | `"S[ERVER][=_int_]"`
+| _pipename_         | `"P[IPE]"`\|`"N[EWPIPE]"`
 |===
 
 IMPORTANT: If you open a file in `IO` mode (read-write), it will set the file
@@ -843,8 +845,8 @@ position(s) of variable.
 
 Does not fully comply with the standard. It evaluates the expression on the
 right-hand side of the '`=`' before it evaluates the subscripts on the left-hand
-side of the '`=`', which is non-standard. This will very likely be fixed in a
-future version of RSM.
+side of the '`=`'. It supports expression indirection, which is a non-standard
+extension.
 
 ==== Examples
 
@@ -898,7 +900,8 @@ not returned in the data
 
 ==== Standard
 
-Complies with the exception of the vague areas in the standard.
+Complies with the exception of the vague areas in the standard, and the name of
+the `"%X364"` mnemonic space is non-standard.
 
 ==== Examples
 
@@ -959,7 +962,7 @@ Where _writeargument_ is one of the following:
 ** `#` -> Carrige return, page feed combination
 ** `!` -> Carrige return, linefeed combination, or specified output terminators
 ** `?_n_` -> Tab to character position _n_ (left most position is `0`)
-** `/_cmd_[(_params_)]` -> Provide device specific control [X3.64-1979]
+** `/_cmd_[(_params_)]` -> Provide device specific control [X3.64]
 * `_expr_` -> Any valid M expression
 * `*_intexpr_` -> Output the ASCII character (`_intexpr_#256`)
 
@@ -1335,6 +1338,37 @@ write $name(A(1,2,3),0)                  ; -> "A"
 set %=$data(^A(1,2,3)) write $name(^(6)) ; -> ^A(1,2,6)
 ----
 
+=== $N[EXT]
+
+Next subscript in a specified array.
+
+==== Format
+
+`$NEXT(_subscriptedvar_)`
+
+==== Returns
+
+The next element at the specified level. The empty string may be specified as a
+seed. The collating sequence used is the M collating sequence. Unlike `$ORDER`,
+when `$NEXT` has no element to return, it will return a `-1`, which conflicts
+with the actual element of `-1`.
+
+==== Standard
+
+This is not in the current standard, as it was removed from a previous standard.
+However, it is still used in some M code, so it is enabled by default. This
+feature may be turned off with `set ^$system("$nextok")=0` as a privileged user.
+
+==== Examples
+
+[source,m]
+----
+kill A set A(1,2)="",A(1,4)="" ; Create A array
+write $next(A(1,""))           ; -> 2
+write $next(A(1,2))            ; -> 4
+write $next(A(1,4))            ; -> -1
+----
+
 === $O[RDER]
 
 Next or previous subscript in a specified array.
@@ -1348,7 +1382,8 @@ Where _int_ must be `1` or `-1`.
 
 The next (_int_ = `1` or not specified) or previous (_int_ = `-1`) element at
 the specified level. The empty string may be specified as a seed. The collating
-sequence used is the M collating sequence.
+sequence used is the M collating sequence. When `$ORDER` has no element to
+return, it will return the empty string (`""`).
 
 ==== Standard
 
@@ -1363,6 +1398,7 @@ write $order(A(1,""))          ; -> 2
 write $order(A(1,""),1)        ; -> 4
 write $order(A(1,2))           ; -> 4
 write $order(A(1,4),-1)        ; -> 2
+write $order(A(1,4))           ; -> ""
 ----
 
 === $P[IECE]
@@ -1459,7 +1495,8 @@ Where _int_ must be `1` or `-1`.
 The next (_int_ = `1` or not specified) or previous (_int_ = `-1`) record in the
 database or local variable table. The use of this function causes the naked
 indicator to point at _var_. The returned value will include an environment
-value only if the original specification did.
+value only if the original specification did. When `$QUERY` has no record to
+return, it will return the empty string (`""`).
 
 ==== Standard
 
@@ -1472,7 +1509,9 @@ instead, RSM follows the behavior of `$ORDER` on this point.
 
 [source,m]
 ----
-kill A set A(4,3)="" write $query(A) ; -> "A(4,3)"
+kill A set A(4,3)="" ; Create A array
+write $query(A)      ; -> "A(4,3)"
+write $query(A(4,3)) ; -> ""
 ----
 
 === $R[ANDOM]
@@ -2067,10 +2106,10 @@ character set, and doesn't provide a "PATCODE" node or algorithm.
 
 [source,m]
 ----
-write ^$character("M","COLLATE")    ; -> "" - empty string for M collation
-write ^$character("M","IDENT")      ; -> "" - empty string for M identifiers
-write ^$character("M","INPUT","M")  ; -> "" - empty string for no transformation
-write ^$character("M","OUTPUT","M") ; -> "" - empty string for no transformation
+write ^$character("m","collate")    ; -> "" - empty string for M collation
+write ^$character("m","ident")      ; -> "" - empty string for M identifiers
+write ^$character("m","input","m")  ; -> "" - empty string for no transformation
+write ^$character("m","output","m") ; -> "" - empty string for no transformation
 ----
 
 === ^$D[EVICE]
@@ -2087,27 +2126,29 @@ Provides a list of all the currently open device channels in the job. `$ORDER`
 may be used for the device channel. Stores per-device information about a number
 of device characteristics. `^$DEVICE` is read-only at this time.
 
+NOTE: The `^$DEVICE` subscripts listed below are case-insensitive
+
+The following second level (and higher) subscripts are also provided:
+
 [%autowidth]
 .^$DEVICE Usage
 |===
-| Subscripts                         | Contains
+| Subscripts               | Contains
 
-| `_channel_,"$X"`                   | Current horizontal cursor position
-| `_channel_,"$Y"`                   | Current vertical cursor position
-| `_channel_,"CHARACTER"`            | Always returns "M"
-| `_channel_,"FD"`                   | Operating system file descriptor
-| `_channel_,"MODE"`                 | Current I/O mode of the device
-| `_channel_,"NAME"`                 | Operating system device/file name
-| `_channel_,"NAMESPACE"`            | Mnemonic namespace routine name
-| `_channel_,"TYPE"`                 | Type of device or file
-| `_channel_,"OPTIONS","DELETE"`     | Which keys are delete characters
-| `_channel_,"OPTIONS","ECHO"`       | Whether input keys are echoed
-| `_channel_,"OPTIONS","ESCAPE"`     | Whether escape processing is on
-| `_channel_,"OPTIONS","OUTPUT"`     | The output sequence when using `write !`
-| `_channel_,"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
+| `"$X"`                   | Current horizontal cursor position
+| `"$Y"`                   | Current vertical cursor position
+| `"CHARACTER"`            | Always returns "M"
+| `"FD"`                   | Operating system file descriptor
+| `"MODE"`                 | Current I/O mode of the device
+| `"NAME"`                 | Operating system device/file name
+| `"NAMESPACE"`            | Mnemonic namespace routine name
+| `"OPTIONS","DELETE"`     | Which keys are delete characters
+| `"OPTIONS","ECHO"`       | Whether input keys are echoed
+| `"OPTIONS","ESCAPE"`     | Whether escape processing is on
+| `"OPTIONS","OUTPUT"`     | The output sequence when using `write !`
+| `"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
+| `"TYPE"`                 | Type of device or file
 |===
-
-NOTE: All nodes are case-insensitive
 
 ==== Action
 
@@ -2193,6 +2234,7 @@ set gvn="" for  set gvn=$order(^$global(gvn)) quit:gvn=""  write gvn,!
 
 ==== Format
 
+`^$JOB`
 `^$JOB(_jobnum_[,_opt_...])`
 
 ==== Usage
@@ -2213,8 +2255,8 @@ NOTE: The `^$JOB` subscripts listed below are case-insensitive
 
 | `"$IO"`                    | Current channel number           | No
 | `"$IO",_channel_`          | Name of device/file on channel   | No
-| `"$REFERENCE"`             | Last global reference            | No
-| `"$STACK"`                 | Current stack level              | No
+| `"$REFERENCE"`             | As for `$REFERENCE`              | No
+| `"$STACK"`                 | As for `$STACK`                  | No
 | `"$STACK",_level_`         | As for `$STACK(_level_)`         | No
 | `"$STACK",_level_,"ECODE"` | As for `$STACK(_level_,"ECODE")` | No
 | `"$STACK",_level_,"MCODE"` | As for `$STACK(_level_,"MCODE")` | No
@@ -2337,43 +2379,45 @@ Provides system specific data (e.g., database statistics).
 [%autowidth]
 .^$SYSTEM Usage
 |===
-| Subscripts                        | Contains                   | Settable
+| Subscripts                        | Contains                    | Settable
 
-| `"NAME_LENGTH"`                   | Length of all names        | No
-| `"STRING_MAX"`                    | Maximum size of strings    | No
-| `"BIG_ENDIAN"`                    | Hardware endianness        | No
-| `"$NEXTOK"`                       | On/Off `$NEXT`             | Privilege
-| `"EOK"`                           | On/Off exponent notation   | Privilege
-| `"OFFOK"`                         | On/Off `DO/GO` offset      | Privilege
-| `"PRECISION"`                     | Default numeric precision  | Privilege
-| `"TRANTAB",_num_`                 | `_to=from_` (global alias) | Privilege
-| `"VOL",_vol_,"BLOCK"`             | Block size in volume       | No
-| `"VOL",_vol_,"FILE"`              | File name of volume        | Mount volume
-| `"VOL",_vol_,"FREE"`              | Free blocks in volume      | No
-| `"VOL",_vol_,"HEADER"`            | Header block size (volume) | No
-| `"VOL",_vol_,"JOURNAL_AVAILABLE"` | Current journal status     | No
-| `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume) | Single user
-| `"VOL",_vol_,"JOURNAL_REQUESTED"` | Enable/Disable journaling  | Privilege
-| `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume) | 0 to truncate
-| `"VOL",_vol_,"NAME"`              | Name of volume             | Single user
-| `"VOL",_vol_,"SIZE"`              | Size of volume in blocks   | Single user
-| `"VOL",_vol_,"UCI",_uci_`         | Environment (UCI) name     | Create UCI
-| `"VOL",_vol_,"WRITELOCK"`         | Write lock status (volume) | Yes (0 or 1)
-| `"VOL",_vol_,"BLKALLOC"`          | Block Allocations          | No
-| `"VOL",_vol_,"BLKDEALL"`          | Block Deallocations        | No
-| `"VOL",_vol_,"BLKREORG"`          | Block Reorganizations      | No
-| `"VOL",_vol_,"DBDAT"`             | Global ``$DATA``s          | No
-| `"VOL",_vol_,"DBGET"`             | Global Gets                | No
-| `"VOL",_vol_,"DBKIL"`             | Global Kills               | No
-| `"VOL",_vol_,"DBORD"`             | Global ``$ORDER``s         | No
-| `"VOL",_vol_,"DBQRY"`             | Global ``$QUERY``s         | No
-| `"VOL",_vol_,"DBSET"`             | Global Sets                | No
-| `"VOL",_vol_,"LASTOK"`            | Search Last Successes      | No
-| `"VOL",_vol_,"LASTTRY"`           | Search Last Tries          | No
-| `"VOL",_vol_,"LOGRD"`             | Logical Block Reads        | No
-| `"VOL",_vol_,"LOGWT"`             | Logical Block Writes       | No
-| `"VOL",_vol_,"PHYRD"`             | Physical Block Reads       | No
-| `"VOL",_vol_,"PHYWT"`             | Physical Block Writes      | No
+| `"$NEXTOK"`                       | On/Off `$NEXT`              | Privilege
+| `"BIG_ENDIAN"`                    | Hardware endianness         | No
+| `"CHARACTER"`                     | Always returns "M"          | No
+| `"EOK"`                           | On/Off exponent notation    | Privilege
+| `"NAME_LENGTH"`                   | Length of all names         | No
+| `"OFFOK"`                         | On/Off `DO/GOTO/JOB` offset | Privilege
+| `"PRECISION"`                     | Default numeric precision   | Privilege
+| `"STRING_MAX"`                    | Maximum size of strings     | No
+| `"TRANTAB",_num_`                 | `_to=from_` (global maps)   | Privilege
+| `"VOL",_vol_,"BLKALLOC"`          | Block allocations           | No
+| `"VOL",_vol_,"BLKDEALL"`          | Block deallocations         | No
+| `"VOL",_vol_,"BLKREORG"`          | Block reorganizations       | No
+| `"VOL",_vol_,"BLOCK"`             | Block size in volume        | No
+| `"VOL",_vol_,"DBDAT"`             | Global ``$DATA``s           | No
+| `"VOL",_vol_,"DBGET"`             | Global gets                 | No
+| `"VOL",_vol_,"DBKIL"`             | Global kills                | No
+| `"VOL",_vol_,"DBORD"`             | Global ``$ORDER``s          | No
+| `"VOL",_vol_,"DBQRY"`             | Global ``$QUERY``s          | No
+| `"VOL",_vol_,"DBSET"`             | Global sets                 | No
+| `"VOL",_vol_,"DISKERRORS"`        | Daemon write errors         | No
+| `"VOL",_vol_,"FILE"`              | File name of volume         | Mount volume
+| `"VOL",_vol_,"FREE"`              | Free blocks in volume       | No
+| `"VOL",_vol_,"HEADER"`            | Header block size (volume)  | No
+| `"VOL",_vol_,"JOURNAL_AVAILABLE"` | Current journal status      | No
+| `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume)  | Single user
+| `"VOL",_vol_,"JOURNAL_REQUESTED"` | Enable/Disable journaling   | Privilege
+| `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume)  | 0 truncates
+| `"VOL",_vol_,"LASTOK"`            | Search last successes       | No
+| `"VOL",_vol_,"LASTTRY"`           | Search last tries           | No
+| `"VOL",_vol_,"LOGRD"`             | Logical block reads         | No
+| `"VOL",_vol_,"LOGWT"`             | Logical block writes        | No
+| `"VOL",_vol_,"PHYRD"`             | Physical block reads        | No
+| `"VOL",_vol_,"PHYWT"`             | Physical block writes       | No
+| `"VOL",_vol_,"NAME"`              | Name of volume              | Single user
+| `"VOL",_vol_,"SIZE"`              | Size of volume in blocks    | Single user
+| `"VOL",_vol_,"UCI",_uci_`         | Environment (UCI) name      | Create UCI
+| `"VOL",_vol_,"WRITELOCK"`         | Write lock status (volume)  | Yes (0 or 1)
 |===
 
 ==== Action
@@ -2803,6 +2847,3 @@ The routine source is stored at `^$ROUTINE(_routine_,_linenum_)=_source_`. The
 compiled routine is stored at `^$ROUTINE(_routine_,0)=_bytecode_`. Where
 _routine_ is the name of the routine, and _linenum_ is an integer greater than
 `0`.
-
-[role="right"]
-link:index.adoc[Index]

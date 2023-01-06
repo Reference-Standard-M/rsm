@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/rekey.c
- * Summary:  module database - Database keying functions
+ * Summary:  module database - database keying functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // for semaphores
@@ -52,13 +51,13 @@ short Set_key(u_int ptr_blk, int this_level)                                    
     int      t;                                                                 // for returns
     u_char   tmp[8];                                                            // some space
     u_char   gtmp[VAR_LEN + 4];                                                 // to find glob
-    int      i;                                                                 // a handy int
+    u_int    i;                                                                 // a handy unsigned int
     u_int    *ui;                                                               // an int ptr
     cstring  *ptr;                                                              // spare ptr
     int      rs;                                                                // reqd space
     int      ts;                                                                // trailing size
     int      rls;                                                               // RL space
-    int      trailings;                                                         // ptr to orig trail
+    u_int    trailings;                                                         // ptr to orig trail
     gbd      *cblk[3];                                                          // current level blks
     u_int    tgb;                                                               // top blk in GD
     DB_Block *btmp;                                                             // ditto
@@ -94,7 +93,7 @@ ENABLE_WARN
         blk[level]->mem->type = db_var.uci;                                     // pointer block
         blk[level]->mem->last_idx = IDX_START;                                  // first Index
         blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 3; // use 2 words
-        bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, VAR_LEN);
+        memcpy(&blk[level]->mem->global, &db_var.name.var_cu[0], VAR_LEN);
         idx[IDX_START] = blk[level]->mem->last_free + 1;                        // the data
         chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at it
         chunk->len = 8;                                                         // used two words
@@ -182,7 +181,7 @@ ENABLE_WARN
     if ((ts < rls) && ts) {                                                     // if trailings -> RL
         Un_key();                                                               // unlink RL key
         Get_GBD();                                                              // get another GBD
-        bzero(blk[level]->mem, systab->vol[volnum - 1]->vollab->block_size);    // zot
+        memset(blk[level]->mem, 0, systab->vol[volnum - 1]->vollab->block_size); // zot
         blk[level]->mem->type = cblk[2]->mem->type;                             // copy type
         blk[level]->mem->right_ptr = cblk[2]->mem->right_ptr;                   // copy RL
         VAR_COPY(blk[level]->mem->global, cblk[2]->mem->global);                // copy global name
@@ -193,7 +192,7 @@ ENABLE_WARN
         if ((ts + rs) < rls) {                                                  // if new record fits
             t = Insert(&db_var.slen, ptr);                                      // insert it
             if (t < 0) panic("Set_key: Insert in new block (RL) failed");       // failed ?
-            bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);                   // save key
+            memcpy(keybuf, &chunk->buf[1], chunk->buf[1] + 1);                  // save key
         }
 
         Copy_data(cblk[0], trailings);                                          // copy trailings
@@ -304,17 +303,17 @@ ENABLE_WARN
 fix_keys:
     blk[level] = NULL;                                                          // clear this
 
-    for (i = level - 1; i >= 0; i--) {                                          // scan ptr blks
-        if (blk[i]->dirty == (gbd *) 2) {                                       // if changed
+    for (int j = level - 1; j >= 0; j--) {                                      // scan ptr blks
+        if (blk[j]->dirty == (gbd *) 2) {                                       // if changed
             if (blk[level] == NULL) {                                           // list empty
-                blk[i]->dirty = blk[i];                                         // point at self
+                blk[j]->dirty = blk[j];                                         // point at self
             } else {
-                blk[i]->dirty = blk[level];                                     // else point at prev
+                blk[j]->dirty = blk[level];                                     // else point at prev
             }
 
-            blk[level] = blk[i];                                                // remember this one
-        } else if (blk[i]->dirty == (gbd *) 1) {                                // if reserved
-            blk[i]->dirty = NULL;                                               // clear it
+            blk[level] = blk[j];                                                // remember this one
+        } else if (blk[j]->dirty == (gbd *) 1) {                                // if reserved
+            blk[j]->dirty = NULL;                                               // clear it
         }
     }
 
@@ -335,7 +334,7 @@ fix_keys:
     if (blk[level] != NULL) Queit();                                            // if something there then queue that lot
 
     for (i = 1; i < 3; i++) {                                                   // scan cblk[] again
-        if (cblk[i] != NULL) (void) Add_rekey(cblk[i]->block, this_level);      // if there then queue a fix
+        if (cblk[i] != NULL) Add_rekey(cblk[i]->block, this_level);             // if there then queue a fix
     }                                                                           // end fix key loop
 
     return 0;                                                                   // done
@@ -359,7 +358,7 @@ short Add_rekey(u_int block, int level)                                         
         }
     }
 
-    panic("Add_rekey: rekey table overflowed - database is corrupt");
+    panic("Add_rekey: Rekey table overflowed - database is corrupt");
     return 0;                                                                   // won't happen
 }
 
@@ -371,16 +370,12 @@ short Add_rekey(u_int block, int level)                                         
  */
 short Re_key(void)                                                              // re-key blocks
 {
-    int   i;                                                                    // a handy int
-    short s;                                                                    // for functions
-    int   low_level;                                                            // lowest found
-    int   low_index;                                                            // where found
-
     while (TRUE) {                                                              // loop
-        low_level = -1;                                                         // clear this
-        low_index = -1;                                                         // and this
+        short s;                                                                // for functions
+        int   low_level = -1;                                                   // lowest found
+        int   low_index = -1;                                                   // where found
 
-        for (i = 0; i < MAXREKEY; i++) {                                        // search table
+        for (int i = 0; i < MAXREKEY; i++) {                                    // search table
             if (rekey_blk[i]) {                                                 // if something there
                 if (rekey_lvl[i] > low_level) {                                 // higher than got
                     low_level = rekey_lvl[i];                                   // save level
@@ -390,11 +385,12 @@ short Re_key(void)                                                              
         }
 
         if (low_index == -1) return 0;                                          // if none found then all done
+        systab->vol[volnum - 1]->stats.blkreorg++;                              // update stats
         level = 0;                                                              // clear level
         s = Get_block(rekey_blk[low_index]);                                    // get the block
         if (s < 0) return -(ERRZ61 + ERRMLAST);                                 // database stuffed
         chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at first chunk
-        bcopy(&chunk->buf[1], &db_var.slen, chunk->buf[1] + 1);                 // copy key
+        memcpy(&db_var.slen, &chunk->buf[1], chunk->buf[1] + 1);                // copy key
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if reserved then clear it
         s = Set_key(rekey_blk[low_index], low_level - 1);                       // do it
         if (s < 0) return s;                                                    // on fail
@@ -402,7 +398,7 @@ short Re_key(void)                                                              
         rekey_blk[low_index] = 0;                                               // and this
 
         if (low_level == 1) {                                                   // if a top split
-            for (i = 0; i < MAXREKEY; i++) {                                    // search table
+            for (int i = 0; i < MAXREKEY; i++) {                                // search table
                 if (rekey_lvl[i]) rekey_lvl[i]++;                               // if something there then increment it
             }
         }
@@ -419,13 +415,11 @@ short Re_key(void)                                                              
  */
 void Un_key(void)
 {
-    u_int   this_level;
-    u_int   save_level;
-    u_int   xxx_level;
-    short   s;                                                                  // for returns
+    int     this_level;
+    int     save_level;
+    int     xxx_level;
     int     t;                                                                  // for returns
     u_char  cstr[8];                                                            // and another
-    u_int   *xui;                                                               // an int ptr
     cstring *xptr;                                                              // spare ptr
     gbd     *save;                                                              // save a block
     u_char  *uptr;                                                              // a handy ptr
@@ -439,7 +433,7 @@ void Un_key(void)
     uptr = &chunk->buf[1];                                                      // point at key
 
     for (level = level - 1; level; level--) {                                   // for each above level
-        s = Locate(uptr);                                                       // look for key
+        short s = Locate(uptr);                                                 // look for key
 
         if (s == -ERRM7) {                                                      // if not found
             if (Index > blk[level]->mem->last_idx) {                            // if ran off end
@@ -468,6 +462,8 @@ void Un_key(void)
 
             if (level < (this_level - 1)) {                                     // if up > 1 level
                 if (blk[level + 1]->mem->last_idx > (IDX_START - 1)) {          // and if lower not mt
+                    u_int *xui;                                                 // an int ptr
+
                     idx = (u_short *) blk[level + 1]->mem;                      // point at the block
                     iidx = (int *) blk[level + 1]->mem;                         // point at the block
                     chunk = (cstring *) &iidx[idx[IDX_START]];                  // point at first chunk
@@ -481,7 +477,7 @@ ENABLE_WARN
                     t = Insert(lptr, xptr);                                     // insert that
 
                     if (t == -(ERRZ62 + ERRMLAST)) {
-                        (void) Add_rekey(blk[level + 1]->block, level + 1);     // do it later
+                        Add_rekey(blk[level + 1]->block, level + 1);            // do it later
                     } else if (t < 0) {
                         panic("Un_Key: Insert returned fatal value");
                     }
@@ -491,7 +487,7 @@ ENABLE_WARN
 
                     while (TRUE) {
                         s = Locate(uptr);                                       // find key - must fail
-                        if (s != -ERRM7) panic("Un_key: key locate at 'level' didn't return -ERRM7"); // if not - die
+                        if (s != -ERRM7) panic("Un_key: Key locate at 'level' didn't return -ERRM7"); // if not - die
 
                         if (Index > IDX_START) {                                // if not first node
                             chunk = (cstring *) &iidx[idx[Index - 1]];          // point at prev
@@ -502,16 +498,16 @@ ENABLE_WARN
                         }
 
                         level--;                                                // up a level
-                        if (!level) panic("Un_key: failed to determine left edge"); // if not found
+                        if (!level) panic("Un_key: Failed to determine left edge"); // if not found
                     }                                                           // end while (TRUE)
 
                     while (level < save_level) {
                         xxx_level = level;                                      // remember this
                         level = MAXTREEDEPTH - 1;                               // use this one
                         s = Get_block(blkno);
-                        if (s < 0) panic("Un_key(): Get_block() failed in left block tree");
+                        if (s < 0) panic("Un_key: Get_block() failed in left block tree");
                         s = Locate(uptr);                                       // find key - must fail
-                        if (s != -ERRM7) panic("Un_key: key locate in left edge didn't return -ERRM7"); // if not - die
+                        if (s != -ERRM7) panic("Un_key: Key locate in left edge didn't return -ERRM7"); // if not - die
                         chunk = (cstring *) &iidx[idx[Index - 1]];              // point at prev
                         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];    // point at it
                         Align_record();                                         // align
@@ -525,7 +521,7 @@ ENABLE_WARN
                     level++;                                                    // point at mt blk
                     blk[xxx_level] = blk[level];                                // remember that there
                     s = Get_block(blkno);
-                    if (s < 0) panic("Un_key(): Get_block() failed for left block");
+                    if (s < 0) panic("Un_key: Get_block() failed for left block");
                     blk[level]->mem->right_ptr = blk[xxx_level]->mem->right_ptr;
                     if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = (gbd *) 2; // if we changed it then mark for write
                     Garbit(blk[xxx_level]->block);                              // dump mt blk

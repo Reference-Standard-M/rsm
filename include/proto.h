@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - prototypes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -34,7 +34,7 @@ int    DB_Set(mvar *var, cstring *data);                                        
 short  DB_Data(mvar *var, u_char *buf);                                         // get $DATA()
 short  DB_Kill(mvar *var);                                                      // remove sub-tree
 int    DB_Daemon(int slot, int vol);                                            // proto DB_Daemon
-short  DB_Mount(char *file, u_int volnum, u_int gmb, u_int rmb);                // mount an environment
+short  DB_Mount(char *file, int vol, u_int gmb, u_int rmb);                     // mount an environment
 short  DB_Order(mvar *var, u_char *buf, int dir);                               // get next subscript
 short  DB_Query(mvar *var, u_char *buf, int dir);                               // get next key
 short  DB_QueryD(mvar *var, u_char *buf);                                       // get next key and data
@@ -50,9 +50,9 @@ void   DB_StopJournal(int vol, u_char action);                                  
 int    DB_GetFlags(mvar *var);                                                  // Get flags
 int    DB_SetFlags(mvar *var, int flags);                                       // Set flags
 int    DB_ic(int vol, int block);                                               // integrity checker
-struct GBD *DB_ViewGet(int vol, int block);                                     // return GBD address of specified block null on err
-void   DB_ViewPut(int vol, struct GBD *ptr);                                    // queue block for write
-void   DB_ViewRel(int vol, struct GBD *ptr);                                    // release block, GBD -> free
+struct GBD *DB_ViewGet(u_int vol, u_int block);                                 // return GBD address of specified block null on err
+void   DB_ViewPut(u_int vol, struct GBD *ptr);                                  // queue block for write
+void   DB_ViewRel(u_int vol, struct GBD *ptr);                                  // release block, GBD -> free
 
 // Sequential IO
 short SQ_Init(void);                                                            // init chan 0 etc.
@@ -91,22 +91,23 @@ void  dodollar(void);                                                           
 short routine(int runtime);                                                     // parse routine ref
 
 // Runtime utilities
-int    cstringtoi(cstring *str);                                                // convert cstring to int
-int    cstringtob(cstring *str);                                                // convert cstring to boolean
-short  itocstring(u_char *buf, int n);                                          // convert int to string
-short  uitocstring(u_char *buf, u_int n);                                       // convert u_int to string
-int    rsm_version(u_char *ret_buffer);                                         // return version string
-int    Set_Error(int err, cstring *user, cstring *space);                       // Set $ECODE
-time_t current_time(short local);                                               // get current time with/without local offset
-short  run(int asp, int ssp);                                                   // run compiled code
-short  buildmvar(mvar *var, int nul_ok, int asp);                               // build an mvar
-short  getvol(cstring *vol);                                                    // get vol number for vol
-short  getuci(cstring *uci, int vol);                                           // get uci number
-short  patmat(cstring *str, cstring *code);                                     // pattern match
-short  attention(void);                                                         // process attention
-int    ForkIt(int cft);                                                         // Fork (copy file table)
-void   SchedYield(void);                                                        // do a sched_yield()
-void   DoInfo(void);                                                            // for control t
+int     cstringtoi(cstring *str);                                               // convert cstring to int
+int     cstringtob(cstring *str);                                               // convert cstring to boolean
+u_short itocstring(u_char *buf, int n);                                         // convert int to string
+u_short uitocstring(u_char *buf, u_int n);                                      // convert u_int to string
+int     short_version(u_char *ret_buffer, int i);                               // return short version string
+int     rsm_version(u_char *ret_buffer);                                        // return version string
+int     Set_Error(int err, cstring *user, cstring *space);                      // Set $ECODE
+time_t  current_time(short local);                                              // get current time with/without local offset
+short   run(int asp, int ssp);                                                  // run compiled code
+short   buildmvar(mvar *var, int nul_ok, int asp);                              // build an mvar
+short   getvol(cstring *vol);                                                   // get vol number for vol
+short   getuci(cstring *uci, int vol);                                          // get uci number
+short   patmat(cstring *str, cstring *code);                                    // pattern match
+short   attention(void);                                                        // process attention
+int     ForkIt(int cft);                                                        // Fork (copy file table)
+void    SchedYield(void);                                                       // do a sched_yield()
+void    DoInfo(void);                                                           // for Control-T
 
 // Runtime math (decimal ex FreeMUMPS)
 short runtime_add(char *a, char *b);                                            // add b to a
@@ -142,7 +143,7 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir);
 int   Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim);
 int   Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1);
 int   Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2);
-short Dquery1(u_char *ret_buffer, mvar *var);
+//short Dquery1(u_char *ret_buffer, mvar *var);
 short Dquery2(u_char *ret_buffer, mvar *var, int dir);
 short Drandom(u_char *ret_buffer, int seed);
 int   Dreverse(u_char *ret_buffer, cstring *expr);
@@ -183,7 +184,7 @@ short ST_Dump(void);                                                            
 short ST_DumpV(mvar *global);                                                   // dump symtab vars as subs
 short ST_SymAtt(var_u var);                                                     // attach to variable
 void  ST_SymDet(int count, short *list);                                        // detach from variables
-int   ST_SymGet(short syment, u_char *buf);                                     // get using syment
+//int   ST_SymGet(short syment, u_char *buf);                                     // get using syment
 short ST_SymSet(short syment, cstring *data);                                   // set using syment
 short ST_SymKill(short syment);                                                 // kill var using syment
 short ST_New(int count, var_u *list);                                           // new a list of vars
@@ -209,17 +210,17 @@ int   UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int   UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *KeyBuffer);
 
 // General utility
-short  UTIL_strerror(int err, u_char *buf);                                     // return string error msg
-int    mcopy(u_char *src, u_char *dst, int bytes);                              // bcopy with checking etc.
-short  ncopy(u_char **src, u_char *dst);                                        // copy as number
-void   CleanJob(int job);                                                       // tidy up a job
-void   panic(char *msg);                                                        // die on error
-void   Routine_Init(void);                                                      // proto for routine setup
-struct RBD *Routine_Attach(var_u routine);                                      // attach to routine
-void   Routine_Detach(struct RBD *pointer);                                     // Detach from routine
-void   Routine_Delete(var_u routine, int uci);                                  // mark mapped routine deleted
-void   Dump_rbd(void);                                                          // dump descriptors
-void   Dump_lt(void);                                                           // dump used/free lockspace
+u_short UTIL_strerror(int err, u_char *buf);                                    // return string error msg
+int     mcopy(u_char *src, u_char *dst, int bytes);                             // memmove with checking etc.
+short   ncopy(u_char **src, u_char *dst);                                       // copy as number
+void    CleanJob(int job);                                                      // tidy up a job
+void    panic(char *msg);                                                       // die on error
+void    Routine_Init(int vol);                                                  // proto for routine setup
+struct  RBD *Routine_Attach(var_u routine);                                     // attach to routine
+void    Routine_Detach(struct RBD *pointer);                                    // Detach from routine
+void    Routine_Delete(var_u routine, int uci);                                 // mark mapped routine deleted
+void    Dump_rbd(void);                                                         // dump descriptors
+void    Dump_lt(void);                                                          // dump used/free lockspace
 
 short  UTIL_String_Lock(locktab *var,                                           // address of lock entry
                         u_char  *str);                                          // locn of dest string
@@ -240,7 +241,7 @@ short LCK_Sub(int count, cstring *list);
 // XCalls
 short Xcall_host(char *ret_buffer, cstring *name, cstring *dum2);
 short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
-short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2);
+short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *dummy);
 short Xcall_wait(char *ret_buffer, cstring *arg1, cstring *arg2);
 short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy);
 short Xcall_errmsg(char *ret_buffer, cstring *err, cstring *dummy);

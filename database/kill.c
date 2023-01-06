@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/kill.c
- * Summary:  module database - Database Functions, Kill
+ * Summary:  module database - database functions, kill
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // leopard seems to want this
@@ -47,7 +46,7 @@ short Kill_data(void)                                                           
 {
     int     s;                                                                  // for funcs
     int     i;                                                                  // a handy int
-    int     j;                                                                  // and another
+    u_int   j;                                                                  // a handy unsigned int
     gbd     *rblk[MAXTREEDEPTH];                                                // right side tree
     gbd     *leftblk;                                                           // save left side tree
     gbd     *ptr;                                                               // spare ptr
@@ -59,10 +58,10 @@ short Kill_data(void)                                                           
     cstring *c;                                                                 // and another
     u_int   *ui;                                                                // and another
 
-    bzero(rekey_blk, MAXREKEY * sizeof(u_int));                                 // clear that table
-    bzero(rekey_lvl, MAXREKEY * sizeof(int));                                   // and that table
+    memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
+    memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     SemOp(SEM_GLOBAL, -curr_lock);                                              // release read lock
-    systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;                  // clear last
+    systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
 
 start:
     Get_GBDs(MAXTREEDEPTH * 2);                                                 // ensure this many
@@ -92,7 +91,7 @@ cont:
         jj.uci = db_var.uci;                                                    // copy UCI
         VAR_COPY(jj.name, db_var.name);                                         // global name
         jj.slen = db_var.slen;                                                  // subs length
-        bcopy(db_var.key, jj.key, jj.slen);                                     // copy key
+        memcpy(jj.key, db_var.key, jj.slen);                                    // copy key
         DoJournal(&jj, NULL);                                                   // and do it
     }
 
@@ -130,12 +129,12 @@ cont:
         }
 
         Garbit(blknum);                                                         // garbage the block
-        bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int));         // zot all
+        memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(int) * MAX_VOL); // zot all
         level--;                                                                // backup a level
         return 0;                                                               // and exit
     }                                                                           // end full kill
 
-    systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;                  // clear last
+    systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
 
     while (level >= 0) {                                                        // what we just got
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if reserved then clear it
@@ -149,14 +148,14 @@ cont:
     rlevel = level;                                                             // number in right side
     for (i = 0; i <= level; i++) rblk[i] = blk[i];                              // for each level, copy GBD
     level = 0;                                                                  // reset level
-    systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;                  // clear last
+    systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
     s = Get_data(-1);                                                           // get left side
 
     if ((s < 0) && (s != -ERRM7)) {                                             // error, not undef
         return (short) s;                                                       // return it
     }                                                                           // WARNING: This leaves blocks reserved
 
-    if (rlevel != level) panic("Kill_data: left level not equal right level");  // check this, if not correct, die
+    if (rlevel != level) panic("Kill_data: left level not equal to right level"); // check this, if not correct, die
 
     for (level = 0; level < rlevel; level++) {                                  // scan the levels
         if (blk[level + 1] != rblk[level + 1]) break;                           // check following lvl and end loop
@@ -168,10 +167,10 @@ cont:
 
         while (i <= blk[level]->mem->last_idx) {                                // while in block
             chunk = (cstring *) &iidx[idx[i]];                                  // point at the chunk
-            bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);   // fix the key
+            memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // fix the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
 
-            if ((keybuf[0] < db_var.slen) || bcmp(&keybuf[1], &db_var.key, db_var.slen)) { // new key too small OR different
+            if ((keybuf[0] < db_var.slen) || memcmp(&keybuf[1], &db_var.key, db_var.slen)) { // new key too small OR different
                 break;                                                          // quit loop
             }
 
@@ -220,10 +219,10 @@ cont:
 
         for (i = Index; i <= blk[level]->mem->last_idx; i++) {                  // scan block
             chunk = (cstring *) &iidx[idx[i]];                                  // point at the chunk
-            bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);   // update the key
+            memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // update the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
 
-            if ((keybuf[0] < db_var.slen) || (bcmp(&keybuf[1], &db_var.key, db_var.slen))) { // new key too small or different
+            if ((keybuf[0] < db_var.slen) || memcmp(&keybuf[1], &db_var.key, db_var.slen)) { // new key too small or different
                 break;                                                          // quit loop
             }
 
@@ -231,9 +230,9 @@ cont:
 
             if (level != rlevel) {                                              // if a pointer blk
                 Align_record();                                                 // align the pointer
-                j = *(int *) record;                                            // get blk#
+                j = *(u_int *) record;                                          // get blk#
                 if (j != rblk[level + 1]->block) Garbit(j);                     // if not right edge then garbage it
-                *(int *) record = PTR_UNDEFINED;                                // mark as junk
+                *(u_int *) record = PTR_UNDEFINED;                              // mark as junk
             } else {                                                            // its a data blk
                 record->len = NODE_UNDEFINED;                                   // mark as junk
             }
@@ -254,10 +253,10 @@ cont:
 
         while (Index <= blk[level]->mem->last_idx) {                            // scan the block
             chunk = (cstring *) &iidx[idx[Index]];                              // point at the chunk
-            bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);   // update the key
+            memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // update the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
 
-            if ((keybuf[0] < db_var.slen) || (bcmp(&keybuf[1], &db_var.key, db_var.slen))) { // new key too small or different
+            if ((keybuf[0] < db_var.slen) || memcmp(&keybuf[1], &db_var.key, db_var.slen)) { // new key too small or different
                 break;                                                          // quit loop
             }
 
@@ -265,7 +264,7 @@ cont:
 
             if (level != rlevel) {                                              // if a pointer blk
                 Align_record();                                                 // align the pointer
-                j = *(int *) record;                                            // get blk#
+                j = *(u_int *) record;                                          // get blk#
 
                 if (rblk[level + 1] != NULL) {                                  // if there is level up
                     if (j != rblk[level + 1]->block) Garbit(j);                 // if not right edge then garbage it
@@ -273,7 +272,7 @@ cont:
                     Garbit(j);                                                  // garbage it anyway
                 }
 
-                *(int *) record = PTR_UNDEFINED;                                // mark as junk
+                *(u_int *) record = PTR_UNDEFINED;                              // mark as junk
             } else {                                                            // it's data
                 record->len = NODE_UNDEFINED;                                   // mark as junk
             }
@@ -295,6 +294,7 @@ cont:
                 c = (cstring *) tmp;                                            // point at this
 DISABLE_WARN(-Warray-bounds)
                 c->len = 4;                                                     // the size
+ENABLE_WARN
                 ui = (u_int *) c->buf;                                          // point the int here
                 *ui = rblk[level + 1]->block;                                   // get the block#
                 s = Insert(p, c);                                               // insert the node
@@ -307,7 +307,7 @@ DISABLE_WARN(-Warray-bounds)
             }
         }                                                                       // end of insert ptr
 
-        if (((((leftblk->mem->last_free * 2 + 1 - leftblk->mem->last_idx) * 2)
+        if ((((u_long) ((leftblk->mem->last_free * 2 + 1 - leftblk->mem->last_idx) * 2)
           + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2))
           > (systab->vol[volnum - 1]->vollab->block_size - sizeof(DB_Block)))   // if will fit in 1
           || (blk[level]->mem->last_idx < IDX_START)) {                         // or empty blk
@@ -336,6 +336,7 @@ DISABLE_WARN(-Warray-bounds)
 
         if (s == -ERRM7) {                                                      // if it isn't
             c = (cstring *) tmp;                                                // point at this
+DISABLE_WARN(-Warray-bounds)
             c->len = 4;                                                         // the size
 ENABLE_WARN
             ui = (u_int *) c->buf;                                              // point the int here
@@ -383,6 +384,6 @@ ENABLE_WARN
         Queit();                                                                // yes - do so
     }                                                                           // end right edge stuff
 
-    bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int));             // zot all
+    memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(int) * MAX_VOL); // zot all
     return Re_key();                                                            // re-key and return
 }

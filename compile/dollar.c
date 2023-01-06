@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate functions, vars etc.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include <limits.h>                                                             // for LONG_MAX etc.
@@ -43,27 +42,32 @@
 
 void dodollar(void)                                                             // parse var, func etc.
 {
-    int    len;                                                                 // length of name
-    short  s;                                                                   // a handy short
-    int    i = 0;                                                               // a handy int
-    int    sel;                                                                 // and another
-    int    args = 0;                                                            // function args
-    u_char *ptr;                                                                // a handy pointer
-    u_char *p;                                                                  // a handy pointer
-    u_char *selj[256];                                                          // a heap of them for $S()
-    char   name[20];                                                            // where to put the name
-    char   c;                                                                   // current character
-    u_char save[1024];                                                          // a useful save area
-    int    savecount;                                                           // number of bytes saved
-    short  errm4 = -ERRM4;                                                      // useful error number
+    int     len;                                                                // length of name
+    short   s;                                                                  // a handy short
+    u_short us;                                                                 // a handy unsigned short
+    int     i = 0;                                                              // a handy int
+    int     sel;                                                                // and another
+    int     args = 0;                                                           // function args
+    u_char  *ptr;                                                               // a handy pointer
+    u_char  *p;                                                                 // a handy pointer
+    u_char  *selj[256];                                                         // a heap of them for $SELECT()
+    char    name[20];                                                           // where to put the name
+    char    c;                                                                  // current character
+    u_char  save[1024];                                                         // a useful save area
+    int     savecount;                                                          // number of bytes saved
+    short   errm4 = -ERRM4;                                                     // useful error number
 
     c = toupper(*source_ptr++);                                                 // get the character in upper
 
     if (c == '$') {                                                             // extrinsic
         ptr = comp_ptr;                                                         // save compile pointer
         *comp_ptr++ = CMDOTAG;                                                  // assume a do tag
-        i = routine(0);                                                         // parse the rouref
-        if ((i > -1) || (i == -4)) SYNTX;                                       // indirect etc. not on here
+        i = routine(-1);                                                        // parse the rouref
+
+        if ((i > -1) || (i == -4)) {                                            // indirect etc. not on here
+            comp_ptr = ptr;                                                     // back where we started for error
+            SYNTX;
+        }
 
         if (i < -4) {                                                           // check for error
             comperror(i);                                                       // complain
@@ -71,13 +75,17 @@ void dodollar(void)                                                             
         }
 
         args = 129;                                                             // number of args (128=$$)
-        if (i == -2) *ptr = CMDORT;                                             // tag and routine
-        if (i == -3) *ptr = CMDOROU;                                            // just a routine
+
+        if (i == -2) {
+            *ptr = CMDORT;                                                      // routine and tag
+        } else if (i == -3) {
+            *ptr = CMDOROU;                                                     // just a routine
+        }
 
         if (*source_ptr == '(') {                                               // any args?
             args--;                                                             // back to 128
             savecount = comp_ptr - ptr;                                         // bytes that got compiled
-            bcopy(ptr, save, savecount);                                        // save that lot
+            memcpy(save, ptr, savecount);                                       // save that lot
             comp_ptr = ptr;                                                     // back where we started
             source_ptr++;                                                       // skip the (
 
@@ -127,7 +135,7 @@ void dodollar(void)                                                             
                 SYNTX;                                                          // all else is an error
             }                                                                   // end of while
 
-            bcopy(save, comp_ptr, savecount);                                   // copy the code back
+            memcpy(comp_ptr, save, savecount);                                  // copy the code back
             comp_ptr += savecount;                                              // and add to the pointer
         }                                                                       // end of argument decode
 
@@ -231,7 +239,7 @@ void dodollar(void)                                                             
         name[len + 1] = source_ptr[len];                                        // copy alphas
     }
 
-    source_ptr = source_ptr + len;                                              // move source along
+    source_ptr += len;                                                          // move source along
     len++;                                                                      // add in first character
     name[len] = '\0';                                                           // null terminate name
     if (*source_ptr == '(') goto function;                                      // check for a function
@@ -401,7 +409,7 @@ function:                                                                       
                 } else {
                     *ptr = INDMVAR;                                             // make an mvar from it
                 }
-            } else {                                                            // experimantal for $O(@.@())
+            } else {                                                            // experimental for $ORDER(@.@())
                 ptr -= 2;                                                       // back up over subs to type
 
                 if (*ptr == OPVAR) {
@@ -616,10 +624,10 @@ function:                                                                       
             if (!(systab->historic & HISTORIC_DNOK)) EXPRE;
             if (args != 1) EXPRE;
             *comp_ptr++ = OPSTR;
-            s = 1;                                                              // the string length
-            assert(sizeof(s) == sizeof(short));
-            bcopy(&s, comp_ptr, sizeof(short));
-            comp_ptr += sizeof(short);
+            us = 1;                                                             // the string length
+            assert(sizeof(us) == sizeof(u_short));
+            memcpy(comp_ptr, &us, sizeof(u_short));
+            comp_ptr += sizeof(u_short);
             *comp_ptr++ = '2';                                                  // $NEXT kludge
             *comp_ptr++ = '\0';                                                 // null terminated
             *comp_ptr++ = FUNO2;                                                // two arg form of $ORDER()
@@ -742,7 +750,7 @@ function:                                                                       
             selj[args + 1] = comp_ptr;                                          // for the last JMP0
             *comp_ptr++ = OPERROR;                                              // no TVE is an error
             assert(sizeof(errm4) == sizeof(short));
-            bcopy(&errm4, comp_ptr, sizeof(short));
+            memcpy(comp_ptr, &errm4, sizeof(short));
             comp_ptr += sizeof(short);
 
             for (i = 1; i <= args; i++) {                                       // scan the addr array
@@ -770,6 +778,8 @@ function:                                                                       
             EXPRE;
         }
 
+        EXPRE;
+
     case 'T':                                                                   // $T[EXT], $TR[ANSLATE]
         if ((len == 1) || (strncasecmp(name, "text\0", 5) == 0)) {              // $T[EXT]
             if (args == 1) {
@@ -793,6 +803,8 @@ function:                                                                       
 
             EXPRE;
         }
+
+        EXPRE;
 
     case 'V':                                                                   // $VIEW
         if (len > 1) {                                                          // check for extended name

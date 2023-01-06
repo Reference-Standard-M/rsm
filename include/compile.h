@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - routine structures etc.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -49,13 +49,13 @@
     break; \
 }                                                                               // report an error
 
-#define INDSNOK(S) (((S * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)             // For testing indirection size - a guess
-#define INDANOK(A) ((comp_ptr + (sizeof(int) * 2) + 1) >= &indstk[MAX_ISTK])    // For testing the address of compiled indirection
+#define INDSNOK(size) (((size * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)       // For testing indirection size - a guess
+#define INDANOK(addr) ((addr + (sizeof(int) * 2) + 1) >= &indstk[MAX_ISTK])     // For testing the address of compiled indirection
 
-#define RBD_OVERHEAD (sizeof(rbd *) + (sizeof(int) * 2) + sizeof(time_t) \
-                     + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(short))
+#define RBD_OVERHEAD (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
+                     + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))
 
-#define RESERVE_TIME    (17 * 60)                                               // 17 minutes
+#define RESERVE_TIME    (20 * 60)                                               // 20 minutes
 #define SIZE_CLOSE      1024                                                    // routine size match
 
 #define FOR_TYP_0       0                                                       // no args
@@ -106,7 +106,7 @@ typedef struct __attribute__ ((__packed__)) TAGS {                              
 typedef struct __attribute__ ((__packed__)) RBD {                               // define routine buf desciptor
     struct RBD *fwd_link;                                                       // forward link this hash
     u_int      chunk_size;                                                      // bytes in this chunk
-    int        attached;                                                        // processes attached
+    u_int      attached;                                                        // processes attached
     time_t     last_access;                                                     // last used (sec since 1970)
     var_u      rnam;                                                            // routine name
     u_char     uci;                                                             // UCI num for this rou
@@ -150,11 +150,14 @@ void  atom(void);                                                               
 void  comperror(short err);                                                     // compile error
 
 // Debug prototypes
+
+/*
 #ifdef __NetBSD__
 void  Debug_GBD(short e);
 #endif
+*/
 void  Debug_off(void);                                                          // turn off debugging
 short Debug_on(cstring *param);                                                 // turn on/modify debug
 short Debug(int savasp, int savssp, int dot);                                   // drop into debug
 
-#endif                                                                          // _RSM_COMPILE_H_
+#endif                                                                          // !_RSM_COMPILE_H_

@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/set.c
- * Summary:  module database - Set Database Functions
+ * Summary:  module database - set database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // for semaphores
@@ -108,7 +107,7 @@
 int Set_data(cstring *data)                                                     // set a record
 {
     int      s;                                                                 // for returns
-    int      i;                                                                 // a handy int
+    u_int    i;                                                                 // a handy unsigned int
     u_int    *ui;                                                               // an int ptr
     u_char   tmp[VAR_LEN + 4];                                                  // spare string
     u_char   cstr[8];                                                           // and another
@@ -118,7 +117,7 @@ int Set_data(cstring *data)                                                     
     int      rs;                                                                // reqd space
     int      ts;                                                                // trailing size
     int      rls;                                                               // RL space
-    int      trailings;                                                         // ptr to orig trail
+    u_int    trailings;                                                         // ptr to orig trail
     int      this_level;                                                        // to save level
     DB_Block *btmp;                                                             // ditto
 
@@ -136,7 +135,7 @@ int Set_data(cstring *data)                                                     
         blk[level]->mem->type = db_var.uci + 64;                                // data block
         blk[level]->mem->last_idx = Index;                                      // first Index
         blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 3; // use 2 words
-        bcopy(&db_var.name.var_cu[0], &blk[level]->mem->global, VAR_LEN);       // name
+        memcpy(&blk[level]->mem->global, &db_var.name.var_cu[0], VAR_LEN);      // name
         idx[Index] = blk[level]->mem->last_free + 1;                            // the data
         chunk = (cstring *) &iidx[idx[Index]];                                  // point at it
         chunk->len = 8;                                                         // used two words
@@ -197,7 +196,7 @@ ENABLE_WARN
         jj.uci = db_var.uci;                                                    // copy UCI
         VAR_COPY(jj.name, db_var.name);                                         // global name
         jj.slen = db_var.slen;                                                  // subs length
-        bcopy(db_var.key, jj.key, jj.slen);                                     // copy key
+        memcpy(jj.key, db_var.key, jj.slen);                                    // copy key
         DoJournal(&jj, data);                                                   // and do it
     }
 
@@ -207,8 +206,8 @@ ENABLE_WARN
                 if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;   // if we reserved it then clear that
                 blk[level] = NULL;                                              // clear that
                 level = 0;                                                      // reset level
-                systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;      // clear last
-                s = Get_data(0);                                                // try to find that
+                systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
+                Get_data(0);                                                    // try to find that
             }
 
             this_level = level;                                                 // save level
@@ -223,8 +222,8 @@ ENABLE_WARN
             i += 2;                                                             // correct count
             tmp[i] = '\0';                                                      // null terminate
             tmp[0] = (u_char) i;                                                // add the count
-            i = Locate(tmp);                                                    // locate GD entry
-            if (i < 0) panic("Set_data: lost the global directory entry");
+            s = Locate(tmp);                                                    // locate GD entry
+            if (s < 0) panic("Set_data: Lost the global directory entry");
             Align_record();                                                     // align to 4 byte
             ((u_int *) record)[1] |= GL_TOP_DEFINED;                            // mark defined
 
@@ -274,7 +273,7 @@ ENABLE_WARN
         if (data->len <= i) {                                                   // if it will fit
             if (data->len < record->len) blk[level]->mem->flags |= BLOCK_DIRTY; // if new record smaller then block needs tidy
             record->len = data->len;                                            // copy length
-            bcopy(data->buf, record->buf, data->len);                           // and the data
+            memcpy(record->buf, data->buf, data->len);                          // and the data
 
             if (blk[level]->dirty == (gbd *) 1) {                               // if reserved
                 blk[level]->dirty = blk[level];                                 // point at self
@@ -299,7 +298,7 @@ ENABLE_WARN
                 if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;   // if we reserved it then clear that
                 blk[level] = NULL;                                              // clear that
                 level = 0;                                                      // reset level
-                systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;      // clear last
+                systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
                 s = Get_data(0);                                                // try to find that
                 if (s < 0) return -(ERRZ61 + ERRMLAST);                         // if error then database stuffed
             }
@@ -333,7 +332,7 @@ ENABLE_WARN
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if we reserved it then clear that
         blk[level] = NULL;                                                      // clear that
         level = 0;                                                              // reset level
-        systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;              // clear last
+        systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
         s = Get_data(0);                                                        // try to find that
         if (s != -ERRM7) return -(ERRZ61 + ERRMLAST);                           // must be undefined or database stuffed
     }
@@ -345,8 +344,8 @@ ENABLE_WARN
      * BUT is possibly still in the pointer blocks above.
      */
 
-    bzero(rekey_blk, MAXREKEY * sizeof(u_int));                                 // clear that table
-    bzero(rekey_lvl, MAXREKEY * sizeof(int));                                   // and that table
+    memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
+    memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     rs = 4 + db_var.slen + 2 + data->len;                                       // max required space
     if (rs & 3) rs += (4 - (rs & 3));                                           // if reqd then align
     rs += 4;                                                                    // allow for index
@@ -358,7 +357,7 @@ ENABLE_WARN
     if (trailings <= blk[level]->mem->last_idx) {                               // if any point
         for (i = IDX_START; i < trailings; i++) {                               // scan front of blk
             chunk = (cstring *) &iidx[idx[i]];                                  // point at chunk
-            bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
+            memcpy(&fk[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);
         }                                                                       // get fk[] correct
 
         i = Index;                                                              // start here
@@ -391,7 +390,7 @@ ENABLE_WARN
     if ((ts < rls) && ts) {                                                     // if trailings -> RL
         Un_key();                                                               // un key RL
         Get_GBD();                                                              // get another
-        bzero(blk[level]->mem, systab->vol[volnum - 1]->vollab->block_size);    // zot
+        memset(blk[level]->mem, 0, systab->vol[volnum - 1]->vollab->block_size); // zot
         blk[level]->mem->type = cblk[3]->mem->type;                             // copy type
         blk[level]->mem->right_ptr = cblk[3]->mem->right_ptr;                   // copy RL
         VAR_COPY(blk[level]->mem->global, cblk[3]->mem->global);                // copy global name
@@ -402,10 +401,10 @@ ENABLE_WARN
         if (((ts + rs) < rls) && (trailings != IDX_START)) {                    // if new record fits
             s = Insert(&db_var.slen, data);                                     // insert it
             if (s < 0) panic("Set_data: Insert in new block (RL) failed");      // failed ?
-            bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);                   // save key
+            memcpy(keybuf, &chunk->buf[1], chunk->buf[1] + 1);                  // save key
         }
 
-        if (ts) Copy_data(cblk[0], trailings);                                  // copy trailings
+        Copy_data(cblk[0], trailings);                                          // copy trailings
         Copy_data(cblk[3], IDX_START);                                          // and old RL
         btmp = blk[level]->mem;                                                 // save this
         blk[level]->mem = cblk[3]->mem;                                         // copy in this
@@ -415,16 +414,13 @@ ENABLE_WARN
         idx = (u_short *) blk[level]->mem;                                      // point at it
         iidx = (int *) blk[level]->mem;                                         // point at it
 
-        if (ts) {
-            for (i = trailings; i <= blk[level]->mem->last_idx; i++) {
-                chunk = (cstring *) &iidx[idx[i]];                              // point at the chunk
-                record = (cstring *) &chunk->buf[chunk->buf[1] + 2];            // point at the dbc
-                record->len = NODE_UNDEFINED;                                   // junk it
-            }
-
-            Tidy_block();                                                       // tidy it
+        for (i = trailings; i <= blk[level]->mem->last_idx; i++) {
+            chunk = (cstring *) &iidx[idx[i]];                                  // point at the chunk
+            record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                // point at the dbc
+            record->len = NODE_UNDEFINED;                                       // junk it
         }
 
+        Tidy_block();                                                           // tidy it
         if (((ts + rs) < rls) && (trailings != IDX_START)) goto fix_keys;       // if new record done then exit **1**
         s = Insert(&db_var.slen, data);                                         // attempt to insert
 
@@ -515,17 +511,17 @@ ENABLE_WARN
 fix_keys:
     blk[level] = NULL;                                                          // clear this
 
-    for (i = level - 1; i >= 0; i--) {                                          // scan ptr blks
-        if (blk[i]->dirty == (gbd *) 2) {                                       // if changed
+    for (int j = level - 1; j >= 0; j--) {                                      // scan ptr blks
+        if (blk[j]->dirty == (gbd *) 2) {                                       // if changed
             if (blk[level] == NULL) {                                           // list empty
-                blk[i]->dirty = blk[i];                                         // point at self
+                blk[j]->dirty = blk[j];                                         // point at self
             } else {
-                blk[i]->dirty = blk[level];                                     // else point at prev
+                blk[j]->dirty = blk[level];                                     // else point at prev
             }
 
-            blk[level] = blk[i];                                                // remember this one
-        } else if (blk[i]->dirty == (gbd *) 1) {                                // if reserved
-            blk[i]->dirty = NULL;                                               // clear it
+            blk[level] = blk[j];                                                // remember this one
+        } else if (blk[j]->dirty == (gbd *) 1) {                                // if reserved
+            blk[j]->dirty = NULL;                                               // clear it
         }
     }
 
@@ -546,7 +542,7 @@ fix_keys:
     if (blk[level] != NULL) Queit();                                            // if something there then queue that lot
 
     for (i = 1; i < 4; i++) {                                                   // scan cblk[] again
-        if (cblk[i] != NULL) s = Add_rekey(cblk[i]->block, this_level);         // if there then queue a fix
+        if (cblk[i] != NULL) Add_rekey(cblk[i]->block, this_level);             // if there then queue a fix
     }                                                                           // end fix key loop
 
     return Re_key();                                                            // re-key and return

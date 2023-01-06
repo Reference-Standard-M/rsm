@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential TCP/IP socket IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -112,14 +112,14 @@ int SQ_Tcpip_Open_Server(char *bind)
     ret = SQ_Socket_Bind(sid, port);
 
     if (ret < 0) {
-        (void) close(sid);
+        close(sid);
         return ret;
     }
 
     ret = SQ_Socket_Listen(sid);
 
     if (ret < 0) {
-        (void) close(sid);
+        close(sid);
         return ret;
     }
 
@@ -147,7 +147,7 @@ int SQ_Tcpip_Open_Client(char *conn)
     portptr = strpbrk(xxxx, " ");
 
     if (portptr == NULL) {
-        (void) close(sid);
+        close(sid);
         return getError(INT, ERRZ28);
     }
 
@@ -158,7 +158,7 @@ int SQ_Tcpip_Open_Client(char *conn)
     ret = SQ_Socket_Connect(sid, addrptr, port);
 
     if (ret < 0) {
-        (void) close(sid);
+        close(sid);
         return ret;
     }
 

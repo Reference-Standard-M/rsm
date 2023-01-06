@@ -4,7 +4,7 @@
  * Summary:  module RSM strerror - return full name of error
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -152,7 +152,7 @@ static struct {
     {(ERRZ48 + ERRMLAST), "IO: Invalid internet address"},
     {(ERRZ49 + ERRMLAST), "Job table is full"},
     {(ERRZ50 + ERRMLAST), "Invalid argument to $STACK()"},
-    {(ERRZ51 + ERRMLAST), "Interrupt - Control C Received"},
+    {(ERRZ51 + ERRMLAST), "Interrupt - Control-C Received"},
     {(ERRZ52 + ERRMLAST), "Insufficient space to load routine"},
     {(ERRZ53 + ERRMLAST), "Too many tags (max " RSM_STRING(MAX_NUM_TAGS) ")"},
     {(ERRZ54 + ERRMLAST), "Too many lines in routine (max " RSM_STRING(MAXROULINE) ")"},
@@ -181,10 +181,8 @@ static struct {
     {0,                   NULL}
 };                                                                              // merrtab[]
 
-short UTIL_strerror(int err, u_char *buf)                                       // return string form
+u_short UTIL_strerror(int err, u_char *buf)                                     // return string form
 {
-    int i;                                                                      // a handy int
-
     u_char none[] = {"No such error number"};                                   // invalid
     u_char *ptr;                                                                // pointer to msg
     ptr = none;                                                                 // default to none
@@ -193,7 +191,7 @@ short UTIL_strerror(int err, u_char *buf)                                       
     if (err > (ERRMLAST + ERRZLAST)) {                                          // check for errno
         ptr = (u_char *) strerror(err - (ERRMLAST + ERRZLAST));                 // get error msg
     } else {
-        for (i = 0; merrtab[i].msg != NULL; i++) {                              // search our table
+        for (int i = 0; merrtab[i].msg != NULL; i++) {                          // search our table
             if (merrtab[i].err == err) {                                        // if found
                 ptr = (u_char *) merrtab[i].msg;                                // set ptr
                 break;                                                          // and exit
@@ -202,15 +200,13 @@ short UTIL_strerror(int err, u_char *buf)                                       
     }                                                                           // end our error
 
     strcpy((char *) buf, (char *) ptr);                                         // copy the message
-    return (short) strlen((char *) ptr);                                        // and return length
+    return (u_short) strlen((char *) ptr);                                      // and return length
 }
 
 void panic(char *msg)                                                           // print msg and exit
 {
     FILE   *a;                                                                  // for freopen
     char   tmp[1024];                                                           // some string space
-    int    i;                                                                   // a handy int
-    int    j;                                                                   // and another
     time_t t;                                                                   // for time
 
     fprintf(stderr, "\r\nFATAL RSM ERROR occurred!!\r\n%s\r\n", msg);           // print
@@ -221,16 +217,17 @@ void panic(char *msg)                                                           
     if (a != NULL) {                                                            // if that worked
         t = current_time(FALSE);                                                // current time
         fprintf(stderr, "RSM CRASH OCCURRED on %s", ctime(&t));                 // output the time
-        i = rsm_version((u_char *) tmp);
+        rsm_version((u_char *) tmp);
         fprintf(stderr, "%s", tmp);
         fprintf(stderr, "\nFATAL RSM ERROR occurred - pid %d!!\n%s\n", getpid(), msg); // print
         if (errno) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
         if (partab.jobtab != NULL) {                                            // if not a daemon
-            fprintf(stderr, "Job Number: %d\n", ((int) (partab.jobtab - systab->jobtab) + 1));
-            j = partab.jobtab->cur_do;                                          // get current do
+            int j = partab.jobtab->cur_do;                                      // get current do
 
-            for (i = 0; i < VAR_LEN; i++) {
+            fprintf(stderr, "Job Number: %d\n", ((int) (partab.jobtab - systab->jobtab) + 1));
+
+            for (int i = 0; i < VAR_LEN; i++) {
                 tmp[i] = partab.jobtab->dostk[j].rounam.var_cu[i];              // copy it
             }
 
@@ -238,7 +235,7 @@ void panic(char *msg)                                                           
             fprintf(stderr, "UCI: %d  Routine: %s  Line: %d\n", partab.jobtab->dostk[j].uci, tmp, partab.jobtab->dostk[j].line_num);
 
             if (partab.jobtab->last_ref.name.var_cu[0]) {                       // if there is a $REF
-                i = UTIL_String_Mvar(&partab.jobtab->last_ref, (u_char *) &tmp[0], MAX_NUM_SUBS); // get in string form
+                UTIL_String_Mvar(&partab.jobtab->last_ref, (u_char *) &tmp[0], MAX_NUM_SUBS); // get in string form
                 fprintf(stderr, "Last Global: %s\n", tmp);                      // print it
             }
 
@@ -249,6 +246,5 @@ void panic(char *msg)                                                           
         fflush(stderr);
     }
 
-    *((volatile u_char *) NULL) = 0;                                            // die (SEGV)
-    exit(-1);                                                                   // and exit
+    abort();                                                                    // and exit, generating a core dump - status 134
 }

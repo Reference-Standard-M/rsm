@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential IO signal handling
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -44,10 +44,11 @@ void signalHandler(int sig);
 // Signal functions
 
 /*
- * read(2), write(2), sendto(2), recvfrom(2), sendmsg(2), and recvmsg(2) on a
- * communications channel or a low speed device and during a ioctl(2) or wait(2).
- * However, calls that have already committed are not restarted, but instead
- * return a partial success (for example, a short read count).
+ * write(2), read(2), send(2), recv(2), sendto(2), recvfrom(2), sendmsg(2), and
+ * recvmsg(2) on a communications channel or a low speed device and during a
+ * ioctl(2) or wait(2). However, calls that have already committed are not
+ * restarted, but instead return a partial success (for example, a short read
+ * count).
  */
 int setSignal(int sig, int flag)
 {
@@ -84,111 +85,72 @@ int setSignals(void)
 {
     struct sigaction action;                                                    // man 2 sigaction
     sigset_t         handlermask;                                               // man 2 sigaction
-    int              ret;                                                       // Return value
 
     sigemptyset(&handlermask);
     sigfillset(&handlermask);
     action.sa_mask = handlermask;
     action.sa_flags = 0;
-    action.sa_handler = signalHandler;
     action.sa_handler = SIG_IGN;
-    ret = sigaction(SIGHUP, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGHUP, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
-    ret = sigaction(SIGINT, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGINT, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_flags = SA_RESTART;
-    ret = sigaction(SIGQUIT, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGQUIT, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_flags = 0;
     action.sa_handler = SIG_DFL;                                                // let Unix do this one
-    ret = sigaction(SIGILL, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGILL, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
-    ret = sigaction(SIGTRAP, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGABRT, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGTRAP, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGABRT, &action, NULL) == -1) return getError(SYS, errno);
+    action.sa_handler = SIG_DFL;                                                // let Unix do this one
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
-    ret = sigaction(SIGEMT, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
+    if (sigaction(SIGEMT, &action, NULL) == -1) return getError(SYS, errno);
 #endif
 
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
-    ret = sigaction(SIGFPE, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
-    ret = sigaction(SIGBUS, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
-    action.sa_handler = SIG_DFL;                                                // SIGSEGV is desirable
-    ret = sigaction(SIGSEGV, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
+    if (sigaction(SIGFPE, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGBUS, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGSEGV, &action, NULL) == -1) return getError(SYS, errno);   // SIGSEGV is desirable
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
-    ret = sigaction(SIGSYS, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
+    if (sigaction(SIGSYS, &action, NULL) == -1) return getError(SYS, errno);
 #endif
 
-    ret = sigaction(SIGPIPE, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGALRM, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGTERM, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGURG, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGTSTP, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_IGN;
-    ret = sigaction(SIGCONT, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
+    if (sigaction(SIGPIPE, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGALRM, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGTERM, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGURG, &action, NULL) == -1) return getError(SYS, errno);
+    action.sa_handler = SIG_DFL;                                                // let Unix do this one
+    if (sigaction(SIGTSTP, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGCONT, &action, NULL) == -1) return getError(SYS, errno);
 
     /* Setting this to SIG_IGN should stop zombies
     action.sa_handler = SIG_IGN;
-    ret = sigaction(SIGCHLD, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
+    if (sigaction(SIGCHLD, &action, NULL) == -1) return getError(SYS, errno);
+    action.sa_handler = SIG_DFL;                                                // let Unix do this one
     */
 
-    ret = sigaction(SIGTTIN, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGTTOU, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGIO, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGXCPU, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGXFSZ, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGVTALRM, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGPROF, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGTTIN, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGTTOU, &action, NULL) == -1) return getError(SYS, errno);
+    action.sa_handler = signalHandler;
+    if (sigaction(SIGIO, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGXCPU, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGXFSZ, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGVTALRM, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGPROF, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = SIG_IGN;                                                // Ignore for now
-    ret = sigaction(SIGWINCH, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGWINCH, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
     action.sa_flags = SA_RESTART;
-    ret = sigaction(SIGINFO, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGINFO, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_flags = 0;
 #endif
 
-    ret = sigaction(SIGUSR1, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
-    ret = sigaction(SIGUSR2, &action, NULL);
-    if (ret == -1) return getError(SYS, errno);
+    if (sigaction(SIGUSR1, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGUSR2, &action, NULL) == -1) return getError(SYS, errno);
     return 0;
 }
 

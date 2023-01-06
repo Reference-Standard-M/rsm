@@ -1,13 +1,23 @@
+:source-highlighter: pygments
+:toc: macro
+:toclevels: 2
+
+[role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
 
 '''
 
-= Reference Standard M External Call Interface
+[discrete]
+== Reference Standard M External Call Interface
+
+David Wicksell <dlw@linux.com> +
+Copyright © 2020-2023 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
+
+toc::[]
 
 == Under Construction
 
 '''
 
-[role="right"]
-link:index.adoc[Site Directory]
