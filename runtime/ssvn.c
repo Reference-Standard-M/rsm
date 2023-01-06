@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/runtime/ssvn.c
- * Summary:  module runtime - Runtime Variables
+ * Summary:  module runtime - runtime variables
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -35,12 +35,11 @@
 #include <signal.h>                                                             // for kill()
 #include <pwd.h>                                                                // for user name
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include <sys/time.h>                                                           // for priority
 #include <sys/resource.h>                                                       // ditto
-#include <termios.h>                                                            // for tcgetattr
+#include <termios.h>                                                            // for tcsetattr
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes
 #include "database.h"                                                           // for GBD def
@@ -74,22 +73,24 @@ short SS_Norm(mvar *var)                                                        
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
     case 'C':                                                                   // $CHARACTER
-        if ((var->name.var_cu[2] == '\0') || (bcmp("CHARACTER\0", &var->name.var_cu[1], 10) == 0)) { // short form of name or if OK
+#if RSM_DBVER != 1
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "CHARACTER\0", 10) == 0)) { // short form of name or OK
             VAR_CLEAR(var->name);
-            bcopy("$CHARACTER", &var->name.var_cu[0], 10);                      // copy in full name
+            memcpy(&var->name.var_cu[0], "$CHARACTER", 10);                     // copy in full name
             if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
             if (var->volset == 0) var->volset = 1;                              // ensure volset is set
             if (var->uci != 1) return -ERRM59;                                  // Environment reference not OK
             if (var->volset != 1) return -ERRM59;                               // Environment reference not OK
             return 0;                                                           // and return saying OK
         }
+#endif
 
         return -ERRM60;                                                         // Undefined SSVN
 
     case 'D':                                                                   // $DEVICE
-        if ((var->name.var_cu[2] == '\0') || (bcmp("DEVICE\0", &var->name.var_cu[1], 7) == 0)) { // short form of name or if OK
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "DEVICE\0", 7) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
-            bcopy("$DEVICE", &var->name.var_cu[0], 7);                          // copy in full name
+            memcpy(&var->name.var_cu[0], "$DEVICE", 7);                         // copy in full name
             if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
             if (var->volset == 0) var->volset = 1;                              // ensure volset is set
             if (var->uci != 1) return -ERRM59;                                  // Environment reference not OK
@@ -100,9 +101,9 @@ short SS_Norm(mvar *var)                                                        
         return -ERRM60;                                                         // Undefined SSVN
 
     case 'G':                                                                   // $GLOBAL
-        if ((var->name.var_cu[2] == '\0') || (bcmp("GLOBAL\0", &var->name.var_cu[1], 7) == 0)) { // short form of name or if OK
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "GLOBAL\0", 7) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
-            bcopy("$GLOBAL", &var->name.var_cu[0], 7);                          // copy in full name
+            memcpy(&var->name.var_cu[0], "$GLOBAL", 7);                         // copy in full name
             if (var->uci == 0) var->uci = partab.jobtab->uci;                   // ensure UCI is set
             if (var->volset == 0) var->volset = partab.jobtab->vol;             // ensure volset is set
             return 0;                                                           // and return saying OK
@@ -111,9 +112,9 @@ short SS_Norm(mvar *var)                                                        
         return -ERRM60;                                                         // Undefined SSVN
 
     case 'J':                                                                   // $JOB
-        if ((var->name.var_cu[2] == '\0') || (bcmp("JOB\0", &var->name.var_cu[1], 4) == 0)) { // short form of name or if OK
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "JOB\0", 4) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
-            bcopy("$JOB", &var->name.var_cu[0], 4);                             // copy in full name
+            memcpy(&var->name.var_cu[0], "$JOB", 4);                            // copy in full name
             if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
             if (var->volset == 0) var->volset = 1;                              // ensure volset is set
             if (var->uci != 1) return -ERRM59;                                  // Environment reference not OK
@@ -124,9 +125,9 @@ short SS_Norm(mvar *var)                                                        
         return -ERRM60;                                                         // Undefined SSVN
 
     case 'L':                                                                   // $LOCK
-        if ((var->name.var_cu[2] == '\0') || (bcmp("LOCK\0", &var->name.var_cu[1], 5) == 0)) { // short form of name or if OK
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "LOCK\0", 5) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
-            bcopy("$LOCK", &var->name.var_cu[0], 5);                            // copy in full name
+            memcpy(&var->name.var_cu[0], "$LOCK", 5);                           // copy in full name
             if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
             if (var->volset == 0) var->volset = partab.jobtab->lvol;            // ensure volset is set
             if (var->uci != 1) return -ERRM59;                                  // Environment reference out
@@ -136,9 +137,9 @@ short SS_Norm(mvar *var)                                                        
         return -ERRM60;                                                         // Undefined SSVN
 
     case 'R':                                                                   // $ROUTINE
-        if ((var->name.var_cu[2] == '\0') || (bcmp("ROUTINE\0", &var->name.var_cu[1], 8) == 0)) { // short form of name or if OK
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "ROUTINE\0", 8) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
-            bcopy("$ROUTINE", &var->name.var_cu[0], 8);                         // copy in full name
+            memcpy(&var->name.var_cu[0], "$ROUTINE", 8);                        // copy in full name
             if (var->volset == 0) var->volset = partab.jobtab->rvol;            // check volset, ensure non-zero
 
             if (var->uci == 0) {                                                // check UCI
@@ -155,9 +156,9 @@ short SS_Norm(mvar *var)                                                        
         return -ERRM60;                                                         // Undefined SSVN
 
     case 'S':                                                                   // $SYSTEM
-        if ((var->name.var_cu[2] == '\0') || (bcmp("SYSTEM\0", &var->name.var_cu[1], 7) == 0)) { // short form of name or if OK
+        if ((var->name.var_cu[2] == '\0') || (memcmp(&var->name.var_cu[1], "SYSTEM\0", 7) == 0)) { // short form of name or if OK
             VAR_CLEAR(var->name);
-            bcopy("$SYSTEM", &var->name.var_cu[0], 7);                          // copy in full name
+            memcpy(&var->name.var_cu[0], "$SYSTEM", 7);                         // copy in full name
             if (var->uci == 0) var->uci = 1;                                    // ensure UCI is set
             if (var->volset == 0) var->volset = 1;                              // ensure volset is set
             if (var->uci != 1) return -ERRM59;                                  // Environment reference out
@@ -182,7 +183,6 @@ int SS_Get(mvar *var, u_char *buf)                                              
     u_char        tmp[1024];                                                    // temp string space
     int           ptmp = 0;                                                     // pointer into this
     int           nsubs = 0;                                                    // count subscripts
-    struct passwd *pp;                                                          // for getpwuid()
     cstring       *subs[4];                                                     // where to put them
     mvar          *vp;                                                          // variable ptr
 
@@ -190,15 +190,13 @@ int SS_Get(mvar *var, u_char *buf)                                              
         cnt = 0;                                                                // flag no rabbit ears quotes
         if (nsubs > 3) return -ERRM38;                                          // junk
         subs[nsubs] = (cstring *) &tmp[ptmp];                                   // point at the buffer
-
-        s = UTIL_Key_Extract(&var->key[i],                                      // key from here
-                             subs[nsubs]->buf,                                  // where to put it
-                             &cnt);                                             // the count
-
+        s = UTIL_Key_Extract(&var->key[i], subs[nsubs]->buf, &cnt);             // extract key from var in to subs
         if (s < 0) return s;                                                    // die on error
+DISABLE_WARN(-Warray-bounds)
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
+ENABLE_WARN
         ptmp += s + sizeof(u_short) + 1;                                        // move up temp area
-        i = i + cnt;                                                            // count used bytes
+        i += cnt;                                                               // count used bytes
     }
 
     i = SS_Norm(var);                                                           // normalize the name
@@ -206,6 +204,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
 
     switch (var->name.var_cu[1]) {                                              // check initial of name
     case 'C':                                                                   // $CHARACTER
+        if (nsubs == 0) return -ERRM38;                                         // junk
         if (strncasecmp((char *) subs[0]->buf, "m\0", 2) != 0) return -ERRM38;  // only the M character set is supported
 
         if (nsubs == 2) {                                                       // two sub case
@@ -222,17 +221,18 @@ int SS_Get(mvar *var, u_char *buf)                                              
         return -ERRM38;                                                         // junk
 
     case 'D':                                                                   // $DEVICE
-        if (nsubs == 2) {                                                       // two sub case
-            i = cstringtoi(subs[0]);                                            // make an int of I/O channel#
-            if ((i < 0) || (i > (MAX_SEQ_IO - 1))) return -ERRM38;              // out of I/O channel range
-            if (partab.jobtab->seqio[i].type == 0) return -ERRM38;              // no currently opened device
+        if (nsubs == 0) return -ERRM38;                                         // junk
+        i = cstringtoi(subs[0]);                                                // make an int of I/O channel#
+        if ((i < 0) || (i >= MAX_SEQ_IO)) return -ERRM38;                       // out of I/O channel range
+        if (partab.jobtab->seqio[i].type == 0) return -ERRM38;                  // no currently opened device
 
+        if (nsubs == 2) {                                                       // two sub case
             if (strncasecmp((char *) subs[1]->buf, "$x\0", 3) == 0) {
-                return itocstring(buf, partab.jobtab->seqio[i].dx);
+                return uitocstring(buf, partab.jobtab->seqio[i].dx);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "$y\0", 3) == 0) {
-                return itocstring(buf, partab.jobtab->seqio[i].dy);
+                return uitocstring(buf, partab.jobtab->seqio[i].dy);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "character\0", 10) == 0) {
@@ -327,6 +327,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
                 if (strncasecmp((char *) subs[2]->buf, "output\0", 7) == 0) {
                     if (partab.jobtab->seqio[i].options & 2) {
                         char temp_buf[24];
+
                         s = 0;
 
                         for (j = 0; j < partab.jobtab->seqio[i].out_len; j++) {
@@ -380,26 +381,27 @@ int SS_Get(mvar *var, u_char *buf)                                              
                 if (strncasecmp((char *) subs[2]->buf, "terminator\0", 11) == 0) {
                     if (partab.jobtab->seqio[i].options & 1) {
                         u_int64 in_term = partab.jobtab->seqio[i].in_term.interm[0];
-                        int cnt = 0;
-                        u_char temp_buf[402];                                   // enough to hold all ASCII characters with ,
+                        u_char  temp_buf[402];                                  // enough to hold all ASCII characters with ,
+                        u_int64 count = 0;
+
                         s = 0;
 
-                        for (j = 0; cnt < in_term; j++) {
-                            cnt = 1U << j;
+                        for (j = 0; count < in_term; j++) {
+                            count = 1U << j;
 
-                            if (in_term & cnt) {
+                            if (in_term & count) {
                                 s += itocstring(&temp_buf[s], j);
                                 temp_buf[s++] = ',';
                             }
                         }
 
                         in_term = partab.jobtab->seqio[i].in_term.interm[1];
-                        cnt = 0;
+                        count = 0;
 
-                        for (j = 0; cnt < in_term; j++) {
-                            cnt = 1U << j;
+                        for (j = 0; count < in_term; j++) {
+                            count = 1U << j;
 
-                            if (in_term & cnt) {
+                            if (in_term & count) {
                                 s += itocstring(&temp_buf[s], j + 64);
                                 temp_buf[s++] = ',';
                             }
@@ -436,13 +438,13 @@ int SS_Get(mvar *var, u_char *buf)                                              
 
     case 'J':                                                                   // $JOB
         buf[0] = '\0';                                                          // JIC
-        if (nsubs == 0) return itocstring(buf, systab->maxjob);                 // max permitted jobs
+        if (nsubs == 0) return uitocstring(buf, systab->maxjob);                // max permitted jobs
         if (nsubs < 2) return -ERRM38;                                          // junk
         i = cstringtoi(subs[0]) - 1;                                            // make an int of job#
-        if ((i < 0) || (i >= systab->maxjob)) return -ERRM23;                   // in range? no - complain
+        if ((i < 0) || (i >= (int) systab->maxjob)) return -ERRM23;             // in range? no - complain
         if (systab->jobtab[i].pid == 0) return -ERRM23;                         // process id? complain if no such
 
-        if (kill(systab->jobtab[i].pid, 0)) {                                   // check the job
+        if (kill(systab->jobtab[i].pid, 0) == -1) {                             // check the job
             if (errno == ESRCH) {                                               // doesn't exist
                 CleanJob(i + 1);                                                // zot if not there
                 return -ERRM23;                                                 // no - complain
@@ -451,13 +453,13 @@ int SS_Get(mvar *var, u_char *buf)                                              
 
         if (nsubs == 2) {                                                       // two sub case
             if (strncasecmp((char *) subs[1]->buf, "$io\0", 4) == 0) {
-                return itocstring(buf, systab->jobtab[i].io);                   // ^$JOB(n,"$IO")
+                return uitocstring(buf, systab->jobtab[i].io);                  // ^$JOB(n,"$IO")
             }
 
             if (strncasecmp((char *) subs[1]->buf, "$reference\0", 11) == 0) {
                 vp = &systab->jobtab[i].last_ref;                               // addr of $REFERENCE
                 if (vp->name.var_cu[0] == '\0') return 0;                       // return null string
-                bcopy(vp, tmp, vp->slen + sizeof(var_u) + 4);                   // copy to tmp
+                memcpy(tmp, vp, vp->slen + sizeof(var_u) + 4);                  // copy to tmp
                 vp = (mvar *) tmp;                                              // point at tmp
                 if (vp->uci == 0) vp->uci = systab->jobtab[i].uci;
                 if (vp->volset == 0) vp->volset = systab->jobtab[i].vol;
@@ -477,11 +479,11 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[1]->buf, "global\0", 7) == 0) {
-                return itocstring(buf, systab->jobtab[i].uci);
+                return uitocstring(buf, systab->jobtab[i].uci);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "global_vol\0", 11) == 0) {
-                return itocstring(buf, systab->jobtab[i].vol);
+                return uitocstring(buf, systab->jobtab[i].vol);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "grefs\0", 6) == 0) {
@@ -489,15 +491,16 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[1]->buf, "lock\0", 5) == 0) {
-                return itocstring(buf, systab->jobtab[i].luci);
+                return uitocstring(buf, systab->jobtab[i].luci);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "lock_vol\0", 9) == 0) {
-                return itocstring(buf, systab->jobtab[i].lvol);
+                return uitocstring(buf, systab->jobtab[i].lvol);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "owner\0", 6) == 0) {
-                pp = getpwuid((uid_t) systab->jobtab[i].user);                  // get pw
+                struct passwd *pp = getpwuid((uid_t) systab->jobtab[i].user);   // get password
+
                 if (pp == NULL) return itocstring(buf, systab->jobtab[i].user); // on fail, return numb
                 strcpy((char *) buf, pp->pw_name);                              // copy it
                 return (int) strlen((char *) buf);                              // return len
@@ -533,7 +536,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
-                return itocstring(buf, systab->jobtab[i].ruci);
+                return uitocstring(buf, systab->jobtab[i].ruci);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine_name\0", 13) == 0) {
@@ -549,7 +552,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine_vol\0", 12) == 0) {
-                return itocstring(buf, systab->jobtab[i].rvol);
+                return uitocstring(buf, systab->jobtab[i].rvol);
             }
         } else if (nsubs == 3) {                                                // end of two sub case - three sub case
             if (strncasecmp((char *) subs[1]->buf, "$io\0", 4) == 0) {
@@ -609,11 +612,16 @@ int SS_Get(mvar *var, u_char *buf)                                              
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "big_endian\0", 11) == 0)) {
             u_int end = 0x1;
-            return itocstring(buf, (*(u_char *) &end == 0x1) ? 0 : 1);          // little-endian is 0, big-endian is 1
+
+            return uitocstring(buf, ((*(u_char *) &end) == 0x1) ? 0 : 1);       // little-endian is 0, big-endian is 1
+        }
+
+        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "character\0", 10) == 0)) {
+            return mcopy((u_char *) "M", buf, 1);                               // just an M
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "name_length\0", 12) == 0)) {
-            return itocstring(buf, VAR_LEN);
+            return uitocstring(buf, VAR_LEN);
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "precision\0", 10) == 0)) {
@@ -621,7 +629,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "string_max\0", 11) == 0)) {
-            return itocstring(buf, MAX_STR_LEN);
+            return uitocstring(buf, MAX_STR_LEN);
         }
 
         if (strncasecmp((char *) subs[0]->buf, "trantab\0", 8) == 0) {
@@ -659,24 +667,24 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[2]->buf, "free\0", 5) == 0) {
-                return uitocstring(buf, DB_Free(i + 1));                        // return free blocks
+                return itocstring(buf, DB_Free(i + 1));                         // return free blocks
             }
 
             if (strncasecmp((char *) subs[2]->buf, "header\0", 7) == 0) {
-                return itocstring(buf, systab->vol[i]->vollab->header_bytes);
+                return uitocstring(buf, systab->vol[i]->vollab->header_bytes);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_available\0", 18) == 0) {
-                return itocstring(buf, systab->vol[i]->vollab->journal_available);
+                return uitocstring(buf, systab->vol[i]->vollab->journal_available);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) {
-                (void) strcpy((char *) buf, systab->vol[i]->vollab->journal_file);
+                strcpy((char *) buf, systab->vol[i]->vollab->journal_file);
                 return (int) strlen((char *) buf);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_requested\0", 18) == 0) {
-                return itocstring(buf, systab->vol[i]->vollab->journal_requested);
+                return uitocstring(buf, systab->vol[i]->vollab->journal_requested);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_size\0", 13) == 0) {
@@ -693,7 +701,7 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[2]->buf, "size\0", 5) == 0) {
-                return itocstring(buf, systab->vol[i]->vollab->max_block);
+                return uitocstring(buf, systab->vol[i]->vollab->max_block);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0) {
@@ -714,67 +722,67 @@ int SS_Get(mvar *var, u_char *buf)                                              
             }
 
             if (strncasecmp((char *) subs[2]->buf, "blkalloc\0", 9) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.blkalloc);
+                return uitocstring(buf, systab->vol[i]->stats.blkalloc);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "blkdeall\0", 9) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.blkdeall);
+                return uitocstring(buf, systab->vol[i]->stats.blkdeall);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "blkreorg\0", 9) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.blkreorg);
+                return uitocstring(buf, systab->vol[i]->stats.blkreorg);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "dbdat\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.dbdat);
+                return uitocstring(buf, systab->vol[i]->stats.dbdat);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "dbget\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.dbget);
+                return uitocstring(buf, systab->vol[i]->stats.dbget);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "dbkil\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.dbkil);
+                return uitocstring(buf, systab->vol[i]->stats.dbkil);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "dbord\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.dbord);
+                return uitocstring(buf, systab->vol[i]->stats.dbord);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "dbqry\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.dbqry);
+                return uitocstring(buf, systab->vol[i]->stats.dbqry);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "dbset\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.dbset);
+                return uitocstring(buf, systab->vol[i]->stats.dbset);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "lastok\0", 7) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.lastok);
+                return uitocstring(buf, systab->vol[i]->stats.lastok);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "lasttry\0", 8) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.lasttry);
+                return uitocstring(buf, systab->vol[i]->stats.lasttry);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "logrd\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.logrd);
+                return uitocstring(buf, systab->vol[i]->stats.logrd);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "logwt\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.logwt);
+                return uitocstring(buf, systab->vol[i]->stats.logwt);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "phyrd\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.phyrd);
+                return uitocstring(buf, systab->vol[i]->stats.phyrd);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "phywt\0", 6) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.phywt);
+                return uitocstring(buf, systab->vol[i]->stats.phywt);
             }
 
             if (strncasecmp((char *) subs[2]->buf, "diskerrors\0", 11) == 0) {
-                return itocstring(buf, systab->vol[i]->stats.diskerrors);
+                return uitocstring(buf, systab->vol[i]->stats.diskerrors);
             }
         }                                                                       // end of "VOL"
 
@@ -801,15 +809,13 @@ short SS_Set(mvar *var, cstring *data)                                          
         cnt = 0;                                                                // flag no rabbit ears quotes
         if (nsubs > 3) return -ERRM38;                                          // junk
         subs[nsubs] = (cstring *) &tmp[ptmp];                                   // point at the buffer
-
-        s = UTIL_Key_Extract(&var->key[i],                                      // key from here
-                             subs[nsubs]->buf,                                  // where to put it
-                             &cnt);                                             // the count
-
+        s = UTIL_Key_Extract(&var->key[i], subs[nsubs]->buf, &cnt);             // extract key from var in to subs
         if (s < 0) return s;                                                    // die on error
+DISABLE_WARN(-Warray-bounds)
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
+ENABLE_WARN
         ptmp += s + sizeof(short) + 1;                                          // move up temp area
-        i = i + cnt;                                                            // count used bytes
+        i += cnt;                                                               // count used bytes
     }
 
     s = SS_Norm(var);                                                           // normalize the name
@@ -839,7 +845,7 @@ short SS_Set(mvar *var, cstring *data)                                          
     case 'J':                                                                   // $JOB
         if (nsubs != 2) return -ERRM38;                                         // junk
         i = cstringtoi(subs[0]) - 1;                                            // make an int of job#
-        if ((i < 0) || (i >= systab->maxjob)) return -ERRM23;                   // in range? no - complain
+        if ((i < 0) || (i >= (int) systab->maxjob)) return -ERRM23;             // in range? no - complain
         if (systab->jobtab[i].pid == 0) return -ERRM23;                         // process id? complain if no such
         j = cstringtoi(data);                                                   // convert to int
 
@@ -853,6 +859,7 @@ short SS_Set(mvar *var, cstring *data)                                          
 
             if (strncasecmp((char *) subs[1]->buf, "global_vol\0", 11) == 0) {
                 if ((j < 1) || (j > MAX_VOL)) return -ERRM26;                   // out of range
+                if (systab->vol[j - 1] == NULL) return -ERRM26;                 // non-existent volume
                 systab->jobtab[i].vol = j;                                      // set it
                 VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $REFERENCE
                 return 0;                                                       // and quit
@@ -866,6 +873,7 @@ short SS_Set(mvar *var, cstring *data)                                          
 
             if (strncasecmp((char *) subs[1]->buf, "lock_vol\0", 9) == 0) {
                 if ((j < 1) || (j > MAX_VOL)) return -ERRM26;                   // out of range
+                if (systab->vol[j - 1] == NULL) return -ERRM26;                 // non-existent volume
                 systab->jobtab[i].lvol = j;                                     // set it
                 return 0;                                                       // and quit
             }
@@ -884,6 +892,7 @@ short SS_Set(mvar *var, cstring *data)                                          
 
             if (strncasecmp((char *) subs[1]->buf, "routine_vol\0", 12) == 0) {
                 if ((j < 1) || (j > MAX_VOL)) return -ERRM26;                   // out of range
+                if (systab->vol[j - 1] == NULL) return -ERRM26;                 // non-existent volume
                 systab->jobtab[i].rvol = j;                                     // set it
                 return 0;                                                       // and quit
             }
@@ -908,6 +917,7 @@ short SS_Set(mvar *var, cstring *data)                                          
             if (strncasecmp((char *) subs[1]->buf, "priv\0", 5) == 0) {
                 systab->jobtab[i].priv = (j || 0);                              // set to 0 or 1
                 if (!j) j = setuid(partab.jobtab->user);                        // if clearing PRIV then attempt to change user
+                if (j == -1) return -(ERRMLAST + ERRZLAST + errno);
                 return 0;
             }
         }
@@ -968,7 +978,7 @@ short SS_Set(mvar *var, cstring *data)                                          
             if (nsubs != 2) return -ERRM38;                                     // must be 2 subs
 
             if (data->len == 0) {                                               // if null
-                bzero(&systab->tt[cnt], sizeof(trantab));                       // clear it
+                memset(&systab->tt[cnt], 0, sizeof(trantab));                   // clear it
                 systab->max_tt = 0;                                             // clear this for now
 
                 for (i = MAX_TRANTAB; i; i--) {                                 // look for last used
@@ -1012,7 +1022,7 @@ ENABLE_WARN
             }
 
             if (!partab.src_var.volset) partab.src_var.volset = partab.jobtab->vol; // if no volset, set default
-            bcopy(&partab.src_var, &tt.from_global, sizeof(var_u) + 2);
+            memcpy(&tt.from_global, &partab.src_var, sizeof(var_u) + 2);
             s = UTIL_MvarFromCStr(subs[3], &partab.src_var);                    // encode
             if (s < 0) return s;                                                // complain on error
 
@@ -1035,8 +1045,8 @@ ENABLE_WARN
             }
             */
 
-            bcopy(&partab.src_var, &tt.to_global, sizeof(var_u) + 2);
-            bcopy(&tt, &systab->tt[cnt], sizeof(trantab));
+            memcpy(&tt.to_global, &partab.src_var, sizeof(var_u) + 2);
+            memcpy(&systab->tt[cnt], &tt, sizeof(trantab));
             if ((cnt + 1) > systab->max_tt) systab->max_tt = cnt + 1;           // check flag and ensure current is there
             return 0;
         }                                                                       // end trantab stuff
@@ -1068,20 +1078,16 @@ ENABLE_WARN
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
 
             if (strncasecmp((char *) subs[2]->buf, "file\0", 5) == 0) {         // mount new volume to volume set
-                /*
                 if (data->len > VOL_FILENAME_MAX) return -ERRM56;               // too long
-                s = DB_Mount((char *) data->buf, i, 1, 1);                      // file, volume number
+                s = DB_Mount((char *) data->buf, i, 0, 0);                      // file, volume number
                 if (s < 0) return s;                                            // die on error
                 systab->vol[i]->map_dirty_flag = 1;                             // tell them to write it
                 return 0;
-                */
-
-                return -ERRM38;                                                 // not yet supported
             }
 
             if ((strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) && (systab->maxjob == 1)) {
                 if (data->len > JNL_FILENAME_MAX) return -ERRM56;               // too long
-                (void) strcpy(systab->vol[i]->vollab->journal_file, (char *) data->buf);
+                strcpy(systab->vol[i]->vollab->journal_file, (char *) data->buf);
                 systab->vol[i]->map_dirty_flag = 1;                             // tell them to write it
                 return 0;
             }
@@ -1111,7 +1117,7 @@ ENABLE_WARN
                 }
 
                 VAR_CLEAR(systab->vol[i]->vollab->volnam);                      // zot name
-                bcopy(data->buf, systab->vol[i]->vollab->volnam.var_cu, data->len);
+                memcpy(systab->vol[i]->vollab->volnam.var_cu, data->buf, data->len);
                 systab->vol[i]->map_dirty_flag = 1;                             // tell them to write it
                 return 0;
             }
@@ -1120,7 +1126,6 @@ ENABLE_WARN
                 u_int vsiz;                                                     // for the size
 
                 vsiz = (u_int) atol((char *) data->buf);                        // get the new
-
                 if (vsiz <= systab->vol[i]->vollab->max_block) return -ERRM38;
                 vsiz |= 7;                                                      // fix size
                 if (vsiz > MAX_DATABASE_BLKS) return -ERRM38;
@@ -1133,13 +1138,13 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[2]->buf, "writelock\0", 10) == 0) {
-                if (abs(systab->vol[i]->writelock) == (MAX_JOBS + 1)) return 0; // do nothing if system shutting down with (rsm -k)
+                if (abs(systab->vol[i]->writelock) == (MAX_JOBS + 1)) return 0; // do nothing if system shutting down (rsm -k)
                 systab->vol[i]->writelock = (cstringtob(data) ? -(partab.jobtab - systab->jobtab + 1) : 0); // set it or clear it
                 return 0;                                                       // return OK
             }
         }
 
-        return -ERRM38;                                                         // do vol mount next vers
+        return -ERRM38;                                                         // junk
     }
 
     return -ERRM38;                                                             // can't get here?
@@ -1160,15 +1165,13 @@ short SS_Data(mvar *var, u_char *buf)                                           
         cnt = 0;                                                                // flag no rabbit ears quotes
         if (nsubs > 3) return -ERRM38;                                          // junk
         subs[nsubs] = (cstring *) &tmp[ptmp];                                   // point at the buffer
-
-        s = UTIL_Key_Extract(&var->key[i],                                      // key from here
-                             subs[nsubs]->buf,                                  // where to put it
-                             &cnt);                                             // the count
-
+        s = UTIL_Key_Extract(&var->key[i], subs[nsubs]->buf, &cnt);             // extract key from var in to subs
         if (s < 0) return s;                                                    // die on error
+DISABLE_WARN(-Warray-bounds)
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
+ENABLE_WARN
         ptmp += s + sizeof(short) + 1;                                          // move up temp area
-        i = i + cnt;                                                            // count used bytes
+        i += cnt;                                                               // count used bytes
     }
 
     s = SS_Norm(var);                                                           // normalize the name
@@ -1188,7 +1191,7 @@ short SS_Data(mvar *var, u_char *buf)                                           
     case 'J':                                                                   // $JOB
         if (nsubs != 1) return -ERRM38;                                         // junk
         i = cstringtoi(subs[0]);                                                // make an int of job#
-        if ((i < 1) || (i > systab->maxjob)) return -ERRM23;                    // in range? no - complain
+        if ((i < 1) || (i > (int) systab->maxjob)) return -ERRM23;              // in range? no - complain
         buf[0] = '1';                                                           // assume true
         buf[1] = '\0';                                                          // null terminate
         if (systab->jobtab[i - 1].pid == 0) buf[0] = '0';                       // process id? false if no such
@@ -1225,6 +1228,7 @@ short SS_Kill(mvar *var)                                                        
     int             i = 0;                                                      // useful int
     int             j;                                                          // and another
     short           s;                                                          // for functions
+    int             no_daemons;                                                 // for daemon info
     int             cnt;                                                        // count of bytes used
     var_u           rou;                                                        // for routine name
     u_char          tmp[1024];                                                  // temp string space
@@ -1233,18 +1237,21 @@ short SS_Kill(mvar *var)                                                        
     mvar            *vp;                                                        // variable ptr
     cstring         *subs[4];                                                   // where to put them
     struct shmid_ds sbuf;                                                       // for shmctl (shutdown)
+#ifdef __APPLE__
+    void            *semvals = NULL;
+#else
+    semun_t         semvals;                                                    // dummy for semctl IPC_RMID
+#endif
 
     while (i < var->slen) {                                                     // for all subs
         cnt = 0;                                                                // flag no rabbit ears quotes
         if (nsubs > 3) return -ERRM38;                                          // junk
         subs[nsubs] = (cstring *) &tmp[ptmp];                                   // point at the buffer
-
-        s = UTIL_Key_Extract(&var->key[i],                                      // key from here
-                             subs[nsubs]->buf,                                  // where to put it
-                             &cnt);                                             // the count
-
+        s = UTIL_Key_Extract(&var->key[i], subs[nsubs]->buf, &cnt);             // extract key from var in to subs
         if (s < 0) return s;                                                    // die on error
+DISABLE_WARN(-Warray-bounds)
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
+ENABLE_WARN
         ptmp += s + sizeof(short) + 1;                                          // move up temp area
         i += cnt;                                                               // count used bytes
     }
@@ -1268,7 +1275,7 @@ short SS_Kill(mvar *var)                                                        
 
         if (nsubs == 1) {                                                       // if there is a job
             j = cstringtoi(subs[0]) - 1;                                        // make an int of it
-            if ((j < 0) || (j >= systab->maxjob)) return -ERRM23;               // in range? no - complain
+            if ((j < 0) || (j >= (int) systab->maxjob)) return -ERRM23;         // in range? no - complain
             i = systab->jobtab[j].pid;                                          // get process id
             if (i == 0) return -ERRM23;                                         // complain if no such
 
@@ -1283,23 +1290,60 @@ short SS_Kill(mvar *var)                                                        
         }
 
         if (!priv()) return -ERRM29;                                            // SET or KILL on SSVN not on
-        systab->start_user = -1;                                                // Say 'shutting down'
-        i = shmctl(systab->vol[0]->shm_id, IPC_RMID, &sbuf);                    // remove the share
 
-        for (i = 0; i < systab->maxjob; i++) {                                  // for each job
-            cnt = systab->jobtab[i].pid;                                        // get pid
+        for (i = (MAX_VOL - 1); i >= 0; i--) {
+            no_daemons = TRUE;                                                  // assume no daemons
+
+            if (systab->vol[i] == NULL) continue;
+            systab->vol[i]->writelock = -(MAX_JOBS + 1);                        // write lock the database (system job)
+
+            while (systab->vol[i]->writelock < 0) {
+                sleep(1);
+
+                for (j = 0; j < systab->vol[i]->num_of_daemons; j++) {          // each one
+                    if (kill(systab->vol[i]->wd_tab[j].pid, 0) == 0) {          // if one exists
+                        no_daemons = FALSE;
+                        break;
+                    }
+                }
+
+                if (no_daemons) break;                                          // if all the daemons have gone, don't wait forever
+            }
+
+            systab->vol[i]->writelock = MAX_JOBS + 1;                           // release system write lock on database
+        }
+
+        // DLW - move in to previous loop at bottom if new shares are created per volume
+        if (shmctl(systab->vol[0]->shm_id, IPC_RMID, &sbuf) == -1) {            // remove the share
+            return -(ERRMLAST + ERRZLAST + errno);
+        }
+
+        systab->start_user = -1;                                                // Say 'shutting down'
+
+        for (u_int k = 0; k < systab->maxjob; k++) {                            // for each job
+            cnt = systab->jobtab[k].pid;                                        // get pid
 
             if ((cnt != partab.jobtab->pid) && cnt) {
                 if (!kill(cnt, SIGTERM)) {                                      // kill this one
-                    systab->jobtab[i].trap = 1U << SIGTERM;                     // say go away
-                    systab->jobtab[i].attention = 1;                            // look at it
+                    systab->jobtab[k].trap = 1U << SIGTERM;                     // say go away
+                    systab->jobtab[k].attention = 1;                            // look at it
                 }
             }
         }
 
-        DB_Dismount(1);                                                         // dismount main vol
-        tcsetattr(0, TCSANOW, &tty_settings);                                   // reset terminal
-        exit(0);                                                                // and exit
+        for (i = (MAX_VOL - 1); i >= 0; i--) {
+            if (systab->vol[i] == NULL) continue;
+            DB_Dismount(i + 1);                                                 // dismount all volumes
+
+            if ((i == 0) && no_daemons) {
+                if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {       // remove the semaphores
+                    fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+                }
+            }
+        }
+
+        tcsetattr(STDIN_FILENO, TCSANOW, &tty_settings);                        // reset terminal
+        exit(EXIT_SUCCESS);                                                     // and exit
 
     case 'L':                                                                   // $LOCK
         if (nsubs != 1) return -ERRM38;                                         // junk
@@ -1313,14 +1357,13 @@ short SS_Kill(mvar *var)                                                        
         subs[0]->len = s;                                                       // save the length
         while (SemOp(SEM_LOCK, -systab->maxjob)) sleep(1);                      // until success, get semaphore
         s = LCK_Kill(subs[0]);                                                  // do it
-        i = SemOp(SEM_LOCK, systab->maxjob);                                    // drop semaphore
+        SemOp(SEM_LOCK, systab->maxjob);                                        // drop semaphore
         return s;                                                               // do it and exit
 
     case 'R':                                                                   // $ROUTINE
         if (nsubs > 1) return -ERRM38;                                          // junk
 
         if (var->slen == '\0') {                                                // if unsubscripted
-            u_char tmp[16];                                                     // for below
             if (!priv()) return -ERRM29;                                        // SET or KILL on SSVN not on
             s = DB_Data(var, tmp);                                              // see if it's defined
             if (s < 0) return s;                                                // quit on error
@@ -1342,7 +1385,7 @@ short SS_Kill(mvar *var)                                                        
         if (s < 0) return s;                                                    // quit if no go
         s = DB_Kill(var);                                                       // give it to the database
         if (s >= 0) Routine_Delete(rou, var->uci);                              // if OK then mark as deleted
-        i = SemOp(SEM_ROU, systab->maxjob);                                     // release the lock
+        SemOp(SEM_ROU, systab->maxjob);                                         // release the lock
         return s;                                                               // exit
 
     case 'S':                                                                   // $SYSTEM
@@ -1355,7 +1398,14 @@ short SS_Kill(mvar *var)                                                        
             return DB_UCIKill(i + 1, j + 1);                                    // do it and return
         }
 
-        return -ERRM38;                                                         // Do vol dismount later
+        if ((nsubs == 2) && priv() && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) {
+            i = cstringtoi(subs[1]) - 1;                                        // get vol#
+            if ((i < 1) || (i >= MAX_VOL)) return -ERRM60;                      // out of range (can't dismount vol 1 this way)
+            if (systab->vol[i] == NULL) return -ERRM60;                         // not mounted
+            return DB_Dismount(i + 1);                                          // dismount supplemental vol
+        }
+
+        return -ERRM38;                                                         // junk
     }
 
     return -ERRM38;                                                             // can't get here?
@@ -1377,15 +1427,13 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
         cnt = 0;                                                                // flag no rabbit ears quotes
         if (nsubs > 3) return -ERRM38;                                          // junk
         subs[nsubs] = (cstring *) &tmp[ptmp];                                   // point at the buffer
-
-        s = UTIL_Key_Extract(&var->key[i],                                      // key from here
-                             subs[nsubs]->buf,                                  // where to put it
-                             &cnt);                                             // the count
-
+        s = UTIL_Key_Extract(&var->key[i], subs[nsubs]->buf, &cnt);             // extract key from var in to subs
         if (s < 0) return s;                                                    // die on error
+DISABLE_WARN(-Warray-bounds)
         subs[nsubs++]->len = s;                                                 // save the size (incr count)
+ENABLE_WARN
         ptmp += s + sizeof(short) + 1;                                          // move up temp area
-        i = i + cnt;                                                            // count used bytes
+        i += cnt;                                                               // count used bytes
     }
 
     s = SS_Norm(var);                                                           // normalize the name
@@ -1408,7 +1456,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
                 if (partab.jobtab->seqio[i].type != 0) break;                   // found one
             }
         } else {                                                                // forward
-            if (subs[0]->buf[0] == '\0') return itocstring(buf, 0);
+            if (subs[0]->buf[0] == '\0') return uitocstring(buf, 0);
 
             for (i += 1; i < MAX_SEQ_IO; i++) {                                 // scan the list
                 if (partab.jobtab->seqio[i].type != 0) break;                   // found one
@@ -1442,7 +1490,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 
             i++;                                                                // convert back to job#
         } else {                                                                // forward
-            for (; i < systab->maxjob; i++) {                                   // scan the list
+            for (; i < (int) systab->maxjob; i++) {                             // scan the list
                 if (systab->jobtab[i].pid != 0) {                               // found one
                     if ((kill(systab->jobtab[i].pid, 0)) && (errno == ESRCH)) { // check the job, clean it out if it doesn't exist
                         CleanJob(i + 1);                                        // zot if not there
@@ -1453,7 +1501,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
             }
 
             i++;                                                                // convert back to job#
-            if (i > systab->maxjob) i = 0;
+            if (i > (int) systab->maxjob) i = 0;
         }
 
         if (i) return itocstring(buf, i);                                       // return job number

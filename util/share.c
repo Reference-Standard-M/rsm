@@ -4,7 +4,7 @@
  * Summary:  module RSM share - shared memory
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -47,7 +47,6 @@ int UTIL_Share(char *dbf)                                                       
     key_t         shar_mem_key;                                                 // memory "key"
     int           shar_mem_id;                                                  // memory id
     int           sem_id;                                                       // semaphore id
-    int           i;
     systab_struct *sad;                                                         // systab address
 
     shar_mem_key = ftok(dbf, RSM_SYSTEM);                                       // get a unique key
@@ -58,7 +57,8 @@ int UTIL_Share(char *dbf)                                                       
     systab = (systab_struct *) sad->address;                                    // get required address
 
     if (sad != systab) {                                                        // if not in correct place
-        i = shmdt(sad);                                                         // unmap it
+        int i = shmdt(sad);                                                     // unmap it
+
         if (i == -1) fprintf(stderr, "shmdt return = %X\n", i);
         sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);         // try again
         if (sad == (void *) -1) fprintf(stderr, "systab = %lX  attach = %lX\n", (u_long) systab, (u_long) sad);
@@ -79,8 +79,7 @@ int UTIL_Share(char *dbf)                                                       
  */
 short SemOp(int sem_num, int numb)                                              // Add/Remove semaphore
 {
-    short  s;                                                                   // for returns
-    int    i;                                                                   // for try loop
+    int           i;                                                            // for try loop
     struct sembuf buf = {0, 0, SEM_UNDO};                                       // for semop()
 
     if (numb == 0) return 0;                                                    // check for junk? then just return
@@ -88,7 +87,7 @@ short SemOp(int sem_num, int numb)                                              
     buf.sem_op = (short) numb;                                                  // and the number of them
 
     for (i = 0; i < 5; i++) {                                                   // try this many times
-        s = semop(systab->sem_id, &buf, 1);                                     // do it
+        short s = semop(systab->sem_id, &buf, 1);                               // do it
 
         if (s == 0) {                                                           // if that worked
             if (sem_num == SEM_GLOBAL) curr_lock += numb;                       // adjust curr_lock
@@ -96,13 +95,13 @@ short SemOp(int sem_num, int numb)                                              
         }
 
         if (numb < 1) {                                                         // if it was an add
-            if (partab.jobtab == NULL) panic("SemOp() error in write daemon");  // from a daemon, yes - die
+            if (partab.jobtab == NULL) panic("SemOp: Error in write daemon");   // from a daemon, yes - die
         }
 
         if (partab.jobtab->trap) return -(ERRZ51 + ERRMLAST);                   // and we got a <Ctrl><C> then return an error
     }
 
-    if (systab->start_user == -1) exit(0);                                      // If shutting down then just quit
-    if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");          // die... unless a lock release
+    if (systab->start_user == -1) exit(EXIT_SUCCESS);                           // If shutting down then just quit
+    if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp: Failed");           // die... unless a lock release
     return 0;                                                                   // shouldn't get here except lock
 }

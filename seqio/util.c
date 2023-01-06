@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential misc. IO operations
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -47,6 +47,7 @@
 #include <errno.h>
 #include <sys/types.h>                                                          // for u_char def
 #include <sys/time.h>
+//#include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
@@ -93,17 +94,21 @@ int getError(int type, int errnum)
  */
 void setSignalBitMask(int sig)
 {
-    int mask;
+    //int mask;
 
     if (sig == SIGQUIT) {
         DoInfo();
     //} else if (sig == SIGCHLD) {                                                // DLW: look at this more
     //    wait(&mask);
     } else {
+        int mask;
+
         partab.jobtab->attention = 1;
         mask = 1U << sig;
         partab.jobtab->trap |= mask;
     }
+
+    return;
 }
 
 /*
@@ -145,8 +150,7 @@ int seqioSelect(int sid, int type, int tout)
     if (ret == -1) {
         return getError(SYS, errno);
     } else if (ret == 0) {
-        ret = raise(SIGALRM);                                                   // Force select to time out
-        if (ret == -1) return getError(SYS, errno);
+        if (raise(SIGALRM)) return getError(SYS, errno);                        // Force select to time out
         return -1;
     } else {
         return 0;                                                               // Success

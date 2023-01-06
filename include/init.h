@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - prototypes (module init)
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -30,6 +30,7 @@
 
 #define MAX_GROUPS  32                                                          // max number of Unix groups
 
+// Create a database file volume
 int INIT_Create_File(u_int blocks,                                              // number of blocks
                      u_int bsize,                                               // block size in bytes
                      u_int map,                                                 // map size in bytes may be 0
@@ -37,16 +38,19 @@ int INIT_Create_File(u_int blocks,                                              
                      char  *env,                                                // manager UCI name
                      char  *file);                                              // file name
 
+// Create and start an environment
+int INIT_Start(char  *file,                                                     // database file
+               u_int jobs,                                                      // number of jobs
+               u_int gmb,                                                       // MiB of global buffers
+               u_int rmb,                                                       // MiB of routine buffers
+               u_int addmb);                                                    // MiB of additional buffers
+
+// Start a job
 int INIT_Run(char *file,                                                        // database file
              char *env,                                                         // environment (UCI)
              char *cmd);                                                        // command
 
-int INIT_Start(char  *file,                                                     // database
-               u_int jobs,                                                      // number of jobs
-               u_int gmb,                                                       // MiB of global buf
-               u_int rmb,                                                       // MiB of routine buf
-               u_int addmb);                                                    // MiB of additional buf
-
+// Initialize the symbol table
 void ST_Init(void);                                                             // empty symbol table
 
 #endif                                                                          // !_RSM_INIT_H_

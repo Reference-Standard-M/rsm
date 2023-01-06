@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include <limits.h>                                                             // for LONG_MAX etc.
@@ -47,6 +46,7 @@ u_char *comp_ptr;                                                               
 void comperror(short err)                                                       // compile error
 {
     int     s;                                                                  // for functions
+    u_short us;                                                                 // for functions
     cstring *line;                                                              // line of code
     u_char  *src;                                                               // current src ptr
     int     i;                                                                  // a handy int
@@ -54,7 +54,7 @@ void comperror(short err)                                                       
 
     *comp_ptr++ = OPERROR;                                                      // say it's an error
     assert(sizeof(err) == sizeof(short));
-    bcopy(&err, comp_ptr, sizeof(short));
+    memcpy(comp_ptr, &err, sizeof(short));
     comp_ptr += sizeof(short);
     *comp_ptr++ = OPNOP;                                                        // in case of IF etc.
     *comp_ptr++ = OPNOP;                                                        // in case of IF etc.
@@ -78,16 +78,15 @@ void comperror(short err)                                                       
 DISABLE_WARN(-Warray-bounds)
     line->buf[0] = '^';                                                         // point
     line->buf[1] = ' ';                                                         // and a space
-    s = UTIL_strerror(err, &line->buf[2]);                                      // get the error
-    if (s < 0) goto scan;                                                       // exit on error
-    line->len = s + 2;                                                          // the length
-    bcopy(" - At line ", &line->buf[line->len], 11);                            // front bit
-    s = itocstring(&line->buf[line->len + 11], *partab.ln);                     // format line number
-    if (s < 0) goto scan;                                                       // exit on error
-    line->len = line->len + s + 11;                                             // the length
+    us = UTIL_strerror(err, &line->buf[2]);                                     // get the error
+    line->len = us + 2;                                                         // the length
+    memcpy(&line->buf[line->len], " - At line ", 11);                           // front bit
+    us = itocstring(&line->buf[line->len + 11], *partab.ln);                    // format line number
+    line->len += us + 11;                                                       // the length
 ENABLE_WARN
     s = SQ_Write(line);                                                         // write the line
-    if (s >= 0) s = SQ_WriteFormat(SQ_LF);                                      // if no error return
+    if (s >= 0) SQ_WriteFormat(SQ_LF);                                          // if no error return
+    if (partab.checkonly) partab.errors++;                                      // syntax check so increment error count
 
 scan:
     while (*source_ptr) source_ptr++;                                           // skip rest of line
@@ -101,9 +100,7 @@ scan:
 void atom(void)                                                                 // evaluate source
 {
     char   c;                                                                   // current character
-    int    j;                                                                   // and another
     short  s;                                                                   // for function returns
-    u_char *p;                                                                  // a pointer
 
     c = *source_ptr++;                                                          // get a character
 
@@ -146,7 +143,7 @@ void atom(void)                                                                 
     if ((isdigit((int) c) != 0) || (c == '.')) {                                // check for number or dot
         source_ptr--;                                                           // back up the source ptr
         *comp_ptr++ = OPSTR;                                                    // say string following
-        s = ncopy(&source_ptr, comp_ptr + sizeof(short));                       // copy as number
+        s = ncopy(&source_ptr, comp_ptr + sizeof(u_short));                     // copy as number
 
         if (s < 0) {                                                            // if we got an error
           comp_ptr--;                                                           // remove the OPSTR
@@ -154,15 +151,17 @@ void atom(void)                                                                 
           return;                                                               // and exit
         }
 
-        *((short *) comp_ptr) = s;                                              // store string count
-        comp_ptr += sizeof(short) + s + 1;                                      // allow for null byte
+        *((u_short *) comp_ptr) = s;                                            // store string count
+        comp_ptr += sizeof(u_short) + s + 1;                                    // allow for null byte
         return;
     }                                                                           // end numeric parse
 
     if (c == '"') {                                                             // rabbit ear
+        int    j = sizeof(u_short);                                             // point at p->buf[0]
+        u_char *p;                                                              // a pointer
+
         *comp_ptr++ = OPSTR;                                                    // say string following
         p = comp_ptr;                                                           // possible destination
-        j = sizeof(short);                                                      // point at p->buf[0]
 
         while (TRUE) {                                                          // scan the string
             if (*source_ptr == '\0') {                                          // check for end of string
@@ -181,7 +180,7 @@ void atom(void)                                                                 
             if ((*(source_ptr - 1) == '"') && (*source_ptr == '"')) source_ptr++; // got rabbit ears? then point past the second one
         }                                                                       // end of copy loop
 
-        *((short *) p) = (short) (j - sizeof(short));                           // store cstring count
+        *((u_short *) p) = (u_short) (j - sizeof(u_short));                     // store cstring count
         comp_ptr += j + 1;                                                      // point past str and null
         return;
     }                                                                           // end string literal
@@ -227,12 +226,11 @@ int operator(void)                                                              
     c = *source_ptr++;                                                          // get next char
 
     if (c == '\'') {                                                            // a NOT?
-        if (not) return 0;                                                      // can't have two
         not = 1;                                                                // set the not
         c = *source_ptr++;                                                      // get next char
     }
 
-    switch(c) {
+    switch (c) {
     case '+':                                                                   // add
         if (not) return 0;                                                      // a not here is junk
         return OPADD;                                                           // save opcode
@@ -307,9 +305,7 @@ int operator(void)                                                              
  */
 void eval(void)                                                                 // evaluate source
 {
-    int     op;                                                                 // operator
     int     q;                                                                  // in quotes indicator
-    int     patmat = 0;                                                         // for pattern match funny
     cstring *ptr;                                                               // spare pointer
     u_char  c;
 
@@ -323,25 +319,26 @@ void eval(void)                                                                 
     }
 
     while (TRUE) {                                                              // until the end
-        op = operator();                                                        // get the operator
+        int op = operator();                                                    // get the operator
+        int pattern = 0;                                                        // for pattern match funny
 
         if (op == 0) {                                                          // an error??
           comperror(-(ERRZ12 + ERRMLAST));                                      // compile the error
           return;                                                               // and exit
         }
 
-        patmat = ((op == OPPAT) || (op == OPNPAT));                             // bloody pattern match
+        pattern = ((op == OPPAT) || (op == OPNPAT));                            // bloody pattern match
 
-        if (patmat && (*source_ptr == '@')) {                                   // indirect pattern
+        if (pattern && (*source_ptr == '@')) {                                  // indirect pattern
             source_ptr++;                                                       // skip the @
-            patmat = 0;                                                         // clear funny pattern match
+            pattern = 0;                                                        // clear funny pattern match
         }
 
-        if (patmat) {                                                           // normal (not @) pattern match
+        if (pattern) {                                                          // normal (not @) pattern match
             q = 0;                                                              // not in quotes
             *comp_ptr++ = OPSTR;                                                // pretend it's a string
             ptr = (cstring *) comp_ptr;                                         // remember for ron
-            comp_ptr += sizeof(short);                                          // skip the count
+            comp_ptr += sizeof(u_short);                                        // skip the count
 
             while (TRUE) {                                                      // loop
                 c = *source_ptr++;                                              // get next char
@@ -365,18 +362,18 @@ void eval(void)                                                                 
                 }
 
                 if (c == '(') {                                                 // open bracket
-                    patmat++;                                                   // count it
+                    pattern++;                                                  // count it
                     *comp_ptr++ = c;                                            // copy char
                     continue;                                                   // go for more
                 }
 
-                if ((c == ')') && (patmat > 1)) {                               // close bracket
-                    --patmat;                                                   // count it
+                if ((c == ')') && (pattern > 1)) {                              // close bracket
+                    --pattern;                                                  // count it
                     *comp_ptr++ = c;                                            // copy char
                     continue;                                                   // go for more
                 }
 
-                if ((patmat > 1) && (c == ',')) {                               // comma inside ()
+                if ((pattern > 1) && (c == ',')) {                              // comma inside ()
                     *comp_ptr++ = c;                                            // copy char
                     continue;                                                   // go for more
                 }

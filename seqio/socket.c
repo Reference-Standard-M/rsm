@@ -4,7 +4,7 @@
  * Summary:  module IO - sequential socket IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -51,7 +51,12 @@
 #include "error.h"
 #include "seqio.h"
 
-#define BACKLOG 3                                                               // Connections to queue
+#define BACKLOG 5                                                               // Connections to queue
+
+extern short proto_family;                                                      // PF_INET or PF_INET6
+extern short addr_family;                                                       // AF_INET or AF_INET6
+extern short sock_type;                                                         // SOCK_STREAM or SOCK_DGRAM
+extern short sock_proto;                                                        // IPPROTO_TCP or IPPROTO_UDP
 
 int SQ_Socket_Create(int nonblock);
 int SQ_Socket_Bind(int sid, u_short port);
@@ -73,17 +78,16 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout);
 int SQ_Socket_Create(int nonblock)
 {
     int sid;
-    int flag;
-    int ret;
 
-    sid = socket(PF_INET, SOCK_STREAM, 0);
+    sid = socket(proto_family, sock_type, sock_proto);
     if (sid == -1) return getError(SYS, errno);
 
     if (nonblock) {
-        flag = fcntl(sid, F_GETFL, 0);
+        int flag = fcntl(sid, F_GETFL, 0);
+        int ret;
 
         if (flag == -1) {
-            (void) close(sid);
+            close(sid);
             return getError(SYS, errno);
         }
 
@@ -91,7 +95,7 @@ int SQ_Socket_Create(int nonblock)
         ret = fcntl(sid, F_SETFL, flag);
 
         if (ret == -1) {
-            (void) close(sid);
+            close(sid);
             return getError(SYS, errno);
         }
     }
@@ -114,7 +118,7 @@ int SQ_Socket_Bind(int sid, u_short port)
     opt = 1;
     soid = setsockopt(sid, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     if (soid == -1) return getError(SYS, errno);
-    sin.sin_family = AF_INET;
+    sin.sin_family = addr_family;
     sin.sin_port = htons(port);
     sin.sin_addr.s_addr = INADDR_ANY;
     ret = bind(sid, (struct sockaddr *) &sin, sizeof(sin));
@@ -168,9 +172,9 @@ int SQ_Socket_Connect(int sid, char *addr, u_short port)
     struct in_addr     inaddr;
     struct sockaddr_in sin;
 
-    sin.sin_family = AF_INET;
+    sin.sin_family = addr_family;
     sin.sin_port = htons(port);
-    ret = inet_aton(addr, &inaddr);
+    ret = inet_pton(addr_family, addr, &inaddr);
     if (ret == 0) return getError(INT, ERRZ48);
     sin.sin_addr.s_addr = inaddr.s_addr;
     ret = connect(sid, (struct sockaddr *) &sin, sizeof(sin));
@@ -227,8 +231,7 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout)
 
     if (ret == -1) {
         if (errno == EAGAIN) {
-            ret = raise(SIGALRM);
-            if (ret == -1) return getError(SYS, errno);
+            if (raise(SIGALRM)) return getError(SYS, errno);
         }
 
         return getError(SYS, errno);

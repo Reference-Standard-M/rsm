@@ -4,7 +4,7 @@
  * Summary:  module util - memory subroutines
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memmove
 #include <sys/types.h>                                                          // for u_char def
 #include <ctype.h>                                                              // for isdigit
 #include "rsm.h"                                                                // standard includes
@@ -37,7 +36,7 @@
 #include "compile.h"                                                            // for rdb def
 #include "symbol.h"                                                             // for NEW stuff
 
-// This function is used in place of bcopy() to trap strstk overflows
+// This function is used in place of memmove() to trap strstk overflows
 int mcopy(u_char *src, u_char *dst, int bytes)                                  // copy bytes
 {
     // if dst is at or after strstk and before the end of strstk and this will overflow strstk
@@ -46,7 +45,7 @@ int mcopy(u_char *src, u_char *dst, int bytes)                                  
     }
 
     if (bytes > MAX_STR_LEN) return -ERRM75;
-    bcopy(src, dst, bytes);                                                     // if OK - copy it
+    memmove(dst, src, bytes);                                                   // if OK - copy it
     dst[bytes] = '\0';                                                          // ensure null terminated
     return bytes;                                                               // and return bytes copied
 }
@@ -182,7 +181,7 @@ short ncopy(u_char **src, u_char *dst)                                          
     }
 
     if ((exp + i) > MAX_NUM_BYTES) return -ERRM92;                              // if too big error
-    bcopy(&dst[minus + 1], &dst[minus + exp + 1], i);                           // move right exp places
+    memmove(&dst[minus + exp + 1], &dst[minus + 1], i);                         // move right exp places
     for (k = minus + 1; k <= (minus + exp); dst[k++] = '0');                    // zero fill
     i += exp;                                                                   // add to the length
 
@@ -207,7 +206,7 @@ exit:
 
     if (dst[dp] == '0') {                                                       // if leading zeroes
         for (k = dp; (k < i) && (dst[k] == '0'); k++) continue;                 // find first non-zero
-        bcopy(&dst[k], &dst[dp], i - k);                                        // copy down
+        memmove(&dst[dp], &dst[k], i - k);                                      // copy down
         i -= (k - dp);                                                          // adjust size
 
         if (i == dp) {                                                          // if nothing
@@ -256,16 +255,16 @@ void CleanJob(int job)                                                          
     }                                                                           // end routine detach while
 
     if (!job) {                                                                 // called by ourselves ?
-        (void) ST_KillAll(0, NULL);                                             // kill all vars
+        ST_KillAll(0, NULL);                                                    // kill all vars
         partab.src_var.volset = 0;                                              // clear vol
         partab.src_var.slen = 0;                                                // and slen
         partab.src_var.uci = UCI_IS_LOCALVAR;                                   // say - local variable
         VAR_CLEAR(partab.src_var.name);
-        bcopy("$ETRAP", partab.src_var.name.var_cu, 6);
-        (void) ST_Kill(&partab.src_var);                                        // Kill $ETRAP
+        memcpy(partab.src_var.name.var_cu, "$ETRAP", 6);
+        ST_Kill(&partab.src_var);                                               // Kill $ETRAP
         VAR_CLEAR(partab.src_var.name);
-        bcopy("$ECODE", partab.src_var.name.var_cu, 6);
-        (void) ST_Kill(&partab.src_var);                                        // Kill $ECODE
+        memcpy(partab.src_var.name.var_cu, "$ECODE", 6);
+        ST_Kill(&partab.src_var);                                               // Kill $ECODE
     }
 
     for (i = 0; i < MAX_VOL; i++) {                                             // scan view table
@@ -282,6 +281,6 @@ void CleanJob(int job)                                                          
         partab.jobtab = NULL;                                                   // clear jobtab
     }
 
-    bzero(&systab->jobtab[j], sizeof(jobtab));                                  // zot all
+    memset(&systab->jobtab[j], 0, sizeof(jobtab));                              // zot all
     return;                                                                     // and exit
 }

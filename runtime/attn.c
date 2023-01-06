@@ -4,7 +4,7 @@
  * Summary:  module runtime - look after attention conditions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -31,7 +31,6 @@
 #include <sys/ioctl.h>                                                          // for ioctl
 #include <termios.h>                                                            // for ioctl
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <signal.h>
 #include <unistd.h>                                                             // for sleep
@@ -43,7 +42,7 @@
 #include "error.h"                                                              // standard errors
 #include "opcode.h"                                                             // the op codes
 #include "compile.h"                                                            // for XECUTE
-#include "seqio.h"                                                              // for sig stuff
+#include "seqio.h"                                                              // for signal stuff
 
 extern int failed_tty;                                                          // tty reset flag
 
@@ -91,7 +90,7 @@ short attention(void)                                                           
     partab.jobtab->async_error = 0;                                             // clear it
 
     if ((s == 0) && (partab.debug > 0)) {                                       // check the debug junk
-        if (partab.debug <= partab.jobtab->commands) {                          // there yet?
+        if (partab.debug <= (int) partab.jobtab->commands) {                    // there yet?
             s = BREAK_NOW;                                                      // time to break again
         } else {
             partab.jobtab->attention = 1;                                       // reset attention
@@ -101,7 +100,7 @@ short attention(void)                                                           
     return s;                                                                   // return whatever
 }
 
-// DoInfo() - look after a control T
+// DoInfo() - look after a Control-T
 void DoInfo(void)
 {
     int    i;                                                                   // a handy int
@@ -111,14 +110,14 @@ void DoInfo(void)
     mvar   *var;                                                                // and another
     struct winsize w;                                                           // for ioctl
 
-    bcopy("\033\067\033[99;1H", ct, 9);                                         // start off
+    memcpy(ct, "\033\067\033[99;1H", 9);                                        // start off
     i = 9;                                                                      // next char
     i += sprintf(&ct[i],"%d", (int) (partab.jobtab - systab->jobtab) + 1);
     i += sprintf(&ct[i]," (%d) ", partab.jobtab->pid);
     p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam;           // point at routine name
     for (j = 0; (j < VAR_LEN) && p[j]; ct[i++] = p[j++]) continue;              // copy it
-    i += sprintf(&ct[i]," Cmds: %d ", partab.jobtab->commands);
-    i += sprintf(&ct[i],"Grefs: %d ", partab.jobtab->grefs);
+    i += sprintf(&ct[i]," Cmds: %u ", partab.jobtab->commands);
+    i += sprintf(&ct[i],"Grefs: %u ", partab.jobtab->grefs);
     var = &partab.jobtab->last_ref;                                             // point at $R
 
     if (var->name.var_cu[0] != '\0') {                                          // something there?
@@ -131,7 +130,7 @@ void DoInfo(void)
         i = 89;                                                                 // fit on terminal if ioctl failed
     }
 
-    bcopy("\033\133\113\033\070\0", &ct[i], 6);                                 // and the trailing bit
+    memcpy(&ct[i], "\033\133\113\033\070\0", 6);                                // and the trailing bit
     fprintf(stderr, "%s", ct);                                                  // output it
     return;                                                                     // all done
 }
@@ -148,18 +147,18 @@ void DoInfo(void)
  */
 int ForkIt(int cft)                                                             // Copy File Table True/False
 {
-    int   i;                                                                    // a handy int
-    int   ret;                                                                  // ant another
-    int   mid = -1;                                                             // for the M id
+    int  i;                                                                     // a handy int
+    int  ret;                                                                   // and another
+    int  mid = -1;                                                              // for the M id
     void *j;                                                                    // a handy pointer
 
-    for (i = 0; i < systab->maxjob; i++) {                                      // scan the slots
-        ret = systab->jobtab[i].pid;                                            // get pid
+    for (u_int k = 0; k < systab->maxjob; k++) {                                // scan the slots
+        ret = systab->jobtab[k].pid;                                            // get pid
 
         if (ret) {                                                              // if one there
             if (kill(ret, 0)) {                                                 // check the job
                 if (errno == ESRCH) {                                           // doesn't exist
-                    CleanJob(i + 1);                                            // zot if not there
+                    CleanJob(k + 1);                                            // zot if not there
                     break;                                                      // have at least one
                 }
             }
@@ -169,60 +168,64 @@ int ForkIt(int cft)                                                             
     }
 
 #ifdef __FreeBSD__
-    ret = RFPROC | RFNOWAIT | RFCFDG;                                           // default - no copy ft
-    if (cft > -1) ret = RFPROC | RFNOWAIT | RFFDG;                              // if it is a fork or JOB then copy the file table
+    if (cft > -1) {
+        ret = RFPROC | RFNOWAIT | RFFDG;                                        // if it is a fork or JOB then copy the file table
+    } else {
+        ret = RFPROC | RFNOWAIT | RFCFDG;                                       // default - no copy FT
+    }
 #endif
 
     if (cft > -1) {                                                             // not a daemon
         i = SemOp(SEM_SYS, -systab->maxjob);                                    // lock systab
         if (i < 0) return 0;                                                    // quit on error
 
-        for (i = 0; i < systab->maxjob; i++) {                                  // look for a free slot
-            if (systab->jobtab[i].pid == 0) {                                   // this one ?
-                mid = i;                                                        // yes - save int job num
+
+        for (u_int k = 0; k < systab->maxjob; k++) {                            // look for a free slot
+            if (systab->jobtab[k].pid == 0) {                                   // this one ?
+                mid = k;                                                        // yes - save int job num
                 break;                                                          // and exit
             }
         }
 
         if (mid == -1) {                                                        // if no slots
-            i = SemOp(SEM_SYS, systab->maxjob);                                 // unlock
+            SemOp(SEM_SYS, systab->maxjob);                                     // unlock
             return 0;                                                           // return fail
         }
     }
 
 #ifdef __FreeBSD__                                                              // for FreeBSD
     i = rfork(ret);                                                             // create new process
-#else                                                                           // OSX et al
+#else                                                                           // Linux, MacOS X et al
     signal(SIGCHLD, SIG_IGN);                                                   // try this
     i = fork();
 #endif
 
-    if (!i) failed_tty = -1;                                                    // if child don't restore term settings on exit
+    if (!i) {                                                                   // child
+        failed_tty = -1;                                                        // don't restore term settings on exit
+        setSignal(SIGINT, IGNORE);                                              // disable Control-C
+    }
 
-    if (cft < 0) {
-        if (!i) {
-            j = freopen("/dev/null", "w", stdin);                               // redirect stdin
-            if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+    if (cft == -1) {                                                            // daemons
+        if (!i) {                                                               // child
+            j = freopen("/dev/null", "r", stdin);                               // redirect stdin
+            if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
             j = freopen("/dev/null", "w", stdout);                              // redirect stdout
-            if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
             j = freopen("/dev/null", "w", stderr);                              // redirect stderr
-            if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
         }
 
         return i;
     }
 
-    if (i == 0) (void) setSignal(SIGINT, IGNORE);                               // disable control C
-
-    if (i < 0) {                                                                // fail ?
-        i = SemOp(SEM_SYS, systab->maxjob);                                     // unlock
+    if (i == -1) {                                                              // fail ?
+        fprintf(stderr, "fork() errno = %d - %s\n", errno, strerror(errno));
+        SemOp(SEM_SYS, systab->maxjob);                                         // unlock
         return 0;                                                               // return fail
-    }
-
-    if (i > 0) {                                                                // the parent ?
-        bcopy(partab.jobtab, &systab->jobtab[mid], sizeof(jobtab));             // copy job info
+    } else if (i > 0) {                                                         // the parent ?
+        memcpy(&systab->jobtab[mid], partab.jobtab, sizeof(jobtab));            // copy job info
         systab->jobtab[mid].pid = i;                                            // save the pid
-        i = SemOp(SEM_SYS, systab->maxjob);                                     // unlock
+        SemOp(SEM_SYS, systab->maxjob);                                         // unlock
         return (mid + 1);                                                       // return child job number
     }
 
@@ -252,24 +255,23 @@ int ForkIt(int cft)                                                             
             }
         }
 
-        i = SemOp(SEM_ROU, systab->maxjob);                                     // release the routine buffers
+        SemOp(SEM_ROU, systab->maxjob);                                         // release the routine buffers
         return ret;                                                             // return -parent job#
     }
 
-    for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) continue;                        // close all open files
+    for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) continue;                        // close all open files (job type)
     j = freopen("/dev/null", "r", stdin);                                       // redirect stdin
-    if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stdout);                                      // redirect stdout
-    if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stderr);                                      // redirect stderr
-    if (j == NULL) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
-
+    if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
     return ret;                                                                 // return -parent job#
 }
 
 // SchedYield()
 void SchedYield(void)                                                           // do a sched_yield()
 {
-    (void) sched_yield();                                                       // do it
+    sched_yield();                                                              // do it
     return;                                                                     // and exit
 }

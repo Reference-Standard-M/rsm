@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/locate.c
- * Summary:  module database - Locate Database Functions
+ * Summary:  module database - locate database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // for semaphores
@@ -56,15 +55,15 @@
  */
 short Locate(u_char *key)                                                       // find key
 {
-    int i;                                                                      // a handy int
-
     idx = (u_short *) blk[level]->mem;                                          // point at the block
     iidx = (int *) blk[level]->mem;                                             // point at the block
     Index = IDX_START;                                                          // start at the start
 
     while (TRUE) {                                                              // loop
+        int i;                                                                  // a handy int
+
         chunk = (cstring *) &iidx[idx[Index]];                                  // point at the chunk
-        bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);       // update the key
+        memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // point at the dbc
         i = UTIL_Key_KeyCmp(&keybuf[1], &key[1], keybuf[0], key[0]);            // compare
@@ -86,12 +85,12 @@ short Locate(u_char *key)                                                       
  */
 short Locate_next(void)                                                         // point at next key
 {
-    int   i;                                                                    // a handy int
-    short s;                                                                    // function returns
-
     Index++;                                                                    // point at next
 
     if (Index > blk[level]->mem->last_idx) {                                    // passed end?
+        int   i;                                                                // a handy int
+        short s;                                                                // function returns
+
         if (!blk[level]->mem->right_ptr) return -ERRM7;                         // any more there? if no, just exit
         i = blk[level]->mem->right_ptr;                                         // get right block#
         s = Get_block(i);                                                       // attempt to get it
@@ -99,7 +98,7 @@ short Locate_next(void)                                                         
     }                                                                           // end new block
 
     chunk = (cstring *) &iidx[idx[Index]];                                      // point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);           // update the key
+    memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);          // update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];                                  // and the size
     record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                        // point at the dbc
     return 0;                                                                   // all done

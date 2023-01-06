@@ -4,12 +4,13 @@
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
 
-[role="right"]
-link:index.adoc[Index]
-
 '''
 
-= Reference Standard M
+== Reference Standard M
+
+David Wicksell <dlw@linux.com> +
+Copyright © 2020-2023 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
 
 === Database Upgrade Instructions
 
@@ -165,6 +166,3 @@ RSM [MGR]> kill ^$job
 ----
 
 Now you have a fully upgraded RSM database.
-
-[role="right"]
-link:index.adoc[Index]

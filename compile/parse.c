@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a line
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include <limits.h>                                                             // for LONG_MAX etc.
@@ -41,15 +40,15 @@
 #include "opcode.h"                                                             // and the opcodes
 #include "compile.h"                                                            // compile stuff
 
-int parse2eq(u_char *ptr)                                                       // scan to = or EOS
+int parse2eq(const u_char *ptr)                                                 // scan to = or EOS
 {
     int    i = 0;                                                               // a handy int
     int    b = 0;                                                               // in brackets
     int    q = 0;                                                               // in quotes
-    u_char c;                                                                   // current character
 
     while (TRUE) {                                                              // keep looping
-        c = ptr[i++];                                                           // get the char
+        u_char c = ptr[i++];                                                    // get the current character
+
         if (c == '\0') break;                                                   // ran out of string
 
         if (c == '"') {                                                         // a quote?
@@ -79,10 +78,9 @@ int parse2eq(u_char *ptr)                                                       
 
 void parse_close(void)                                                          // CLOSE
 {
-    int iflag = 0;                                                              // indirection flag
-
     while (TRUE) {                                                              // get the args
-        iflag = (*source_ptr == '@');                                           // check for indirection
+        int iflag = (*source_ptr == '@');                                       // check for indirection
+
         eval();                                                                 // get arg
 
         if ((*(comp_ptr - 1) == INDEVAL) && iflag) {                            // if it was indirect
@@ -101,14 +99,14 @@ void parse_close(void)                                                          
 void parse_do(int runtime)                                                      // DO
 {
     short  s;                                                                   // for functions
-    int    i;                                                                   // a handy int
-    int    args = 0;                                                            // number of args
     u_char *ptr;                                                                // a handy pointer
     u_char *p;                                                                  // a handy pointer
     u_char save[1024];                                                          // a useful save area
     int    savecount;                                                           // number of bytes saved
 
     while (TRUE) {                                                              // loop thru the arguments
+        int i;                                                                  // a handy int
+
         ptr = comp_ptr;                                                         // save compile pointer
         *comp_ptr++ = CMDOTAG;                                                  // assume a do tag
         i = routine(runtime);                                                   // parse the rouref
@@ -116,15 +114,25 @@ void parse_do(int runtime)                                                      
         if (i == 0) {                                                           // if it's indirect
             *ptr = OPNOP;                                                       // ignore previous opcode
             *comp_ptr++ = INDDO;                                                // store the opcode
+
+            if (*source_ptr == '(') {                                           // any args?
+                comp_ptr = ptr;
+                comperror(-(ERRZ70 + ERRMLAST));                                // complain
+            }
         } else {
-            args = 0;                                                           // number of args
-            if (i == -2) *ptr = CMDORT;                                         // routine and tag
-            if (i == -3) *ptr = CMDOROU;                                        // just a routine
-            if (i == -4) *ptr = CMDORTO;                                        // routine, tag, and offset
+            int args = 0;                                                       // number of args
+
+            if (i == -2) {
+                *ptr = CMDORT;                                                  // routine and tag
+            } else if (i == -3) {
+                *ptr = CMDOROU;                                                 // just a routine
+            } else if (i == -4) {
+                *ptr = CMDORTO;                                                 // routine, tag, and offset
+            }
 
             if (*source_ptr == '(') {                                           // any args?
                 savecount = comp_ptr - ptr;                                     // bytes that got compiled
-                bcopy(ptr, save, savecount);                                    // save that lot
+                memcpy(save, ptr, savecount);                                   // save that lot
                 comp_ptr = ptr;                                                 // back where we started
                 source_ptr++;                                                   // skip the (
 
@@ -155,7 +163,7 @@ void parse_do(int runtime)                                                      
                                 return;                                         // and exit
                             }
 
-                            p = p + s;                                          // point here
+                            p += s;                                             // point here
                             *p = OPMVAR;                                        // get the mvar onto stack
                         }
 
@@ -174,7 +182,7 @@ void parse_do(int runtime)                                                      
                     SYNTX;                                                      // all else is an error
                 }                                                               // end of while
 
-                bcopy(save, comp_ptr, savecount);                               // copy the code back
+                memcpy(comp_ptr, save, savecount);                              // copy the code back
                 comp_ptr += savecount;                                          // and add to the pointer
             }                                                                   // end of argument decode
 
@@ -183,16 +191,16 @@ void parse_do(int runtime)                                                      
 
         if (*source_ptr == ':') {                                               // postcond arg?
             savecount = comp_ptr - ptr;                                         // bytes that got compiled
-            bcopy(ptr, save, savecount);                                        // save that lot
+            memcpy(save, ptr, savecount);                                       // save that lot
             comp_ptr = ptr;                                                     // back where we started
             source_ptr++;                                                       // skip the :
             eval();                                                             // evel postcond
             *comp_ptr++ = JMP0;                                                 // jump if false
             s = (short) savecount;
             assert(sizeof(s) == sizeof(short));
-            bcopy(&s, comp_ptr, sizeof(short));
+            memcpy(comp_ptr, &s, sizeof(short));
             comp_ptr += sizeof(short);
-            bcopy(save, comp_ptr, savecount);                                   // copy the code back
+            memcpy(comp_ptr, save, savecount);                                  // copy the code back
             comp_ptr += savecount;                                              // and add to the pointer
         }
 
@@ -205,12 +213,13 @@ void parse_do(int runtime)                                                      
 
 void parse_goto(int runtime)                                                    // GOTO
 {
-    int    i;                                                                   // a handy int
     u_char *ptr;                                                                // a handy pointer
     u_char save[1024];                                                          // a useful save area
     short  savecount;                                                           // number of bytes saved
 
     while (TRUE) {                                                              // loop thru the arguments
+        int i;                                                                  // a handy int
+
         ptr = comp_ptr;                                                         // save compile pointer
         *comp_ptr++ = CMGOTAG;                                                  // assume a goto tag
         i = routine(runtime);                                                   // parse the rouref
@@ -220,25 +229,30 @@ void parse_goto(int runtime)                                                    
             *comp_ptr++ = INDGO;                                                // store the opcode
         } else {
             if (i == -2) {
-                *ptr = CMGORT;                                                  // tag and routine
+                *ptr = CMGORT;                                                  // routine and tag
             } else if (i == -3) {
                 *ptr = CMGOROU;                                                 // just a routine
             } else if (i == -4) {
-                *ptr = CMGORTO;                                                 // routine, tag, and an offset
+                *ptr = CMGORTO;                                                 // routine, tag, and offset
             }
+        }
+
+        if (*source_ptr == '(') {                                               // any args?
+            comp_ptr = ptr;
+            comperror(-(ERRM45));                                               // complain
         }
 
         if (*source_ptr == ':') {                                               // postcond arg ?
             savecount = comp_ptr - ptr;                                         // bytes that got compiled
-            bcopy(ptr, save, savecount);                                        // save that lot
+            memcpy(save, ptr, savecount);                                       // save that lot
             comp_ptr = ptr;                                                     // back where we started
             source_ptr++;                                                       // skip the :
             eval();                                                             // evel postcond
             *comp_ptr++ = JMP0;                                                 // jump if false
             assert(sizeof(savecount) == sizeof(short));
-            bcopy(&savecount, comp_ptr, sizeof(short));
+            memcpy(comp_ptr, &savecount, sizeof(short));
             comp_ptr += sizeof(short);
-            bcopy(save, comp_ptr, savecount);                                   // copy the code back
+            memcpy(comp_ptr, save, savecount);                                  // copy the code back
             comp_ptr += savecount;                                              // and add to the pointer
         }
 
@@ -251,10 +265,9 @@ void parse_goto(int runtime)                                                    
 
 void parse_hang(void)                                                           // HANG
 {
-    int iflag = 0;                                                              // indirection check
-
     while (TRUE) {                                                              // scan the line
-        iflag = (*source_ptr == '@');                                           // check for indirection
+        int iflag = (*source_ptr == '@');                                       // check for indirection
+
         eval();                                                                 // eval it
         if (iflag && (*(comp_ptr - 1) != INDEVAL)) iflag = 0;                   // confirm it was indirect
 
@@ -276,10 +289,9 @@ void parse_hang(void)                                                           
 
 void parse_if(long i)                                                           // IF
 {
-    int iflag;                                                                  // indirection check
-
     while (TRUE) {                                                              // get the args
-        iflag = (*source_ptr == '@');                                           // check for indirection
+        int iflag = (*source_ptr == '@');                                       // check for indirection
+
         eval();                                                                 // get arg
         if (iflag && (*(comp_ptr - 1) != INDEVAL)) iflag = 0;                   // confirm it was indirect
 
@@ -291,7 +303,7 @@ void parse_if(long i)                                                           
             } else {                                                            // indirect
                 *comp_ptr++ = OPIFI;                                            // the op code
                 assert(sizeof(i) == sizeof(long));
-                bcopy(&i, comp_ptr, sizeof(long));                              // the isp to restore
+                memcpy(comp_ptr, &i, sizeof(long));                             // the isp to restore
                 comp_ptr += sizeof(long);
             }
         }
@@ -305,13 +317,14 @@ void parse_if(long i)                                                           
 
 void parse_job(int runtime)                                                     // JOB
 {
-    int    i;                                                                   // a handy int
     int    args = 0;                                                            // number of args
     u_char *ptr;                                                                // a handy pointer
     u_char save[1024];                                                          // a useful save area
     int    savecount;                                                           // number of bytes saved
 
     while (TRUE) {                                                              // loop thru the arguments
+        int i;                                                                  // a handy int
+
         ptr = comp_ptr;                                                         // save compile pointer
         *comp_ptr++ = CMJOBTAG;                                                 // assume a do tag
         i = routine(runtime);                                                   // parse the rouref
@@ -319,15 +332,25 @@ void parse_job(int runtime)                                                     
         if (i == 0) {                                                           // if it's indirect
             *ptr = OPNOP;                                                       // ignore previous opcode
             *comp_ptr++ = INDJOB;                                               // store the opcode
+
+            if (*source_ptr == '(') {                                           // any args?
+                comp_ptr = ptr;
+                comperror(-(ERRZ70 + ERRMLAST));                                // complain
+            }
         } else {
             args = 0;                                                           // number of args
-            if (i == -2) *ptr = CMJOBRT;                                        // routine + tag
-            if (i == -3) *ptr = CMJOBROU;                                       // just a routine
-            if (i == -4) *ptr = CMJOBRTO;                                       // routine, tag, and offset
+
+            if (i == -2) {
+                *ptr = CMJOBRT;                                                 // routine and tag
+            } else if (i == -3) {
+                *ptr = CMJOBROU;                                                // just a routine
+            } else if (i == -4) {
+                *ptr = CMJOBRTO;                                                // routine, tag, and offset
+            }
 
             if (*source_ptr == '(') {                                           // any args?
                 savecount = comp_ptr - ptr;                                     // bytes that got compiled
-                bcopy(ptr, save, savecount);                                    // save that lot
+                memcpy(save, ptr, savecount);                                   // save that lot
                 comp_ptr = ptr;                                                 // back where we started
                 source_ptr++;                                                   // skip the (
 
@@ -356,31 +379,31 @@ void parse_job(int runtime)                                                     
                     SYNTX;                                                      // all else is an error
                 }                                                               // end of while
 
-                bcopy(save, comp_ptr, savecount);                               // copy the code back
+                memcpy(comp_ptr, save, savecount);                              // copy the code back
                 ptr = comp_ptr;                                                 // move save pointer for timeout
                 comp_ptr += savecount;                                          // and add to the pointer
             }                                                                   // end of argument decode
+        }
 
-            if (*source_ptr == ':') {                                           // funny timeout
-                source_ptr++;                                                   // skip first colon
+        if (*source_ptr == ':') {                                               // funny timeout
+            source_ptr++;                                                       // skip first colon
 
-                if (*source_ptr != ':') {                                       // must be two of them
-                    *comp_ptr++ = (u_char) args;                                // store the arg count
-                    SYNTX;                                                      // and error
-                }
-
-                source_ptr++;                                                   // skip second one
-                savecount = comp_ptr - ptr;                                     // bytes that got compiled
-                bcopy(ptr, save, savecount);                                    // save that lot
-                comp_ptr = ptr;                                                 // back where we started
-                eval();                                                         // eval timeout
-                bcopy(save, comp_ptr, savecount);                               // copy the code back
-                comp_ptr += savecount;                                          // and add to the pointer
-                args |= 128;                                                    // flag the timeout
+            if (*source_ptr != ':') {                                           // must be two of them
+                *comp_ptr++ = (u_char) args;                                    // store the arg count
+                SYNTX;                                                          // and error
             }
 
-            *comp_ptr++ = (u_char) args;                                        // store number of args
-        }                                                                       // end non-indirect
+            source_ptr++;                                                       // skip second one
+            savecount = comp_ptr - ptr;                                         // bytes that got compiled
+            memcpy(save, ptr, savecount);                                       // save that lot
+            comp_ptr = ptr;                                                     // back where we started
+            eval();                                                             // eval timeout
+            memcpy(comp_ptr, save, savecount);                                  // copy the code back
+            comp_ptr += savecount;                                              // and add to the pointer
+            args |= 128;                                                        // flag the timeout
+        }
+
+        *comp_ptr++ = (u_char) args;                                            // store number of args
 
         if (*source_ptr != ',') break;                                          // done
         source_ptr++;                                                           // point at next
@@ -392,11 +415,11 @@ void parse_job(int runtime)                                                     
 void parse_kill(void)                                                           // KILL
 {
     short  s;                                                                   // for functions
-    int    args = 0;                                                            // number of args
     u_char *ptr;                                                                // a handy pointer
 
     if (*source_ptr == '(') {                                                   // exclusive kill
-        args = 0;                                                               // argument count
+        int args = 0;                                                           // argument count
+
         source_ptr++;                                                           // skip the (
 
         while (TRUE) {                                                          // now, get one or more args
@@ -425,15 +448,12 @@ void parse_kill(void)                                                           
         *comp_ptr++ = args;                                                     // number of args
     } else {
         while (TRUE) {                                                          // loop thru normal kill
-            ptr = comp_ptr;                                                     // save position
-
             if (*source_ptr == '@') {                                           // indirection ?
                 atom();                                                         // eval the string
 
                 if (*(comp_ptr - 1) == INDEVAL) {                               // if it was indirect
                     *(comp_ptr - 1) = INDKILL;                                  // say kill indirect
-                } else {                                                        // experimantal for $O(@.@())
-                    ptr -= 2;                                                   // back up over subs to type
+                } else {                                                        // experimental for $ORDER(@.@())
                     if (*(comp_ptr - 3) == OPVAR) *(comp_ptr - 3) = OPMVAR;     // change to OPMVAR
                 }
             } else {
@@ -465,21 +485,19 @@ void parse_kill(void)                                                           
 
 void parse_lock(void)                                                           // LOCK
 {
-    char   c;                                                                   // current character
-    short  s;                                                                   // for functions
-    int    i;                                                                   // a handy int
-    int    type;                                                                // a handy flag
-    int    args = 0;                                                            // number of args
-    u_char *ptr;                                                                // a handy pointer
+    short   s;                                                                  // for functions
+    u_short us;                                                                 // for cstring count
+    u_char  *ptr;                                                               // a handy pointer
 
     while (TRUE) {
-        c = *source_ptr++;                                                      // get first char
-        type = 0;                                                               // assume 'normal' lock
+        char c = *source_ptr++;                                                 // get first char
+        int  type = 0;                                                          // assume 'normal' lock
+        int  args = 0;                                                          // init arg count
+        int  i = 0;                                                             // flag no bracket
+
         if (c == '+') type = 1;                                                 // a LOCK +
         if (c == '-') type = -1;                                                // a LOCK -
         if (type) c = *source_ptr++;                                            // skip the + or -
-        args = 0;                                                               // init arg count
-        i = 0;                                                                  // flag no bracket
 
         if (c == '(') {                                                         // a bracket?
             i++;                                                                // flag it
@@ -532,10 +550,10 @@ void parse_lock(void)                                                           
             eval();                                                             // get it on the stack
         } else {                                                                // fake a -1
             *comp_ptr++ = OPSTR;                                                // string follows
-            s = 2;                                                              // this many bytes
-            assert(sizeof(s) == sizeof(short));
-            bcopy(&s, comp_ptr, sizeof(short));
-            comp_ptr += sizeof(short);
+            us = 2;                                                             // this many bytes
+            assert(sizeof(us) == sizeof(u_short));
+            memcpy(comp_ptr, &us, sizeof(u_short));
+            comp_ptr += sizeof(u_short);
             *comp_ptr++ = '-';                                                  // the minus
             *comp_ptr++ = '1';                                                  // and the one
             *comp_ptr++ = '\0';                                                 // null terminate
@@ -555,13 +573,12 @@ void parse_lock(void)                                                           
 void parse_merge(void)                                                          // MERGE
 {
     short s;                                                                    // for functions
-    int   i;                                                                    // an index
 
     while (TRUE) {
         u_char *ptr1 = NULL;                                                    // a handy pointer
         u_char *ptr2 = NULL;                                                    // and another
         u_char *ptr3 = NULL;                                                    // and another
-        i = parse2eq(source_ptr);                                               // look for an equals
+        int    i = parse2eq(source_ptr);                                        // look for an equals
 
         if (source_ptr[i] == '=') {                                             // did we find one?
             ptr1 = source_ptr;                                                  // save for ron
@@ -574,7 +591,7 @@ void parse_merge(void)                                                          
 
                 if (*ptr3 == INDEVAL) {                                         // if it's going to eval it
                     *ptr3 = INDMVARF;                                           // make an mvar from it
-                } else {                                                        // experimantal for $O(@.@())
+                } else {                                                        // experimental for $ORDER(@.@())
                     ptr3 -= 2;                                                  // back up over subs to type
                     if (*ptr3 == OPVAR) *ptr3 = OPMVARF;                        // change to OPMVARF
                 }
@@ -750,12 +767,12 @@ void parse_new(void)                                                            
 
 void parse_open(void)                                                           // OPEN
 {
-    int   iflag;                                                                // indirect flag
-    short s;                                                                    // a handy short
+    u_short us;                                                                 // a handy unsigned short
 
     while (TRUE) {                                                              // loop
         // Indirect Open code
-        iflag = (*source_ptr == '@');                                           // check for indirection
+        int iflag = (*source_ptr == '@');                                           // check for indirection
+
         eval();                                                                 // get the channel
 
         if ((*(comp_ptr - 1) == INDEVAL) && iflag) {                            // if it was indirect
@@ -787,10 +804,10 @@ void parse_open(void)                                                           
 
                 if (*source_ptr == ':') {                                       // if another colon
                     *comp_ptr++ = OPSTR;                                        // make up our own
-                    s = 2;                                                      // the length
-                    assert(sizeof(s) == sizeof(short));
-                    bcopy(&s, comp_ptr, sizeof(short));
-                    comp_ptr += sizeof(short);
+                    us = 2;                                                     // the length
+                    assert(sizeof(us) == sizeof(u_short));
+                    memcpy(comp_ptr, &us, sizeof(u_short));
+                    comp_ptr += sizeof(u_short);
                     *comp_ptr++ = '-';                                          // minus
                     *comp_ptr++ = '1';                                          // 1
                     *comp_ptr++ = '\0';                                         // null terminated
@@ -799,10 +816,10 @@ void parse_open(void)                                                           
                 }
             } else {                                                            // no timeout
                 *comp_ptr++ = OPSTR;                                            // make up our own
-                s = 2;                                                          // the length
-                assert(sizeof(s) == sizeof(short));
-                bcopy(&s, comp_ptr, sizeof(short));
-                comp_ptr += sizeof(short);
+                us = 2;                                                         // the length
+                assert(sizeof(us) == sizeof(u_short));
+                memcpy(comp_ptr, &us, sizeof(u_short));
+                comp_ptr += sizeof(u_short);
                 *comp_ptr++ = '-';                                              // minus
                 *comp_ptr++ = '1';                                              // 1
                 *comp_ptr++ = '\0';                                             // null terminated
@@ -811,11 +828,12 @@ void parse_open(void)                                                           
             if (*source_ptr == ':') {                                           // if another colon
                 source_ptr++;                                                   // advance past it
                 *comp_ptr++ = OPSTR;                                            // push a string
-                s = 10;                                                         // the length
-                assert(sizeof(s) == sizeof(short));
-                bcopy(&s, comp_ptr, sizeof(short));
-                comp_ptr += sizeof(short);
-                bcopy("namespace=\0", comp_ptr, 11);                            // copy the param name
+                us = 10;                                                        // the length
+                assert(sizeof(us) == sizeof(u_short));
+                memcpy(comp_ptr, &us, sizeof(u_short));
+                comp_ptr += sizeof(u_short);
+                memcpy(comp_ptr, "namespace=\0", 11);                           // copy the param name
+                comp_ptr += 11;                                                 // add to comp_ptr
                 eval();                                                         // eval the arg
                 *comp_ptr++ = OPCAT;                                            // concatenate them
             } else {
@@ -840,8 +858,6 @@ void write_fmt(void)                                                            
     int    i;                                                                   // a handy int
     int    args = 0;                                                            // number of args
     u_char *ptr;                                                                // a handy pointer
-    u_char save[1024];                                                          // a useful save area
-    int    savecount;                                                           // number of bytes saved
 
     source_ptr++;                                                               // increment source
     ptr = comp_ptr;                                                             // save compile pointer
@@ -854,8 +870,10 @@ void write_fmt(void)                                                            
     }
 
     if (*source_ptr == '(') {                                                   // any args?
-        savecount = comp_ptr - ptr;                                             // bytes that got compiled
-        bcopy(ptr, save, savecount);                                            // save that lot
+        int savecount = comp_ptr - ptr;                                         // bytes that got compiled
+        u_char save[1024];                                                      // a useful save area
+
+        memcpy(save, ptr, savecount);                                           // save that lot
         comp_ptr = ptr;                                                         // back where we started
         source_ptr++;                                                           // skip the (
 
@@ -886,7 +904,7 @@ void write_fmt(void)                                                            
             SYNTX;                                                              // all else is an error
         }                                                                       // end of while
 
-        bcopy(save, comp_ptr, savecount);                                       // copy the code back
+        memcpy(comp_ptr, save, savecount);                                      // copy the code back
         comp_ptr += savecount;                                                  // and add to the pointer
     }                                                                           // end of argument decode
 
@@ -982,11 +1000,10 @@ short parse_read_var(int star)                                                  
 
 void parse_read(void)                                                           // READ
 {
-    char c;                                                                     // current character
     int  args = 0;                                                              // number of args
 
     while (TRUE) {                                                              // loop
-        c = *source_ptr;                                                        // get the first character
+        char c = *source_ptr;                                                   // get the first character
 
         if (c == '!') {                                                         // check for a new line
             *comp_ptr++ = CMWRTNL;                                              // do a new line
@@ -1034,17 +1051,17 @@ void parse_read(void)                                                           
 
 void parse_set(void)                                                            // SET
 {
-    short  s;                                                                   // for functions
-    int    i;                                                                   // a handy int
-    int    bracket;                                                             // bracket flag
-    int    args = 0;                                                            // number of args
-    u_char *p;                                                                  // a handy pointer
+    short   s;                                                                  // for functions
+    u_short us;                                                                 // for functions
+    int     bracket;                                                            // bracket flag
+    int     args = 0;                                                           // number of args
+    u_char  *p;                                                                 // a handy pointer
 
     while (TRUE) {
         u_char *ptr1 = NULL;                                                    // a handy pointer
         u_char *ptr2 = NULL;                                                    // and another
         u_char *ptr3 = NULL;                                                    // and another
-        i = parse2eq(source_ptr);                                               // look for an equals
+        int    i = parse2eq(source_ptr);                                        // look for an equals
 
         if (source_ptr[i] == '=') {                                             // did we find one?
             ptr1 = source_ptr;                                                  // save for ron
@@ -1078,7 +1095,7 @@ void parse_set(void)                                                            
         while (TRUE) {                                                          // in case of brackets
             if ((strncasecmp((char *) source_ptr, "$e(", 3) == 0) || (strncasecmp((char *) source_ptr, "$extract(", 9) == 0) ||
               (strncasecmp((char *) source_ptr, "$p(", 3) == 0) || (strncasecmp((char *) source_ptr, "$piece(", 7) == 0)) {
-                args = (toupper(source_ptr[1]) == 'P');                         // $P = 1, $E = 0
+                args = (toupper(source_ptr[1]) == 'P');                         // $PIECE = 1, $EXTRACT = 0
                 while ((*source_ptr != '(') && *source_ptr) source_ptr++;       // skip to bracket
                 source_ptr++;                                                   // skip opening bracket
                 p = comp_ptr;                                                   // save position
@@ -1088,7 +1105,7 @@ void parse_set(void)                                                            
 
                     if (*(comp_ptr - 1) == INDEVAL) {                           // if it was indirect
                         *(comp_ptr - 1) = INDMVAR;                              // say mvar reqd
-                    } else {                                                    // for $O(@.@())
+                    } else {                                                    // for $ORDER(@.@())
                         if (*(comp_ptr - 3) == OPVAR) *(comp_ptr - 3) = OPMVAR; // change to OPMVAR
                     }
                 } else {
@@ -1103,7 +1120,7 @@ void parse_set(void)                                                            
                     *p = OPMVAR;                                                // change to a OPMVAR
                 }
 
-                if (args) {                                                     // $P ?
+                if (args) {                                                     // $PIECE ?
                     if (*source_ptr != ',') SYNTX;                              // need a comma
                     source_ptr++;                                               // skip comma
                     eval();                                                     // eval the delimiter
@@ -1111,10 +1128,10 @@ void parse_set(void)                                                            
 
                 if (*source_ptr == ')') {                                       // end of function?
                     *comp_ptr++ = OPSTR;                                        // say string following
-                    s = 1;                                                      // the length
-                    assert(sizeof(s) == sizeof(short));
-                    bcopy(&s, comp_ptr, sizeof(short));
-                    comp_ptr += sizeof(short);
+                    us = 1;                                                     // the length
+                    assert(sizeof(us) == sizeof(u_short));
+                    memcpy(comp_ptr, &us, sizeof(u_short));
+                    comp_ptr += sizeof(u_short);
                     *comp_ptr++ = '1';                                          // value 1
                     *comp_ptr++ = '\0';                                         // null terminated
                 } else {
@@ -1133,7 +1150,7 @@ void parse_set(void)                                                            
 
                 if (*source_ptr++ != ')') SYNTX;                                // ensure there is a )
                 *comp_ptr++ = (args ? CMSETP : CMSETE);                         // set the opcode
-            } else if (*source_ptr == '@') {                                    // end SET $E/$P - indirection ?
+            } else if (*source_ptr == '@') {                                    // end SET $EXTRACT/$PIECE - indirection ?
                 source_ptr++;                                                   // skip the @
                 atom();                                                         // eval the indirect bit
 
@@ -1153,7 +1170,7 @@ void parse_set(void)                                                            
                     *comp_ptr++ = INDMVAR;                                      // make an mvar out of it
                     *comp_ptr++ = CMSET;                                        // add opcode
                 }
-            } else {                                                            // end indirection - not $P/$E or indirection
+            } else {                                                            // end indirection - not $PIECE/$EXTRACT/indirection
                 p = comp_ptr;                                                   // save for opcode insert
                 s = localvar();                                                 // parse the variable
 
@@ -1187,14 +1204,14 @@ void parse_set(void)                                                            
 
 void parse_use(void)                                                            // USE
 {
-    char  c;                                                                    // current character
-    short s;                                                                    // a handy short
-    int   i;                                                                    // a handy int
-    int   args;                                                                 // number of args
-    int   iflag;
+    char    c;                                                                  // current character
+    u_short us;                                                                 // a handy unsigned short
+    int     i;                                                                  // a handy int
+    int     args;                                                               // number of args
 
     while (TRUE) {                                                              // scan the line
-        iflag = (*source_ptr == '@');                                           // check for indirection
+        int iflag = (*source_ptr == '@');                                       // check for indirection
+
         eval();                                                                 // get the channel
 
         if ((*(comp_ptr - 1) == INDEVAL) && iflag) {                            // if it was indirect
@@ -1225,11 +1242,11 @@ void parse_use(void)                                                            
                 source_ptr++;                                                   // advance past it
                 args++;                                                         // count it
                 *comp_ptr++ = OPSTR;                                            // push a string
-                s = 10;                                                         // the length
-                assert(sizeof(s) == sizeof(short));
-                bcopy(&s, comp_ptr, sizeof(short));
-                comp_ptr += sizeof(short);
-                bcopy("namespace=\0", comp_ptr, 11);                            // copy the param name
+                us = 10;                                                        // the length
+                assert(sizeof(us) == sizeof(u_short));
+                memcpy(comp_ptr, &us, sizeof(u_short));
+                comp_ptr += sizeof(u_short);
+                memcpy(comp_ptr, "namespace=\0", 11);                           // copy the param name
                 comp_ptr += 11;                                                 // add to comp_ptr
                 eval();                                                         // eval the arg
                 *comp_ptr++ = OPCAT;                                            // concatenate them
@@ -1248,11 +1265,10 @@ void parse_use(void)                                                            
 
 void parse_write(void)                                                          // WRITE
 {
-    char c;                                                                     // current character
     int  iflag;
 
     while (TRUE) {                                                              // scan the line
-        c = *source_ptr;                                                        // get the first character
+        char c = *source_ptr;                                                   // get the first character
 
         if (c == '!') {                                                         // check for a new line
             *comp_ptr++ = CMWRTNL;                                              // do a new line
@@ -1291,14 +1307,14 @@ void parse_write(void)                                                          
 
 void parse_xecute(void)                                                         // XECUTE
 {
-    int    iflag;
     u_char *ptr;                                                                // a handy pointer
     u_char save[1024];                                                          // a useful save area
     short  savecount;                                                           // number of bytes saved
 
     while (TRUE) {                                                              // loop thru the arguments
+        int iflag = (*source_ptr == '@');                                       // check for indirection
+
         ptr = comp_ptr;                                                         // save compile pointer
-        iflag = (*source_ptr == '@');                                           // check for indirection
         eval();                                                                 // parse the string
 
         if ((*(comp_ptr - 1) == INDEVAL) && iflag) {                            // if it was indirect
@@ -1314,7 +1330,7 @@ void parse_xecute(void)                                                         
                 eval();                                                         // eval postcond
                 *comp_ptr++ = JMP0;                                             // jump if false
                 assert(sizeof(savecount) == sizeof(short));
-                bcopy(&savecount, comp_ptr, sizeof(short));
+                memcpy(comp_ptr, &savecount, sizeof(short));
                 comp_ptr += sizeof(short);
                 mcopy(save, comp_ptr, savecount);                               // copy the code back
                 comp_ptr += savecount;                                          // and add to the pointer
@@ -1334,7 +1350,6 @@ void parse_xecute(void)                                                         
  */
 void parse(void)                                                                // MAIN PARSE LOOP
 {
-    char    c;                                                                  // current character
     short   s;                                                                  // for functions
     int     i;                                                                  // a handy int
     int     args = 0;                                                           // number of args
@@ -1342,10 +1357,11 @@ void parse(void)                                                                
     u_char  *jmp_eoc = NULL;                                                    // jump to end of cmd reqd
 
     while (TRUE) {                                                              // loop
-        c = toupper(*source_ptr++);                                             // get next char in upper case
+        char c = toupper(*source_ptr++);                                             // get next char in upper case
+
         jmp_eoc = NULL;                                                         // clear post conditional
 
-        switch(c) {
+        switch (c) {
         case '\0':                                                              // NULL
         case ';':                                                               // comment
             *comp_ptr++ = ENDLIN;                                               // add an end line op
@@ -1436,7 +1452,7 @@ void parse(void)                                                                
 
             break;                                                              // end of do
 
-        case 'E':                                                               // ELSE - no indirect
+        case 'E':                                                               // ELSE - no indirection
             if (isalpha(*source_ptr) != 0) {                                    // if the next is alpha
                 if (strncasecmp((char *) source_ptr, "lse", 3) != 0) SYNTX;
                 source_ptr += 3;                                                // point past the "lse"
@@ -1469,7 +1485,7 @@ void parse(void)                                                                
                 *comp_ptr++ = JMP;                                              // add a jump
                 s = ptr - comp_ptr;
                 assert(sizeof(s) == sizeof(short));
-                bcopy(&s, comp_ptr, sizeof(short));
+                memcpy(comp_ptr, &s, sizeof(short));
                 comp_ptr += sizeof(short);
                 *comp_ptr++ = OPNOP;                                            // add the NOP
                 *((short *) ptr) = (short) (comp_ptr - ptr - sizeof(short) - 1);
@@ -1517,7 +1533,7 @@ void parse(void)                                                                
             --source_ptr;                                                       // backup the source ptr
             s = comp_ptr - ptr - sizeof(short);                                 // offset to code
             assert(sizeof(s) == sizeof(short));
-            bcopy(&s, ptr, sizeof(short));
+            memcpy(ptr, &s, sizeof(short));
             ptr += sizeof(short);
             parse();                                                            // parse the code
             --comp_ptr;                                                         // backup over ENDLIN
@@ -1555,7 +1571,7 @@ void parse(void)                                                                
                     i = 1;
                 } else if (strncasecmp((char *) source_ptr, "ang", 3) == 0) {
                     i = 2;
-                } else if (!i) {
+                } else {
                     SYNTX;                                                      // neither of these
                 }
 
@@ -1563,7 +1579,6 @@ void parse(void)                                                                
             }
 
             c = ' ';                                                            // assume space
-
             if (*source_ptr != '\0') c = *source_ptr++;                         // get next char (if any)
 
             if (c == ':') {                                                     // postcondition ?

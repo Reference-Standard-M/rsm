@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/util.c
- * Summary:  module database - Database Functions - Utilities
+ * Summary:  module database - database functions - utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 #include <fcntl.h>                                                              // for expand
 #include <ctype.h>                                                              // for GBD stuff
@@ -50,10 +49,8 @@
  */
 short Insert(u_char *key, cstring *data)                                        // insert a node
 {
-    int    i;                                                                   // a handy int
     int    isdata;                                                              // data/ptr flag
     int    rs;                                                                  // required size
-    short  s;                                                                   // for funcs
     u_char ccc;                                                                 // common char count
     u_char ucc;                                                                 // uncommon char count
     u_int  flags = 0;                                                           // for $GLOBAL
@@ -61,7 +58,7 @@ short Insert(u_char *key, cstring *data)                                        
     isdata = ((blk[level]->mem->type > 64) && level);                           // data block and not the directory
 
     if (blk[level]->mem->last_idx > (IDX_START - 1)) {                          // if some data
-        s = Locate(key);                                                        // search for it
+        short s = Locate(key);                                                  // search for it
 
         if (s >= 0) {                                                           // if found
             return -(ERRZ61 + ERRMLAST);                                        // database stuffed
@@ -84,9 +81,9 @@ short Insert(u_char *key, cstring *data)                                        
 
     keybuf[0] = 0;                                                              // clear keybuf
 
-    for (i = IDX_START; i < Index; i++) {                                       // for all prev Indexes
+    for (u_int i = IDX_START; i < Index; i++) {                                 // for all prev Indexes
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
-        bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);       // update the key
+        memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
     }                                                                           // we insert after this
 
@@ -122,21 +119,21 @@ short Insert(u_char *key, cstring *data)                                        
     }                                                                           // it will now fit
 
     rs -= 4;                                                                    // rs now chunksize
-    for (i = blk[level]->mem->last_idx; i >= Index; i--) idx[i + 1] = idx[i];   // the trailing ones get copied down
+    for (u_int i = blk[level]->mem->last_idx; i >= Index; i--) idx[i + 1] = idx[i]; // the trailing ones get copied down
     idx[Index] = blk[level]->mem->last_free - (rs / 4) + 1;                     // where it goes
     chunk = (cstring *) &iidx[idx[Index]];                                      // as an address
     record = (cstring *) &chunk->buf[ucc + 2];                                  // where the data goes
     chunk->len = rs;                                                            // store chunk size
     chunk->buf[0] = ccc;                                                        // this bit
     chunk->buf[1] = ucc;                                                        // then this
-    bcopy(&key[ccc + 1], &chunk->buf[2], ucc);                                  // then the key bit
+    memcpy(&chunk->buf[2], &key[ccc + 1], ucc);                                 // then the key bit
 
     if (isdata) {                                                               // for data blk
         record->len = data->len;                                                // copy the length
-        bcopy(data->buf, record->buf, data->len);                               // then the data
+        memcpy(record->buf, data->buf, data->len);                              // then the data
     } else {                                                                    // it's a pointer
         Align_record();                                                         // align it
-        bcopy(data->buf, record, sizeof(int));                                  // the block number
+        memcpy(record, data->buf, sizeof(int));                                 // the block number
         if (!level) ((u_int *) record)[1] = flags;                              // if GD then set/clear the flags
     }
 
@@ -168,7 +165,7 @@ void Queit(void)                                                                
 
     i = systab->vol[volnum - 1]->dirtyQw;                                       // where to put it
 
-    while (systab->vol[volnum - 1]->dirtyQ[i] != NULL) {                        // if slot not avbl
+    while (systab->vol[volnum - 1]->dirtyQ[i] != NULL) {                        // if slot not available
         sleep(1);                                                               // wait a bit
     }                                                                           // NOTE: The above CAN'T work!!!
 
@@ -184,7 +181,7 @@ void Queit(void)                                                                
  * Return:   none
  * Note:     Must hold a write lock before calling this function
  */
-void Garbit(int blknum)                                                         // queue a blk for garb
+void Garbit(u_int blknum)                                                       // queue a blk for garb
 {
     int i;                                                                      // a handy int
     int j;                                                                      // for loop
@@ -215,7 +212,7 @@ void Free_block(int blknum)                                                     
     int    off;                                                                 // and another
     u_char *map;                                                                // map pointer
 
-    map = ((u_char *) systab->vol[volnum - 1]->map);                            // point at it
+    map = (u_char *) systab->vol[volnum - 1]->map;                              // point at it
     i = blknum >> 3;                                                            // map byte
     off = blknum & 7;                                                           // bit number
     off = 1U << off;                                                            // convert to mask
@@ -226,6 +223,7 @@ void Free_block(int blknum)                                                     
         systab->vol[volnum - 1]->first_free = &map[i];                          // reset first free
     }
 
+    systab->vol[volnum - 1]->stats.blkdeall++;                                  // update stats
     systab->vol[volnum - 1]->map_dirty_flag++;                                  // mark map dirty
     return;                                                                     // and exit
 }
@@ -246,12 +244,13 @@ void Used_block(int blknum)                                                     
     int    off;                                                                 // and another
     u_char *map;                                                                // map pointer
 
-    map = ((u_char *) systab->vol[volnum - 1]->map);                            // point at it
+    map = (u_char *) systab->vol[volnum - 1]->map;                              // point at it
     i = blknum >> 3;                                                            // map byte
     off = blknum & 7;                                                           // bit number
     off = 1U << off;                                                            // convert to mask
     if (map[i] & off) return;                                                   // if it's already used then just exit
     map[i] |= off;                                                              // set the bit
+    systab->vol[volnum - 1]->stats.blkalloc++;                                  // update stats
     systab->vol[volnum - 1]->map_dirty_flag++;                                  // mark map dirty
     return;                                                                     // and exit
 }
@@ -272,7 +271,7 @@ void Tidy_block(void)                                                           
 
     ptr = blk[level];                                                           // remember current
     Get_GBD();                                                                  // get another
-    bzero(blk[level]->mem, systab->vol[volnum - 1]->vollab->block_size);        // zot
+    memset(blk[level]->mem, 0, systab->vol[volnum - 1]->vollab->block_size);    // zot
     blk[level]->mem->type = ptr->mem->type;                                     // copy type
     if (!level) blk[level]->mem->type |= 64;                                    // if it's a GD then ensure it's data
     blk[level]->mem->right_ptr = ptr->mem->right_ptr;                           // copy RL
@@ -319,13 +318,13 @@ void Copy_data(gbd *fptr, int fidx)                                             
 
     for (i = IDX_START; i <= blk[level]->mem->last_idx; i++) {                  // scan to end to blk
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
-        bcopy(&chunk->buf[2], &keybuf[chunk->buf[0] + 1], chunk->buf[1]);       // update the key
+        memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
-    }                                                                           // end update keybuf[]
+    }
 
     for (i = IDX_START; i <= fptr->mem->last_idx; i++) {                        // for each Index
         c = (cstring *) &fiidx[sfidx[i]];                                       // point at chunk
-        bcopy(&c->buf[2], &fk[c->buf[0] + 1], c->buf[1]);                       // copy key
+        memcpy(&fk[c->buf[0] + 1], &c->buf[2], c->buf[1]);                      // copy key
         fk[0] = c->buf[0] + c->buf[1];                                          // and the length
         if (i < fidx) continue;                                                 // copy this one? no - just continue
         c = (cstring *) &c->buf[c->buf[1] + 2];                                 // point at dbc/ptr
@@ -362,12 +361,12 @@ void Copy_data(gbd *fptr, int fidx)                                             
         chunk->len = cs;                                                        // set the size
         chunk->buf[0] = ccc;                                                    // ccc
         chunk->buf[1] = ucc;                                                    // ucc
-        bcopy(&fk[ccc + 1], &chunk->buf[2], ucc);                               // the key
+        memcpy(&chunk->buf[2], &fk[ccc + 1], ucc);                              // the key
         record = (cstring *) &chunk->buf[ucc + 2];                              // point at dbc/ptr
 
         if (isdata) {                                                           // for a data block
             record->len = c->len;                                               // copy dbc
-            bcopy(c->buf, record->buf, c->len);                                 // copy the data
+            memcpy(record->buf, c->buf, c->len);                                // copy the data
             if (fidx == -1) c->len = NODE_UNDEFINED;
         } else {                                                                // for a pointer
             Align_record();                                                     // ensure aligned
@@ -380,7 +379,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
             }
         }
 
-        bcopy(fk, keybuf, fk[0] + 1);                                           // save full key
+        memcpy(keybuf, fk, fk[0] + 1);                                          // save full key
     }                                                                           // end copy loop
 
     return;                                                                     // and exit
@@ -393,7 +392,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
  * Return:   none
  * Note:     Must only be called for pointer/directory blocks
  */
-void Align_record(void)                                                         // align record (int)
+void Align_record(void)                                                         // align record (u_int)
 {
     if ((long) record & 3) {                                                    // if not aligned
         record = (cstring *) &record->buf[2 - ((long) record & 3)];             // align
@@ -414,7 +413,6 @@ short Compress1(void)
     int    i;
     int    curlevel;
     int    s;
-    u_char gtmp[VAR_LEN + 4];                                                   // to find glob
 
     Get_GBDs(MAXTREEDEPTH * 2);                                                 // ensure this many
     curlevel = level;
@@ -435,6 +433,8 @@ short Compress1(void)
 
     if (!blk[level]->mem->right_ptr) {                                          // if no more blocks
         if ((level == 2) && !db_var.slen) {                                     // and blk 1 on level 2
+            u_char gtmp[VAR_LEN + 4];                                           // to find glob
+
             level = 0;                                                          // look at the GD
             gtmp[1] = 128;                                                      // start string key
 
@@ -460,7 +460,7 @@ short Compress1(void)
             blk[1]->mem->type = 65;                                             // pretend it's data
             blk[1]->last_accessed = current_time(TRUE);                         // clear last access
             Garbit(blk[1]->block);                                              // queue for freeing
-            bzero(&partab.jobtab->last_ref, sizeof(mvar));                      // clear last ref
+            memset(&partab.jobtab->last_ref, 0, sizeof(mvar));                  // clear last ref
             return 0;                                                           // and exit
         }
 
@@ -526,10 +526,10 @@ short Compress1(void)
     if (blk[level] != NULL) {                                                   // if more to go
         if (blk[level]->dirty == (gbd *) 2) {                                   // if some left
             chunk = (cstring *) &iidx[idx[IDX_START]];                          // point at the first
-            bcopy(&chunk->buf[1], &partab.jobtab->last_ref.slen, chunk->buf[1] + 1); // save the real key
+            memcpy(&partab.jobtab->last_ref.slen, &chunk->buf[1], chunk->buf[1] + 1); // save the real key
         }
     } else {
-        bzero(&partab.jobtab->last_ref, sizeof(mvar));                          // or clear it
+        memset(&partab.jobtab->last_ref, 0, sizeof(mvar));                      // or clear it
     }
 
     level += 2;                                                                 // spare level
@@ -574,8 +574,8 @@ void ClearJournal(int vol)                                                      
     } tmp;
 
     jfd = open(systab->vol[vol]->vollab->journal_file,                          // open this file
-               O_CREAT | O_TRUNC | O_WRONLY,                                    // create the file
-               S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);                          // make 0660 - jobs write their own journal entries
+               (O_CREAT | O_TRUNC | O_WRONLY),                                  // create the file
+               (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));                        // make 0660 - jobs write their own journal entries
 
     if (jfd > 0) {                                                              // if OK
         tmp.magic = (RSM_MAGIC - 1);
@@ -597,7 +597,7 @@ void ClearJournal(int vol)                                                      
         jj.uci = 0;
         i = write(jfd, &jj, jj.size);                                           // write the create rec
         if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
-        (void) close(jfd);                                                      // and close it
+        close(jfd);                                                             // and close it
         systab->vol[vol]->jrn_next = (off_t) tmp.free;                          // where it's upto
     }
 

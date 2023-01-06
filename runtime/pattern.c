@@ -4,14 +4,14 @@
  * Summary:  module runtime - pattern match
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
  * Copyright (c) 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
- * Originally based on FreeMUMPS by Shalom ha-Ashkenaz
+ * Originally based on FreeMUMPS
  * Copyright (c) 1998
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -51,9 +51,9 @@ void pminmax(cstring *str, int *min, int *max);
 
 short patmat(cstring *str, cstring *code)
 {
-    u_char  ch = NUL;
+    u_char  ch;
+    u_char  f;
     int     i = 0;
-    u_char  f = NUL;
     int     j = 0;
     int     group = 0;
     int     x = 0;
@@ -193,8 +193,6 @@ void pminmax(cstring *str, int *min, int *max)
 
     *min = 0;                                                                   // init
     *max = 0;                                                                   // all
-    mininc = 0;                                                                 // these
-    maxinc = 0;                                                                 // variables
     i = 0;                                                                      // to
     ch = 0;                                                                     // zero
 

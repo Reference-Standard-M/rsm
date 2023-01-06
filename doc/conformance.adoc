@@ -2,24 +2,25 @@
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
 
-[role="right"]
-link:index.adoc[Index]
-
 '''
 
-= Reference Standard M Conformance Clause
+== Reference Standard M Conformance Clause
 
-== Summary
+David Wicksell <dlw@linux.com> +
+Copyright © 2021-2023 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
 
-Reference Standard M Version 1.76.2 conforms to ANSI X11.1-1995 (ISO/IEC
+=== Summary
+
+Reference Standard M Version 1.77.0 conforms to ANSI/MDC X11.1-1995 (ISO/IEC
 11756:1999) with the following exceptions (there may be more):
 
 * Only supports the M character set profile
 * Transaction processing is not implemented
-* Scientific notation using '`E`' is disabled by default, but can be enabled
 * A comment can start in the first column
-* `CLOSE` device parameters are not implemented
-* Label offsets are disabled by default, but can be enabled
+* `$NEXT` is supported by default, but can be disabled
+* `CLOSE` device parameters are not implemented (allowed by standard)
+* `JOB` process parameters are not implemented (allowed by standard)
 * `HANG 0` is not ignored, it gives up the process timeslice
 * `SET` evaluates the expression on the right-hand side of the '`=`' before it
   evaluates the subscripts on the left-hand side of the '`=`'
@@ -36,7 +37,8 @@ Reference Standard M Version 1.76.2 conforms to ANSI X11.1-1995 (ISO/IEC
 * `^$GLOBAL` includes extra nodes
 * `^$JOB` includes extra nodes
 * `^$ROUTINE` includes extra nodes
-* `^$SYSTEM` includes many extra nodes, and is missing a `"CHARACTER"` node
+* `^$SYSTEM` includes many extra nodes, is missing a `"CHARACTER"` node, and
+  does not start its first subscript with the contents of `$SYSTEM`
 
-[role="right"]
-link:index.adoc[Index]
+See the link:language.adoc[Language Guide] for more information on how each
+language element conforms to the standard.

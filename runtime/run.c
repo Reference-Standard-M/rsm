@@ -4,7 +4,7 @@
  * Summary:  module runtime - run it
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <unistd.h>                                                             // for sleep
 #include <errno.h>                                                              // error stuff
@@ -107,13 +106,13 @@ short run(int savasp, int savssp)                                               
                 infor = 0;                                                      // cancel any for loops
 
                 if (!partab.jobtab->error_frame) {
-                    partab.jobtab->error_frame = partab.jobtab->cur_do;         // set $ST(-1)
+                    partab.jobtab->error_frame = partab.jobtab->cur_do;         // set $STACK(-1)
 
                     // save for ron
-                    bcopy(&partab.jobtab->dostk[partab.jobtab->cur_do], &partab.jobtab->dostk[STM1_FRAME], sizeof(do_frame));
+                    memcpy(&partab.jobtab->dostk[STM1_FRAME], &partab.jobtab->dostk[partab.jobtab->cur_do], sizeof(do_frame));
                 }
 
-                if (s == -(ERRZ51 + ERRMLAST)) partab.jobtab->io = 0;           // if it's a control c then $IO = 0
+                if (s == -(ERRZ51 + ERRMLAST)) partab.jobtab->io = 0;           // if it's a Control-C then $IO = 0
                 partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;         // save pc
                 cptr = (cstring *) &strstk[ssp];                                // where we will put it
                 var = &partab.src_var;                                          // a spare mvar
@@ -123,12 +122,12 @@ short run(int savasp, int savssp)                                               
                 if (s) flag = Set_Error(s, ptr1, cptr);                         // set $ECODE if reqd
                 cptr->len = 0;                                                  // clear the cstring
                 VAR_CLEAR(var->name);
-                bcopy("$ETRAP", &var->name.var_cu[0], 6);                       // $ET
+                memcpy(&var->name.var_cu[0], "$ETRAP", 6);                      // $ETRAP
                 var->slen = 0;                                                  // setup for $ETRAP
                 t = ST_Get(var, cptr->buf);                                     // get it
                 if (t < 0) t = 0;                                               // ignore undefined
                 cptr->len = t;                                                  // save the length
-                ssp = ssp + cptr->len + sizeof(u_short) + 1;                    // point past it
+                ssp += cptr->len + sizeof(u_short) + 1;                         // point past it
                 p = &strstk[ssp];                                               // some space
                 comp_ptr = p;                                                   // call it a compile ptr
 
@@ -153,7 +152,7 @@ short run(int savasp, int savssp)                                               
                 *comp_ptr++ = ENDLIN;                                           // JIC
                 *comp_ptr++ = ENDLIN;                                           // JIC
                 i = comp_ptr - p;                                               // get the length
-                ssp = ssp + i;                                                  // point past it
+                ssp += i;                                                       // point past it
                 rsmpc = p;                                                      // new pc
                 savasp = asp;
                 savssp = ssp;
@@ -174,7 +173,7 @@ short run(int savasp, int savssp)                                               
 
         case OPERROR:                                                           // ERROR
             assert(sizeof(s) == sizeof(short));
-            bcopy(rsmpc, &s, sizeof(short));
+            memcpy(&s, rsmpc, sizeof(short));
             rsmpc += sizeof(short);
             ERROR(s);                                                           // return the error
 
@@ -185,7 +184,7 @@ short run(int savasp, int savssp)                                               
             cptr->buf[0] = '0';                                                 // assume false
             cptr->buf[1] = '\0';                                                // null terminate
             if (i == 0) cptr->buf[0] = '1';                                     // or maybe true
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -197,7 +196,7 @@ short run(int savasp, int savssp)                                               
 
         case JMP0:                                                              // JUMP IF FALSE
             assert(sizeof(s) == sizeof(short));
-            bcopy(rsmpc, &s, sizeof(short));                                    // get the offset
+            memcpy(&s, rsmpc, sizeof(short));                                   // get the offset
             rsmpc += sizeof(short);
             if (cstringtob((cstring *) addstk[--asp]) == 0) rsmpc = rsmpc + s;  // jump if reqd
             break;
@@ -233,20 +232,20 @@ short run(int savasp, int savssp)                                               
 
                 if (opc == OPIFI) {                                             // indirect
                     assert(sizeof(isp) == sizeof(long));
-                    bcopy(rsmpc, &isp, sizeof(long));                           // restore the isp
+                    memcpy(&isp, rsmpc, sizeof(long));                          // restore the isp
                     rsmpc += sizeof(long);
                 }
 
                 if (infor) {
                     i = 1;                                                      // offset for standard FORs
 
-                    if ((((for_stack *) addstk[savasp-1])->type & 7) == FOR_TYP_0) {
+                    if ((((for_stack *) addstk[savasp - 1])->type & 7) == FOR_TYP_0) {
                         i = 3;                                                  // FOR0 is a bit different
                         ssp = savssp;
                         asp = savasp;
                     }
 
-                    rsmpc = ((for_stack *) addstk[savasp-1])->quit - i;
+                    rsmpc = ((for_stack *) addstk[savasp - 1])->quit - i;
                 } else {
                     rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].endlin;
                 }
@@ -263,13 +262,13 @@ short run(int savasp, int savssp)                                               
                 if (infor) {
                     i = 1;                                                      // offset for standard FORs
 
-                    if ((((for_stack *) addstk[savasp-1])->type & 7) == FOR_TYP_0) {
+                    if ((((for_stack *) addstk[savasp - 1])->type & 7) == FOR_TYP_0) {
                         i = 3;                                                  // FOR0 is a bit different
                         ssp = savssp;
                         asp = savasp;
                     }
 
-                    rsmpc = ((for_stack *) addstk[savasp-1])->quit - i;
+                    rsmpc = ((for_stack *) addstk[savasp - 1])->quit - i;
                 } else {
                     rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].endlin;
                 }
@@ -290,7 +289,7 @@ short run(int savasp, int savssp)                                               
             s = runtime_add((char *) cptr->buf, (char *) temp);
             if (s < 0) ERROR(s);
             cptr->len = s;                                                      // save length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // point past it
+            ssp += s + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 
@@ -316,7 +315,7 @@ short run(int savasp, int savssp)                                               
             s = runtime_add((char *) cptr->buf, (char *) &temp[s]);
             if (s < 0) ERROR(s);
             cptr->len = s;                                                      // save length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // point past it
+            ssp += s + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 
@@ -333,7 +332,7 @@ short run(int savasp, int savssp)                                               
             s = runtime_mul((char *) cptr->buf, (char *) temp);
             if (s < 0) ERROR(s);
             cptr->len = s;                                                      // save length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // point past it
+            ssp += s + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 
@@ -352,7 +351,7 @@ short run(int savasp, int savssp)                                               
             s = runtime_div((char *) cptr->buf, (char *) temp, opc);
             if (s < 0) ERROR(s);
             cptr->len = s;                                                      // save length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // point past it
+            ssp += s + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 
@@ -369,7 +368,7 @@ short run(int savasp, int savssp)                                               
             s = runtime_power((char *) cptr->buf, (char *) temp);
             if (s < 0) ERROR(s);
             cptr->len = s;                                                      // save length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // point past it
+            ssp += s + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 
@@ -392,7 +391,7 @@ short run(int savasp, int savssp)                                               
             t = mcopy(ptr2->buf, &cptr->buf[cptr->len], ptr2->len);             // and the 2nd
             if (t < 0) ERROR(t);                                                // check for error
             cptr->len = cptr->len + t;                                          // save the length
-            ssp = ssp + cptr->len + sizeof(u_short) + 1;                        // point past it (sort of)
+            ssp += cptr->len + sizeof(u_short) + 1;                             // point past it (sort of)
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -403,7 +402,7 @@ short run(int savasp, int savssp)                                               
             s = ncopy(&p, cptr->buf);                                           // make a number
             if (s < 0) ERROR(s);
             cptr->len = s;                                                      // save the length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // point past it
+            ssp += s + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -425,7 +424,7 @@ short run(int savasp, int savssp)                                               
             }
 
             cptr->len = s;                                                      // save the length
-            ssp = ssp + s + sizeof(u_short) + 2;                                // point past it
+            ssp += s + sizeof(u_short) + 2;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -438,12 +437,12 @@ short run(int savasp, int savssp)                                               
             ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
 
             if (ptr1->len == ptr2->len) {                                       // if same length
-                if (bcmp(ptr1->buf, ptr2->buf, ptr1->len) == 0) {
+                if (memcmp(ptr1->buf, ptr2->buf, ptr1->len) == 0) {
                     cptr->buf[0] = '1';                                         // they are the same
                 }
             }
 
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -460,7 +459,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (runtime_comp((char *) cptr->buf, (char *) temp) ? '1' : '0');
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -477,7 +476,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (runtime_comp((char *) temp, (char *) cptr->buf) ? '1' : '0');
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -489,7 +488,7 @@ short run(int savasp, int savssp)                                               
             cptr->buf[0] = '0';                                                 // assume false
             cptr->buf[1] = '\0';                                                // null terminate
             if ((i != 0) && (j != 0)) cptr->buf[0] = '1';                       // result true
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -501,7 +500,7 @@ short run(int savasp, int savssp)                                               
             cptr->buf[0] = '0';                                                 // assume false
             cptr->buf[1] = '\0';                                                // null terminate
             if ((i != 0) || (j != 0)) cptr->buf[0] = '1';                       // result true
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -513,7 +512,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = ((t == 0) ? '0' : '1');                              // store the result
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -529,7 +528,7 @@ short run(int savasp, int savssp)                                               
             i = memcmp(ptr1->buf, ptr2->buf, t);                                // compare them
             if (i > 0) cptr->buf[0] = '1';                                      // true
             if ((i == 0) && (ptr2->len < ptr1->len)) cptr->buf[0] = '1';        // also true
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -538,12 +537,12 @@ short run(int savasp, int savssp)                                               
             s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf);           // make a key out of it
             if (s < 0) ERROR(s);                                                // check for error
             ptr2->len = s;                                                      // save the length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // move ssp along
+            ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
             s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf);           // make a key out of it
             if (s < 0) ERROR(s);                                                // check for error
             ptr1->len = s;                                                      // save the length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // move ssp along
+            ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '1';                                                 // assume true
@@ -553,7 +552,7 @@ short run(int savasp, int savssp)                                               
             i = memcmp(ptr1->buf, ptr2->buf, t);                                // compare them
             if (i <= 0) cptr->buf[0] = '0';                                     // false
             if ((i == 0) && (ptr2->buf > ptr1->buf)) cptr->buf[0] = '0';        // also false
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -566,7 +565,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '0' + s;                                             // s is either 1 or 0
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -591,12 +590,12 @@ short run(int savasp, int savssp)                                               
             ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
 
             if (ptr1->len == ptr2->len) {                                       // if same length
-                if (bcmp(ptr1->buf, ptr2->buf, ptr1->len) == 0) {
+                if (memcmp(ptr1->buf, ptr2->buf, ptr1->len) == 0) {
                     cptr->buf[0] = '0';                                         // they are not the same
                 }
             }
 
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -613,7 +612,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (!runtime_comp((char *) cptr->buf, (char *) temp) ? '1' : '0');
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -630,7 +629,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (!runtime_comp((char *) temp, (char *) cptr->buf) ? '1' : '0');
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -642,7 +641,7 @@ short run(int savasp, int savssp)                                               
             cptr->buf[0] = '1';                                                 // assume true
             cptr->buf[1] = '\0';                                                // null terminate
             if ((i != 0) && (j != 0)) cptr->buf[0] = '0';                       // result false
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -654,7 +653,7 @@ short run(int savasp, int savssp)                                               
             cptr->buf[0] = '1';                                                 // assume true
             cptr->buf[1] = '\0';                                                // null terminate
             if ((i != 0) || (j != 0)) cptr->buf[0] = '0';                       // result false
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -666,7 +665,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = ((i == 0) ? '1' : '0');                              // store the result
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -682,7 +681,7 @@ short run(int savasp, int savssp)                                               
             i = memcmp(ptr1->buf, ptr2->buf, t);                                // compare them
             if (i > 0) cptr->buf[0] = '0';                                      // false
             if ((i == 0) && (ptr2->len < ptr1->len)) cptr->buf[0] = '0';        // also false
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -691,12 +690,12 @@ short run(int savasp, int savssp)                                               
             s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf);           // make a key out of it
             if (s < 0) ERROR(s);                                                // check for error
             ptr2->len = s;                                                      // save the length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // move ssp along
+            ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
             s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf);           // make a key out of it
             if (s < 0) ERROR(s);                                                // check for error
             ptr1->len = s;                                                      // save the length
-            ssp = ssp + s + sizeof(u_short) + 1;                                // move ssp along
+            ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '0';                                                 // assume false
@@ -706,7 +705,7 @@ short run(int savasp, int savssp)                                               
             i = memcmp(ptr1->buf, ptr2->buf, t);                                // compare them
             if (i <= 0) cptr->buf[0] = '1';                                     // true
             if ((i == 0) && (ptr2->buf > ptr1->buf)) cptr->buf[0] = '1';        // also true
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -719,7 +718,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '0' + !s;                                            // s is either 1 or 0
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + 2;                                    // point past it
+            ssp += sizeof(u_short) + 2;                                         // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -737,7 +736,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, ptr1);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, ptr1);                                          // do it - global
             }
 
@@ -775,10 +774,10 @@ short run(int savasp, int savssp)                                               
             break;
 
         case OPNAKED:                                                           // RESET NAKED pointer
-            var = (mvar *) addstk[asp-1];                                       // get the variable
+            var = (mvar *) addstk[asp - 1];                                     // get the variable
 
             if ((var->uci != UCI_IS_LOCALVAR) && (var->name.var_cu[0] != '$')) { // a real global
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
             }
 
             break;                                                              // done
@@ -803,7 +802,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -828,7 +827,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -851,7 +850,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -876,7 +875,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -900,7 +899,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -925,7 +924,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 t = SS_Set(var, cptr);                                          // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 t = DB_Set(var, cptr);                                          // do it - global
             }
 
@@ -1085,13 +1084,13 @@ short run(int savasp, int savssp)                                               
             } else if (partab.src_var.name.var_cu[0] == '$') {                  // SSVN?
                 t = SS_Get(&partab.src_var, cptr->buf);                         // do it - SSVN
             } else {
-                bcopy(&partab.src_var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + partab.src_var.slen); // update naked
+                memcpy(&partab.jobtab->last_ref, &partab.src_var, sizeof(var_u) + 5 + partab.src_var.slen); // update naked
                 t = DB_Get(&partab.src_var, cptr->buf);                         // do it - global
             }
 
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // save the length
-            ssp = ssp + t + sizeof(u_short) + 1;                                // point past it
+            ssp += t + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1105,9 +1104,9 @@ short run(int savasp, int savssp)                                               
             addstk[asp++] = (u_char *) var;                                     // stack it
 
             if (opc == OPMVARF) {                                               // if reqd
-                ssp = ssp + sizeof(mvar);                                       // allow maximum size
+                ssp += sizeof(mvar);                                            // allow maximum size
             } else {                                                            // else 'normal' mvar
-                ssp = ssp + var->slen + sizeof(var_u) + (5 * sizeof(u_char));
+                ssp += var->slen + sizeof(var_u) + (5 * sizeof(u_char));
             }
 
             break;
@@ -1132,10 +1131,10 @@ short run(int savasp, int savssp)                                               
             if (INDANOK(comp_ptr)) ERROR(-(ERRZ58 + ERRMLAST));                 // too much indirection
             *comp_ptr++ = INDREST;                                              // restore things
             assert(sizeof(isp) == sizeof(long));
-            bcopy(&isp, comp_ptr, sizeof(long));                                // the isp to restore
+            memcpy(comp_ptr, &isp, sizeof(long));                               // the isp to restore
             comp_ptr += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            bcopy(&rsmpc, comp_ptr, sizeof(u_char *));                          // and the rsmpc
+            memcpy(comp_ptr, &rsmpc, sizeof(u_char *));                         // and the rsmpc
             comp_ptr += sizeof(u_char *);
             rsmpc = &indstk[isp];                                               // what we are going to do
             isp = comp_ptr - &indstk[isp] + isp;                                // adjust isp
@@ -1166,10 +1165,10 @@ short run(int savasp, int savssp)                                               
             if (INDANOK(comp_ptr)) ERROR(-(ERRZ58 + ERRMLAST));                 // too much indirection
             *comp_ptr++ = INDREST;                                              // restore things
             assert(sizeof(isp) == sizeof(long));
-            bcopy(&isp, comp_ptr, sizeof(long));                                // the isp to restore
+            memcpy(comp_ptr, &isp, sizeof(long));                               // the isp to restore
             comp_ptr += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            bcopy(&rsmpc, comp_ptr, sizeof(u_char *));                          // and the rsmpc
+            memcpy(comp_ptr, &rsmpc, sizeof(u_char *));                         // and the rsmpc
             comp_ptr += sizeof(u_char *);
             rsmpc = &indstk[isp];                                               // what we are going to do
             isp = comp_ptr - &indstk[isp] + isp;                                // adjust isp
@@ -1206,7 +1205,7 @@ short run(int savasp, int savssp)                                               
             t = SQ_Device(cptr->buf);                                           // do it in seqio
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1215,14 +1214,14 @@ short run(int savasp, int savssp)                                               
             t = Vecode(cptr->buf);                                              // get the info
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
         case VARES:                                                             // $ES[TACK]
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = itocstring(cptr->buf, partab.jobtab->cur_do - partab.jobtab->dostk[partab.jobtab->cur_do].estack);
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1231,7 +1230,7 @@ short run(int savasp, int savssp)                                               
             t = Vetrap(cptr->buf);                                              // get the info
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1240,21 +1239,21 @@ short run(int savasp, int savssp)                                               
             s = Vhorolog(cptr->buf);                                            // get the info
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
         case VARI:                                                              // $I[O]
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            cptr->len = itocstring(cptr->buf, partab.jobtab->io);               // return count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            cptr->len = uitocstring(cptr->buf, partab.jobtab->io);              // return count
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
         case VARJ:                                                              // $J[OB]
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = itocstring(cptr->buf, partab.jobtab - systab->jobtab + 1); // return it
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1263,7 +1262,7 @@ short run(int savasp, int savssp)                                               
             s = Vkey(cptr->buf);                                                // get the info
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1272,7 +1271,7 @@ short run(int savasp, int savssp)                                               
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '0';                                                 // always zero
             cptr->buf[1] = '\0';                                                // null terminate
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1286,7 +1285,7 @@ short run(int savasp, int savssp)                                               
 
             cptr->buf[1] = '\0';
             cptr->len = 1;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1295,7 +1294,7 @@ short run(int savasp, int savssp)                                               
             s = Vreference(cptr->buf);                                          // get the info
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1308,14 +1307,14 @@ short run(int savasp, int savssp)                                               
             }
 
             cptr->len = itocstring(cptr->buf, s);
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
         case VARST:                                                             // $ST[ACK]
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = itocstring(cptr->buf, partab.jobtab->cur_do);           // return size
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1324,7 +1323,7 @@ short run(int savasp, int savssp)                                               
             s = Vsystem(cptr->buf);                                             // get the info
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1334,7 +1333,7 @@ short run(int savasp, int savssp)                                               
             if (partab.jobtab->test != 0) cptr->buf[0] = '1';                   // but, if true then it's a one
             cptr->buf[1] = '\0';
             cptr->len = 1;
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1343,7 +1342,7 @@ short run(int savasp, int savssp)                                               
             s = Vx(cptr->buf);                                                  // get the info
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1352,7 +1351,7 @@ short run(int savasp, int savssp)                                               
             s = Vy(cptr->buf);                                                  // get the info
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1362,7 +1361,7 @@ short run(int savasp, int savssp)                                               
             s = Dascii1(cptr->buf, (cstring *) addstk[--asp]);                  // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1372,7 +1371,7 @@ short run(int savasp, int savssp)                                               
             s = Dascii2(cptr->buf, (cstring *) addstk[--asp], i);               // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1387,7 +1386,7 @@ short run(int savasp, int savssp)                                               
             }
 
             asp -= args;                                                        // remove the args
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1397,7 +1396,7 @@ short run(int savasp, int savssp)                                               
             s = Ddata(cptr->buf, var);                                          // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1406,7 +1405,7 @@ short run(int savasp, int savssp)                                               
             t = Dextract(cptr->buf, (cstring *) addstk[--asp], 1, 1);           // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1416,7 +1415,7 @@ short run(int savasp, int savssp)                                               
             t = Dextract(cptr->buf, (cstring *) addstk[--asp], i, i);           // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1427,7 +1426,7 @@ short run(int savasp, int savssp)                                               
             t = Dextract(cptr->buf, (cstring *) addstk[--asp], i, j);           // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1437,7 +1436,7 @@ short run(int savasp, int savssp)                                               
             t = Dfind2(cptr->buf, (cstring *) addstk[--asp], ptr1);             // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1448,7 +1447,7 @@ short run(int savasp, int savssp)                                               
             t = Dfind3(cptr->buf, (cstring *) addstk[--asp], ptr1, i);          // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1460,12 +1459,12 @@ short run(int savasp, int savssp)                                               
             s = ncopy(&p, ptr1->buf);                                           // convert to canonic number
             if (s < 0) ERROR(s);                                                // complain on error
             ptr1->len = s;
-            ssp = ssp + sizeof(u_short) + ptr1->len + 1;                        // point past it
+            ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             t = Dfnumber2(cptr->buf, ptr1, ptr2);                               // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1478,12 +1477,12 @@ short run(int savasp, int savssp)                                               
             s = ncopy(&p, ptr1->buf);                                           // convert to canonic number
             if (s < 0) ERROR(s);                                                // complain on error
             ptr1->len = s;
-            ssp = ssp + sizeof(u_short) + ptr1->len + 1;                        // point past it
+            ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             t = Dfnumber3(cptr->buf, ptr1, ptr2, i);                            // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1493,7 +1492,7 @@ short run(int savasp, int savssp)                                               
             t = Dget1(cptr->buf, var);                                          // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1504,7 +1503,7 @@ short run(int savasp, int savssp)                                               
             t = Dget2(cptr->buf, var, ptr1);                                    // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1514,7 +1513,7 @@ short run(int savasp, int savssp)                                               
             s = Dincrement1(cptr->buf, var);                                    // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1525,13 +1524,13 @@ short run(int savasp, int savssp)                                               
             s = ncopy(&p, ptr1->buf);                                           // convert to canonic number
             if (s < 0) ERROR(s);                                                // complain on error
             ptr1->len = s;
-            ssp = ssp + sizeof(u_short) + ptr1->len + 1;                        // point past it
+            ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
             var = (mvar *) addstk[--asp];                                       // get first arg
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             s = Dincrement2(cptr->buf, var, ptr1);                              // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1541,7 +1540,7 @@ short run(int savasp, int savssp)                                               
             t = Djustify2(cptr->buf, (cstring *) addstk[--asp], i);             // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1554,12 +1553,12 @@ short run(int savasp, int savssp)                                               
             s = ncopy(&p, ptr1->buf);                                           // convert to canonic number
             if (s < 0) ERROR(s);                                                // complain on error
             ptr1->len = s;
-            ssp = ssp + sizeof(u_short) + ptr1->len + 1;                        // point past it
+            ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             t = Djustify3(cptr->buf, ptr1, i, j);                               // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1568,7 +1567,7 @@ short run(int savasp, int savssp)                                               
             s = Dlength1(cptr->buf, (cstring *) addstk[--asp]);                 // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1578,7 +1577,7 @@ short run(int savasp, int savssp)                                               
             s = Dlength2(cptr->buf, (cstring *) addstk[--asp], ptr1);           // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1588,7 +1587,7 @@ short run(int savasp, int savssp)                                               
             s = Dname1(cptr->buf, var);                                         // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1599,7 +1598,7 @@ short run(int savasp, int savssp)                                               
             s = Dname2(cptr->buf, var, i);                                      // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1609,7 +1608,7 @@ short run(int savasp, int savssp)                                               
             s = Dorder1(cptr->buf, var);                                        // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1620,7 +1619,7 @@ short run(int savasp, int savssp)                                               
             s = Dorder2(cptr->buf, var, i);                                     // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1630,7 +1629,7 @@ short run(int savasp, int savssp)                                               
             t = Dpiece2(cptr->buf, (cstring *) addstk[--asp], ptr1);            // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1641,7 +1640,7 @@ short run(int savasp, int savssp)                                               
             t = Dpiece3(cptr->buf, (cstring *) addstk[--asp], ptr1, i);         // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1653,7 +1652,7 @@ short run(int savasp, int savssp)                                               
             t = Dpiece4(cptr->buf, (cstring *) addstk[--asp], ptr1, i, j);      // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1664,7 +1663,7 @@ short run(int savasp, int savssp)                                               
             if (s < 0) ERROR(s);                                                // complain on error
             cptr = (cstring *) var;                                             // where the answer goes
             cptr->len = itocstring(cptr->buf, s);                               // the subs count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1675,7 +1674,7 @@ short run(int savasp, int savssp)                                               
             var = (mvar *) &strstk[ssp];                                        // some space
             s = UTIL_MvarFromCStr(ptr1, var);                                   // convert to an mvar
             if (s < 0) ERROR(s);                                                // complain on error
-            ssp = ssp + sizeof(var_u) + 4 + var->slen;                          // protect the mvar
+            ssp += sizeof(var_u) + 4 + var->slen;                               // protect the mvar
             cptr = (cstring *) &strstk[ssp];                                    // where the answer goes
             addstk[asp++] = (u_char *) cptr;                                    // stack it
 
@@ -1683,16 +1682,15 @@ short run(int savasp, int savssp)                                               
                 if ((var->uci == UCI_IS_LOCALVAR) || (var->uci == 0)) {         // if it's local or no UCI there
                     cptr->len = 0;                                              // length 0
                     cptr->buf[0] = '\0';                                        // null terminated
-                    ssp = ssp + sizeof(u_short) + cptr->len + 1;                // point past it
+                    ssp += sizeof(u_short) + cptr->len + 1;                     // point past it
                     break;                                                      // done
                 }
 
                 i = 0;                                                          // clear the counter
 
                 if (var->volset) {                                              // vol specified ?
-                    // NEED VOLSET CHECKS LATER
-                    if (var->volset != 1) ERROR(-ERRM26);                       // not there
-                    list = &systab->vol[0]->vollab->volnam;                     // point at vol name
+                    if (systab->vol[var->volset - 1] == NULL) ERROR(-ERRM26);   // not there
+                    list = &systab->vol[var->volset - 1]->vollab->uci[var->uci - 1].name; // UCI table
 
                     for (args = 0; args < VAR_LEN; args++) {                    // use a random int
                         if (list->var_cu[args] == 0) break;                     // quit on null
@@ -1700,18 +1698,17 @@ short run(int savasp, int savssp)                                               
                     }
 
                     cptr->buf[i++] = ',';                                       // add the comma
+                    list = &systab->vol[var->volset - 1]->vollab->volnam;       // point at volume name
+
+                    for (args = 0; args < VAR_LEN; args++) {                    // use a random int
+                        if (list->var_cu[args] == 0) break;                     // quit on null
+                        cptr->buf[i++] = list->var_cu[args];                    // copy a character
+                    }
                 }                                                               // end volset processing
-
-                list = &systab->vol[0]->vollab->uci[var->uci - 1].name;         // UCI table
-
-                for (args = 0; args < VAR_LEN; args++) {                        // use a random int
-                    if (list->var_cu[args] == 0) break;                         // quit on null
-                    cptr->buf[i++] = list->var_cu[args];                        // copy a character
-                }
 
                 cptr->buf[i] = '\0';                                            // null terminate
                 cptr->len = i;                                                  // the length
-                ssp = ssp + sizeof(u_short) + cptr->len + 1;                    // point past it
+                ssp += sizeof(u_short) + cptr->len + 1;                         // point past it
                 break;
             }                                                                   // end environment stuff
 
@@ -1730,14 +1727,14 @@ short run(int savasp, int savssp)                                               
 
                 cptr->buf[i + k] = '\0';                                        // null terminate
                 cptr->len = i + k;                                              // save the length
-                ssp = ssp + sizeof(u_short) + cptr->len + 1;                    // point past it
+                ssp += sizeof(u_short) + cptr->len + 1;                         // point past it
                 break;                                                          // done
             }
 
             if (j > s) {                                                        // no such subscript?
                 cptr->len = 0;                                                  // length 0
                 cptr->buf[0] = '\0';                                            // null terminated
-                ssp = ssp + sizeof(u_short) + cptr->len + 1;                    // point past it
+                ssp += sizeof(u_short) + cptr->len + 1;                         // point past it
                 break;                                                          // done
             }
 
@@ -1751,7 +1748,7 @@ short run(int savasp, int savssp)                                               
             }
 
             cptr->len = s;                                                      // store the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             break;
 
         case FUNQ1:                                                             // $Q[UERY] 1 arg
@@ -1763,7 +1760,7 @@ short run(int savasp, int savssp)                                               
             s = Dquery2(cptr->buf, var, i);                                     // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1773,7 +1770,7 @@ short run(int savasp, int savssp)                                               
             s = Drandom(cptr->buf, i);                                          // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1782,7 +1779,7 @@ short run(int savasp, int savssp)                                               
             t = Dreverse(cptr->buf, (cstring *) addstk[--asp]);                 // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1792,7 +1789,7 @@ short run(int savasp, int savssp)                                               
             s = Dstack1(cptr->buf, i);                                          // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1803,7 +1800,7 @@ short run(int savasp, int savssp)                                               
             t = Dstack2(cptr->buf, i, ptr1);                                    // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1813,7 +1810,7 @@ short run(int savasp, int savssp)                                               
             t = Dtext(cptr->buf, ptr1);                                         // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1823,7 +1820,7 @@ short run(int savasp, int savssp)                                               
             t = Dtranslate2(cptr->buf, (cstring *) addstk[--asp], ptr1);        // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1834,7 +1831,7 @@ short run(int savasp, int savssp)                                               
             t = Dtranslate3(cptr->buf, (cstring *) addstk[--asp], ptr1, ptr2);  // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1854,7 +1851,7 @@ short run(int savasp, int savssp)                                               
             t = Dview(cptr->buf, cstringtoi((cstring *) addstk[--asp]), i, j, ptr1); // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // the count
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -1892,7 +1889,7 @@ short run(int savasp, int savssp)                                               
                     ERROR(-(ERRZ63 + ERRMLAST));                                // no - die
                 }
 
-                if (partab.jobtab->view[i - 1]->block != j) {
+                if ((int) partab.jobtab->view[i - 1]->block != j) {
                     ERROR(-(ERRZ63 + ERRMLAST));                                // wrong block - die
                 }
 
@@ -1919,7 +1916,7 @@ short run(int savasp, int savssp)                                               
 
             if (var2->name.var_cu[0] == '$') ERROR(-ERRM29);                    // source is SSVN so can't do that (except above)
             s = Ddata(temp, var2);                                              // see if source exists
-            if (s < 0) ERROR(s);                                                // complain if krap
+            if (s < 0) ERROR(s);                                                // complain on error
             if (temp[0] == '0') break;                                          // quit if no such
             cptr = (cstring *) &strstk[ssp];                                    // somewhere to put this
 
@@ -1944,7 +1941,7 @@ short run(int savasp, int savssp)                                               
 
             i = var->slen;                                                      // dest key size
             j = var2->slen;                                                     // source key size
-            bcopy(var2->key, temp, j);                                          // save source key
+            memcpy(temp, var2->key, j);                                         // save source key
 
             while (TRUE) {                                                      // all of them
                 if (var2->uci == UCI_IS_LOCALVAR) {
@@ -1955,10 +1952,10 @@ short run(int savasp, int savssp)                                               
 
                 if (t == -(ERRZ55 + ERRMLAST)) break;                           // done (ran out)
                 if (t < 0) ERROR(t);                                            // die on error
-                if (bcmp(var2->key, temp, j)) break;                            // all done
+                if (memcmp(var2->key, temp, j)) break;                          // all done
                 cptr->len = t;                                                  // save the length
-                bcopy(&var2->key[j], &var->key[i], var2->slen - j);             // from end of src key to end of dest key
-                if ((i + var2->slen - j) > 255) ERROR(-(ERRZ2 + ERRMLAST));     // complain if too big
+                memmove(&var->key[i], &var2->key[j], var2->slen - j);           // from end of src key to end of dest key
+                if ((i + var2->slen - j) > MAX_KEY_SIZE) ERROR(-(ERRZ2 + ERRMLAST)); // complain if too big
                 var->slen = i + var2->slen - j;                                 // get the length of the new
 
                 if (var->uci == UCI_IS_LOCALVAR) {
@@ -1995,7 +1992,7 @@ short run(int savasp, int savssp)                                               
                         ERROR(s);
                     }
 
-                    bcopy(rsmpc, &rou, VAR_LEN);                                // get routine name
+                    memcpy(&rou, rsmpc, VAR_LEN);                               // get routine name
                     rsmpc += VAR_LEN;
                 }
 
@@ -2012,7 +2009,7 @@ short run(int savasp, int savssp)                                               
                     ERROR(s);
                 }
 
-                bcopy(rsmpc, &tag, VAR_LEN);                                    // get tag name
+                memcpy(&tag, rsmpc, VAR_LEN);                                   // get tag name
                 rsmpc += VAR_LEN;
             }
 
@@ -2022,7 +2019,7 @@ short run(int savasp, int savssp)                                               
                 }
 
                 assert(sizeof(us) == sizeof(u_short));
-                bcopy(rsmpc, &us, sizeof(u_short));                             // get the offset
+                memcpy(&us, rsmpc, sizeof(u_short));                            // get the offset
                 rsmpc += sizeof(u_short);
                 offset = us;
             }
@@ -2054,7 +2051,7 @@ short run(int savasp, int savssp)                                               
                 if ((var_equal(rou, partab.jobtab->dostk[i].rounam)) &&
                   (partab.jobtab->ruci == partab.jobtab->dostk[i].uci) &&
                   (partab.jobtab->rvol == partab.jobtab->dostk[i].vol)) {
-                    bcopy(&partab.jobtab->dostk[i], curframe, sizeof(do_frame));
+                    memcpy(curframe, &partab.jobtab->dostk[i], sizeof(do_frame));
                     curframe->flags = 0;                                        // flag no attach etc.
                     rouadd = (rbd *) partab.jobtab->dostk[i].routine;           // setup rou addr
                     break;                                                      // copy and exit
@@ -2113,7 +2110,7 @@ short run(int savasp, int savssp)                                               
 
                 while (offset) {                                                // if there is an offset
                     i = 0;                                                      // clear this
-                    if (*curframe->pc == LOADARG) i = *curframe->pc + 1;        // if args then point at LINENUM
+                    if (*curframe->pc == LOADARG) i = curframe->pc[1] + 2;      // if args then point at LINENUM
 
                     if (curframe->pc[i] != LINENUM) {                           // check this
                         partab.jobtab->cur_do--;                                // back to original frame
@@ -2176,11 +2173,14 @@ short run(int savasp, int savssp)                                               
                 j = *rsmpc++;                                                   // number of them
 
                 if ((args - 1) > j) {                                           // too many supplied?
+                    /*
                     if (curframe->symbol != NULL) {
-                        //free(curframe->symbol);                                 // DLW - causes segfault in some cases (M errors)
+                        free(curframe->symbol);                                 // DLW - causes segfault in some cases (M errors)
                         curframe->symbol = NULL;
                     }
+                    */
 
+                    curframe->symbol = NULL;
                     partab.jobtab->cur_do--;                                    // point back
                     ERROR(-ERRM58);                                             // complain
                 }
@@ -2250,7 +2250,7 @@ short run(int savasp, int savssp)                                               
 
             if ((opc == CMJOBROU) || (opc == CMJOBRT) || (opc == CMJOBRTO)) {
                 assert(sizeof(rou) == VAR_LEN);
-                bcopy(rsmpc, &rou, VAR_LEN);                                    // get routine name
+                memcpy(&rou, rsmpc, VAR_LEN);                                   // get routine name
                 rsmpc += VAR_LEN;
             }
 
@@ -2260,7 +2260,7 @@ short run(int savasp, int savssp)                                               
 
             if ((opc == CMJOBTAG) || (opc == CMJOBRT) || (opc == CMJOBRTO)) {
                 assert(sizeof(tag) == VAR_LEN);
-                bcopy(rsmpc, &tag, VAR_LEN);                                    // get tag name
+                memcpy(&tag, rsmpc, VAR_LEN);                                   // get tag name
                 rsmpc += VAR_LEN;
             }
 
@@ -2272,7 +2272,7 @@ short run(int savasp, int savssp)                                               
                 }
 
                 assert(sizeof(us) == sizeof(u_short));
-                bcopy(rsmpc, &us, sizeof(u_short));                             // get the offset
+                memcpy(&us, rsmpc, sizeof(u_short));                            // get the offset
                 rsmpc += sizeof(u_short);
                 offset = us;
             }
@@ -2299,7 +2299,7 @@ short run(int savasp, int savssp)                                               
             list = (var_u *) &tag;                                              // point at the tag
             j = 0;                                                              // clear pointer
 
-            while ((list->var_cu[j] != 0) && (j < VAR_LEN)) {
+            while ((j < VAR_LEN) && (list->var_cu[j] != 0)) {
                 strstk[i++] = list->var_cu[j++];                                // copy it
             }
 
@@ -2312,7 +2312,7 @@ short run(int savasp, int savssp)                                               
             list = (var_u *) &rou;                                              // point at the rou
             j = 0;                                                              // clear pointer
 
-            while ((list->var_cu[j] != 0) && (j < VAR_LEN)) {
+            while ((j < VAR_LEN) && (list->var_cu[j] != 0)) {
                 strstk[i++] = list->var_cu[j++];                                // copy it
             }
 
@@ -2322,7 +2322,7 @@ short run(int savasp, int savssp)                                               
                 for (j = args - 1; j > 0; --j) {                                // for each arg
                     strstk[i++] = '"';                                          // quote it
                     cptr = (cstring *) addstk[asp - j];                         // get the arg
-                    bcopy(cptr->buf, &strstk[i], cptr->len);                    // copy the arg
+                    memmove(&strstk[i], cptr->buf, cptr->len);                  // copy the arg
                     i = i + cptr->len;                                          // count it
                     strstk[i++] = '"';                                          // close the quote
                     strstk[i++] = ',';                                          // add a comma
@@ -2357,7 +2357,7 @@ short run(int savasp, int savssp)                                               
 
             if ((opc == CMGOROU) || (opc == CMGORT) || (opc == CMGORTO)) {
                 assert(sizeof(rou) == VAR_LEN);
-                bcopy(rsmpc, &rou, VAR_LEN);                                    // get routine name
+                memcpy(&rou, rsmpc, VAR_LEN);                                   // get routine name
                 rsmpc += VAR_LEN;
             }
 
@@ -2367,22 +2367,23 @@ short run(int savasp, int savssp)                                               
 
             if ((opc == CMGOTAG) || (opc == CMGORT) || (opc == CMGORTO)) {
                 assert(sizeof(tag) == VAR_LEN);
-                bcopy(rsmpc, &tag, VAR_LEN);                                    // get tag name
+                memcpy(&tag, rsmpc, VAR_LEN);                                   // get tag name
                 rsmpc += VAR_LEN;
             }
 
             if (opc == CMGORTO) {                                               // if there is one
+                if (var_empty(tag)) ERROR(-ERRM20);                             // can't do that
+
                 if (!(systab->historic & HISTORIC_OFFOK)) {                     // if not permitted
                     ERROR(-(ERRZ70 + ERRMLAST));                                // complain
                 }
 
                 assert(sizeof(us) == sizeof(u_short));
-                bcopy(rsmpc, &us, sizeof(u_short));                             // get the offset
+                memcpy(&us, rsmpc, sizeof(u_short));                            // get the offset
                 rsmpc += sizeof(u_short);
                 offset = us;
             }
 
-            if (var_empty(tag) && offset) ERROR(-ERRM20);                       // can't do that
             curframe = &partab.jobtab->dostk[partab.jobtab->cur_do];            // point at it
             rouadd = NULL;                                                      // clear rouadd
 
@@ -2463,7 +2464,7 @@ short run(int savasp, int savssp)                                               
 
                 while (offset) {                                                // if there is an offset
                     i = 0;                                                      // clear this
-                    if (*curframe->pc == LOADARG) i = *curframe->pc + 1;        // if args then point at LINENUM
+                    if (*curframe->pc == LOADARG) i = curframe->pc[1] + 2;      // if args then point at LINENUM
                     if (curframe->pc[i] != LINENUM) ERROR(-ERRM13);             // check this and fail if they don't match
                     curframe->pc = &curframe->pc[i + 3];                        // point at offset
                     i = *(u_short *) curframe->pc;                              // get it
@@ -2477,7 +2478,7 @@ short run(int savasp, int savssp)                                               
 
             if (*p++ == LINENUM) {
                 assert(sizeof(us) == sizeof(u_short));
-                bcopy(p, &us, sizeof(u_short));                                 // get the linenum
+                memcpy(&us, p, sizeof(u_short));                                // get the linenum
                 p += sizeof(u_short);
                 curframe->line_num = us;                                        // store the line number
                 p += sizeof(u_short);                                           // point past the offset
@@ -2488,8 +2489,8 @@ short run(int savasp, int savssp)                                               
             if (curframe->level != i) ERROR(-ERRM45);                           // different dots? then complain
 
             /*
-             * FOR DOTS STILL NEED TO CHECK DOTS AND NEW ROUTINE
-             * AND LESSER DOTS BETWEEN SOURCE AND DESTINATION
+             * For dots still need to check dots and new routine
+             * and lesser dots between source and destination
              */
 
             if ((curframe->symbol == NULL) && rouadd->num_vars) {               // need symbol space? and have any vars?
@@ -2511,7 +2512,7 @@ short run(int savasp, int savssp)                                               
             *comp_ptr++ = ENDLIN;                                               // JIC
             *comp_ptr++ = ENDLIN;                                               // JIC
             cptr->len = (u_short) (comp_ptr - cptr->buf);                       // get the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             if (partab.jobtab->cur_do >= MAX_DO_FRAMES) ERROR(-(ERRZ8 + ERRMLAST)); // too many
             partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;
             partab.jobtab->cur_do++;                                            // increment do frame
@@ -2555,7 +2556,7 @@ short run(int savasp, int savssp)                                               
 
             opc = CMQUIT;                                                       // pretend it was QUIT
             partab.jobtab->commands--;                                          // don't count the command
-            // and fall through
+            // fall through
 
         case CMQUIT:                                                            // QUIT no args
         case CMQUITA:                                                           // QUIT with args
@@ -2616,8 +2617,8 @@ short run(int savasp, int savssp)                                               
 
             if (opc == CMQUITA) {                                               // if there was an arg
                 ptr1 = (cstring *) &strstk[ssp];                                // where we will put it
-                bcopy(cptr, ptr1, cptr->len + sizeof(u_short) + 1);             // copy it
-                ssp = ssp + ptr1->len + sizeof(u_short) + 1;                    // protect it
+                memmove(ptr1, cptr, cptr->len + sizeof(u_short) + 1);           // copy it
+                ssp += ptr1->len + sizeof(u_short) + 1;                         // protect it
                 addstk[asp++] = (u_char *) ptr1;                                // save the address
             }
 
@@ -2652,7 +2653,7 @@ short run(int savasp, int savssp)                                               
                 s = UTIL_mvartolock((mvar *) addstk[--asp], p + sizeof(short));
                 if (s < 0) ERROR(s);                                            // check for error
                 *((short *) p) = s;                                             // save the size
-                p = p + s + sizeof(short);                                      // add the length
+                p += s + sizeof(short);                                         // add the length
                 if ((long) p & 1) p++;                                          // ensure even
             }
 
@@ -2695,7 +2696,7 @@ short run(int savasp, int savssp)                                               
                     if ((strncasecmp((const char *) &var->name.var_cu[0], "$et\0", 4) == 0) ||
                       (strncasecmp((const char *) &var->name.var_cu[0], "$etrap\0", 7) == 0)) {
                         VAR_CLEAR(var->name);
-                        bcopy("$ETRAP", &var->name.var_cu[0], 6);
+                        memcpy(&var->name.var_cu[0], "$ETRAP", 6);
                         VAR_COPY(list[args - 1], var->name);                    // ensure list OK
                         t = ST_GetAdd(var, &cptr);                              // get address of current value
                         if (t < 1) cptr = NULL;                                 // ignore junk
@@ -2724,7 +2725,7 @@ short run(int savasp, int savssp)                                               
             if (cptr != NULL) {                                                 // need to restore $ETRAP?
                 var = (mvar *) &strstk[ssp];                                    // where to put this
                 VAR_CLEAR(var->name);
-                bcopy("$ETRAP", &var->name.var_cu[0], 6);
+                memcpy(&var->name.var_cu[0], "$ETRAP", 6);
                 var->uci = UCI_IS_LOCALVAR;                                     // local
                 var->volset = 0;
                 var->slen = 0;                                                  // no subscripts
@@ -2744,7 +2745,7 @@ short run(int savasp, int savssp)                                               
             } else if (var->name.var_cu[0] == '$') {                            // SSVN?
                 s = SS_Kill(var);                                               // do it - SSVN
             } else {
-                bcopy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + var->slen); // update naked
+                memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
                 s = DB_Kill(var);                                               // do it - global
             }
 
@@ -2795,9 +2796,11 @@ short run(int savasp, int savssp)                                               
             if (symtab[s].data == ST_DATA_NULL) {                               // if data block undef
                 symtab[s].data = malloc(DTMINSIZE);                             // allocate some mem
                 if (symtab[s].data == NULL) ERROR(-(ERRZ56 + ERRMLAST));        // no memory
-                bzero(symtab[s].data, DTMINSIZE);                               // clear it
+                memset(symtab[s].data, 0, DTMINSIZE);                           // clear it
+DISABLE_WARN(-Warray-bounds)
                 symtab[s].data->attach = 1;                                     // this one attached
                 symtab[s].data->dbc = VAR_UNDEFINED;                            // say undefined
+ENABLE_WARN
             }
 
             addstk[asp++] = (u_char *) symtab[s].data;                          // save the address
@@ -2810,14 +2813,14 @@ short run(int savasp, int savssp)                                               
 
         case LINENUM:                                                           // Set current LINE NUMBER
             assert(sizeof(us) == sizeof(u_short));
-            bcopy(rsmpc, &us, sizeof(u_short));                                 // get the linenum
+            memcpy(&us, rsmpc, sizeof(u_short));                                // get the linenum
             rsmpc += sizeof(u_short);
             partab.jobtab->dostk[partab.jobtab->cur_do].line_num = us;          // store the line number
-            bcopy(rsmpc, &us, sizeof(u_short));
+            memcpy(&us, rsmpc, sizeof(u_short));
             partab.jobtab->dostk[partab.jobtab->cur_do].endlin = rsmpc + us;
             rsmpc += sizeof(u_short);
 
-            if (partab.debug < 0) {                                             // in debug?
+            if (partab.debug == -1) {                                           // in debug?
                 s = Debug(savasp, savssp, 0);                                   // do it
                 if (s == OPHALT) return s;                                      // halt if reqd
                 if (s < 0) ERROR(s);                                            // complain if reqd
@@ -2843,7 +2846,7 @@ short run(int savasp, int savssp)                                               
 
         case JMP:                                                               // JUMP
             assert(sizeof(s) == sizeof(short));
-            bcopy(rsmpc, &s, sizeof(short));                                    // get the offset
+            memcpy(&s, rsmpc, sizeof(short));                                   // get the offset
             rsmpc += sizeof(short);
             rsmpc = rsmpc + s;                                                  // jump
             break;
@@ -2851,14 +2854,14 @@ short run(int savasp, int savssp)                                               
         case CMFOR0:                                                            // argless FOR
             partab.jobtab->commands++;                                          // count a command
             forx = (for_stack *) &strstk[ssp];                                  // where to put for stuff
-            ssp = ssp + sizeof(for_stack);                                      // protect it
+            ssp += sizeof(for_stack);                                           // protect it
             addstk[asp++] = (u_char *) forx;                                    // save the address
             savasp = asp;                                                       // protect these
             savssp = ssp;                                                       // needs to be better
             forx->type = FOR_TYP_0;                                             // save type
             if (infor) forx->type |= FOR_NESTED;                                // check for nesting
             assert(sizeof(s) == sizeof(short));
-            bcopy(rsmpc, &s, sizeof(short));                                    // get the offset
+            memcpy(&s, rsmpc, sizeof(short));                                   // get the offset
             rsmpc += sizeof(short);
             forx->quit = rsmpc + s;                                             // save the new address
             infor = 1;                                                          // say in a for loop
@@ -3005,12 +3008,12 @@ short run(int savasp, int savssp)                                               
                 if (s < 0) ERROR(s);                                            // check it
                 asp = s;                                                        // restore returned asp
                 if (var->uci != UCI_IS_LOCALVAR) ERROR(-(ERRZ13 + ERRMLAST));   // not a local? well it must be local
-                ssp = ssp + var->slen + sizeof(var_u) + (sizeof(u_char) * 4);
+                ssp += var->slen + sizeof(var_u) + (sizeof(u_char) * 4);
                 s = -1;                                                         // flag var type
             }
 
             forx = (for_stack *) &strstk[ssp];                                  // where to put for stuff
-            ssp = ssp + sizeof(for_stack);                                      // protect it
+            ssp += sizeof(for_stack);                                           // protect it
             addstk[asp++] = (u_char *) forx;                                    // save the address
             savasp = asp;                                                       // protect these
             savssp = ssp;                                                       // needs to be better
@@ -3019,11 +3022,11 @@ short run(int savasp, int savssp)                                               
             forx->svar = s;                                                     // save syment
             forx->var = var;                                                    // or mvar address
             assert(sizeof(s) == sizeof(short));
-            bcopy(rsmpc, &s, sizeof(short));                                    // get the offset
+            memcpy(&s, rsmpc, sizeof(short));                                   // get the offset
             rsmpc += sizeof(short);
             forx->startpc = rsmpc + s;                                          // save the new address
             assert(sizeof(s) == sizeof(short));
-            bcopy(rsmpc, &s, sizeof(short));                                    // get the offset
+            memcpy(&s, rsmpc, sizeof(short));                                   // get the offset
             rsmpc += sizeof(short);
             forx->quit = rsmpc + s;                                             // save the new address
             infor = 1;                                                          // say in a for loop
@@ -3104,10 +3107,10 @@ short run(int savasp, int savssp)                                               
         // ***** Indirection Stuff *****
         case INDREST:                                                           // RESTORE isp and rsmpc
             assert(sizeof(isp) == sizeof(long));
-            bcopy(rsmpc, &isp, sizeof(long));                                   // restore the isp
+            memcpy(&isp, rsmpc, sizeof(long));                                  // restore the isp
             rsmpc += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            bcopy(rsmpc, &rsmpc, sizeof(u_char *));                             // and the rsmpc
+            memcpy(&rsmpc, rsmpc, sizeof(u_char *));                            // and the rsmpc
             break;                                                              // continue
 
         case INDCLOS:                                                           // CLOSE indirect
@@ -3202,10 +3205,10 @@ short run(int savasp, int savssp)                                               
             if (INDANOK(comp_ptr)) ERROR(-(ERRZ58 + ERRMLAST));                 // too much indirection
             *comp_ptr++ = INDREST;                                              // restore things
             assert(sizeof(isp) == sizeof(long));
-            bcopy(&isp, comp_ptr, sizeof(long));                                // the isp to restore
+            memcpy(comp_ptr, &isp, sizeof(long));                               // the isp to restore
             comp_ptr += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            bcopy(&rsmpc, comp_ptr, sizeof(u_char *));                          // and the rsmpc
+            memcpy(comp_ptr, &rsmpc, sizeof(u_char *));                         // and the rsmpc
             comp_ptr += sizeof(u_char *);
             rsmpc = &indstk[isp];                                               // what we are going to do
             isp = comp_ptr - &indstk[isp] + isp;                                // adjust isp
@@ -3223,7 +3226,7 @@ short run(int savasp, int savssp)                                               
             if (s < 0) ERROR(s);                                                // complain on error
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = itocstring(cptr->buf, s);                               // convert return to string
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3236,7 +3239,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_host((char *) cptr->buf, ptr1, ptr2);                     // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3247,7 +3250,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_file((char *) cptr->buf, ptr1, ptr2);                     // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3258,7 +3261,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_wait((char *) cptr->buf, ptr1, ptr2);                     // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3269,7 +3272,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_debug((char *) cptr->buf, ptr1, ptr2);                    // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3280,7 +3283,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_directory((char *) cptr->buf, ptr1, ptr2);                // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3291,7 +3294,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_errmsg((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3302,7 +3305,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_opcom((char *) cptr->buf, ptr1, ptr2);                    // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3313,7 +3316,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_signal((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3324,7 +3327,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_spawn((char *) cptr->buf, ptr1, ptr2);                    // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3335,7 +3338,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_version((char *) cptr->buf, ptr1, ptr2);                  // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3346,7 +3349,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_zwrite((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3357,7 +3360,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_e((char *) cptr->buf, ptr1, ptr2);                        // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3368,7 +3371,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_paschk((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3379,7 +3382,7 @@ short run(int savasp, int savssp)                                               
             t = Xcall_v((char *) cptr->buf, ptr1, ptr2);                        // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3390,7 +3393,7 @@ short run(int savasp, int savssp)                                               
             t = Xcall_x((char *) cptr->buf, ptr1, ptr2);                        // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3401,7 +3404,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_xrsm((char *) cptr->buf, ptr1, ptr2);                     // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3412,7 +3415,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_setenv((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3423,7 +3426,7 @@ short run(int savasp, int savssp)                                               
             t = Xcall_getenv((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // save the length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
@@ -3431,9 +3434,9 @@ short run(int savasp, int savssp)                                               
             ptr2 = (cstring *) addstk[--asp];                                   // get arg 2 (ignored)
             ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
             var2 = (mvar *) &strstk[ssp];                                       // some space
-            ssp = ssp + sizeof(mvar);                                           // cover it
+            ssp += sizeof(mvar);                                                // cover it
             VAR_CLEAR(var2->name);
-            bcopy("$ROUTINE", &var2->name.var_cu, 8);                           // ^$R
+            memcpy(&var2->name.var_cu, "$ROUTINE", 8);                          // ^$ROUTINE
             var2->volset = partab.jobtab->rvol;                                 // the volume
             var2->uci = partab.jobtab->ruci;                                    // and the UCI
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
@@ -3459,7 +3462,7 @@ short run(int savasp, int savssp)                                               
             s = Xcall_fork((char *) cptr->buf, ptr1, ptr2);                     // do it
             if (s < 0) ERROR(s);                                                // give up on error
             cptr->len = s;                                                      // save length
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 
@@ -3472,7 +3475,7 @@ short run(int savasp, int savssp)                                               
             t = DB_ic(i, j);                                                    // do it
             if (t < 0) ERROR(t);                                                // give up on error
             cptr->len = itocstring(cptr->buf, t);                               // make a string
-            ssp = ssp + sizeof(u_short) + cptr->len + 1;                        // point past it
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;                                                              // done
 

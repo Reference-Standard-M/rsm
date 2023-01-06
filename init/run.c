@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/init/run.c
- * Summary:  module RSM - startup (main) code
+ * Summary:  module init - startup (main) code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -31,8 +31,7 @@
 #include <signal.h>
 #include <errno.h>                                                              // error stuff
 #include <fcntl.h>                                                              // file stuff
-#include <string.h>                                                             // for bcopy()
-#include <strings.h>
+#include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // database access
 #include <sys/ipc.h>                                                            // shared memory
 #include <sys/shm.h>                                                            // shared memory
@@ -70,9 +69,10 @@ void ser(int s)                                                                 
     u_char  junk[100];
 
     if (s == -(ERRZ27 + ERRMLAST)) panic("Chanel zero has gone away");          // if totally confused then die
+    if (s == -(ERRMLAST + ERRZLAST + EIO)) panic("Input/output error");         // $&%FORK errors (maybe others?)
     cptr = (cstring *) junk;                                                    // some space
     if (s < 0) s = -s;                                                          // make error positive
-    (void) UTIL_strerror(s, &cptr->buf[0]);                                     // get the text
+    UTIL_strerror(s, &cptr->buf[0]);                                            // get the text
     fprintf(stderr, "\r\nERROR occurred %d\r\n%s\r\n", s, &cptr->buf[0]);       // print it
     return;                                                                     // and return
 }
@@ -86,7 +86,7 @@ void controlc(void)                                                             
     sptr = (cstring *) junk;                                                    // where to put it
     s = SQ_WriteFormat(SQ_LF);                                                  // new line
     if (s < 0) ser(s);                                                          // check for error
-    bcopy("^C", sptr->buf, 2);                                                  // copy in the prompt
+    memcpy(sptr->buf, "^C", 2);                                                 // copy in the prompt
 DISABLE_WARN(-Warray-bounds)
     sptr->buf[3] = '\0';                                                        // null terminate
     sptr->len = 2;                                                              // and the length
@@ -112,6 +112,7 @@ int INIT_Run(char *file,                                                        
     int     env_num = 1;                                                        // startup environment number
     var_u   tmp;                                                                // temp descriptor
     uci_tab *uci_ptr;                                                           // for UCI search
+    u_char  *volnam;                                                            // for volume name
     int     pid;                                                                // job number
     int     ssp = 0;                                                            // string stack ptr
     int     asp = 0;                                                            // address stack ptr
@@ -129,9 +130,9 @@ start:
     partab.jobtab = (jobtab *) NULL;                                            // clear jobtab pointer
 
     if (start_type == TYPE_RUN) {                                               // if not from JOB
-        dbfd = open(file, O_RDONLY);                                            // open the database for read
+        dbfd = open(file, O_RDONLY);                                            // open the main database for read
 
-        if (dbfd < 0) {                                                         // if that failed
+        if (dbfd == -1) {                                                       // if that failed
             fprintf(stderr, "RSM database error - %s\n", file);
             return errno;
         }
@@ -175,13 +176,13 @@ start:
 
     pid = (int) getpid();                                                       // get process id
 
-    for (i = 0; i < systab->maxjob; i++) {                                      // scan the slots
-        ret = systab->jobtab[i].pid;                                            // get PID
+    for (u_int j = 0; j < systab->maxjob; j++) {                                // scan the slots
+        ret = systab->jobtab[j].pid;                                            // get PID
 
         if ((ret != pid) && ret) {                                              // if one there and not us
             if (kill(ret, 0)) {                                                 // check the job
                 if (errno == ESRCH) {                                           // doesn't exist
-                    CleanJob(i + 1);                                            // zot if not there
+                    CleanJob(j + 1);                                            // zot if not there
                     break;                                                      // have at least one
                 }
             }
@@ -193,11 +194,11 @@ start:
     ret = SemOp(SEM_SYS, -systab->maxjob);                                      // lock systab
     if (ret < 0) goto exit;                                                     // give up on error
 
-    for (i = 0; i < systab->maxjob; i++) {                                      // look for a free slot
-        if (((systab->jobtab[i].pid == 0) && (start_type == TYPE_RUN)) ||       // this one ?
-          ((systab->jobtab[i].pid == pid) && (start_type == TYPE_JOB))) {       // or already done (JOB)
-            bzero(&systab->jobtab[i], sizeof(jobtab));                          // yes - zot the lot
-            partab.jobtab = &systab->jobtab[i];                                 // and save our jobtab address
+    for (u_int j = 0; j < systab->maxjob; j++) {                                // look for a free slot
+        if (((systab->jobtab[j].pid == 0) && (start_type == TYPE_RUN)) ||       // this one ?
+          ((systab->jobtab[j].pid == pid) && (start_type == TYPE_JOB))) {       // or already done (JOB)
+            memset(&systab->jobtab[j], 0, sizeof(jobtab));                      // yes - zot the lot
+            partab.jobtab = &systab->jobtab[j];                                 // and save our jobtab address
             partab.jobtab->pid = pid;                                           // copy in our PID
             break;                                                              // end loop
         }
@@ -247,23 +248,60 @@ start:
     partab.jobtab->rvol = 1;                                                    // volset
     partab.jobtab->start_len = Vhorolog(partab.jobtab->start_dh);               // store start date/time
     partab.jobtab->dostk[0].type = TYPE_RUN;                                    // ensure slot 0 has a value
-    failed_tty = tcgetattr(0, &tty_settings);
+    failed_tty = tcgetattr(STDIN_FILENO, &tty_settings);
     i = SQ_Init();                                                              // have seqio setup chan 0
-    systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;                  // clear last global block
+    if (i < 0) ser(i);                                                          // check for error
+
+    for (i = 0; i < MAX_VOL; i++) {                                             // scan vol list
+        if (systab->vol[i] == NULL) continue;
+        systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * i)] = 0; // clear last global block
+    }
+
     partab.debug = 0;                                                           // clear debug flag
     partab.strstk_start = &strstk[0];                                           // address of strstk
     partab.strstk_last =  &strstk[MAX_SSTK];                                    // and the last char
     partab.varlst = NULL;                                                       // used by compiler
-    partab.vol_fds[0] = dbfd;                                                   // make sure fd is right
+    partab.vol_fds[0] = dbfd;                                                   // make sure FD is right
     ST_Init();                                                                  // initialize symbol table
 
-    if (systab->vol[0]->vollab->journal_available && systab->vol[0]->vollab->journal_requested) { // if journaling
-        partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
+    for (i = 0; i < MAX_VOL; i++) {
+        if (systab->vol[i] == NULL) continue;
 
-        if (partab.jnl_fds[0] < 0) {
-            fprintf(stderr, "Failed to open journal file: %s\r\nerrno = %d\r\n", systab->vol[0]->vollab->journal_file, errno);
-            ret = -1;
-            if (cmd != NULL) goto exit;
+        if (systab->vol[i]->vollab->journal_available && systab->vol[i]->vollab->journal_requested) { // if journaling
+            partab.jnl_fds[i] = open(systab->vol[i]->vollab->journal_file, O_RDWR);
+
+            if (partab.jnl_fds[i] == -1) {
+                fprintf(stderr, "Failed to open journal file: %s\r\nerrno = %d\r\n", systab->vol[i]->vollab->journal_file, errno);
+                ret = errno;
+                if (cmd != NULL) goto exit;
+            }
+        }
+    }
+
+    if (start_type == TYPE_RUN) {                                               // if not from JOB
+        for (i = 1; i < MAX_VOL; i++) {
+            if (systab->vol[i] == NULL) continue;
+            dbfd = open(systab->vol[i]->file_name, O_RDONLY);                   // open the supplemental database for read
+
+            if (dbfd == -1) {                                                   // if that failed
+                fprintf(stderr, "RSM database error - %s\r\nerrno = %d\r\n", systab->vol[i]->file_name, errno);
+                ret = errno;
+                if (cmd != NULL) goto exit;
+            }
+
+            partab.vol_fds[i] = dbfd;                                           // make sure FD is right
+
+            if (systab->vol[i]->vollab->journal_available && systab->vol[i]->vollab->journal_requested) { // if journaling
+                partab.jnl_fds[i] = open(systab->vol[i]->vollab->journal_file, O_RDWR);
+
+                if (partab.jnl_fds[i] == -1) {
+                    fprintf(stderr, "Failed to open journal file: %s\r\nerrno = %d\r\n",
+                            systab->vol[i]->vollab->journal_file, errno);
+
+                    ret = errno;
+                    if (cmd != NULL) goto exit;
+                }
+            }
         }
     }
 
@@ -273,7 +311,7 @@ start:
         if (start_type == TYPE_RUN) {
             sptr = (cstring *) &strstk[0];                                      // front of string stack
             sptr->len = strlen(cmd);                                            // find the length
-            bcopy(source_ptr, sptr->buf, sptr->len);                            // copy in the source
+            memcpy(sptr->buf, source_ptr, sptr->len);                           // copy in the source
             addstk[asp++] = (u_char *) sptr;                                    // save address of string
             ssp = sptr->len + sizeof(u_short) + 1;                              // point past it
         } else {
@@ -317,29 +355,34 @@ start:
         partab.jobtab->io = 0;                                                  // force chan 0
         var = (mvar *) &strstk[0];                                              // space to setup a var
         VAR_CLEAR(var->name);
-        bcopy("$ECODE", &var->name.var_cu[0], 6);
+        memcpy(&var->name.var_cu[0], "$ECODE", 6);
         var->volset = 0;
         var->uci = UCI_IS_LOCALVAR;
         var->slen = 0;                                                          // setup for $ECODE
         cptr = (cstring *) &strstk[sizeof(mvar)];                               // for result
-        bcopy("$ECODE=", cptr->buf, 7);
+        memcpy(cptr->buf, "$ECODE=", 7);
         s = ST_Get(var, &cptr->buf[7]);
 
         if (s > 1) {                                                            // ignore if nothing there
             cptr->len = s + 7;
             s = SQ_WriteFormat(SQ_LF);                                          // new line
+            if (s < 0) ser(s);                                                  // check for error
             s = SQ_Write(cptr);                                                 // write the prompt
+            if (s < 0) ser(s);                                                  // check for error
             s = SQ_WriteFormat(SQ_LF);                                          // new line
+            if (s < 0) ser(s);                                                  // check for error
             cptr = (cstring *) (((u_char *) cptr) + 8);
 
             if (cptr->buf[0] != 'U') {
                 cptr->len = 4;                                                  // max error size
                 cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);       // cvt to str
                 s = SQ_Write(cptr);                                             // write the error
+                if (s < 0) ser(s);                                              // check for error
                 s = SQ_WriteFormat(SQ_LF);                                      // new line
+                if (s < 0) ser(s);                                              // check for error
             }
 
-            ret = ESRCH;                                                        // set an error for exit
+            ret = EPERM;                                                        // set an error for exit
         }
 
         goto exit;                                                              // and halt
@@ -350,11 +393,12 @@ start:
             sptr = (cstring *) &strstk[0];                                      // front of string stack
             asp = 0;                                                            // zot address stack
             ssp = 0;                                                            // and the string stack
+            volnam = systab->vol[partab.jobtab->vol - 1]->vollab->volnam.var_cu; // get current volume name
             uci_ptr = &systab->vol[partab.jobtab->vol - 1]->vollab->uci[partab.jobtab->uci - 1]; // get ptr to UCI
-            sptr->len = strlen((char *) uci_ptr->name.var_cu) + 8;              // find the length
+            sptr->len = strlen((char *) volnam) + strlen((char *) uci_ptr->name.var_cu) + 9; // find the length
             prompt_len = sptr->len;                                             // update the prompt length for direct mode editing
 
-            if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s]> ", uci_ptr->name.var_cu) < 0) {
+            if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s,%s]> ", uci_ptr->name.var_cu, volnam) < 0) {
                 return errno;                                                   // copy in the prompt
             }
 
@@ -381,12 +425,15 @@ start:
 
         sptr->len = s;                                                          // save the length
         if (s == 0) continue;                                                   // ignore null
-        strcpy(history[hist_next], (char *) sptr->buf);
 
-        if (hist_next == (MAX_HISTORY - 1)) {
-            hist_next = 0;
-        } else {
-            hist_next++;
+        if (!hist_next || strcmp(history[hist_next - 1], (char *) sptr->buf)) {
+            strcpy(history[hist_next], (char *) sptr->buf);
+
+            if (hist_next == (MAX_HISTORY - 1)) {
+                hist_next = 0;
+            } else {
+                hist_next++;
+            }
         }
 
         hist_curr = hist_next;
@@ -440,12 +487,12 @@ start:
         partab.jobtab->error_frame = 0;                                         // and that one
         var = (mvar *) &strstk[0];                                              // space to setup a var
         VAR_CLEAR(var->name);
-        bcopy("$ECODE", &var->name.var_cu[0], 6);
+        memcpy(&var->name.var_cu[0], "$ECODE", 6);
         var->volset = 0;
         var->uci = UCI_IS_LOCALVAR;
-        var->slen = 0;                                                          // setup for $EC
+        var->slen = 0;                                                          // setup for $ECODE
         cptr = (cstring *) &strstk[sizeof(mvar)];                               // for result
-        bcopy("$ECODE=", cptr->buf, 7);
+        memcpy(cptr->buf, "$ECODE=", 7);
         s = ST_Get(var, &cptr->buf[7]);
         if (s < 1) continue;                                                    // ignore if nothing there
         cptr->len = s + 7;
@@ -453,7 +500,7 @@ start:
         if (s < 0) ser(s);                                                      // check for error
         s = SQ_WriteFormat(SQ_LF);                                              // new line
         if (s < 0) ser(s);                                                      // check for error
-        s = ST_Kill(var);                                                       // dong $EC
+        ST_Kill(var);                                                           // dong $ECODE
         cptr = (cstring *) (((u_char *) cptr) + 8);
 
         if (cptr->buf[0] != 'U') {
@@ -462,14 +509,19 @@ start:
             s = SQ_Write(cptr);                                                 // write the error
             if (s < 0) ser(s);                                                  // check for error
             s = SQ_WriteFormat(SQ_LF);                                          // new line
+            if (s < 0) ser(s);                                                  // check for error
         }
     }                                                                           // end command level loop
 
 exit:                                                                           // general exit code
     if (partab.jobtab != NULL) CleanJob(0);                                     // if we have a jobtab then remove all locks etc.
-    i = shmdt(systab);                                                          // detach the shared mem
-    if (dbfd) i = close(dbfd);                                                  // close the database
-    if (!failed_tty) failed_tty = tcsetattr(0, TCSANOW, &tty_settings);         // reset terminal if possible
+    shmdt(systab);                                                              // detach the shared mem
+
+    for (i = 0; i < MAX_VOL; i++) {
+        if (partab.vol_fds[i]) close(partab.vol_fds[i]);                        // close the databases
+    }
+
+    if (!failed_tty) failed_tty = tcsetattr(STDIN_FILENO, TCSANOW, &tty_settings); // reset terminal if possible
     if (start_type == TYPE_JOB) return 0;                                       // no error from JOB
     return ret;                                                                 // and exit
 

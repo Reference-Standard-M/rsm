@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - internal opcodes (and only real opcodes)
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -25,8 +25,8 @@
  * along with this program. If not, see http://www.gnu.org/licenses/.
  */
 
-#ifndef _RSM_OPCODES_H_                                                         // only do this once
-#define _RSM_OPCODES_H_
+#ifndef _RSM_OPCODE_H_                                                          // only do this once
+#define _RSM_OPCODE_H_
 
 #define ENDLIN   0                                                              // End of line
 #define OPHALT   1                                                              // Halt instruction
@@ -204,7 +204,7 @@
 #define CMLCKM   163                                                            // LOCK - #args()
 
 #ifdef _AIX
-#    undef CMNEW                                                                // CMNEW is used by JFS on AIX
+#   undef CMNEW                                                                 // CMNEW is used by JFS on AIX
 #endif
 
 #define CMNEW    164                                                            // NEW
@@ -273,4 +273,4 @@
 #define XCFORK   254                                                            // Xcall $&%FORK()
 #define XCIC     255                                                            // Xcall $&%IC()
 
-#endif                                                                          // _RSM_OPCODES_H_
+#endif                                                                          // !_RSM_OPCODE_H_

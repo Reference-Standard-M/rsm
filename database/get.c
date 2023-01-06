@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/get.c
- * Summary:  module database - Get Database Functions
+ * Summary:  module database - get database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memcmp
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <sys/types.h>                                                          // for semaphores
@@ -57,6 +56,7 @@
  */
 int Get_data(int dir)                                                           // locate a record
 {
+    u_int  block;                                                               // database block
     int    i;                                                                   // a handy int
     int    s;                                                                   // for function returns
     u_char tmp[VAR_LEN + 4];                                                    // spare string
@@ -67,21 +67,20 @@ int Get_data(int dir)                                                           
         if (s < 0) return s;                                                    // if we got an error then return it
     }
 
-    if (systab->vol[db_var.volset - 1] == NULL) return -ERRM26;                 // vol still mounted? if not - error
+    if (systab->vol[volnum - 1] == NULL) return -ERRM26;                        // vol still mounted? if not - error
 
-    if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || (dir != 0) ||    // if ^$G or level or backward
+    if ((memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0) || (dir != 0) ||  // if ^$GLOBAL or level or backward
       (systab->vol[volnum - 1]->vollab->journal_available && writing)) {        // or journaling and writing
-        systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;              // zot this
+        systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // zot this
     } else {
-        // NOTE - LASTUSED NEEDS TO BE BY VOLUME SET
-        i = systab->last_blk_used[partab.jobtab - systab->jobtab];              // get last used
+        block = systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))]; // get last used
 
-        if (i && ((((u_char *) systab->vol[volnum - 1]->map)[i >> 3]) & (1U << (i & 7)))) { // if one there
+        if (block && ((((u_char *) systab->vol[volnum - 1]->map)[block >> 3]) & (1U << (block & 7)))) { // if one there
             systab->vol[volnum - 1]->stats.lasttry++;                           // count a try
-            ptr = systab->vol[volnum - 1]->gbd_hash[i & (GBD_HASH - 1)];        // get listhead
+            ptr = systab->vol[volnum - 1]->gbd_hash[block & (GBD_HASH - 1)];    // get listhead
 
             while (ptr != NULL) {                                               // for each in list
-                if (ptr->block == i) {                                          // found it
+                if (ptr->block == block) {                                      // found it
                     if ((!var_equal(ptr->mem->global, db_var.name)) ||          // wrong global or
                       (ptr->mem->type != (db_var.uci + 64)) ||                  // wrong UCI/type or
                       (ptr->last_accessed == (time_t) 0)) {                     // not available
@@ -100,8 +99,8 @@ int Get_data(int dir)                                                           
                         if (!s) s = record->len;                                // if ok then get the dbc
                         if (writing && (blk[level]->dirty == NULL)) blk[level]->dirty = (gbd *) 1; // if writing then reserve it
 
-                        if (!db_var.slen && !s &&
-                          ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)) {// Is this the top node?
+                        // Is this the top node?
+                        if (!db_var.slen && !s && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)) {
                             s = -ERRM7;
                         }
 
@@ -117,21 +116,21 @@ int Get_data(int dir)                                                           
             }                                                                   // end while ptr
         }                                                                       // end last used stuff
 
-        systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;              // zot it
+        systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // zot it
     }
 
-    i = systab->vol[db_var.volset - 1]->vollab->uci[db_var.uci - 1].global;
+    block = systab->vol[db_var.volset - 1]->vollab->uci[db_var.uci - 1].global;
 
     // get directory blk#
-    if (!i) return -ERRM26;                                                     // if no such then error
+    if (!block) return -ERRM26;                                                 // if no such then error
     level = 0;                                                                  // where it goes
-    s = Get_block(i);                                                           // get the block
+    s = Get_block(block);                                                       // get the block
     if (s < 0) return s;                                                        // error? then give up
 
-    if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) {                    // if ^$GLOBAL
+    if (memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0) {                  // if ^$GLOBAL
         s = Locate(&db_var.slen);                                               // look for it
         if (s >= 0) Align_record();                                             // if found
-        return s;                                                               // end ^$GLOBAL() lookup
+        return s;                                                               // end ^$GLOBAL lookup
     }
 
     tmp[1] = 128;                                                               // start string key
@@ -148,8 +147,8 @@ int Get_data(int dir)                                                           
     if (s < 0) return s;                                                        // failed? then return error
     partab.jobtab->last_block_flags = 0;                                        // clear JIC
     Align_record();                                                             // if not aligned
-    i = *(int *) record;                                                        // get block#
-    if (!i) return -ERRM7;                                                      // none there? then say no such
+    block = *(u_int *) record;                                                    // get block#
+    if (!block) return -ERRM7;                                                  // none there? then say no such
     partab.jobtab->last_block_flags = ((u_int *) record)[1];                    // save flags
 
     if (partab.jobtab->last_block_flags > 3) {                                  // TEMP         ????
@@ -158,7 +157,7 @@ int Get_data(int dir)                                                           
     }
 
     level++;                                                                    // where we want it
-    s = Get_block(i);                                                           // get the block
+    s = Get_block(block);                                                       // get the block
     if (s < 0) return s;                                                        // error? then give up
 
     while (blk[level]->mem->type < 65) {                                        // while we have ptrs
@@ -178,18 +177,20 @@ int Get_data(int dir)                                                           
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // point at the dbc
         Align_record();                                                         // if not aligned
         if (level == dir) return s;                                             // stop here? if so - return result
-        i = *(int *) record;                                                    // get block#
+        block = *(u_int *) record;                                                // get block#
         level++;                                                                // where it goes
-        s = Get_block(i);                                                       // get the block
+        s = Get_block(block);                                                   // get the block
         if (s < 0) return s;                                                    // error? then give up
     }                                                                           // end while ptr
 
     if (!var_equal(blk[level]->mem->global, db_var.name)) return -(ERRZ61 + ERRMLAST); // database stuffed
     s = Locate(&db_var.slen);                                                   // locate key in data
-    if (dir < 1) systab->last_blk_used[partab.jobtab - systab->jobtab] = i;     // if not a pointer then set last used
 
-    if (!db_var.slen && !s && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)) {
-        if (!record->len) s = -ERRM7;                                           // check for top node
+    // if not a pointer then set last used
+    if (dir < 1) systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = block;
+
+    if (!db_var.slen && !s && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)) { // check for top node
+        if (!record->len) s = -ERRM7;
     }
 
     if (!s) s = record->len;                                                    // if ok then get the dbc

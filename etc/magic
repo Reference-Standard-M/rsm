@@ -1,10 +1,10 @@
 #
 # Package:  Reference Standard M
-# File:     rsm/conf/magic
+# File:     rsm/etc/magic
 # Summary:  Magic file for Reference Standard M
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020-2022 Fourth Watch Software LC
+# Copyright © 2020-2023 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -19,16 +19,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
 #
-# Install in ~/.magic and compile (in home directory) with `file -C -m ~/.magic`
+# Copy this file to $HOME/.magic. If $HOME/.magic already exists, append the
+# non-comment contents of this file to it. You may optionally compile it with:
+#   cd $HOME && file -C -m $HOME/.magic
 
 0      long  4155766917U  Reference Standard M
->24   short            2  Database file, version 2
-!:mime application/x-rsm
->24   short            1  Database file, version 1
-!:mime application/x-rsm
+>24   short            2  database file, version 2
+!:mime application/x-rsm-database
+>24   short            1  database file, version 1
+!:mime application/x-rsm-database
 
 0      long  4155766916U  Reference Standard M
->12   short           12  Journal file, version 2
-!:mime application/x-rsm
->12   short            8  Journal file, version 1
-!:mime application/x-rsm
+>12   short           12  journal file, version 2
+!:mime application/x-rsm-journal
+>12   short            8  journal file, version 1
+!:mime application/x-rsm-journal

@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/database/buffer.c
- * Summary:  module database - Buffer Management Database Functions
+ * Summary:  module database - buffer management database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -27,8 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for bcopy
-#include <strings.h>
+#include <string.h>                                                             // for memset
 #include <unistd.h>                                                             // for file reading
 #include <ctype.h>                                                              // for GBD stuff
 #include <errno.h>                                                              // error stuff
@@ -141,7 +140,7 @@ short Get_block(u_int blknum)                                                   
             partab.vol_fds[volnum - 1] = i;                                     // make sure fd right
         } else {                                                                // check still there
             if (systab->vol[volnum - 1]->file_name[0] == 0) {
-                i = close(partab.vol_fds[volnum - 1]);                          // close the file
+                close(partab.vol_fds[volnum - 1]);                              // close the file
                 partab.vol_fds[volnum - 1] = 0;                                 // flag not there
                 return -(ERRZ72 + ERRMLAST);                                    // exit complaining
             }
@@ -181,25 +180,26 @@ short New_block(void)                                                           
     u_char *c;                                                                  // character ptr
     u_char *end;                                                                // end of map
 
-    // NEED TO ADD A CHECK FOR A DIRTY MAP SCAN IN PROGRESS HERE
+    // Need to add a check for a dirty map scan in progress here
     Get_GBD();                                                                  // get a GBD
     Index = IDX_START;                                                          // first one
     c = (u_char *) systab->vol[volnum - 1]->first_free;                         // look at first_free
-    end = ((u_char *) systab->vol[volnum - 1]->map) + (systab->vol[volnum - 1]->vollab->max_block / 8); // start plus bits
+    end = ((u_char *) systab->vol[volnum - 1]->map) + (systab->vol[volnum - 1]->vollab->max_block >> 3); // start plus bits
 
     while (c <= end) {                                                          // scan map
         if (*c != 255) {                                                        // is there space
             blknum = (c - ((u_char *) systab->vol[volnum - 1]->map)) * 8;       // base number
             for (i = 0; ((1U << i) & *c); i++) continue;                        // find first free bit
-            blknum = blknum + i;                                                // add the little bit
+            blknum += i;                                                        // add the little bit
 
             if (blknum <= systab->vol[volnum - 1]->vollab->max_block) {
                 *c |= (1U << i);                                                // mark block as used
+                systab->vol[volnum - 1]->stats.blkalloc++;                      // update stats
                 systab->vol[volnum - 1]->map_dirty_flag++;                      // mark map dirty
                 blk[level]->block = blknum;                                     // save in structure
                 blk[level]->next = systab->vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)];
                 systab->vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)] = blk[level]; // link it in
-                bzero(blk[level]->mem, systab->vol[volnum - 1]->vollab->block_size);
+                memset(blk[level]->mem, 0, systab->vol[volnum - 1]->vollab->block_size);
                 blk[level]->dirty = (gbd *) 1;                                  // reserve it
                 blk[level]->last_accessed = current_time(TRUE);                 // accessed
                 systab->vol[volnum - 1]->first_free = c;                        // save this

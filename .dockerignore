@@ -4,12 +4,13 @@
 .dockerignore
 Dockerfile
 **/*.o
-rsm
-daemon.log
+./rsm
+**/daemon*.log
 RSM_CRASH
 *core
 *.dat
 *.jnl
 tags
 TODO
+.cppcheckrc
 **/.*.sw[ponx]

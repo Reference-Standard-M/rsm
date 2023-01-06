@@ -4,7 +4,7 @@
  * Summary:  module runtime - build an mvar
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include "rsm.h"                                                                // standard includes
@@ -50,7 +49,7 @@ short getvol(cstring *vol)                                                      
         if (systab->vol[i] == NULL) continue;                                   // continue if no volume
         if (systab->vol[i]->vollab == NULL) continue;                           // continue if none in slot
 
-        if (bcmp(&systab->vol[i]->vollab->volnam.var_cu[0], vol->buf, s) != 0) {
+        if (memcmp(vol->buf, &systab->vol[i]->vollab->volnam.var_cu[0], s) != 0) {
             continue;                                                           // if not the same continue
         }
 
@@ -71,7 +70,7 @@ short getuci(cstring *uci, int vol)                                             
     vol--;                                                                      // make internal reference
 
     for (i = 0; i < UCIS; i++) {                                                // scan the UCIs
-        if (bcmp(&systab->vol[vol]->vollab->uci[i].name.var_cu[0], uci->buf, s) == 0)
+        if (memcmp(uci->buf, &systab->vol[vol]->vollab->uci[i].name.var_cu[0], s) == 0)
         return (short) (i + 1);
     }
 
@@ -113,11 +112,11 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
         if (var_empty(partab.jobtab->last_ref.name)) return -ERRM1;             // say "Naked indicator undef"
         i = UTIL_Key_Last(&partab.jobtab->last_ref);                            // start of last key
         if (i < 0) return -ERRM1;                                               // say "Naked indicator undef"
-        bcopy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + i);            // copy naked reference
+        memcpy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + i);           // copy naked reference
         var->slen = (u_char) i;                                                 // stuff in the count
     } else if (type == TYPVARIND) {                                             // it's an indirect
         ind = (mvar *) addstk[asp - subs - 1];                                  // point at mvar so far
-        bcopy(ind, var, ind->slen + sizeof(var_u) + 5);                         // copy it in
+        memmove(var, ind, ind->slen + sizeof(var_u) + 5);                       // copy it in
     } else if ((type & TYPVARIDX) && (type < TYPVARGBL)) {                      // if it's the index type AND it's local
         i = *rsmpc++;                                                           // get the index
 
@@ -130,7 +129,7 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
             VAR_COPY(var->name, vt[i]);                                         // get the var name
         }
     } else {
-        bcopy(rsmpc, &var->name, VAR_LEN);
+        memmove(&var->name, rsmpc, VAR_LEN);
         rsmpc += VAR_LEN;
     }
 

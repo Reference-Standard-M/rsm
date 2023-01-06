@@ -5,18 +5,18 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 '''
 
-= Reference Standard M
+== Reference Standard M
 
-*Version 1.76.2 - 2022 Feb 23*
+*Version 1.77.0 - 2023 Jan 5*
 
-=== Implementation of ANSI Standard M X11.1-1995 (ISO/IEC 11756:1999)
+=== Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 '''
 
 === Copyright and License
 
 Developed and maintained by David Wicksell dlw@linux.com +
-Copyright © 2020-2022 Fourth Watch Software LC +
+Copyright © 2020-2023 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 Originally based on MUMPS V1 by Raymond Douglas Newman +
@@ -40,13 +40,17 @@ Full license text: link:COPYING[AGPL-3.0]
 === Summary and Information
 
 Reference Standard M (RSM) is an implementation of the M programming language
-and database, which was originally created by Ray Douglas Newman as MUMPS V1
-(MV1). The name change to Reference Standard M reflects its role as a reference
-implementation for the M Development Committee (MDC). With RSM we will attempt
-to track and implement the latest M standard that is released by the MDC,
-currently ANSI X11.1-1995. See the link:CHANGELOG.adoc[CHANGELOG] for more
-information on the many changes in Reference Standard M. This software uses
-link:https://semver.org/[semantic versioning].
+and database, which implements the latest M standard that has been released by
+the M Development Committee (MDC), currently ANSI/MDC X11.1-1995 (ISO/IEC
+11756:1999).
+
+RSM was originally named MUMPS V1 (MV1), and was created by Raymond Douglas
+Newman. When I took over maintenance and development of MV1, I changed its name
+to better reflect its use as a reference implementation for the MDC.
+
+See the link:CHANGELOG.adoc[CHANGELOG] for more information on the development
+of Reference Standard M. This software uses link:https://semver.org/[semantic
+versioning].
 
 _This is the post-relational database._
 
@@ -69,6 +73,9 @@ been tested, or known to build and run RSM, are:
 * Windows XP, 7, and 10, under Cygwin and Windows Subsystem for Linux 1 and 2
 * Mobian (Mobile Debian Linux) on aarch64
 
+WARNING: RSM will not run on SPARC hardware, due to memory alignment
+requirements
+
 Thanks to John Willis for providing access to his build farm for testing.
 
 To build RSM, clone the RSM git repository:
@@ -88,18 +95,6 @@ or
 [source,bash]
 ----
 $ make -j
-----
-
-On FreeBSD, NetBSD, and OpenBSD:
-
-[source,bash]
-----
-$ make -f BSDmakefile
-----
-or
-[source,bash]
-----
-$ make -j -f BSDmakefile
 ----
 
 On Solaris:
@@ -172,7 +167,7 @@ To use RSM, create a database:
 ----
 # Optional arguments in square brackets
 #  -v <volume-name>        Name of volume             (1-32 alpha characters)
-#  -b <block-size>         Size of database blocks    (4-256 KiB)
+#  -b <block-size>         Size of database blocks    (1-256 KiB)
 #  -s <database-size>      Initial size of database   (100-2147483647 blocks)
 # [-m <map-size>]          Size of map block          (0-262147 KiB)
 # [-e <environment-name>]  Name of manager UCI        (1-32 alpha characters)
@@ -247,8 +242,9 @@ Load the M utilities:
 [source,bash]
 ----
 # Optional arguments in square brackets
-# -x <M-command(s)>  String of M commands
-# [<database-file>]  Name of the database file
+# -x <M-command(s)>        String of M commands
+# [-e <environment-name>]  Name of initial UCI environment
+# [<database-file>]        Name of the database file
 
 $ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code' tst.dat
 ----
@@ -265,7 +261,7 @@ Start direct mode:
 ----
 # Optional arguments in square brackets
 # [-e <environment-name>]  Name of initial UCI environment
-# [-x <M-command(s)>]      String of M commands to execute
+# [-R]                     Starts in restricted mode
 # [<database-file>]        Name of the database file
 
 $ rsm tst.dat
@@ -283,8 +279,10 @@ Run an M routine in indirect mode:
 ----
 # Start the M Command Language shell
 # Optional arguments in square brackets
-# -x <M-command(s)>  String of M commands
-# [<database-file>]  Name of the database file
+# -x <M-command(s)>        String of M commands
+# [-e <environment-name>]  Name of initial UCI environment
+# [-R]                     Starts in restricted mode
+# [<database-file>]        Name of the database file
 
 $ rsm -x "do ^%M" tst.dat
 ----
@@ -378,8 +376,13 @@ To create and run the Docker container with RSM in direct mode:
 ----
 $ docker run -it --rm --name rsm dlwicksell/rsm
 ----
+or
+[source,bash]
+----
+$ docker run -it --name rsm dlwicksell/rsm
+----
 
-To create and run it as a daemon:
+To create and run it in detached mode:
 
 [source,bash]
 ----
@@ -405,14 +408,14 @@ $ docker run -it --rm --name rsm dlwicksell/rsm 32
 $ docker run -it --rm --name rsm dlwicksell/rsm 2 'write $system,!'
 ----
 
-To run RSM in direct mode while in daemon mode:
+To run RSM in direct mode while the container is in detached mode:
 
 [source,bash]
 ----
 $ docker exec -it rsm rsm
 ----
 
-To run RSM commands while in daemon mode:
+To run RSM commands while the container is in detached mode:
 
 [source,bash]
 ----
@@ -422,21 +425,21 @@ $ docker exec -it rsm rsm -V
 $ docker exec -it rsm rsm -x 'write $system,!'
 ----
 
-To run the Bash shell while in daemon mode:
+To run the Bash shell while the container is in detached mode:
 
 [source,bash]
 ----
 $ docker exec -it rsm bash
 ----
 
-To start the container while in daemon mode:
+To start the container while in detached mode:
 
 [source,bash]
 ----
 $ docker start rsm
 ----
 
-To stop the container while in daemon mode:
+To stop the container while in detached mode:
 
 [source,bash]
 ----

@@ -4,7 +4,7 @@
 # Summary:  Create an RSM Docker image
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2022 Fourth Watch Software LC
+# Copyright © 2022-2023 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -22,14 +22,9 @@
 # syntax=docker/dockerfile:1
 
 # LTS release
-FROM ubuntu:20.04
-
+FROM ubuntu:22.04
 MAINTAINER David Wicksell <dlw@linux.com>
-
-# The 'make install' command below requires $USER set to root and $SHELL is needed for the MCL to shell out
 USER root
-ENV USER=root
-ENV SHELL=/bin/bash
 
 # Install dependencies and upgrade packages
 ARG DEBIAN_FRONTEND=noninteractive
@@ -42,18 +37,16 @@ RUN apt-get -qq update && \
 WORKDIR /opt/rsm
 COPY . /opt/rsm
 
+# The 'make install' command below requires USER set to root and SHELL is needed for the MCL to shell out
+ENV USER=root SHELL=/bin/bash RSM_DBFILE=/opt/rsm/tst.dat
+
 # Build the rsm executable, install it system-wide, and clean up the working directory
-RUN make -j && \
-    make install && \
-    make clean
+RUN make -j && make install && make clean
 
 # Setup the environment and configure the database
-ENV RSM_DBFILE=/opt/rsm/tst.dat
 # The 'bsize' and 'blocks' arguments can be passed to 'docker build...' via '--build-arg bsize=<bsize> --build-arg blocks=<blocks>'
-ARG bsize=16
-ARG blocks=16384
 # Journaling can be turned on by passing 'journal' to 'docker build...' via '--build-arg journal=on'
-ARG journal=off
+ARG bsize=16 blocks=16384 journal=off
 
 # Create the database and load the vendor utility routines and turn on journaling if requested
 RUN if [ "$journal" = "on" ]; \
@@ -73,9 +66,7 @@ RUN if [ "$journal" = "on" ]; \
     fi
 
 # Install and compile the local RSM magic file
-RUN cp conf/magic $HOME/.magic && \
-    cd && \
-    file -C -m $HOME/.magic
+RUN cp etc/magic $HOME/.magic && cd && file -C -m $HOME/.magic && cd - >/dev/null
 
 # Open port 80 so that the container can host the RSM Web Server (which defaults to port 80)
 EXPOSE 80/tcp

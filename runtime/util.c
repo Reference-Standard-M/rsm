@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/runtime/util.c
- * Summary:  module runtime - Runtime Utilities
+ * Summary:  module runtime - runtime utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,7 +29,6 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include <time.h>                                                               // for current_time()
@@ -61,9 +60,8 @@ int cstringtoi(cstring *str)                                                    
     }                                                                           // end convert loop
 
     if ((systab->historic & HISTORIC_EOK) && (i < (str->len - 1)) && (str->buf[i] == 'E')) {
-        int  exp = 0;                                                           // an exponent
-        int  expsgn = 1;                                                        // and the sign
-        long j = 10;                                                            // for E calc
+        int exp = 0;                                                            // an exponent
+        int expsgn = 1;                                                         // and the sign
 
         i++;                                                                    // point past the 'E'
 
@@ -80,8 +78,10 @@ int cstringtoi(cstring *str)                                                    
         }
 
         if (exp) {                                                              // if there was an exponent
+            long j = 10;                                                        // for E calc
+
             while (exp > 1) {                                                   // for each
-                j = j * 10;                                                     // multiply
+                j *= 10;                                                     // multiply
                 exp--;                                                          // and count it
 
                 if (j > INT_MAX) {                                              // check for possible overflow or underflow
@@ -91,9 +91,9 @@ int cstringtoi(cstring *str)                                                    
             }
 
             if (expsgn > 0) {                                                   // if positive
-                ret = ret * j;                                                  // hope it fits
+                ret *= j;                                                       // hope it fits
             } else {                                                            // if negative
-                ret = ret / j;                                                  // do this
+                ret /= j;                                                       // do this
             }
 
             if (ret > INT_MAX) {                                                // check for possible overflow or underflow
@@ -134,7 +134,7 @@ int cstringtob(cstring *str)                                                    
     return ret;                                                                 // return the value
 }                                                                               // end cstringtob()
 
-short itocstring(u_char *buf, int n)                                            // convert int to string
+u_short itocstring(u_char *buf, int n)                                          // convert int to string
 {
     int i = 0;                                                                  // array index
     int p = 0;                                                                  // string index
@@ -155,10 +155,10 @@ short itocstring(u_char *buf, int n)                                            
     while (i) buf[p++] = a[--i] + 48;                                           // copy digits backwards
     if (!p) buf[p++] = '0';                                                     // ensure we have something
     buf[p] = '\0';                                                              // null terminate
-    return (short) p;                                                           // and exit
+    return (u_short) p;                                                         // and exit
 }
 
-short uitocstring(u_char *buf, u_int n)                                         // convert u_int to string
+u_short uitocstring(u_char *buf, u_int n)                                       // convert u_int to string
 {
     int i = 0;                                                                  // array index
     int p = 0;                                                                  // string index
@@ -174,7 +174,7 @@ short uitocstring(u_char *buf, u_int n)                                         
     while (i) buf[p++] = a[--i] + 48;                                           // copy digits backwards
     if (!p) buf[p++] = '0';                                                     // ensure we have something
     buf[p] = '\0';                                                              // null terminate
-    return (short) p;                                                           // and exit
+    return (u_short) p;                                                         // and exit
 }
 
 /*
@@ -183,29 +183,30 @@ short uitocstring(u_char *buf, u_int n)                                         
  */
 int Set_Error(int err, cstring *user, cstring *space)
 {
-    int     t;                                                                  // for function calls
-    int     j;                                                                  // a handy int
-    int     flag;                                                               // to remember
-    mvar    *var;                                                               // a handy mvar
-    cstring *tmp;                                                               // spare cstring ptr
-    char    temp[8];                                                            // and some space
+    int  t;                                                                     // for function calls
+    int  flag;                                                                  // to remember
+    mvar *var;                                                                  // a handy mvar
 
     var = &partab.src_var;                                                      // a spare mvar
     var->slen = 0;                                                              // no subs
     // Note - the UCI and volset were setup by the caller
 
     VAR_CLEAR(var->name);
-    bcopy("$ECODE", &var->name.var_cu[0], 6);                                   // get the name
+    memcpy(&var->name.var_cu[0], "$ECODE", 6);                                  // get the name
     t = ST_Get(var, space->buf);                                                // get it
     if (t < 0) t = 0;                                                           // ignore undefined
     flag = t;                                                                   // remember if some there
 
     if (t < MAX_ECODE) {                                                        // if not too big
+        int     j;                                                              // a handy int
+        cstring *tmp;                                                           // spare cstring ptr
+        char    temp[16];                                                       // and some space
+
         if ((t == 0) || (space->buf[t - 1] != ',')) space->buf[t++] = ',';      // for new $EC
         j = -err;                                                               // copy the error (-ve)
 
         if (err == USRERR) {                                                    // was it a SET $EC
-            bcopy(user->buf, &space->buf[t], user->len);                        // copy the error
+            memmove(&space->buf[t], user->buf, user->len);                      // copy the error
             t += user->len;                                                     // add the length
         } else {                                                                // not user error
             if (j > ERRMLAST) {                                                 // implementation error?
@@ -221,10 +222,10 @@ int Set_Error(int err, cstring *user, cstring *space)
         space->buf[t++] = ',';                                                  // trailing comma
         space->buf[t] = '\0';                                                   // null terminate
         space->len = t;
-        t = ST_Set(var, space);                                                 // set it
+        ST_Set(var, space);                                                     // set it
         tmp = (cstring *) temp;                                                 // temp space
 DISABLE_WARN(-Warray-bounds)
-        tmp->len = (u_short) itocstring(tmp->buf, partab.jobtab->cur_do);
+        tmp->len = itocstring(tmp->buf, partab.jobtab->cur_do);
 ENABLE_WARN
         var->slen = (u_char) UTIL_Key_Build(tmp, var->key);
 
@@ -236,7 +237,7 @@ ENABLE_WARN
             j = -err;                                                           // copy the error (-ve)
 
             if (err == USRERR) {                                                // was it a SET $EC
-                bcopy(user->buf, &space->buf[t], user->len);                    // copy the error
+                memmove(&space->buf[t], user->buf, user->len);                  // copy the error
                 t += user->len;                                                 // add the length
             } else {                                                            // not user error
                 if (j > ERRMLAST) {                                             // implementation error?
@@ -254,10 +255,18 @@ ENABLE_WARN
             space->len = t;
         }
 
-        t = ST_Set(var, space);                                                 // set it
+        ST_Set(var, space);                                                     // set it
     }                                                                           // end "TOO BIG" test
 
     return flag;                                                                // done
+}
+
+int short_version(u_char *ret_buffer, int i)
+{
+    i += sprintf((char *) &ret_buffer[i], "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    if (VERSION_PRE) i += sprintf((char *) &ret_buffer[i], "-pre");
+    if (VERSION_TEST) i += sprintf((char *) &ret_buffer[i], " T%d", VERSION_TEST);
+    return i;
 }
 
 int rsm_version(u_char *ret_buffer)                                             // return version string
@@ -268,37 +277,37 @@ int rsm_version(u_char *ret_buffer)                                             
 
     i = uname(&uts);                                                            // get system info
     if (i == -1) return -1;                                                     // exit on error
-    bcopy("Reference Standard M V", ret_buffer, 22);                            // copy in Reference Standard M V
+    memcpy(ret_buffer, "Reference Standard M V", 22);                           // copy in Reference Standard M V
     i = 22;                                                                     // point past it
-
-    if (VERSION_TEST) {                                                         // if an internal version
-        i += sprintf((char *) &ret_buffer[i], "%d.%d.%d T%d for ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TEST);
-    } else {                                                                    // else normal release
-        i += sprintf((char *) &ret_buffer[i], "%d.%d.%d for ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-    }
-
+    i = short_version(ret_buffer, i);                                           // get short version string
+    memcpy(&ret_buffer[i], " for ", 5);                                         // copy in for
+    i += 5;
     j = 0;                                                                      // clear src ptr
     while ((ret_buffer[i++] = uts.sysname[j++])) continue;                      // copy name
     ret_buffer[i - 1] = ' ';                                                    // and a space over the null
     j = 0;                                                                      // clear src ptr
     while ((ret_buffer[i++] = uts.machine[j++])) continue;                      // copy hardware
     ret_buffer[i - 1] = ' ';                                                    // and a space over the null
-    i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__ , __TIME__);
+    i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__, __TIME__);
     return i;                                                                   // and return count
 }
 
+#if defined(_AIX) || defined(__sun__) || defined(__CYGWIN__)
+time_t current_time(__attribute__((unused)) short local)                        // get current time without local offset
+{
+    return time(NULL);                                                          // get secs from 1 Jan 1970 UTC
+}
+#else
 time_t current_time(short local)                                                // get current time with local offset
 {
     time_t sec = time(NULL);                                                    // get secs from 1 Jan 1970 UTC
 
-#if !defined(_AIX) && !defined(__sun__) && !defined(__CYGWIN__)
     if (local) {
-        struct tm *buf;                                                         // struct for localtime()
+        struct tm *buf = localtime(&sec);                                       // struct for localtime() [UTC]
 
-        buf = localtime(&sec);                                                  // get UTC-localtime
-        sec = sec + buf->tm_gmtoff;                                             // adjust to local
+        sec += buf->tm_gmtoff;                                                  // adjust to local
     }
-#endif
 
     return sec;
 }
+#endif

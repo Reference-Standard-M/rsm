@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - error definitions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -32,7 +32,7 @@
  *                     -(ERRZn + ERRMLAST)
  *                     -(ERRMLAST + ERRZLAST + errno)
  *
- * USE: short UTIL_strerror(int error, char *buff) to return the error string
+ * USE: short UTIL_strerror(int err, u_char *buf) to return the error string
  *
  * Add ERRZn definitions to the end of this file and the text form to rsm/util/strerror.c
  */

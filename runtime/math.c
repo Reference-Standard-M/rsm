@@ -4,14 +4,14 @@
  * Summary:  module runtime - decimal arithmetic
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2021 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
  * Copyright (c) 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
- * Originally based on FreeMUMPS by Shalom ha-Ashkenaz
+ * Originally based on FreeMUMPS
  * Copyright (c) 1998
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -66,9 +66,10 @@ short runtime_add(char *a, char *b)
     short lena;                                                                 // length of 'a'
     short lenb;                                                                 // length of 'b'
     int   mi;                                                                   // minus flag
-    short sign;                                                                 // sign flag  if a < 0 < b sign = -1;
+    short sign;                                                                 // sign flag:
+                                                                                // if a < 0 < b sign = -1;
                                                                                 // if a > 0 > b sign = 1;
-                                                                                // else     sign = 0;
+                                                                                // else sign = 0;
     int   i;
     int   ch;
     int   j;
@@ -276,21 +277,8 @@ again:
         }
 
         while (a[mi] == ZERO) {
-            /* VEN/SMH - libsystem.a on a mac complains that this fails bounds
-             * checks (but only in debug mode). I am substituting it.
-             * strcpy (&a[mi], &a[mi + 1]);  <- this fails
-             */
-            // a[mi] = &a[mi + 1]
-            int i = 0;
-            /* 002\0
-             * 0 -> a[0] 2nd 0
-             * 1 -> a[1] = 2
-             * 2 -> a[2] = \0
-             */
-            while (a[mi + i]) {
-                a[mi + i] = a[mi + i + 1];
-                i++;
-            }
+            memmove(&a[mi], &a[mi + 1], strlen(&a[mi]));
+            dpa--;
         }
 
         if (dpa < 0) dpa = 0;
@@ -514,20 +502,19 @@ multwo:
     // oversize string
     if (acur > MAX_NUM_BYTES) {
         if (a[alen = acur = MAX_NUM_BYTES] >= FIVE) {
-            int l1;
-            l1 = MAX_NUM_BYTES;
+            int l1 = MAX_NUM_BYTES;
 
             if (a[l1] >= FIVE) {
                 for (;;) {
                     if (a[--l1] == POINT) l1--;
 
-                    if (l1 < (a[0] == MINUS)) {
+                    if (l1 < (int) (a[0] == MINUS)) {
                         for (l1 = MAX_NUM_BYTES; l1 > 0; l1--) a[l1] = a[l1 - 1];
                         a[a[0] == MINUS] = ONE;
                         break;
                     }
 
-                    if ((++a[l1]) == (NINE + 1)) {
+                    if (++a[l1] == (NINE + 1)) {
                         a[l1] = ZERO;
                     } else {
                         break;
@@ -600,14 +587,13 @@ short runtime_div(char *uu, char *v, short typ)
     short mi;
     short plus;
     short v1;
-    short s;
     int   i;
     int   j;
     int   k;
     int   carry = 0;
 
-    if (uu[0] == ZERO) return 1;
     if ((v[0] == ZERO) && !v[1]) return -ERRM9;
+    if (uu[0] == ZERO) return 1;
 
     // look at the signs
     strcpy(u, uu);
@@ -734,11 +720,7 @@ short runtime_div(char *uu, char *v, short typ)
     d = dpu + 1 - ulen;
     if (dpv > dpu) d += dpv - dpu;
     if (typ == OPDIV) d += partab.jobtab->precision;
-
-    if ((d + ulen) > MAX_NUM_BYTES) {
-        u[0] = EOL;
-        return -ERRM92;
-    }
+    if ((d + ulen) > MAX_NUM_BYTES) return -ERRM92;
 
     while (d > 0) {
         u[++ulen] = 0;
@@ -985,7 +967,8 @@ short runtime_div(char *uu, char *v, short typ)
         }
 
         if (plus) {
-            s = runtime_add(u, vv);
+            short s = runtime_add(u, vv);
+
             if (s < 0) return s;
         }
     }
@@ -1037,6 +1020,7 @@ short runtime_power(char *a, char *b)
         case ZERO:
             a[0] = ONE;
             a[1] = EOL;
+            // fall through
 
         case ONE:
             return (short) strlen(a);
@@ -1151,6 +1135,7 @@ short runtime_power(char *a, char *b)
     s = (short) itocstring((u_char *) c, j);
     if (s < 0) return s;
     s = runtime_div(Z, c, OPDIV);
+    if (s < 0) return s;
 
     // if integer
     if (strcmp(Z, e) == 0) {
@@ -1248,9 +1233,6 @@ short runtime_comp(char *s, char *t)
 // square root
 int g_sqrt(char *a)
 {
-    int   i;
-    int   ch;
-    short s;
     char  tmp1[MAX_NUM_BYTES + 2];
     char  tmp2[MAX_NUM_BYTES + 2];
     char  XX[MAX_NUM_BYTES + 2];
@@ -1262,7 +1244,8 @@ int g_sqrt(char *a)
 
     // look for good initial value
     if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
-        i = 0;
+        int i = 0;
+        int ch;
 
         while ((ch = a[i++]) != EOL) {
             if (ch == POINT) break;
@@ -1278,6 +1261,8 @@ int g_sqrt(char *a)
     partab.jobtab->precision++;
 
     do {
+        short s;
+
         strcpy(XXX, a);
         strcpy(tmp1, XX);
         strcpy(tmp2, a);
@@ -1396,7 +1381,6 @@ second:
  */
 void roundit(char *a, int digits)
 {
-    int ch;
     int i;
     int pointpos;
     int lena;
@@ -1428,6 +1412,8 @@ void roundit(char *a, int digits)
     }
 
     for (;;) {
+        int ch;
+
         if (i >= pointpos) {
             a[i] = EOL;
         } else {

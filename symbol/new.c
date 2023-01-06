@@ -1,10 +1,10 @@
 /*
  * Package:  Reference Standard M
  * File:     rsm/symbol/new.c
- * Summary:  module symbol - Symbol Table New'ing and UnNew'ing Utilities
+ * Summary:  module symbol - symbol table new'ing and un-new'ing utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2022 Fourth Watch Software LC
+ * Copyright © 2020-2023 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,12 +29,12 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>                                                             // for string ops
+#include <unistd.h>
 #include "rsm.h"                                                                // standard includes
 #include "symbol.h"                                                             // our definitions
 #include "error.h"                                                              // errors
 #include "init.h"                                                               // init prototypes
 #include "proto.h"                                                              // standard prototypes
-#include <unistd.h>
 
 /*
  * Function: ST_New(int count, var_u *list) - new one or more vars
@@ -44,7 +44,6 @@ short ST_New(int count, var_u *list)
 {
     ST_newtab *newtab;                                                          // our new table
     int       i;                                                                // generic counter
-    short     s;
 
     newtab = malloc(sizeof(ST_newtab) + (count * sizeof(ST_locdata)));          // try to get enough memory
     if (newtab == NULL) return -(ERRZ56 + ERRMLAST);                            // no memory available
@@ -55,7 +54,7 @@ short ST_New(int count, var_u *list)
     newtab->locdata = (ST_locdata *) (((u_char *) &newtab->locdata) + sizeof(ST_locdata *)); // point at next free address
 
     for (i = (count - 1); i >= 0; i--) {                                        // for all vars in list
-        s = ST_SymAtt(list[i]);                                                 // attach to variable
+        short s = ST_SymAtt(list[i]);                                           // attach to variable
 
         if (s < 0) {                                                            // check for error
             free(newtab);                                                       // free memory
@@ -85,7 +84,7 @@ short ST_NewAll(int count, var_u *list)
     int       cntnon = 0;                                                       // non new count
     ST_newtab *newtab;                                                          // pointer to the new table
 
-    for (k = 0; k < count; k++) (void) ST_Create(list[k]);                      // for all supplied vars, create if not existent
+    for (k = 0; k < count; k++) ST_Create(list[k]);                             // for all supplied vars, create if not existent
 
     for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST
         if (symtab[i].varnam.var_cu[0] == '$') continue;                        // ignore $ vars
@@ -169,20 +168,17 @@ void ST_Restore(ST_newtab *newtab)
     ST_depend *dd;                                                              // depend data ptr
     ST_depend *ddf;                                                             // depend data ptr
     int       i;                                                                // generic counter
-    int       t;                                                                // generic counter
-    int       chk;                                                              // symtab index
-    int       kill;                                                             // kill flag
 
     ptr = newtab;                                                               // go to first newtab
     if (ptr == NULL) return;                                                    // nothing to do
 
     if (ptr->stindex != NULL) {                                                 // check for newall
-        for (t = 0; t < ST_HASH; t++) {                                         // for all hash entries
+        for (int t = 0; t < ST_HASH; t++) {                                     // for all hash entries
             if (st_hash[t] != -1) {                                             // only those defined
-                chk = st_hash[t];                                               // get symtab link
+                int chk = st_hash[t];                                           // get symtab link
 
                 while (chk != -1) {                                             // while fwdlinks exist
-                    kill = chk;                                                 // init kill flag
+                    int kill = chk;                                             // init kill flag
 
                     if (symtab[chk].varnam.var_cu[0] == '$') {
                         kill = -1;                                              // leave $...
@@ -196,7 +192,7 @@ void ST_Restore(ST_newtab *newtab)
                     }
 
                     chk = symtab[chk].fwd_link;                                 // get next fwd link
-                    if (kill > -1) (void) ST_SymKill(kill);                     // if ok to kill then kill by index
+                    if (kill > -1) ST_SymKill(kill);                            // if ok to kill then kill by index
                 }                                                               // end if end of fwd's
             }                                                                   // end if no hash link
         }                                                                       // end for all hash lnk
@@ -221,7 +217,7 @@ void ST_Restore(ST_newtab *newtab)
         }
 
         symtab[ptr->locdata[i].stindex].data = ptr->locdata[i].data;            // old data
-        --symtab[ptr->locdata[i].stindex].usage;                                // decrement usage
+        symtab[ptr->locdata[i].stindex].usage--;                                // decrement usage
 
         if (symtab[ptr->locdata[i].stindex].data != ST_DATA_NULL) {             // any data?
             if ((symtab[ptr->locdata[i].stindex].data->deplnk == ST_DEPEND_NULL) &&
@@ -234,7 +230,7 @@ void ST_Restore(ST_newtab *newtab)
 
         if ((symtab[ptr->locdata[i].stindex].usage < 1) &&                      // can we dong it?
           (symtab[ptr->locdata[i].stindex].data == ST_DATA_NULL)) {             // any data?
-            (void) ST_SymKill(ptr->locdata[i].stindex);                         // dong it
+            ST_SymKill(ptr->locdata[i].stindex);                                // dong it
         }
     }                                                                           // all new'd vars done
 
