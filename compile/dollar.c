@@ -386,6 +386,11 @@ void dodollar(void)                                                             
         *comp_ptr++ = VARY;                                                     // add the opcode
         return;                                                                 // and exit
 
+    case 'Z':                                                                   // $ZUT
+        if (strncasecmp(name, "zut\0", 4) != 0) UNVAR;
+        *comp_ptr++ = VARZUT;                                                   // add the opcode
+        return;                                                                 // and exit
+
     default:                                                                    // an error
         UNVAR;
     }                                                                           // end of vars switch

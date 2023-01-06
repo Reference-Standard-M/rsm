@@ -27,6 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
+#include <sys/time.h>                                                           // for gettimeofday()
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>
 #include <ctype.h>
@@ -133,7 +134,7 @@ short Vx(u_char *ret_buffer)
 {
     SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
 
-    return (short) uitocstring(ret_buffer, ioptr->dx);                                  // return len with data in buf
+    return (short) uitocstring(ret_buffer, ioptr->dx);                          // return len with data in buf
 }
 
 // $Y
@@ -141,7 +142,16 @@ short Vy(u_char *ret_buffer)
 {
     SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
 
-    return (short) uitocstring(ret_buffer, ioptr->dy);                                  // return len with data in buf
+    return (short) uitocstring(ret_buffer, ioptr->dy);                          // return len with data in buf
+}
+
+// $ZUT
+short Vzut(u_char *ret_buffer)
+{
+    struct timeval tv;
+
+    if (gettimeofday(&tv, NULL) == -1) return -(ERRMLAST + ERRZLAST + errno);
+    return (short) sprintf((char *) ret_buffer, "%ld%ld", tv.tv_sec, tv.tv_usec); // return count and $ZUT
 }
 
 /*

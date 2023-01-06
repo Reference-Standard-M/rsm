@@ -128,7 +128,7 @@
 #define VART     94                                                             // $T[EST]
 #define VARX     95                                                             // $X
 #define VARY     96                                                             // $Y
-//spare          97
+#define VARZUT   97                                                             // $ZUT
 #define FUNI1    98                                                             // $I[NCREMENT] 1 arg
 #define FUNI2    99                                                             // $I[NCREMENT] 2 arg
 
