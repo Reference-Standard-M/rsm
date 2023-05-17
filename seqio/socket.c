@@ -58,14 +58,6 @@ extern short addr_family;                                                       
 extern short sock_type;                                                         // SOCK_STREAM or SOCK_DGRAM
 extern short sock_proto;                                                        // IPPROTO_TCP or IPPROTO_UDP
 
-int SQ_Socket_Create(int nonblock);
-int SQ_Socket_Bind(int sid, u_short port);
-int SQ_Socket_Listen(int sid);
-int SQ_Socket_Accept(int sid, int tout);
-int SQ_Socket_Connect(int sid, char *addr, u_short port);
-int SQ_Socket_Write(int sid, u_char *writebuf, int nbytes);
-int SQ_Socket_Read(int sid, u_char *readbuf, int tout);
-
 // Socket functions
 
 /*
@@ -235,7 +227,7 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout)
         }
 
         return getError(SYS, errno);
-    } else if (ret == 0) {
+    } else if (ret == 0) {                                                      // Connection closed by remote peer
         return ret;
     } else {
         return ret;

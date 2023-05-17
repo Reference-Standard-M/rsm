@@ -7,7 +7,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.77.0 - 2023 Jan 5*
+*Version 1.78.0-pre.1 - 2023 May 16*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -299,8 +299,8 @@ can fix it by recompiling the routines:
 
 [source,m]
 ----
-RSM [MGR]> merge ^$routine("%RECOMP")=^$routine("%RECOMP")
-RSM [MGR]> do ^%RECOMP
+RSM [MGR,TST]> merge ^$routine("%RECOMP")=^$routine("%RECOMP")
+RSM [MGR,TST]> do ^%RECOMP
 ----
 
 Stop and shut down environment:
@@ -320,14 +320,14 @@ From within an RSM job:
 
 [source,m]
 ----
-RSM [MGR]> kill ^$job
+RSM [MGR,TST]> kill ^$job
 ----
 
 If `utils.rsm` has been loaded:
 
 [source,m]
 ----
-RSM [MGR]> do ^SSD
+RSM [MGR,TST]> do ^SSD
 ----
 
 From within the MCL shell:

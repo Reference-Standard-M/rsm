@@ -932,9 +932,11 @@ ENABLE_WARN
             // set rest of global key and len
             t = DB_Set(global, (cstring *) &symtab[i].data->dbc);               // try to set it
 
+            // block overhead - header (20 or 44) + index (2) + chunk (2) + CCC (1) + UCC (1) + key (~34) + DBC (2) + alignment (~4)
             if (t == -ERRM75) {                                                 // if string too long
                 j = symtab[i].data->dbc;                                        // save this
-                symtab[i].data->dbc = 900;                                      // that's enough - DLW: 900 when block is >= 4052?
+                symtab[i].data->dbc = 934;                                      // that should work (1024 - 90 overhead)
+                //symtab[i].data->dbc = systab->vol[global->volset - 1]->vollab->block_size - 90; // that should work
                 t = DB_Set(global, (cstring *) &symtab[i].data->dbc);           // try again
                 symtab[i].data->dbc = j;                                        // restore this
             }

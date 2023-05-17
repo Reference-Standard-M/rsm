@@ -98,6 +98,14 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 * Improve execution of shell commands in the MCL
 * Reformat some of the M code in `utils.rsm`
 
+This version made a change to the MCL source that requires the M vendor
+utilities to be reloaded via the bootstrap method, e.g.,
+
+[source,bash]
+----
+rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
+----
+
 === v1.76.2 -- 2022 Feb 23
 
 * Improve escape processing while editing M input [`read`]

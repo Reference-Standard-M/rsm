@@ -46,7 +46,25 @@
 #include "error.h"
 #include "seqio.h"
 
-int createPipe(char *pipe);
+// Local functions
+
+/*
+ * This function creates a FIFO special file with the name "pipe". Upon
+ * successful completion, a value of 0 is returned. Otherwise, a negative
+ * integer value is returned to indicate the error that has occurred.
+ */
+int createPipe (char *pipe)
+{
+    int ret;
+
+    ret = mkfifo(pipe, MODE);
+
+    if (ret == -1) {
+        return getError(SYS, errno);
+    } else {
+        return ret;
+    }
+}
 
 // Pipe functions
 
@@ -195,25 +213,5 @@ start:
         return 0;
     } else {                                                                    // Return bytes read (i.e., 1)
         return 1;
-    }
-}
-
-// Local functions
-
-/*
- * This function creates a FIFO special file with the name "pipe". Upon
- * successful completion, a value of 0 is returned. Otherwise, a negative
- * integer value is returned to indicate the error that has occurred.
- */
-int createPipe (char *pipe)
-{
-    int ret;
-
-    ret = mkfifo(pipe, MODE);
-
-    if (ret == -1) {
-        return getError(SYS, errno);
-    } else {
-        return ret;
     }
 }

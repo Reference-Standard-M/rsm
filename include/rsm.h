@@ -39,9 +39,9 @@
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       77                                                  // Minor version number
+#define VERSION_MINOR       78                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
-#define VERSION_PRE         0                                                   // Pre-release flag (0 for off, 1 for on)
+#define VERSION_PRE         1                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
@@ -402,7 +402,7 @@ typedef struct __attribute__ ((__packed__)) JOBTAB {
     int        cur_do;                                                          // current do frame addr
     u_int      commands;                                                        // commands executed
     u_int      grefs;                                                           // global references
-    u_int      last_block_flags;                                                // journal etc. of last db block
+    u_int      last_block_flags;                                                // journal etc. of last DB block
     short      error_frame;                                                     // frame error happened in
     short      etrap_at;                                                        // where $ET was invoked
     u_int      trap;                                                            // outstanding traps

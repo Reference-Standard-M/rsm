@@ -100,7 +100,7 @@ int Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
 {
     int i;                                                                      // for loops
 
-    /* DLW: support negative offsets
+    /* NOTE: support negative offsets
     if (start < 0) start = expr->len + start + 1;                               // support negative arguments
     if (stop < 0) stop = expr->len + stop + 1;                                  // support negative arguments
     */
@@ -692,12 +692,12 @@ int Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
     int pce = 1;                                                                // current piece
     int f;                                                                      // found flag
     int j;                                                                      // for delim scan
-    // DLW: support negative offsets
+    // NOTE: support negative offsets
     //int np;                                                                     // number of pieces
 
     ret_buffer[0] = '\0';                                                       // just in case
     if (delim->len == 0) return 0;                                              // null delimiter -> nul str
-    /* DLW: support negative offsets
+    /* NOTE: support negative offsets
     np = Dlength2x(expr, delim);                                                // get number of pieces
     if (i1 < 0) i1 = np + i1 + 1;                                               // support negative arguments
     if (i2 < 0) i2 = np + i2 + 1;                                               // support negative arguments

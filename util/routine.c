@@ -435,7 +435,7 @@ void Routine_Detach(rbd *pointer)                                               
 
 /*
  * NOTE: Semaphore must be held BEFORE calling this routine
- * MORE NOTE: Needs to be changed to specify the volume in the call !!!
+ * NOTE: Needs to be changed to specify the volume in the call !!!
  */
 void Routine_Delete(var_u routine, int uci)                                     // mark routine deleted
 {

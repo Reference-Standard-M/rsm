@@ -1,5 +1,5 @@
 **/*.o
-./rsm
+rsm
 **/daemon*.log
 RSM_CRASH
 *core

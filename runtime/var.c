@@ -133,7 +133,7 @@ short Vx(u_char *ret_buffer)
 {
     SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
 
-    return (short) uitocstring(ret_buffer, ioptr->dx);                                  // return len with data in buf
+    return (short) uitocstring(ret_buffer, ioptr->dx);                          // return len with data in buf
 }
 
 // $Y
@@ -141,7 +141,7 @@ short Vy(u_char *ret_buffer)
 {
     SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
 
-    return (short) uitocstring(ret_buffer, ioptr->dy);                                  // return len with data in buf
+    return (short) uitocstring(ret_buffer, ioptr->dy);                          // return len with data in buf
 }
 
 /*
@@ -210,7 +210,7 @@ int Vset(mvar *var, cstring *cptr)                                              
     if (strncasecmp((char *) &var->name.var_cu[1], "x", 1) == 0) {              // $X
         i = cstringtoi(cptr);                                                   // get val
         if (i < 0) i = 0;
-        //if (i < 0) return -ERRM43                                             // DLW - The Standard requires this - need to test
+        //if (i < 0) return -ERRM43                                             // TODO: The Standard requires this - need to test
         partab.jobtab->seqio[partab.jobtab->io].dx = (u_short) i;
         return 0;                                                               // and return
     }
@@ -218,7 +218,7 @@ int Vset(mvar *var, cstring *cptr)                                              
     if (strncasecmp((char *) &var->name.var_cu[1], "y", 1) == 0) {              // $Y
         i = cstringtoi(cptr);                                                   // get val
         if (i < 0) i = 0;
-        //if (i < 0) return -ERRM43                                             // DLW - The Standard requires this - need to test
+        //if (i < 0) return -ERRM43                                             // TODO: The Standard requires this - need to test
         partab.jobtab->seqio[partab.jobtab->io].dy = (u_short) i;
         return 0;                                                               // and return
     }

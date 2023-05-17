@@ -2175,7 +2175,7 @@ short run(int savasp, int savssp)                                               
                 if ((args - 1) > j) {                                           // too many supplied?
                     /*
                     if (curframe->symbol != NULL) {
-                        free(curframe->symbol);                                 // DLW - causes segfault in some cases (M errors)
+                        free(curframe->symbol);                                 // NOTE: causes segfault in some cases (M errors)
                         curframe->symbol = NULL;
                     }
                     */
@@ -2837,7 +2837,7 @@ ENABLE_WARN
 
                     if (rsmpc[i] == CHKDOTS) {                                  // if that's a CHKDOTS
                         rsmpc = &rsmpc[i];                                      // point at it
-                        break;                                                  // and quit - DLW: was in LINENUM, typo?
+                        break;                                                  // and quit - NOTE: was in LINENUM, typo?
                     }
                 }
             }

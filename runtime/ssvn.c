@@ -1313,7 +1313,7 @@ ENABLE_WARN
             systab->vol[i]->writelock = MAX_JOBS + 1;                           // release system write lock on database
         }
 
-        // DLW - move in to previous loop at bottom if new shares are created per volume
+        // NOTE: move in to previous loop at bottom if new shares are created per volume
         if (shmctl(systab->vol[0]->shm_id, IPC_RMID, &sbuf) == -1) {            // remove the share
             return -(ERRMLAST + ERRZLAST + errno);
         }

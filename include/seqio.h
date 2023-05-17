@@ -84,5 +84,12 @@ int  SQ_Tcpip_Open(char *bind, int op);
 int  SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes);
 int  SQ_Tcpip_Accept(int sid, int tout);
 int  SQ_Tcpip_Read(int sid, u_char *readbuf, int tout);
+int  SQ_Socket_Create(int nonblock);
+int  SQ_Socket_Bind(int sid, u_short port);
+int  SQ_Socket_Listen(int sid);
+int  SQ_Socket_Accept(int sid, int tout);
+int  SQ_Socket_Connect(int sid, char *addr, u_short port);
+int  SQ_Socket_Write(int sid, u_char *writebuf, int nbytes);
+int  SQ_Socket_Read(int sid, u_char *readbuf, int tout);
 
 #endif                                                                          // !_RSM_SEQIO_H_

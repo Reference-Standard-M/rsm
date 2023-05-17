@@ -120,7 +120,7 @@ void crcgen(void)                                                               
  *     or a negative error number.
  *  5. The function name is Xcall_name where the call is $&name().
  *
- *  E.g. short Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
+ *  E.g., short Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
  *    or   int Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
  */
 
@@ -1580,7 +1580,7 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
 
     if (value == NULL) {                                                        // Unset environment variable
 #ifndef _AIX
-        unsetenv ((char *) env->buf);                                           // DLW: AIX doesn't have this, use a different API
+        unsetenv ((char *) env->buf);                                           // TODO: AIX doesn't have this, use a different API
 #endif
         return 0;
     } else {                                                                    // Set environment variable

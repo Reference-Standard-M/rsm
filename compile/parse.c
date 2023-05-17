@@ -1357,7 +1357,7 @@ void parse(void)                                                                
     u_char  *jmp_eoc = NULL;                                                    // jump to end of cmd reqd
 
     while (TRUE) {                                                              // loop
-        char c = toupper(*source_ptr++);                                             // get next char in upper case
+        char c = toupper(*source_ptr++);                                        // get next char in upper case
 
         jmp_eoc = NULL;                                                         // clear post conditional
 

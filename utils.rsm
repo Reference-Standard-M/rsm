@@ -2787,7 +2787,7 @@ LOG ;
  set x=(x-1)/(x+1),(value,l)=x
  set lim=$select((prec+3)'>11:prec+3,1:11),@("lim=1E-"_lim)
  for k=3:2 set l=l*x*x,m=l/k,value=m+value set:m<0 m=-m quit:m<lim
-;DLW - log10: E**2.3025850929940456840179914546843642076011014886287729760333279009=10
+ ; NOTE: log10: E**2.3025850929940456840179914546843642076011014886287729760333279009=10
  set value=value*2+(n*2.30258509298749)
  quit value
 ;---
@@ -3224,12 +3224,12 @@ FORMAT ;
  ; SR = Separator characters < 1
  ; Then Inherit properties from System,
  ; overwriting the defaults
- ; DLW - ^$system($system,"format",...) is not supported in RSM
+ ; NOTE: ^$system($system,"format",...) is not supported in RSM
  ;;set x="" for  set x=$order(^$system($system,"format",x)) quit:x=""  do
  ;;. set spec(x)=^$system($system,"format",x)
  ;;. quit
  ;Then Inherit properties from current process overwriting the system and the defaults
- ; DLW - ^$job($job,"format",...) is not supported in RSM
+ ; NOTE: ^$job($job,"format",...) is not supported in RSM
  ;;set x="" for  set x=$order(^$job($job,"format",x)) quit:x=""  do
  ;;. set spec(x)=^$job($job,"format",x)
  ;;. quit
@@ -3411,7 +3411,7 @@ LOWER new lo,up,x,y
  . else  set x=$get(^$global(x,"character"))
  . quit
  if x="" set x=^$job($job,"character")
- ; DLW - RSM doesn't yet implement ^$character(...,"lower")
+ ; NOTE: RSM doesn't yet implement ^$character(...,"lower")
  set x=$get(^$character(x,"lower"))
  if x="" quit $translate(a,up,lo)
  set @("x="_x_"(a)")
@@ -3431,7 +3431,7 @@ PATCODE new x,y
  . else  set x=$get(^$global(x,"character"))
  . quit
  if x="" set x=^$job($job,"character")
- ; DLW - RSM doesn't yet implement ^$character(...,"patcode",...)
+ ; NOTE: RSM doesn't yet implement ^$character(...,"patcode",...)
  set x=$get(^$character(x,"patcode",pat))
  if x="" quit 0
  set @("x="_x_"(a)")
@@ -3453,7 +3453,7 @@ UPPER new lo,up,x,y
  . else  set x=$get(^$global(x,"character"))
  . quit
  if x="" set x=^$job($job,"character")
- ; DLW - RSM doesn't yet implement ^$character(...,"upper")
+ ; NOTE: RSM doesn't yet implement ^$character(...,"upper")
  set x=$get(^$character(x,"upper"))
  if x="" quit $translate(a,lo,up)
  set @("x="_x_"(a)")
@@ -3480,7 +3480,7 @@ MUMTRIS ; Convert for MUMPS V1 - RDN, and RSM ;V 3.011 09 Jun 2012 11:28 AM
 ; Mumtris
 ; This is a tetris game in MUMPS, for GT.M, have fun.
 ;
-; Resize your terminal (e.g. maximize your PuTTY window), restart GT.M so that
+; Resize your terminal (e.g., maximize your PuTTY window), restart GT.M so that
 ; it can report true size of your terminal, and do ^mumtris.
 ;
 ; Try setting ansi=0 for GT.M compatible cursor positioning.
@@ -3657,7 +3657,7 @@ pos(y,x,c) ;
  . write:$get(c) $char(27)_"[2J"
  else  do
  . use $principal:(x=x:y=y)
- . ; DLW - clearscreen is not defined
+ . ; NOTE: clearscreen is not implemented
  . ;use:$get(c) $principal:clearscreen
  .  use:$get(c) $principal write #
  quit

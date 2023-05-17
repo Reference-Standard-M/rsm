@@ -264,7 +264,7 @@ ENABLE_WARN
 int short_version(u_char *ret_buffer, int i)
 {
     i += sprintf((char *) &ret_buffer[i], "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-    if (VERSION_PRE) i += sprintf((char *) &ret_buffer[i], "-pre");
+    if (VERSION_PRE) i += sprintf((char *) &ret_buffer[i], "-pre.%d", VERSION_PRE);
     if (VERSION_TEST) i += sprintf((char *) &ret_buffer[i], " T%d", VERSION_TEST);
     return i;
 }

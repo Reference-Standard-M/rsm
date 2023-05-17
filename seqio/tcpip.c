@@ -35,62 +35,12 @@
  *     SQ_Tcpip_Read   - Reads from a socket
  */
 
-#include <errno.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "error.h"
 #include "seqio.h"
-
-int SQ_Tcpip_Open_Server(char *bind);
-int SQ_Tcpip_Open_Client(char *conn);
-int SQ_Socket_Create(int nonblock);
-int SQ_Socket_Bind(int sid, u_short port);
-int SQ_Socket_Listen(int sid);
-int SQ_Socket_Accept(int sid, int tout);
-int SQ_Socket_Connect(int sid, char *addr, u_short port);
-int SQ_Socket_Write(int sid, u_char *writebuf, int nbytes);
-int SQ_Socket_Read(int sid, u_char *readbuf, int tout);
-
-// TCP/IP functions
-
-/*
- * This function determines the type of socket to open. If it can not determine
- * the type of socket, a negative integer value is returned to indicate the
- * error that has occurred.
- */
-int SQ_Tcpip_Open(char *bind, int op)
-{
-    switch (op) {
-    case SERVER:
-        return SQ_Tcpip_Open_Server(bind);
-
-    case TCPIP:
-        return SQ_Tcpip_Open_Client(bind);
-
-    default:
-        return getError(INT, ERRZ21);
-    }
-}
-
-// Refer to function SQ_Socket_Accept in the file rsm/seqio/socket.c.
-int SQ_Tcpip_Accept(int sid, int tout)
-{
-    return SQ_Socket_Accept(sid, tout);
-}
-
-// Refer to function SQ_Socket_Write in the file rsm/seqio/socket.c.
-int SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes)
-{
-    return SQ_Socket_Write(sid, writebuf, nbytes);
-}
-
-// Refer to function SQ_Socket_Read in the file rsm/seqio/socket.c.
-int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout)
-{
-    return SQ_Socket_Read(sid, readbuf, tout);
-}
 
 // Local functions
 
@@ -163,4 +113,43 @@ int SQ_Tcpip_Open_Client(char *conn)
     }
 
     return sid;
+}
+
+// TCP/IP functions
+
+/*
+ * This function determines the type of socket to open. If it can not determine
+ * the type of socket, a negative integer value is returned to indicate the
+ * error that has occurred.
+ */
+int SQ_Tcpip_Open(char *bind, int op)
+{
+    switch (op) {
+    case SERVER:
+        return SQ_Tcpip_Open_Server(bind);
+
+    case TCPIP:
+        return SQ_Tcpip_Open_Client(bind);
+
+    default:
+        return getError(INT, ERRZ21);
+    }
+}
+
+// Refer to function SQ_Socket_Accept in the file rsm/seqio/socket.c.
+int SQ_Tcpip_Accept(int sid, int tout)
+{
+    return SQ_Socket_Accept(sid, tout);
+}
+
+// Refer to function SQ_Socket_Write in the file rsm/seqio/socket.c.
+int SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes)
+{
+    return SQ_Socket_Write(sid, writebuf, nbytes);
+}
+
+// Refer to function SQ_Socket_Read in the file rsm/seqio/socket.c.
+int SQ_Tcpip_Read(int sid, u_char *readbuf, int tout)
+{
+    return SQ_Socket_Read(sid, readbuf, tout);
 }

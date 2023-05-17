@@ -94,12 +94,14 @@ int getError(int type, int errnum)
  */
 void setSignalBitMask(int sig)
 {
-    //int mask;
-
     if (sig == SIGQUIT) {
         DoInfo();
-    //} else if (sig == SIGCHLD) {                                                // DLW: look at this more
-    //    wait(&mask);
+    /*
+    } else if (sig == SIGCHLD) {                                                // TODO: look at this more
+        int mask;
+
+        wait(&mask);
+    */
     } else {
         int mask;
 

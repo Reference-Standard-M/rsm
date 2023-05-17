@@ -123,40 +123,1654 @@ short sock_proto   = IPPROTO_TCP;                                               
 #   define S_ISWHT(m) (((m) & 0170000) == 0160000)                              // whiteout
 #endif
 
-int     setOptionsBitMask(int options, int bit, int flag);
-int     checkBytestr(const char *bytestr);
-int     checkNbytes(int nbytes);
-int     checkCstring(cstring *cstr);
-int     getOperation(cstring *op);
-int     getObjectType(char *object);
-int     getObjectMode(int fd);
-int     getModeCategory(int mode);
-int     checkAsciiChars(cstring *cstr);
-IN_Term getBitMask(cstring *cstr, IN_Term in_term);
-//int     isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term);
-int     isChan(int chan);
-//int     isType(int type);
-int     isChanFree(int chan);
-void    getErrorMsg(int errnum, char *errmsg);
-int     initObject(int chan, int type);
-int     objectWrite(int chan, char *buf, int len);
-int     readFILE(int chan, u_char *buf, int maxbyt);
-int     readTCP(int chan, u_char *buf, int maxbyt, int tout);
-int     readPIPE(int chan, u_char *buf, int maxbyt, int tout);
-int     readTERM(int chan, u_char *buf, int maxbyt, int tout);
-void    initFORK(forktab *f);
-int     initSERVER(int chan, u_int size);
-int     openSERVER(int chan, char *oper);
-int     acceptSERVER(int chan, int tout);
-int     closeSERVER(int chan);
-int     closeSERVERClient(int chan);
-int     signalCaught(SQ_Chan *c);
-
 extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
 extern u_short hist_next;                                                       // next history pointer
 extern u_short hist_curr;                                                       // history entry pointer
 extern short   in_hist;                                                         // are we in the history buffer
 extern u_short prompt_len;                                                      // length of the current direct mode prompt
+
+// Common functions
+
+/*
+ * This function checks the character array "bytestr" for the following:
+ *   - "bytestr" is NULL;
+ *
+ * If any of the forementioned statements are true, this function returns a
+ * negative integer value to indicate the error. Otherwise, a 0 is returned.
+ */
+int checkBytestr(const char *bytestr)
+{
+    if (bytestr == NULL) return getError(INT, ERRZ28);
+    return 0;
+}
+
+/*
+ * This function checks the integer "nbytes" for the following:
+ *   - "nbytes" < 0; and
+ *   - "nbytes" > BUFSIZE.
+ *
+ * If any of the forementioned statements are true, this function returns a
+ * negative integer value to indicate the error. Otherwise, a 0 is returned.
+ */
+int checkNbytes(int nbytes)
+{
+    if ((nbytes < 0) || (nbytes > BUFSIZE)) return getError(INT, ERRZ33);
+    return 0;
+}
+
+/*
+ * This functions checks the cstring "cstr" for the following:
+ *   - "cstr" is NULL;
+ *   - "cstr->buf" is invalid (refer to checkBytestr); and
+ *   - "cstr->len" is invalid (refer to checkNbytes).
+ *
+ * If any of the forementioned statements are true, this function returns a
+ * negative integer value to indicate the error. Otherwise, a 0 is returned.
+ */
+int checkCstring(cstring *cstr)
+{
+    int ret;
+
+    if (cstr == NULL) return getError(INT, ERRZ28);
+    ret = checkBytestr((char *) cstr->buf);
+    if (ret < 0) return ret;
+    ret = checkNbytes(cstr->len);
+    if (ret < 0) return ret;
+    return 0;
+}
+
+/*
+ * This function determines the type of an object "object". If the object can
+ * be successfully identified, a postive integer is returned (which indicates
+ * the objects type). If the object can not be identified, 0 is returned.
+ * Otherwise, a negative integer value is returned to indicate the error that
+ * has occurred.
+ *
+ * Note, if stat fails because the object does not exist, then it is possible
+ * that the object is a file still to be created; hence, the object could be a
+ * file, but this function is unable to confirm this as the file is not yet
+ * created. Thus, a 0 is returned as opposed to a negative integer value.
+ */
+int getObjectType(char *object)
+{
+    struct stat sb;                                                             // Object status
+    int         ret;                                                            // Useful variable
+
+    ret = stat(object, &sb);
+
+    if (ret == -1) {
+        if (errno == ENOENT) {
+            return UNKNOWN;                                                     // File to be created ??
+        } else {
+            return getError(SYS, errno);
+        }
+    }
+
+    if (S_ISDIR(sb.st_mode) == 1) {
+        return DIR;
+    } else if (S_ISCHR(sb.st_mode) == 1) {
+        return CHR;
+    } else if (S_ISBLK(sb.st_mode) == 1) {
+        return BLK;
+    } else if (S_ISREG(sb.st_mode) == 1) {
+        return REG;
+    } else if (S_ISFIFO(sb.st_mode) == 1) {
+        return FIFO;
+    } else if (S_ISLNK(sb.st_mode) == 1) {
+        return LNK;
+    } else if (S_ISSOCK(sb.st_mode) == 1) {
+        return SOCK;
+    } else if (S_ISWHT(sb.st_mode) == 1) {
+        return WHT;
+    } else {
+        return getError(INT, ERRZ30);
+    }
+}
+
+int getObjectMode(int fd)
+{
+    struct stat sb;
+    int    ret;
+
+    ret = fstat(fd, &sb);
+    if (ret == -1) return getError(SYS, errno);
+
+    if (S_ISDIR(sb.st_mode) == 1) {
+        return DIR;
+    } else if (S_ISCHR(sb.st_mode) == 1) {
+        return CHR;
+    } else if (S_ISBLK(sb.st_mode) == 1) {
+        return BLK;
+    } else if (S_ISREG(sb.st_mode) == 1) {
+        return REG;
+    } else if (S_ISFIFO(sb.st_mode) == 1) {
+        return FIFO;
+    } else if (S_ISLNK(sb.st_mode) == 1) {
+        return LNK;
+    } else if (S_ISSOCK(sb.st_mode) == 1) {
+        return SOCK;
+    } else if (S_ISWHT(sb.st_mode) == 1) {
+        return WHT;
+    } else {
+        return getError(INT, ERRZ30);
+    }
+}
+
+int getModeCategory(int mode)
+{
+    if (mode == REG) return SQ_FILE;
+    if (mode == SOCK) return SQ_TCP;
+    if (mode == FIFO) return SQ_PIPE;
+    if (mode == CHR) return SQ_TERM;
+    return getError(INT, ERRZ30);
+}
+
+/*
+ * This function checks if "chan" is a valid channel. If "chan" is not valid,
+ * then 0 is returned. Otherwise, 1 is returned.
+ */
+int isChan(int chan)
+{
+    if ((chan < MIN_SEQ_IO) || (chan >= MAX_SEQ_IO)) return 0;
+    return 1;
+}
+
+/*
+ * This function checks if "type" is a valid type for an object. If "type" is
+ * not valid, then 0 is returned. Otherwise, 1 is returned.
+ */
+/*
+int isType(int type)
+{
+    if ((type != SQ_FREE) && (type != SQ_FILE) && (type != SQ_TCP) && (type != SQ_PIPE) && (type != SQ_TERM)) {
+        return 0;
+    }
+
+    return 1;
+}
+*/
+
+/*
+ * This function checks if channel "chan" is free. If "chan" is not free, then
+ * 0 is returned. Otherwise, 1 is returned.
+ */
+int isChanFree(int chan)
+{
+    if ((int) partab.jobtab->seqio[chan].type != SQ_FREE) return 0;
+    return 1;
+}
+
+/*
+ * This function checks the cstring "cstr" for the following:
+ *
+ *   - "cstr" is invalid (refer to checkCstring); and
+ *   - one or more characters in the character array "cstr->buf" have an
+ *     integer value not between 0 and 127 inclusive (ASCII character set)
+ *
+ * If any of the forementioned statements are true, this function returns a
+ * negative integer value to indicate the error. Otherwise, a 0 is returned.
+ */
+int checkAsciiChars(cstring *cstr)
+{
+    int index;
+    int ret;
+
+    ret = checkCstring(cstr);
+    if (ret < 0) return ret;
+
+    for (index = 0; index < cstr->len; index++) {
+        if ((u_char) cstr->buf[index] > 127) {
+            return getError(INT, ERRZ34);
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function returns an array with two 64-bit integers, which represents
+ * a bit mask corresponding to the array of control characters "cstr->buf".
+ */
+IN_Term getBitMask(cstring *cstr, IN_Term in_term)
+{
+    int     index;                                                              // Index
+    u_int64 chmask;                                                             // Characters bit mask
+
+    in_term.interm[0] = 0;
+    in_term.interm[1] = 0;
+
+    for (index = 0; index < cstr->len; index++) {
+        if ((u_char) cstr->buf[index] > 127) continue;                          // Only allow ASCII characters in the bitmask
+        chmask = (1UL << ((int) cstr->buf[index] % 64));
+        in_term.interm[cstr->buf[index] / 64] |= chmask;
+    }
+
+    return in_term;
+}
+
+/*
+ * This function sets the bit "bit" in the integer "options" according to the
+ * flag "flag".
+ */
+int setOptionsBitMask(int options, int bit, int flag)
+{
+    int mask;
+
+    mask = (1U << bit);
+    if (flag == SET) return (options | mask);
+    if (flag == UNSET) return (options & ~mask);
+    return options;
+}
+
+/*
+ * This function returns an integer which uniquely identifies the operation
+ * "op->buf"; hence, "write", "read", "append", "io", "tcpip", "server", "pipe"
+ * or "newpipe". Otherwise, it returns a negative integer to indicate the error
+ * that has occurred.
+ */
+int getOperation(cstring *op)
+{
+    char str[OPSIZE];                                                           // Useful buffer
+    char *ptr;                                                                  // Pointer to '=' in operation
+
+    if (op->len > OPSIZE) return getError(INT, ERRZ33);
+    ptr = strcpy(str, (char *) op->buf);
+    ptr = strchr(ptr, '=');
+    if (ptr != NULL) *ptr = '\0';
+
+    if (strlen(str) == 1) {
+        char ch = tolower(op->buf[0]);                                          // Operation identifier
+
+        if (ch == 'w') {
+            return WRITE;
+        } else if (ch == 'r') {
+            return READ;
+        } else if (ch == 'a') {
+            return APPEND;
+        } else if (ch == 'i') {
+            return IO;
+        } else if (ch == 't') {
+            return TCPIP;
+        } else if (ch == 's') {
+            return SERVER;
+        } else if (ch == 'p') {
+            return PIPE;
+        } else if (ch == 'n') {
+            return NEWPIPE;
+        }
+    } else if (strlen(str) > 1) {
+        if (strcasecmp(str, "write") == 0) {
+            return WRITE;
+        } else if (strcasecmp(str, "read") == 0) {
+            return READ;
+        } else if (strcasecmp(str, "append") == 0) {
+            return APPEND;
+        } else if (strcasecmp(str, "io") == 0) {
+            return IO;
+        } else if (strcasecmp(str, "tcpip") == 0) {
+            return TCPIP;
+        } else if (strcasecmp(str, "server") == 0) {
+            return SERVER;
+        } else if (strcasecmp(str, "pipe") == 0) {
+            return PIPE;
+        } else if (strcasecmp(str, "newpipe") == 0) {
+            return NEWPIPE;
+        }
+    }
+
+    return getError(INT, ERRZ21);
+}
+
+/*
+ * This function searches for an input terminator in the buffer "readbuf". If
+ * the input terminator bit has been set in the integer "options", and a set
+ * input terminator has been received (i.e., "interm"), this function will return
+ * the position of the input terminator in the buffer. If no input terminator
+ * can be found, the the number of bytes in the buffer searched (i.e., "nbytes")
+ * is returned.
+ *
+ * Note, a set input terminator is an ASCII character (i.e., a character with an
+ * integer value between 0 and 127, inclusive) whose integer value corresponds
+ * to a set bit in the integer array "in_term". For example, the character NULL
+ * has an integer value of 0. If bit 0 in the integer array "in_term.interm[]"
+ * is equal to 1, then this bit has been set.
+ */
+/*
+int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           // NOTE: should we use this instead of the 4 loops?
+{
+    int index;
+    int value;
+
+    if (options & MASK[INTERM]) {
+        for (index = 0; index < nbytes; index++) {
+            if ((u_char) readbuf[index] > 127) continue;
+            value = (int) readbuf[index];
+            if (in_term.interm[value / 64] & MASK[value % 64]) return index;
+        }
+    }
+
+    return nbytes;
+}
+*/
+
+/*
+ * This function accepts an error number argument "errnum" and returns a pointer
+ * to the corresponding message string "errmsg".
+ */
+void getErrorMsg(int errnum, char  *errmsg)
+{
+    UTIL_strerror(-errnum, (u_char *) errmsg);
+}
+
+int signalCaught(SQ_Chan *c)
+{
+    c->dkey_len = 0;
+    c->dkey[0] = '\0';
+
+    if (partab.jobtab->trap & MASK[SIGALRM]) {
+        c->dkey_len = 0;
+        c->dkey[0] = '\0';
+        partab.jobtab->trap &= ~MASK[SIGALRM];
+        partab.jobtab->test = 0;
+        return SIGALRM;
+    } else {
+        return -1;
+    }
+}
+
+// SERVER SOCKET SPECIFIC
+
+/*
+ * This function initializes the forktab structure. It does not generate
+ * any errors.
+ */
+void initFORK (forktab *f)
+{
+    f->job_no = -1;
+    f->pid = -1;
+}
+
+/*
+ * This function initializes the servertab structure. "chan" is a server
+ * socket, where "size" represents the maximum number of processes this
+ * socket can spawn to handle incoming client connections. It returns 0 on
+ * success. Otherwise, it returns a negative integer value to indicate the
+ * error that has occurred.
+ */
+int initSERVER(int chan, u_int size)
+{
+    servertab *s;
+    forktab   *f = NULL;                                                        // TEMP FIX
+
+    if (size > systab->maxjob) return getError(INT, ERRZ42);
+    s = &partab.jobtab->seqio[chan].s;
+
+    if (size) {                                                                 // TEMP FIX
+        f = malloc(sizeof(forktab) * size);                                     // to forktab from fork
+        if (f == NULL) return getError(SYS, errno);
+    }                                                                           // TEMP FIX
+
+    for (u_int index = 0; index < size; index++) initFORK(&f[index]);
+    s->slots = size;
+    s->taken = 0;
+    s->cid = -1;
+    s->name[0] = '\0';
+    s->forked = f;
+    return 0;
+}
+
+/*
+ * This function opens a server socket on channel "chan". "oper" is used
+ * to determine the type of server socket to open:
+ *     SERVER - Forking server
+ *     NOFORK - Non-forking server
+ *
+ * If successful, this function returns 0. Otherwise, it returns a
+ * negative integer value to indicate the error that has occurred.
+ */
+int openSERVER(int chan, char *oper)
+{
+    SQ_Chan *c;
+    char    *ptr;
+    int     ret;
+
+    // Acquire a pointer to the SQ_Chan structure
+    c = &partab.jobtab->seqio[chan];
+
+    // Extract size component from oper (SERVER[=size])
+    ptr = strchr(oper, (int) '=');
+
+    if (ptr == NULL) {
+        c->mode = (u_char) NOFORK;
+        if ((ret = initSERVER(chan, 0)) < 0) return ret;
+    } else {
+        ptr++;
+
+        if (*ptr == '\0') {
+            c->mode = (u_char) NOFORK;
+            if ((ret = initSERVER(chan, 0)) < 0) return ret;
+        } else {
+            int size = atoi(ptr);
+
+            if (size < 1) {
+                return getError(SYS, errno);
+            } else {
+                if ((ret = initSERVER(chan, (u_int) size)) < 0) return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function:
+ *   - Accepts a pending connection (if no clients are currently
+ *     connected) on the channel "chan";
+ *   - Forks a new process to handle the connection if any slots are
+ *     available; and
+ *   - Maintains a table of forked child processes (removing "dead"
+ *     processes as required).
+ *
+ * If successful, this function will return the descriptor which references
+ * the current connected client. Otherwise, it will return a negative integer
+ * value to indicate the error that has occurred.
+ */
+int acceptSERVER(int chan, int tout)
+{
+    servertab          *s;                                                      // Forked process table
+    SQ_Chan            *c;                                                      // Server socket
+    int                index;                                                   // Useful variable
+    int                len;                                                     // Useful variable
+    struct sockaddr_in sin;                                                     // Peer socket
+    //struct hostent     *host;                                                   // Peer host name
+
+    // Acquire a pointer to the SQ_CHAN structure
+    c = &partab.jobtab->seqio[chan];
+
+    // Acquire a pointer to the SERVERTAB structure
+    s = &c->s;
+
+    // Removing any dead child processes is only required if:
+    //   s->slots > 0 AND s->taken > 0
+    if ((s->slots > 0) && (s->taken > 0)) {
+        for (index = 0; index < s->slots; index++) {
+            if (s->forked[index].pid != -1) {
+                if (systab->jobtab[(s->forked[index].job_no - 1)].pid != s->forked[index].pid) {
+                    // Child dead
+                    initFORK(&s->forked[index]);
+                    s->taken--;
+                }
+            }
+        }
+    }
+
+    // An accept is only required if:
+    //   s->cid == -1
+    if (s->cid == -1) {
+        int ret;                                                                // Return value
+
+        s->cid = SQ_Tcpip_Accept(c->fid, tout);
+
+        if (s->cid < 0) {
+            s->cid = -1;
+            return s->cid;
+        }
+
+        len = sizeof(struct sockaddr_in);
+        ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
+        if (ret == -1) return getError(SYS, errno);
+        len = sizeof(sin.sin_addr);
+        snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+
+        /*
+        host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, addr_family);
+
+        if (host == NULL) {
+            snprintf(s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+        } else {
+            snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
+        }
+        */
+    }
+
+    // A fork/rfork is only required if:
+    //   s->slots > 0 AND s->taken < s->slots
+    if ((s->slots > 0) && (s->taken < s->slots)) {
+        forktab *slot = NULL;                                                   // Find first available slot
+        int     jobno;                                                          // M job number
+
+        for (index = 0; index < s->slots; index++) {
+            if (s->forked[index].pid == -1) {
+                slot = &s->forked[index];
+                index = s->slots;
+            }
+        }
+
+        if (slot == NULL) return getError(INT, ERRZ20);
+
+        // Spawn server client process
+        jobno = ForkIt(1);                                                      // copy the file table
+
+        if (jobno > 0) {                                                        // Parent process; child jobno
+            slot->job_no = jobno;
+            slot->pid = systab->jobtab[jobno - 1].pid;
+            s->taken++;
+            close(s->cid);
+            s->cid = -1;
+            s->name[0] = '\0';
+            return 0;
+        } else if (jobno < 0) {                                                 // Child process; parent jobno
+            c = &partab.jobtab->seqio[chan];
+            s = &c->s;
+            s->slots = 0;
+            s->taken = 0;
+            free(s->forked);
+            close(c->fid);
+            c->mode = (u_char) FORKED;
+            s->forked = NULL;
+            c->fid = s->cid;
+            strncpy((char *) c->name, (char *) s->name, MAX_SEQ_NAME);
+            s->cid = -1;
+            s->name[0] = '\0';
+            return c->fid;
+        } else {                                                                // fork/rfork failed
+            if (errno) return getError(SYS, errno);
+            return getError(INT, ERRZ49);                                       // Job table full
+        }
+
+        // An unknown error has occurred
+        return getError(INT, ERRZ20);
+    }
+
+    // Accepted by parent
+    return s->cid;
+}
+
+/*
+ * This function closes a connected client. This function will never
+ * exit with an error (i.e., will always return 0).
+ */
+int closeSERVERClient(int chan)
+{
+    SQ_Chan *c;                                                                 // Socket channel
+
+    // Acquire a pointer to the channel
+    c = &partab.jobtab->seqio[chan];
+
+    // Determine socket to close and close it (if required)
+    if ((int) c->type == SQ_TCP) {
+        if ((int) c->mode == NOFORK) {
+            if (c->s.cid > -1) {
+                close(c->s.cid);
+                free(c->s.forked);
+                initSERVER(chan, 0);
+            }
+        } else if ((int) c->mode == SERVER) {
+            if (c->s.cid > -1) {
+                close(c->s.cid);
+                c->s.cid = -1;
+                c->s.name[0] = '\0';
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function closes the socket on channel "chan". This function is
+ * called whenever a channel of type SQ_TCP is closed. It will never exit
+ * with an error (i.e., will always return 0).
+ */
+int closeSERVER (int chan)
+{
+    SQ_Chan   *c;                                                               // Socket
+    servertab *s;                                                               // Forked process table
+
+    c = &partab.jobtab->seqio[chan];
+    s = &c->s;
+
+    switch ((int) c->mode) {                                                    // Close socket client
+    case TCPIP:
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Does not close all forked child processes (just the server socket and
+    // the client (if one exists) accepted by the server parent)
+    case SERVER:
+        if (s->cid != -1) close(s->cid);
+        free(s->forked);                                                        // Free fork structure
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Closes the connected client (if one exists) and the server socket
+    case NOFORK:
+        if (s->cid != -1) close(s->cid);
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Closes the connected client accepted by a forked child process
+    case FORKED:
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Unknown class of socket
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+// WRITE SPECIFIC
+
+/*
+ * This function writes "nbytes" bytes from the buffer "writebuf" to the object
+ * associated with the channel "chan". Upon successful completion, the number
+ * of bytes actually written is returned. Otherwise, a negative integer value
+ * is returned to indicate the error that has occurred.
+ */
+int objectWrite(int chan, char *writebuf, int nbytes)
+{
+    SQ_Chan *c;                                                                 // Channel to write to
+    int     oid;                                                                // Channel descriptor
+    int     byteswritten;                                                       // Bytes written
+    int     ret;                                                                // Return value
+
+    c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
+
+    if (chan == STDCHAN) {                                                      // Get appropriate channel descriptor
+        oid = 1;
+    } else if ((int) c->type == SQ_TCP) {
+        if ((int) c->mode == TCPIP) {
+            oid = c->fid;
+        } else if ((int) c->mode == FORKED) {
+            oid = c->fid;
+        } else if ((int) c->mode == NOFORK) {
+            if (c->s.cid == -1) {
+                return getError(INT, ERRZ47);
+            } else {
+                oid = c->s.cid;
+            }
+        } else if ((int) c->mode == SERVER) {
+            if (c->s.cid == -1) {
+                return getError(INT, ERRZ47);
+            } else {
+                oid = c->s.cid;
+            }
+        } else {
+            return getError(INT, ERRZ20);
+        }
+    } else {
+        oid = c->fid;
+    }
+
+    byteswritten = 0;                                                           // Initialize bytes written
+
+    while (byteswritten < nbytes) {                                             // Write bytes
+        int bytestowrite = nbytes - byteswritten;                               // Bytes left to write
+
+        switch ((int) c->type) {
+        case SQ_FILE:
+            ret = SQ_File_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
+            break;
+
+        case SQ_TERM:
+            ret = SQ_Device_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
+            break;
+
+        case SQ_PIPE:
+            ret = SQ_Pipe_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
+            break;
+
+        case SQ_TCP:
+            ret = SQ_Tcpip_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
+            break;
+
+        default:
+            return getError(INT, ERRZ30);
+        }
+
+        // Increment byteswritten or return error
+        if (ret < 0) {
+            if (partab.jobtab->trap & MASK[SIGPIPE]) {
+                partab.jobtab->trap &= ~MASK[SIGPIPE];
+                return getError(INT, ERRZ47);
+            } else {
+                return ret;
+            }
+        } else {
+            byteswritten = (byteswritten + ret);
+        }
+    }
+
+    return byteswritten;
+}
+
+/*
+ * READ SPECIFIC:
+ *     "chan"   - Guaranteed to be valid
+ *     "buf"    - Guaranteed not to be NULL, and large enough to store
+ *                "maxbyt" bytes
+ *     "maxbyt" - Guaranteed to be a positive integer value less than
+ *                MAX_STR_LEN
+ *     "tout"   - If 0, forces the read to retrieve the next character
+ *                from the object. If no character is immediately
+ *                available, a timeout will occur (this does not
+ *                apply to files). All other "tout" values are
+ *                effectively ignored; that is, they are handled at a
+ *                higher level.
+ */
+
+/*
+ * This function reads at most "maxbyt" bytes from the file referenced by
+ * the channel "chan" into the buffer "buf". Upon success, it returns the
+ * number of bytes read. Otherwise, it returns a negative integer value to
+ * indicate the error that has occurred.
+ */
+int readFILE(int chan, u_char *buf, int maxbyt)
+{
+    SQ_Chan *c;                                                                 // Current channel
+    int     bytesread;                                                          // Bytes read
+    int     crflag;                                                             // CR received
+
+    c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
+    bytesread = 0;                                                              // Initialize bytes read
+    crflag = 0;                                                                 // Initialize CR flag
+
+    for (;;) {                                                                  // Read in bytes
+        int ret;                                                                // Return value
+
+        if (bytesread >= maxbyt) {                                              // Check if # byts reqd are rec
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+            return bytesread;
+        }
+
+        ret = SQ_File_Read(c->fid, &buf[bytesread]);                            // Read in one byte
+
+        if (ret < 0) {                                                          // An error has occurred
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+            return ret;
+        } else if (ret == 0) {                                                  // EOF reached
+            c->dkey_len = 1;
+            c->dkey[0] = (char) 255;
+            c->dkey[1] = '\0';
+            return bytesread;
+        }
+
+        // Check if an input terminator has been received
+        if (c->options & MASK[INTERM]) {
+            if (c->in_term.iterm == CRLF) {
+                if ((u_char) buf[bytesread] == 13) {
+                    crflag = 1;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    c->dkey_len = 2;
+                    c->dkey[0] = (char) 13;
+                    c->dkey[1] = (char) 10;
+                    c->dkey[2] = '\0';
+                    return (bytesread - 1);
+                }
+            } else if ((u_char) buf[bytesread] < 128) {
+                if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
+                    c->dkey_len = 1;
+                    c->dkey[0] = buf[bytesread];
+                    c->dkey[1] = '\0';
+                    return bytesread;
+                }
+            }
+        }
+
+        // Support to echo the last byte read is still to be implemented
+        bytesread++;                                                            // Increment total number of bytes read
+    }
+}
+
+/*
+ * This function reads at most "maxbyt" bytes from the socket referenced by
+ * the channel "chan" into the buffer "buf". Upon success, it returns the
+ * number of bytes read. Otherwise, it returns a negative integer value to
+ * indicate the error that has occurred.
+ */
+int readTCP(int chan, u_char *buf, int maxbyt, int tout)
+{
+    SQ_Chan *c;                                                                 // Useful variable
+    int     oid;                                                                // Object descriptor
+    int     bytesread;                                                          // Bytes read
+    int     ret;                                                                // Return value
+    int     crflag;                                                             // CR received
+
+    // Aquire a pointer to the appropriate channel structure
+    c = &partab.jobtab->seqio[chan];
+
+    /*
+     * Get peer's socket descriptor
+     * SERVER - Forking server socket
+     * NOFORK - Non-forking server socket
+     * FORKED - Forked server socket client
+     * TCPIP  - Client socket
+     */
+
+    if (c->mode == (u_char) SERVER) {
+        ret = 0;
+        while (ret == 0) ret = acceptSERVER(chan, tout);
+        oid = ret;
+    } else if (c->mode == (u_char) NOFORK) {
+        ret = acceptSERVER(chan, tout);
+        oid = ret;
+    } else {
+        oid = c->fid;
+    }
+
+    if (oid < 0) {                                                              // Check for timeout
+        c->dkey_len = 0;
+        c->dkey[0] = '\0';
+
+        if (partab.jobtab->trap & MASK[SIGALRM]) {
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+            partab.jobtab->trap &= ~MASK[SIGALRM];
+            partab.jobtab->test = 0;
+            return 0;
+        } else {
+            return oid;
+        }
+    }
+
+    bytesread = 0;                                                              // Initialize bytes read
+    crflag = 0;                                                                 // Initialize crflag
+
+    for (;;) {                                                                  // Read in bytes
+        if (bytesread >= maxbyt) {                                              // Check for bytes read
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+            return bytesread;
+        }
+
+        ret = SQ_Tcpip_Read(oid, &buf[bytesread], tout);                        // Read one byte
+
+        if (partab.jobtab->attention) {                                         // Check if signal received
+            ret = signalCaught(c);
+
+            if (ret == SIGALRM) {
+                return bytesread;
+            } else {
+                return -1;
+            }
+        } else if (ret < 0) {                                                   // Check if an error has occurred
+            return ret;
+        } else if (ret == 0) {                                                  // EOF received
+            c->dkey_len = 1;
+            c->dkey[0] = (char) 255;
+            c->dkey[1] = '\0';
+            closeSERVERClient(chan);
+            return bytesread;
+        }
+
+        // Support for escape sequences with sockets is still to be implemented
+
+        // Check if an input terminator has been received
+        if (c->options & MASK[INTERM]) {
+            if (c->in_term.iterm == CRLF) {
+                if ((u_char) buf[bytesread] == 13) {
+                    crflag = 1;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    c->dkey_len = 2;
+                    c->dkey[0] = (char) 13;
+                    c->dkey[1] = (char) 10;
+                    c->dkey[2] = '\0';
+                    return (bytesread - 1);
+                }
+            } else if ((u_char) buf[bytesread] < 128) {
+                if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
+                    c->dkey_len = 1;
+                    c->dkey[0] = buf[bytesread];
+                    c->dkey[1] = '\0';
+                    return bytesread;
+                }
+            }
+        }
+
+        // Support to echo the last byte read is still to be implemented
+        bytesread++;                                                            // Increment total number of bytes read
+    }
+}
+
+/*
+ * This function reads at most "maxbyt" bytes from the pipe referenced by
+ * the channel "chan" into the buffer "buf". Upon success, it returns the
+ * number of bytes read. Otherwise, it returns a negative integer value to
+ * indicate the error that has occurred.
+ */
+int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
+{
+    SQ_Chan *c;                                                                 // Current channel
+    int     oid;                                                                // Object descriptor
+    int     bytesread;                                                          // Bytes read
+    int     crflag;                                                             // CR received
+    int     tmp;                                                                // Return value
+
+    // Acquire a pointer to the current channel
+    c = &partab.jobtab->seqio[chan];
+
+    if (chan == STDCHAN) {
+        oid = 0;                                                                // STDIN
+    } else {
+        oid = c->fid;
+    }
+
+    bytesread = 0;                                                              // Initialize bytes read
+    crflag = 0;                                                                 // Initialize CR flag
+
+    for (;;) {                                                                  // Read in bytes
+        int ret;                                                                // Return value
+
+        if (bytesread >= maxbyt) {                                              // Check # bytes recd
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+            return bytesread;
+        }
+
+        ret = SQ_Pipe_Read(oid, &buf[bytesread], tout);                         // Read one byte
+
+        // Support for escape sequences with pipes is still to be implemented
+
+        if (partab.jobtab->attention) {                                         // Check for signal
+            tmp = signalCaught(c);
+
+            if (tmp == SIGALRM) {
+                return bytesread;
+            } else {
+                return -1;
+            }
+        } else if (ret < 0) {
+            return ret;
+        } else if ((c->options & MASK[INTERM]) && ret) {                        // Check if an input terminator has been received
+            if (c->in_term.iterm == CRLF) {
+                if ((u_char) buf[bytesread] == 13) {
+                    crflag = 1;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    c->dkey_len = 2;
+                    c->dkey[0] = (char) 13;
+                    c->dkey[1] = (char) 10;
+                    c->dkey[2] = '\0';
+                    return (bytesread - 1);
+                }
+            } else if ((u_char) buf[bytesread] < 128) {
+                if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
+                    c->dkey_len = 1;
+                    c->dkey[0] = buf[bytesread];
+                    c->dkey[1] = '\0';
+                    return bytesread;
+                }
+            }
+        }
+
+        // Support to echo the last byte read is still to be implemented
+        bytesread += ret;                                                       // Increment total number of bytes read
+    }
+}
+
+/*
+ * This function reads at most "maxbyt" bytes from the device referenced by
+ * the channel "chan" into the buffer "buf". Upon success, it returns the
+ * number of bytes read. Otherwise, it returns a negative integer value to
+ * indicate the error that has occurred.
+ *
+ * Note: Terminal input buffer handling, including editing and history,
+ *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
+ */
+int readTERM(int chan, u_char *buf, int maxbyt, int tout)
+{
+    SQ_Chan        *c;                                                          // Current channel
+    int            oid;                                                         // Object descriptor
+    int            bytesread;                                                   // Bytes read
+    int            ret;                                                         // Return value
+    int            crflag;                                                      // CR received
+    int            i;
+    int            len;
+    char           value;                                                       // Useful variable
+    u_char         curr;                                                        // Current character
+    cstring        writebuf;                                                    // Bytes to echo
+    struct winsize w;                                                           // For ioctl
+    char           cpr[12];                                                     // For cursor position report
+    int            j;                                                           // Current cursor row
+    static char    editing = FALSE;                                             // In editing mode
+    u_short        start;                                                       // The starting column of the input buffer
+
+    // Aquire a pointer to the appropriate channel structure
+    c = &partab.jobtab->seqio[chan];
+
+    if (in_hist > -1) {
+        start = prompt_len;                                                     // Input for direct and debug modes
+    } else {
+        start = c->dx;                                                          // Input for M input [read]
+    }
+
+    // Initialize local variables
+    if (chan == STDCHAN) {
+        oid = STDCHAN;                                                          // STDIN
+    } else {
+        oid = c->fid;
+    }
+
+    // Get the current terminal device screen dimensions
+    ret = ioctl(oid, TIOCGWINSZ, &w);
+    if (ret == -1) return getError(SYS, errno);
+    if (w.ws_col == 0) ret = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);              // If oid isn't a terminal device, use STDOUT
+    if (ret == -1) return getError(SYS, errno);
+    if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If STDOUT is redirected, default to 80 columns
+
+    bytesread = 0;
+    crflag = 0;
+
+    // Read in bytes
+    for (;;) {
+        if (bytesread >= maxbyt) {                                              // Check bytes received
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+            return bytesread;
+        }
+
+        if (c->dx == (start + bytesread)) editing = FALSE;
+
+        // Read in one byte
+        ret = SQ_Device_Read(oid, &curr, tout);
+
+        if (ret < 0) {
+            c->dkey_len = 0;
+            c->dkey[0] = '\0';
+
+            if (partab.jobtab->trap & MASK[SIGALRM]) {
+                partab.jobtab->trap &= ~MASK[SIGALRM];
+                partab.jobtab->test = 0;
+                buf[bytesread] = curr;
+                return bytesread;
+            } else {
+                return ret;
+            }
+        } else if (ret == 0) {                                                  // EOF received
+            c->dkey_len = 1;
+            c->dkey[0] = (char) 255;
+            c->dkey[1] = '\0';
+            buf[bytesread] = curr;
+            return bytesread;
+        }
+
+        // Check for Ctrl-H or Backspace key for Backspace
+        if ((curr == 8) || (curr == 127)) {
+            if ((in_hist > -1) || ((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
+                if ((bytesread > 0) && (c->dx > start)) {
+                    if (!(c->dx % w.ws_col)) {                                  // Cursor has hit the beginning of the line
+                        // Move cursor to the beginning of the previous line
+                        ret = SQ_WriteStar((char) 27);
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('[');
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('F');
+                        if (ret < 0) return ret;
+
+                        // Move cursor to the end of the line
+                        ret = SQ_WriteStar((char) 27);
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('[');
+                        if (ret < 0) return ret;
+                        writebuf.len = uitocstring(writebuf.buf, w.ws_col);
+                        ret = SQ_Write(&writebuf);
+                        if (ret < 0) return ret;
+                        c->dx -= ret;
+                        ret = SQ_WriteStar('G');
+                        if (ret < 0) return ret;
+                    } else {
+                        ret = SQ_WriteStar((char) 8);                           // Backspace (ASCII)
+                        if (ret < 0) return ret;
+                    }
+
+                    // Delete current character
+                    ret = SQ_WriteStar((char) 27);
+                    if (ret < 0) return ret;
+                    ret = SQ_WriteStar('[');
+                    if (ret < 0) return ret;
+                    ret = SQ_WriteStar('P');
+                    if (ret < 0) return ret;
+
+                    if (editing && ((start + bytesread) > w.ws_col)) {          // Input buffer is longer than a single line
+                        // Erase from current position to the end of the display
+                        ret = SQ_WriteStar((char) 27);
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('[');
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('J');
+                        if (ret < 0) return ret;
+
+                        // Save cursor position (DEC private)
+                        ret = SQ_WriteStar((char) 27);
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('7');
+                        if (ret < 0) return ret;
+
+                        // Write from the current position in the buffer to the end of the buffer
+                        ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx);
+                        if (ret < 0) return ret;
+
+                        // Restore cursor position (DEC private)
+                        ret = SQ_WriteStar((char) 27);
+                        if (ret < 0) return ret;
+                        ret = SQ_WriteStar('8');
+                        if (ret < 0) return ret;
+                    }
+
+                    bytesread--;
+                    c->dx--;
+
+                    if (editing) {
+                        for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
+                    }
+                }
+
+                continue;
+            }
+        }
+
+        // Check to see if an escape sequence is about to be received
+        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > -1))) {
+            c->dkey_len = 1;
+            c->dkey[0] = (char) 27;
+
+            for (;;) {
+                if (c->dkey_len > MAX_DKEY_LEN) return getError(INT, ERRZ39);
+                ret = SQ_Device_Read(oid, &c->dkey[c->dkey_len], tout);
+
+                if (ret < 0) {
+                    c->dkey_len = 0;
+                    c->dkey[0] = '\0';
+                    buf[bytesread] = curr;
+
+                    if (partab.jobtab->trap & MASK[SIGALRM]) {                  // Operation timed out
+                        partab.jobtab->trap &= ~MASK[SIGALRM];
+                        partab.jobtab->test = 0;
+                        return bytesread;
+                    } else {
+                        return ret;                                             // Read error
+                    }
+                } else if (ret == 0) {                                          // EOF received
+                    c->dkey_len = 1;
+                    c->dkey[0] = (char) 255;
+                    c->dkey[1] = '\0';
+                    buf[bytesread] = curr;
+                    return bytesread;
+                }
+
+                value = c->dkey[c->dkey_len];
+
+                // Arrow keys and Delete key
+                if (value != 'O') {
+                    if (((value >= 'A') && (value <= 'Z')) || ((value >= 'a') && (value <= 'z')) || (value == '~')) {
+                        c->dkey_len++;
+                        c->dkey[c->dkey_len] = '\0';
+
+                        // Up or Down Arrow
+                        if ((in_hist > -1) && (c->dkey_len == 3) && ((value == 'A') || (value == 'B'))) {
+                            if (!in_hist) in_hist = TRUE;
+
+                            // Move to beginning of the line that starts the current command buffer
+                            if (c->dx >= w.ws_col) {
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                writebuf.len = uitocstring(writebuf.buf, c->dx / w.ws_col);
+                                ret = SQ_Write(&writebuf);
+                                if (ret < 0) return ret;
+                                c->dx -= ret;
+                                ret = SQ_WriteStar('F');
+                                if (ret < 0) return ret;
+                            }
+
+                            // Move to the beginning of the input buffer that starts the current command buffer (after the prompt)
+                            ret = SQ_WriteStar((char) 27);
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('[');
+                            if (ret < 0) return ret;
+                            writebuf.len = uitocstring(writebuf.buf, start + 1);
+                            ret = SQ_Write(&writebuf);
+                            if (ret < 0) return ret;
+                            c->dx -= ret;
+                            ret = SQ_WriteStar('G');
+                            if (ret < 0) return ret;
+
+                            // Erase from the current position to the end of the display
+                            ret = SQ_WriteStar((char) 27);
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('[');
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('J');
+                            if (ret < 0) return ret;
+
+                            // Change the input buffer to the previous or next command in the history buffer
+                            if (value == 'A') {
+                                if (hist_curr == 0) {
+                                    hist_curr = ((history[MAX_HISTORY - 1][0] != '\0') ? (MAX_HISTORY - 1) : hist_next);
+                                } else {
+                                    hist_curr--;
+                                }
+                            } else {
+                                if ((hist_curr < (MAX_HISTORY - 1) && (history[hist_curr][0] != '\0'))) {
+                                    hist_curr++;
+                                } else {
+                                    hist_curr = 0;
+                                }
+                            }
+
+                            len = strlen((char *) history[hist_curr]);
+                            c->dx = start + len;
+                            bytesread = len;
+                            ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
+                            if (ret < 0) return ret;
+                            sprintf((char *) buf, "%s", history[hist_curr]);
+
+                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
+                                j = 0;
+                                value = '\0';
+
+                                // Report cursor position (we want the current line)
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('6');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('n');
+                                if (ret < 0) return ret;
+
+                                while ((ret = read(oid, cpr, 1))) {             // Read the current position report
+                                    if (ret == -1) return getError(SYS, errno);
+
+                                    if (cpr[0] == 27) {
+                                        ret = read(oid, cpr, 12);
+                                        if (ret == -1) return getError(SYS, errno);
+                                        ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
+                                        if (ret == -1) return getError(SYS, errno);
+                                        if (value == 'R') break;
+                                        ret = read(oid, cpr, 12);
+                                        if (ret == -1) return getError(SYS, errno);
+                                        break;
+                                    }
+                                }
+
+                                if (j == w.ws_row) {                            // Cursor is on the last line
+                                    // Scroll display up one line
+                                    ret = SQ_WriteStar((char) 27);
+                                    if (ret < 0) return ret;
+                                    ret = SQ_WriteStar('[');
+                                    if (ret < 0) return ret;
+                                    ret = SQ_WriteStar('S');
+                                    if (ret < 0) return ret;
+                                }
+
+                                // Move cursor to the beginning of the next line
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('E');
+                                if (ret < 0) return ret;
+                            }
+
+                            break;
+                        } else if ((maxbyt > 1) && (c->dkey_len == 3) && (value == 'C')) { // Right arrow
+                            if (!editing) editing = TRUE;
+                            if (c->dx >= (start + bytesread)) break;
+                            c->dx++;
+
+                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
+                                // Move cursor to the beginning of the next line
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('E');
+                                if (ret < 0) return ret;
+                                break;
+                            }
+
+                            // Move cursor forward one position
+                            ret = SQ_WriteStar((char) 27);
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('[');
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('C');
+                            if (ret < 0) return ret;
+                            break;
+                        } else if ((maxbyt > 1) && (c->dkey_len == 3) && (value == 'D')) { // Left arrow
+                            if (!editing) editing = TRUE;
+                            if (c->dx <= start) break;
+                            c->dx--;
+
+                            if (!((c->dx + 1) % w.ws_col)) {                    // Cursor has hit the beginning of the line
+                                // Move cursor to the beginning of the previous line
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('F');
+                                if (ret < 0) return ret;
+
+                                // Move cursor to the end of the current line
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                writebuf.len = uitocstring(writebuf.buf, w.ws_col);
+                                ret = SQ_Write(&writebuf);
+                                if (ret < 0) return ret;
+                                c->dx -= ret;
+                                ret = SQ_WriteStar('G');
+                                if (ret < 0) return ret;
+                                break;
+                            }
+
+                            // Move cursor back one position, stopping at column 1
+                            ret = SQ_WriteStar((char) 27);
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('[');
+                            if (ret < 0) return ret;
+                            ret = SQ_WriteStar('D');
+                            if (ret < 0) return ret;
+                            break;
+                        } else if ((maxbyt > 1) && (c->dkey_len == 4) && (c->dkey[2] == '3') && (value == '~')) { // Delete key
+                            if (!editing) editing = TRUE;
+                            if (c->dx >= (start + bytesread)) break;
+
+                            if ((start + bytesread) > w.ws_col) {               // Input buffer is longer than a single line
+                                // Erase from the current position to the end of the display
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('J');
+                                if (ret < 0) return ret;
+
+                                // Save cursor position (DEC private)
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('7');
+                                if (ret < 0) return ret;
+
+                                // Write from the current position in the buffer to the end of the buffer
+                                ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start + 1], start + bytesread - c->dx - 1);
+
+                                if (ret < 0) return ret;
+
+                                // Restore cursor position (DEC private)
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('8');
+                                if (ret < 0) return ret;
+                            } else {
+                                // Delete current character
+                                ret = SQ_WriteStar((char) 27);
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('[');
+                                if (ret < 0) return ret;
+                                ret = SQ_WriteStar('P');
+                                if (ret < 0) return ret;
+                            }
+
+                            for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
+                            bytesread--;
+                            break;
+                        }
+
+                        buf[bytesread] = curr;
+                        return bytesread;
+                    }
+                }
+
+                c->dkey_len++;
+            }
+
+            if (editing || (in_hist == TRUE)) continue;
+        }                                                                       // End ESCAPE Processing Options
+
+        // Check if an input terminator has been received
+        if ((in_hist > -1) || (c->options & MASK[INTERM])) {
+            if ((in_hist == -1) && (c->in_term.iterm == CRLF)) {
+                if (curr == 13) {
+                    crflag = 1;
+                } else if ((curr == 10) && (crflag == 1)) {
+                    if (in_hist == TRUE) in_hist = FALSE;
+                    editing = FALSE;
+                    c->dkey_len = 2;
+                    c->dkey[0] = (char) 13;
+                    c->dkey[1] = (char) 10;
+                    c->dkey[2] = '\0';
+                    return (bytesread - 1);
+                }
+            } else if (curr < 128) {
+                if (((in_hist > -1) && (curr == 13)) || ((in_hist == -1) && (c->in_term.interm[curr / 64] & MASK[curr % 64]))) {
+                    buf[bytesread] = curr;
+                    if (in_hist == TRUE) in_hist = FALSE;
+                    editing = FALSE;
+                    c->dkey_len = 1;
+                    c->dkey[0] = buf[bytesread];
+                    c->dkey[1] = '\0';
+                    return bytesread;
+                }
+            }
+        }
+
+        // Ignore non-printable characters (when not read * and escape processing is on)
+        if ((c->options & MASK[ESC]) && (maxbyt > 1) && ((curr < 32) || (curr > 126))) continue;
+
+        if (editing) {
+            if ((start + bytesread) < w.ws_col) {                               // Input buffer is a single line
+                // Insert space and move the line to the right
+                ret = SQ_WriteStar((char) 27);
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('[');
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('@');
+                if (ret < 0) return ret;
+            }
+
+            for (i = bytesread - 1; i >= (c->dx - start); i--) buf[i + 1] = buf[i]; // Shift buffer to the right by one
+            buf[c->dx - start] = curr;                                          // Add new character in the correct position
+        } else {
+            buf[bytesread] = curr;
+        }
+
+        // Echo last byte read
+        if ((c->options & MASK[TTYECHO]) || (in_hist > -1)) {
+            writebuf.len = 1;
+            sprintf((char *) writebuf.buf, "%c", curr);
+            ret = SQ_Write(&writebuf);
+            if (ret < 0) return ret;
+        }
+
+        if (!((start + bytesread + 1) % w.ws_col)) {                            // End of input buffer has hit the edge of the line
+            j = 0;
+            value = '\0';
+
+            // Report cursor position (we want the current line)
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('[');
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('6');
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('n');
+            if (ret < 0) return ret;
+
+            while ((ret = read(oid, cpr, 1))) {                                 // Read the current position report
+                if (ret == -1) return getError(SYS, errno);
+
+                if (cpr[0] == 27) {
+                    ret = read(oid, cpr, 12);
+                    if (ret == -1) return getError(SYS, errno);
+                    ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
+                    if (ret == -1) return getError(SYS, errno);
+                    if (value == 'R') break;
+                    ret = read(oid, cpr, 12);
+                    if (ret == -1) return getError(SYS, errno);
+                    break;
+                }
+            }
+
+            // End of input buffer is on the last line
+            if (((start + bytesread + 1 - c->dx) / w.ws_col + j) == w.ws_row) {
+                // Scroll display up one line
+                ret = SQ_WriteStar((char) 27);
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('[');
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('S');
+                if (ret < 0) return ret;
+
+                // Move cursor up one line
+                ret = SQ_WriteStar((char) 27);
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('[');
+                if (ret < 0) return ret;
+                ret = SQ_WriteStar('A');
+                if (ret < 0) return ret;
+            }
+        }
+
+        if (!(c->dx % w.ws_col)) {                                              // Cursor has hit the end of the line
+            // Move cursor to the beginning of the next line
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('[');
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('E');
+            if (ret < 0) return ret;
+        }
+
+        if (editing && ((start + bytesread + 1) >= w.ws_col)) {                 // Input buffer is longer than one line
+            // Erase from current position to the end of the display
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('[');
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('J');
+            if (ret < 0) return ret;
+
+            // Save cursor position (DEC private)
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('7');
+            if (ret < 0) return ret;
+
+            // Write from current position in the buffer to the end of the buffer
+            ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx + 1);
+            if (ret < 0) return ret;
+
+            // Restore cursor position (DEC private)
+            ret = SQ_WriteStar((char) 27);
+            if (ret < 0) return ret;
+            ret = SQ_WriteStar('8');
+            if (ret < 0) return ret;
+        }
+
+        bytesread++;                                                            // Increment number of bytes read
+    }
+}
+
+// INITIALIZE SPECIFIC
+
+/*
+ * This function initializes the channel "chan" to the defaults setting for
+ * an object of type "type". If successful, it returns 0. Otherwise, it
+ * returns a negative integer value to indicate the error that has occurred.
+ */
+int initObject(int chan, int type)
+{
+    SQ_Chan        *c;                                                          // Channel to initialize
+    int            par;                                                         // Channel's options
+    cstring        interm;                                                      // Input terminator(s)
+    cstring        outerm;                                                      // Output terminator
+    struct termios settings;                                                    // man 3 termios
+    char           io;                                                          // Current IO channel
+
+    c = &partab.jobtab->seqio[chan];
+    par = 0;
+
+    switch (type) {
+    case SQ_FREE:
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    case SQ_FILE:
+        c->type = (u_char) SQ_FILE;
+        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
+        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
+        break;
+
+    case SQ_TCP:
+        c->type = (u_char) SQ_TCP;
+        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
+        break;
+
+    case SQ_PIPE:
+        c->type = (u_char) SQ_PIPE;
+        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
+        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
+        break;
+
+    case SQ_TERM:
+        c->type = (u_char) SQ_TERM;
+
+        if ((chan == STDCHAN) && isatty(STDCHAN)) {                             // Setup tty settings (if STDCHAN)
+            if (tcgetattr(STDCHAN, &settings) == -1) return getError(SYS, errno); // Get parameters
+            settings.c_lflag &= ~ICANON;                                        // Non-canonical mode
+            settings.c_lflag &= ~ECHO;                                          // Do not echo
+            settings.c_oflag &= ~ONLCR;                                         // Do not map NL to CR-NL out
+            settings.c_iflag &= ~ICRNL;                                         // Do not map CR to NL in
+            settings.c_cc[VMIN] = 1;                                            // Guarantees one byte is read
+            settings.c_cc[VTIME] = 0;                                           //   in at a time
+            settings.c_cc[VSUSP] = _POSIX_VDISABLE;                             // Disables SIGTSTP signal (^Z)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+            settings.c_cc[VDSUSP] = _POSIX_VDISABLE;                            // Funny <Ctrl><Y> thing
+            settings.c_cc[VSTATUS] = _POSIX_VDISABLE;                           // Disables status
+#endif
+            settings.c_cc[VINTR] = '\003';                                      // ^C
+            settings.c_cc[VQUIT] = '\024';                                      // ^T (use for status)
+            if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return getError(SYS, errno); // Set parameters
+        }
+
+        par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_DEL127 | SQ_CONTROLC);
+        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 13);
+        break;
+
+    default:
+        return getError(INT, ERRZ20);
+    }
+
+    c->options = 0;
+    c->mode = (u_char) PRINCIPAL;
+    c->fid = 0;
+    initSERVER(chan, 0);
+    c->dx = 0;
+    c->dy = 0;
+    c->name[0] = '\0';
+    c->dkey_len = 0;
+    c->dkey[0] = '\0';
+    outerm.len = strlen((char *) outerm.buf);
+    interm.len = strlen((char *) interm.buf);
+    io = partab.jobtab->io;
+    SQ_Use(chan, &interm, &outerm, par);
+    partab.jobtab->io = io;
+    return 0;
+}
 
 // IO functions
 
@@ -202,7 +1816,7 @@ short SQ_Init(void)
         servertab          *s;                                                  // Forked process table
 
         s = &partab.jobtab->seqio[STDCHAN].s;
-        ret = openSERVER(STDCHAN, "S");                                         // set it up
+        ret = openSERVER(STDCHAN, "SERVER");                                    // set it up
         if (ret < 0) return (short) ret;
         s->cid = STDCHAN;                                                       // already accepted
         len = sizeof(struct sockaddr_in);
@@ -1018,1647 +2632,4 @@ short SQ_Force(cstring *device, cstring *msg)
     alarm(0);
     return 0;
 #endif
-}
-
-// Common functions
-
-/*
- * This function checks the character array "bytestr" for the following:
- *   - "bytestr" is NULL;
- *
- * If any of the forementioned statements are true, this function returns a
- * negative integer value to indicate the error. Otherwise, a 0 is returned.
- */
-int checkBytestr(const char *bytestr)
-{
-    if (bytestr == NULL) return getError(INT, ERRZ28);
-    return 0;
-}
-
-/*
- * This function checks the integer "nbytes" for the following:
- *   - "nbytes" < 0; and
- *   - "nbytes" > BUFSIZE.
- *
- * If any of the forementioned statements are true, this function returns a
- * negative integer value to indicate the error. Otherwise, a 0 is returned.
- */
-int checkNbytes(int nbytes)
-{
-    if ((nbytes < 0) || (nbytes > BUFSIZE)) return getError(INT, ERRZ33);
-    return 0;
-}
-
-/*
- * This functions checks the cstring "cstr" for the following:
- *   - "cstr" is NULL;
- *   - "cstr->buf" is invalid (refer to checkBytestr); and
- *   - "cstr->len" is invalid (refer to checkNbytes).
- *
- * If any of the forementioned statements are true, this function returns a
- * negative integer value to indicate the error. Otherwise, a 0 is returned.
- */
-int checkCstring(cstring *cstr)
-{
-    int ret;
-
-    if (cstr == NULL) return getError(INT, ERRZ28);
-    ret = checkBytestr((char *) cstr->buf);
-    if (ret < 0) return ret;
-    ret = checkNbytes(cstr->len);
-    if (ret < 0) return ret;
-    return 0;
-}
-
-/*
- * This function determines the type of an object "object". If the object can
- * be successfully identified, a postive integer is returned (which indicates
- * the objects type). If the object can not be identified, 0 is returned.
- * Otherwise, a negative integer value is returned to indicate the error that
- * has occurred.
- *
- * Note, if stat fails because the object does not exist, then it is possible
- * that the object is a file still to be created; hence, the object could be a
- * file, but this function is unable to confirm this as the file is not yet
- * created. Thus, a 0 is returned as opposed to a negative integer value.
- */
-int getObjectType(char *object)
-{
-    struct stat sb;                                                             // Object status
-    int         ret;                                                            // Useful variable
-
-    ret = stat(object, &sb);
-
-    if (ret == -1) {
-        if (errno == ENOENT) {
-            return UNKNOWN;                                                     // File to be created ??
-        } else {
-            return getError(SYS, errno);
-        }
-    }
-
-    if (S_ISDIR(sb.st_mode) == 1) {
-        return DIR;
-    } else if (S_ISCHR(sb.st_mode) == 1) {
-        return CHR;
-    } else if (S_ISBLK(sb.st_mode) == 1) {
-        return BLK;
-    } else if (S_ISREG(sb.st_mode) == 1) {
-        return REG;
-    } else if (S_ISFIFO(sb.st_mode) == 1) {
-        return FIFO;
-    } else if (S_ISLNK(sb.st_mode) == 1) {
-        return LNK;
-    } else if (S_ISSOCK(sb.st_mode) == 1) {
-        return SOCK;
-    } else if (S_ISWHT(sb.st_mode) == 1) {
-        return WHT;
-    } else {
-        return getError(INT, ERRZ30);
-    }
-}
-
-int getObjectMode(int fd)
-{
-    struct stat sb;
-    int    ret;
-
-    ret = fstat(fd, &sb);
-    if (ret == -1) return getError(SYS, errno);
-
-    if (S_ISDIR(sb.st_mode) == 1) {
-        return DIR;
-    } else if (S_ISCHR(sb.st_mode) == 1) {
-        return CHR;
-    } else if (S_ISBLK(sb.st_mode) == 1) {
-        return BLK;
-    } else if (S_ISREG(sb.st_mode) == 1) {
-        return REG;
-    } else if (S_ISFIFO(sb.st_mode) == 1) {
-        return FIFO;
-    } else if (S_ISLNK(sb.st_mode) == 1) {
-        return LNK;
-    } else if (S_ISSOCK(sb.st_mode) == 1) {
-        return SOCK;
-    } else if (S_ISWHT(sb.st_mode) == 1) {
-        return WHT;
-    } else {
-        return getError(INT, ERRZ30);
-    }
-}
-
-int getModeCategory(int mode)
-{
-    if (mode == REG) return SQ_FILE;
-    if (mode == SOCK) return SQ_TCP;
-    if (mode == FIFO) return SQ_PIPE;
-    if (mode == CHR) return SQ_TERM;
-    return getError(INT, ERRZ30);
-}
-
-/*
- * This function checks if "chan" is a valid channel. If "chan" is not valid,
- * then 0 is returned. Otherwise, 1 is returned.
- */
-int isChan(int chan)
-{
-    if ((chan < MIN_SEQ_IO) || (chan >= MAX_SEQ_IO)) return 0;
-    return 1;
-}
-
-/*
- * This function checks if "type" is a valid type for an object. If "type" is
- * not valid, then 0 is returned. Otherwise, 1 is returned.
- */
-/*
-int isType(int type)
-{
-    if ((type != SQ_FREE) && (type != SQ_FILE) && (type != SQ_TCP) && (type != SQ_PIPE) && (type != SQ_TERM)) {
-        return 0;
-    }
-
-    return 1;
-}
-*/
-
-/*
- * This function checks if channel "chan" is free. If "chan" is not free, then
- * 0 is returned. Otherwise, 1 is returned.
- */
-int isChanFree(int chan)
-{
-    if ((int) partab.jobtab->seqio[chan].type != SQ_FREE) return 0;
-    return 1;
-}
-
-/*
- * This function checks the cstring "cstr" for the following:
- *
- *   - "cstr" is invalid (refer to checkCstring); and
- *   - one or more characters in the character array "cstr->buf" have an
- *     integer value not between 0 and 127 inclusive (ASCII character set)
- *
- * If any of the forementioned statements are true, this function returns a
- * negative integer value to indicate the error. Otherwise, a 0 is returned.
- */
-int checkAsciiChars(cstring *cstr)
-{
-    int index;
-    int ret;
-
-    ret = checkCstring(cstr);
-    if (ret < 0) return ret;
-
-    for (index = 0; index < cstr->len; index++) {
-        if ((u_char) cstr->buf[index] > 127) {
-            return getError(INT, ERRZ34);
-        }
-    }
-
-    return 0;
-}
-
-/*
- * This function returns an array with two 64-bit integers, which represents
- * a bit mask corresponding to the array of control characters "cstr->buf".
- */
-IN_Term getBitMask(cstring *cstr, IN_Term in_term)
-{
-    int     index;                                                              // Index
-    u_int64 chmask;                                                             // Characters bit mask
-
-    in_term.interm[0] = 0;
-    in_term.interm[1] = 0;
-
-    for (index = 0; index < cstr->len; index++) {
-        if ((u_char) cstr->buf[index] > 127) continue;                          // Only allow ASCII characters in the bitmask
-        chmask = (1UL << ((int) cstr->buf[index] % 64));
-        in_term.interm[cstr->buf[index] / 64] |= chmask;
-    }
-
-    return in_term;
-}
-
-/*
- * This function sets the bit "bit" in the integer "options" according to the
- * flag "flag".
- */
-int setOptionsBitMask(int options, int bit, int flag)
-{
-    int mask;
-
-    mask = (1U << bit);
-    if (flag == SET) return (options | mask);
-    if (flag == UNSET) return (options & ~mask);
-    return options;
-}
-
-/*
- * This function returns an integer which uniquely identifies the operation
- * "op->buf"; hence, "write", "read", "append", "io", "tcpip", "server", "pipe"
- * or "newpipe". Otherwise, it returns a negative integer to indicate the error
- * that has occurred.
- */
-int getOperation(cstring *op)
-{
-    char str[OPSIZE];                                                           // Useful buffer
-    char *ptr;                                                                  // Pointer to '=' in operation
-
-    if (op->len > OPSIZE) return getError(INT, ERRZ33);
-    ptr = strcpy(str, (char *) op->buf);
-    ptr = strchr(ptr, '=');
-    if (ptr != NULL) *ptr = '\0';
-
-    if (strlen(str) == 1) {
-        char ch = tolower(op->buf[0]);                                          // Operation identifier
-
-        if (ch == 'w') {
-            return WRITE;
-        } else if (ch == 'r') {
-            return READ;
-        } else if (ch == 'a') {
-            return APPEND;
-        } else if (ch == 'i') {
-            return IO;
-        } else if (ch == 't') {
-            return TCPIP;
-        } else if (ch == 's') {
-            return SERVER;
-        } else if (ch == 'p') {
-            return PIPE;
-        } else if (ch == 'n') {
-            return NEWPIPE;
-        }
-    } else if (strlen(str) > 1) {
-        if (strcasecmp(str, "write") == 0) {
-            return WRITE;
-        } else if (strcasecmp(str, "read") == 0) {
-            return READ;
-        } else if (strcasecmp(str, "append") == 0) {
-            return APPEND;
-        } else if (strcasecmp(str, "io") == 0) {
-            return IO;
-        } else if (strcasecmp(str, "tcpip") == 0) {
-            return TCPIP;
-        } else if (strcasecmp(str, "server") == 0) {
-            return SERVER;
-        } else if (strcasecmp(str, "pipe") == 0) {
-            return PIPE;
-        } else if (strcasecmp(str, "newpipe") == 0) {
-            return NEWPIPE;
-        }
-    }
-
-    return getError(INT, ERRZ21);
-}
-
-/*
- * This function searches for an input terminator in the buffer "readbuf". If
- * the input terminator bit has been set in the integer "options", and a set
- * input terminator has been received (i.e., "interm"), this function will return
- * the position of the input terminator in the buffer. If no input terminator
- * can be found, the the number of bytes in the buffer searched (i.e., "nbytes")
- * is returned.
- *
- * Note, a set input terminator is an ASCII character (i.e., a character with an
- * integer value between 0 and 127, inclusive) whose integer value corresponds
- * to a set bit in the integer array "in_term". For example, the character NULL
- * has an integer value of 0. If bit 0 in the integer array "in_term.interm[]"
- * is equal to 1, then this bit has been set.
- */
-/*
-int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           // DLW - should we use this instead of the 4 loops?
-{
-    int index;
-    int value;
-
-    if (options & MASK[INTERM]) {
-        for (index = 0; index < nbytes; index++) {
-            if ((u_char) readbuf[index] > 127) continue;
-            value = (int) readbuf[index];
-            if (in_term.interm[value / 64] & MASK[value % 64]) return index;
-        }
-    }
-
-    return nbytes;
-}
-*/
-
-/*
- * This function accepts an error number argument "errnum" and returns a pointer
- * to the corresponding message string "errmsg".
- */
-void getErrorMsg(int errnum, char  *errmsg)
-{
-    UTIL_strerror(-errnum, (u_char *) errmsg);
-}
-
-// INITIALIZE SPECIFIC
-
-/*
- * This function initializes the channel "chan" to the defaults setting for
- * an object of type "type". If successful, it returns 0. Otherwise, it
- * returns a negative integer value to indicate the error that has occurred.
- */
-int initObject(int chan, int type)
-{
-    SQ_Chan        *c;                                                          // Channel to initialize
-    int            par;                                                         // Channel's options
-    cstring        interm;                                                      // Input terminator(s)
-    cstring        outerm;                                                      // Output terminator
-    struct termios settings;                                                    // man 3 termios
-    char           io;                                                          // Current IO channel
-
-    c = &partab.jobtab->seqio[chan];
-    par = 0;
-
-    switch (type) {
-    case SQ_FREE:
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    case SQ_FILE:
-        c->type = (u_char) SQ_FILE;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
-        break;
-
-    case SQ_TCP:
-        c->type = (u_char) SQ_TCP;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        break;
-
-    case SQ_PIPE:
-        c->type = (u_char) SQ_PIPE;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
-        break;
-
-    case SQ_TERM:
-        c->type = (u_char) SQ_TERM;
-
-        if ((chan == STDCHAN) && isatty(STDCHAN)) {                             // Setup tty settings (if STDCHAN)
-            if (tcgetattr(STDCHAN, &settings) == -1) return getError(SYS, errno); // Get parameters
-            settings.c_lflag &= ~ICANON;                                        // Non-canonical mode
-            settings.c_lflag &= ~ECHO;                                          // Do not echo
-            settings.c_oflag &= ~ONLCR;                                         // Do not map NL to CR-NL out
-            settings.c_iflag &= ~ICRNL;                                         // Do not map CR to NL in
-            settings.c_cc[VMIN] = 1;                                            // Guarantees one byte is read
-            settings.c_cc[VTIME] = 0;                                           //   in at a time
-            settings.c_cc[VSUSP] = _POSIX_VDISABLE;                             // Disables SIGTSTP signal (^Z)
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-            settings.c_cc[VDSUSP] = _POSIX_VDISABLE;                            // Funny <Ctrl><Y> thing
-            settings.c_cc[VSTATUS] = _POSIX_VDISABLE;                           // Disables status
-#endif
-            settings.c_cc[VINTR] = '\003';                                      // ^C
-            settings.c_cc[VQUIT] = '\024';                                      // ^T (use for status)
-            if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return getError(SYS, errno); // Set parameters
-        }
-
-        par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_DEL127 | SQ_CONTROLC);
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 13);
-        break;
-
-    default:
-        return getError(INT, ERRZ20);
-    }
-
-    c->options = 0;
-    c->mode = (u_char) PRINCIPAL;
-    c->fid = 0;
-    initSERVER(chan, 0);
-    c->dx = 0;
-    c->dy = 0;
-    c->name[0] = '\0';
-    c->dkey_len = 0;
-    c->dkey[0] = '\0';
-    outerm.len = strlen((char *) outerm.buf);
-    interm.len = strlen((char *) interm.buf);
-    io = partab.jobtab->io;
-    SQ_Use(chan, &interm, &outerm, par);
-    partab.jobtab->io = io;
-    return 0;
-}
-
-// WRITE SPECIFIC
-
-/*
- * This function writes "nbytes" bytes from the buffer "writebuf" to the object
- * associated with the channel "chan". Upon successful completion, the number
- * of bytes actually written is returned. Otherwise, a negative integer value
- * is returned to indicate the error that has occurred.
- */
-int objectWrite(int chan, char *writebuf, int nbytes)
-{
-    SQ_Chan *c;                                                                 // Channel to write to
-    int     oid;                                                                // Channel descriptor
-    int     byteswritten;                                                       // Bytes written
-    int     ret;                                                                // Return value
-
-    c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
-
-    if (chan == STDCHAN) {                                                      // Get appropriate channel descriptor
-        oid = 1;
-    } else if ((int) c->type == SQ_TCP) {
-        if ((int) c->mode == TCPIP) {
-            oid = c->fid;
-        } else if ((int) c->mode == FORKED) {
-            oid = c->fid;
-        } else if ((int) c->mode == NOFORK) {
-            if (c->s.cid == -1) {
-                return getError(INT, ERRZ47);
-            } else {
-                oid = c->s.cid;
-            }
-        } else if ((int) c->mode == SERVER) {
-            if (c->s.cid == -1) {
-                return getError(INT, ERRZ47);
-            } else {
-                oid = c->s.cid;
-            }
-        } else {
-            return getError(INT, ERRZ20);
-        }
-    } else {
-        oid = c->fid;
-    }
-
-    byteswritten = 0;                                                           // Initialize bytes written
-
-    while (byteswritten < nbytes) {                                             // Write bytes
-        int bytestowrite = nbytes - byteswritten;                               // Bytes left to write
-
-        switch ((int) c->type) {
-        case SQ_FILE:
-            ret = SQ_File_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
-            break;
-
-        case SQ_TERM:
-            ret = SQ_Device_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
-            break;
-
-        case SQ_PIPE:
-            ret = SQ_Pipe_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
-            break;
-
-        case SQ_TCP:
-            ret = SQ_Tcpip_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
-            break;
-
-        default:
-            return getError(INT, ERRZ30);
-        }
-
-        // Increment byteswritten or return error
-        if (ret < 0) {
-            if (partab.jobtab->trap & MASK[SIGPIPE]) {
-                partab.jobtab->trap &= ~MASK[SIGPIPE];
-                return getError(INT, ERRZ47);
-            } else {
-                return ret;
-            }
-        } else {
-            byteswritten = (byteswritten + ret);
-        }
-    }
-
-    return byteswritten;
-}
-
-/*
- * READ SPECIFIC:
- *     "chan"   - Guaranteed to be valid
- *     "buf"    - Guaranteed not to be NULL, and large enough to store
- *                "maxbyt" bytes
- *     "maxbyt" - Guaranteed to be a positive integer value less than
- *                MAX_STR_LEN
- *     "tout"   - If 0, forces the read to retrieve the next character
- *                from the object. If no character is immediately
- *                available, a timeout will occur (this does not
- *                apply to files). All other "tout" values are
- *                effectively ignored; that is, they are handled at a
- *                higher level.
- */
-
-/*
- * This function reads at most "maxbyt" bytes from the file referenced by
- * the channel "chan" into the buffer "buf". Upon success, it returns the
- * number of bytes read. Otherwise, it returns a negative integer value to
- * indicate the error that has occurred.
- */
-int readFILE(int chan, u_char *buf, int maxbyt)
-{
-    SQ_Chan *c;                                                                 // Current channel
-    int     bytesread;                                                          // Bytes read
-    int     crflag;                                                             // CR received
-
-    c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
-    bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize CR flag
-
-    for (;;) {                                                                  // Read in bytes
-        int ret;                                                                // Return value
-
-        if (bytesread >= maxbyt) {                                              // Check if # byts reqd are rec
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-            return bytesread;
-        }
-
-        ret = SQ_File_Read(c->fid, &buf[bytesread]);                            // Read in one byte
-
-        if (ret < 0) {                                                          // An error has occurred
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-            return ret;
-        } else if (ret == 0) {                                                  // EOF reached
-            c->dkey_len = 1;
-            c->dkey[0] = (char) 255;
-            c->dkey[1] = '\0';
-            return bytesread;
-        }
-
-        // Check if an input terminator has been received
-        if (c->options & MASK[INTERM]) {
-            if (c->in_term.iterm == CRLF) {
-                if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
-                    c->dkey_len = 2;
-                    c->dkey[0] = (char) 13;
-                    c->dkey[1] = (char) 10;
-                    c->dkey[2] = '\0';
-                    return (bytesread - 1);
-                }
-            } else if ((u_char) buf[bytesread] < 128) {
-                if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
-                    c->dkey_len = 1;
-                    c->dkey[0] = buf[bytesread];
-                    c->dkey[1] = '\0';
-                    return bytesread;
-                }
-            }
-        }
-
-        // Support to echo the last byte read is still to be implemented
-        bytesread++;                                                            // Increment total number of bytes read
-    }
-}
-
-/*
- * This function reads at most "maxbyt" bytes from the socket referenced by
- * the channel "chan" into the buffer "buf". Upon success, it returns the
- * number of bytes read. Otherwise, it returns a negative integer value to
- * indicate the error that has occurred.
- */
-int readTCP(int chan, u_char *buf, int maxbyt, int tout)
-{
-    SQ_Chan *c;                                                                 // Useful variable
-    int     oid;                                                                // Object descriptor
-    int     bytesread;                                                          // Bytes read
-    int     ret;                                                                // Return value
-    int     crflag;                                                             // CR received
-
-    // Aquire a pointer to the appropriate channel structure
-    c = &partab.jobtab->seqio[chan];
-
-    /*
-     * Get peer's socket descriptor
-     * SERVER - Forking server socket
-     * NOFORK - Non-forking server socket
-     * FORKED - Forked server socket client
-     * TCPIP  - Client socket
-     */
-
-    if (c->mode == (u_char) SERVER) {
-        ret = 0;
-        while (ret == 0) ret = acceptSERVER(chan, tout);
-        oid = ret;
-    } else if (c->mode == (u_char) NOFORK) {
-        ret = acceptSERVER(chan, tout);
-        oid = ret;
-    } else {
-        oid = c->fid;
-    }
-
-    if (oid < 0) {                                                              // Check for timeout
-        c->dkey_len = 0;
-        c->dkey[0] = '\0';
-
-        if (partab.jobtab->trap & MASK[SIGALRM]) {
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-            partab.jobtab->trap &= ~MASK[SIGALRM];
-            partab.jobtab->test = 0;
-            return 0;
-        } else {
-            return oid;
-        }
-    }
-
-    bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize crflag
-
-    for (;;) {                                                                  // Read in bytes
-        if (bytesread >= maxbyt) {                                              // Check for bytes read
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-            return bytesread;
-        }
-
-        ret = SQ_Tcpip_Read(oid, &buf[bytesread], tout);                        // Read one byte
-
-        if (partab.jobtab->attention) {                                         // Check if signal received
-            ret = signalCaught(c);
-
-            if (ret == SIGALRM) {
-                return bytesread;
-            } else {
-                return -1;
-            }
-        } else if (ret < 0) {                                                   // Check if an error has occurred
-            return ret;
-        } else if (ret == 0) {                                                  // EOF received
-            c->dkey_len = 1;
-            c->dkey[0] = (char) 255;
-            c->dkey[1] = '\0';
-            closeSERVERClient(chan);
-            return bytesread;
-        }
-
-        // Support for escape sequences with sockets is still to be implemented
-
-        // Check if an input terminator has been received
-        if (c->options & MASK[INTERM]) {
-            if (c->in_term.iterm == CRLF) {
-                if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
-                    c->dkey_len = 2;
-                    c->dkey[0] = (char) 13;
-                    c->dkey[1] = (char) 10;
-                    c->dkey[2] = '\0';
-                    return (bytesread - 1);
-                }
-            } else if ((u_char) buf[bytesread] < 128) {
-                if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
-                    c->dkey_len = 1;
-                    c->dkey[0] = buf[bytesread];
-                    c->dkey[1] = '\0';
-                    return bytesread;
-                }
-            }
-        }
-
-        // Support to echo the last byte read is still to be implemented
-        bytesread++;                                                            // Increment total number of bytes read
-    }
-}
-
-/*
- * This function reads at most "maxbyt" bytes from the pipe referenced by
- * the channel "chan" into the buffer "buf". Upon success, it returns the
- * number of bytes read. Otherwise, it returns a negative integer value to
- * indicate the error that has occurred.
- */
-int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
-{
-    SQ_Chan *c;                                                                 // Current channel
-    int     oid;                                                                // Object descriptor
-    int     bytesread;                                                          // Bytes read
-    int     crflag;                                                             // CR received
-    int     tmp;                                                                // Return value
-
-    // Acquire a pointer to the current channel
-    c = &partab.jobtab->seqio[chan];
-
-    if (chan == STDCHAN) {
-        oid = 0;                                                                // STDIN
-    } else {
-        oid = c->fid;
-    }
-
-    bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize CR flag
-
-    for (;;) {                                                                  // Read in bytes
-        int ret;                                                                // Return value
-
-        if (bytesread >= maxbyt) {                                              // Check # bytes recd
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-            return bytesread;
-        }
-
-        ret = SQ_Pipe_Read(oid, &buf[bytesread], tout);                         // Read one byte
-
-        // Support for escape sequences with pipes is still to be implemented
-
-        if (partab.jobtab->attention) {                                         // Check for signal
-            tmp = signalCaught(c);
-
-            if (tmp == SIGALRM) {
-                return bytesread;
-            } else {
-                return -1;
-            }
-        } else if (ret < 0) {
-            return ret;
-        } else if ((c->options & MASK[INTERM]) && ret) {                        // Check if an input terminator has been received
-            if (c->in_term.iterm == CRLF) {
-                if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
-                    c->dkey_len = 2;
-                    c->dkey[0] = (char) 13;
-                    c->dkey[1] = (char) 10;
-                    c->dkey[2] = '\0';
-                    return (bytesread - 1);
-                }
-            } else if ((u_char) buf[bytesread] < 128) {
-                if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
-                    c->dkey_len = 1;
-                    c->dkey[0] = buf[bytesread];
-                    c->dkey[1] = '\0';
-                    return bytesread;
-                }
-            }
-        }
-
-        // Support to echo the last byte read is still to be implemented
-        bytesread += ret;                                                       // Increment total number of bytes read
-    }
-}
-
-int signalCaught(SQ_Chan *c)
-{
-    c->dkey_len = 0;
-    c->dkey[0] = '\0';
-
-    if (partab.jobtab->trap & MASK[SIGALRM]) {
-        c->dkey_len = 0;
-        c->dkey[0] = '\0';
-        partab.jobtab->trap &= ~MASK[SIGALRM];
-        partab.jobtab->test = 0;
-        return SIGALRM;
-    } else {
-        return -1;
-    }
-}
-
-/*
- * This function reads at most "maxbyt" bytes from the device referenced by
- * the channel "chan" into the buffer "buf". Upon success, it returns the
- * number of bytes read. Otherwise, it returns a negative integer value to
- * indicate the error that has occurred.
- *
- * Note: Terminal input buffer handling, including editing and history,
- *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
- */
-int readTERM(int chan, u_char *buf, int maxbyt, int tout)
-{
-    SQ_Chan        *c;                                                          // Current channel
-    int            oid;                                                         // Object descriptor
-    int            bytesread;                                                   // Bytes read
-    int            ret;                                                         // Return value
-    int            crflag;                                                      // CR received
-    int            i;
-    int            len;
-    char           value;                                                       // Useful variable
-    u_char         curr;                                                        // Current character
-    cstring        writebuf;                                                    // Bytes to echo
-    struct winsize w;                                                           // For ioctl
-    char           cpr[12];                                                     // For cursor position report
-    int            j;                                                           // Current cursor row
-    static char    editing = FALSE;                                             // In editing mode
-    u_short        start;                                                       // The starting column of the input buffer
-
-    // Aquire a pointer to the appropriate channel structure
-    c = &partab.jobtab->seqio[chan];
-
-    if (in_hist > -1) {
-        start = prompt_len;                                                     // Input for direct and debug modes
-    } else {
-        start = c->dx;                                                          // Input for M input [read]
-    }
-
-    // Initialize local variables
-    if (chan == STDCHAN) {
-        oid = STDCHAN;                                                          // STDIN
-    } else {
-        oid = c->fid;
-    }
-
-    // Get the current terminal device screen dimensions
-    ret = ioctl(oid, TIOCGWINSZ, &w);
-    if (ret == -1) return getError(SYS, errno);
-    if (w.ws_col == 0) ret = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);              // If oid isn't a terminal device, use STDOUT
-    if (ret == -1) return getError(SYS, errno);
-    if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If STDOUT is redirected, default to 80 columns
-
-    bytesread = 0;
-    crflag = 0;
-
-    // Read in bytes
-    for (;;) {
-        if (bytesread >= maxbyt) {                                              // Check bytes received
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-            return bytesread;
-        }
-
-        if (c->dx == (start + bytesread)) editing = FALSE;
-
-        // Read in one byte
-        ret = SQ_Device_Read(oid, &curr, tout);
-
-        if (ret < 0) {
-            c->dkey_len = 0;
-            c->dkey[0] = '\0';
-
-            if (partab.jobtab->trap & MASK[SIGALRM]) {
-                partab.jobtab->trap &= ~MASK[SIGALRM];
-                partab.jobtab->test = 0;
-                buf[bytesread] = curr;
-                return bytesread;
-            } else {
-                return ret;
-            }
-        } else if (ret == 0) {                                                  // EOF received
-            c->dkey_len = 1;
-            c->dkey[0] = (char) 255;
-            c->dkey[1] = '\0';
-            buf[bytesread] = curr;
-            return bytesread;
-        }
-
-        // Check for Ctrl-H or Backspace key for Backspace
-        if ((curr == 8) || (curr == 127)) {
-            if ((in_hist > -1) || ((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
-                if ((bytesread > 0) && (c->dx > start)) {
-                    if (!(c->dx % w.ws_col)) {                                  // Cursor has hit the beginning of the line
-                        // Move cursor to the beginning of the previous line
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('[');
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('F');
-                        if (ret < 0) return ret;
-
-                        // Move cursor to the end of the line
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('[');
-                        if (ret < 0) return ret;
-                        writebuf.len = uitocstring(writebuf.buf, w.ws_col);
-                        ret = SQ_Write(&writebuf);
-                        if (ret < 0) return ret;
-                        c->dx -= ret;
-                        ret = SQ_WriteStar('G');
-                        if (ret < 0) return ret;
-                    } else {
-                        ret = SQ_WriteStar((char) 8);                           // Backspace (ASCII)
-                        if (ret < 0) return ret;
-                    }
-
-                    // Delete current character
-                    ret = SQ_WriteStar((char) 27);
-                    if (ret < 0) return ret;
-                    ret = SQ_WriteStar('[');
-                    if (ret < 0) return ret;
-                    ret = SQ_WriteStar('P');
-                    if (ret < 0) return ret;
-
-                    if (editing && ((start + bytesread) > w.ws_col)) {          // Input buffer is longer than a single line
-                        // Erase from current position to the end of the display
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('[');
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('J');
-                        if (ret < 0) return ret;
-
-                        // Save cursor position (DEC private)
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('7');
-                        if (ret < 0) return ret;
-
-                        // Write from the current position in the buffer to the end of the buffer
-                        ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx);
-                        if (ret < 0) return ret;
-
-                        // Restore cursor position (DEC private)
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('8');
-                        if (ret < 0) return ret;
-                    }
-
-                    bytesread--;
-                    c->dx--;
-
-                    if (editing) {
-                        for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
-                    }
-                }
-
-                continue;
-            }
-        }
-
-        // Check to see if an escape sequence is about to be received
-        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > -1))) {
-            c->dkey_len = 1;
-            c->dkey[0] = (char) 27;
-
-            for (;;) {
-                if (c->dkey_len > MAX_DKEY_LEN) return getError(INT, ERRZ39);
-                ret = SQ_Device_Read(oid, &c->dkey[c->dkey_len], tout);
-
-                if (ret < 0) {
-                    c->dkey_len = 0;
-                    c->dkey[0] = '\0';
-                    buf[bytesread] = curr;
-
-                    if (partab.jobtab->trap & MASK[SIGALRM]) {                  // Operation timed out
-                        partab.jobtab->trap &= ~MASK[SIGALRM];
-                        partab.jobtab->test = 0;
-                        return bytesread;
-                    } else {
-                        return ret;                                             // Read error
-                    }
-                } else if (ret == 0) {                                          // EOF received
-                    c->dkey_len = 1;
-                    c->dkey[0] = (char) 255;
-                    c->dkey[1] = '\0';
-                    buf[bytesread] = curr;
-                    return bytesread;
-                }
-
-                value = c->dkey[c->dkey_len];
-
-                // Arrow keys and Delete key
-                if (value != 'O') {
-                    if (((value >= 'A') && (value <= 'Z')) || ((value >= 'a') && (value <= 'z')) || (value == '~')) {
-                        c->dkey_len++;
-                        c->dkey[c->dkey_len] = '\0';
-
-                        // Up or Down Arrow
-                        if ((in_hist > -1) && (c->dkey_len == 3) && ((value == 'A') || (value == 'B'))) {
-                            if (!in_hist) in_hist = TRUE;
-
-                            // Move to beginning of the line that starts the current command buffer
-                            if (c->dx >= w.ws_col) {
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                writebuf.len = uitocstring(writebuf.buf, c->dx / w.ws_col);
-                                ret = SQ_Write(&writebuf);
-                                if (ret < 0) return ret;
-                                c->dx -= ret;
-                                ret = SQ_WriteStar('F');
-                                if (ret < 0) return ret;
-                            }
-
-                            // Move to the beginning of the input buffer that starts the current command buffer (after the prompt)
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            writebuf.len = uitocstring(writebuf.buf, start + 1);
-                            ret = SQ_Write(&writebuf);
-                            if (ret < 0) return ret;
-                            c->dx -= ret;
-                            ret = SQ_WriteStar('G');
-                            if (ret < 0) return ret;
-
-                            // Erase from the current position to the end of the display
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('J');
-                            if (ret < 0) return ret;
-
-                            // Change the input buffer to the previous or next command in the history buffer
-                            if (value == 'A') {
-                                if (hist_curr == 0) {
-                                    hist_curr = ((history[MAX_HISTORY - 1][0] != '\0') ? (MAX_HISTORY - 1) : hist_next);
-                                } else {
-                                    hist_curr--;
-                                }
-                            } else {
-                                if ((hist_curr < (MAX_HISTORY - 1) && (history[hist_curr][0] != '\0'))) {
-                                    hist_curr++;
-                                } else {
-                                    hist_curr = 0;
-                                }
-                            }
-
-                            len = strlen((char *) history[hist_curr]);
-                            c->dx = start + len;
-                            bytesread = len;
-                            ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
-                            if (ret < 0) return ret;
-                            sprintf((char *) buf, "%s", history[hist_curr]);
-
-                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
-                                j = 0;
-                                value = '\0';
-
-                                // Report cursor position (we want the current line)
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('6');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('n');
-                                if (ret < 0) return ret;
-
-                                while ((ret = read(oid, cpr, 1))) {             // Read the current position report
-                                    if (ret == -1) return getError(SYS, errno);
-
-                                    if (cpr[0] == 27) {
-                                        ret = read(oid, cpr, 12);
-                                        if (ret == -1) return getError(SYS, errno);
-                                        ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
-                                        if (ret == -1) return getError(SYS, errno);
-                                        if (value == 'R') break;
-                                        ret = read(oid, cpr, 12);
-                                        if (ret == -1) return getError(SYS, errno);
-                                        break;
-                                    }
-                                }
-
-                                if (j == w.ws_row) {                            // Cursor is on the last line
-                                    // Scroll display up one line
-                                    ret = SQ_WriteStar((char) 27);
-                                    if (ret < 0) return ret;
-                                    ret = SQ_WriteStar('[');
-                                    if (ret < 0) return ret;
-                                    ret = SQ_WriteStar('S');
-                                    if (ret < 0) return ret;
-                                }
-
-                                // Move cursor to the beginning of the next line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('E');
-                                if (ret < 0) return ret;
-                            }
-
-                            break;
-                        } else if ((maxbyt > 1) && (c->dkey_len == 3) && (value == 'C')) { // Right arrow
-                            if (!editing) editing = TRUE;
-                            if (c->dx >= (start + bytesread)) break;
-                            c->dx++;
-
-                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
-                                // Move cursor to the beginning of the next line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('E');
-                                if (ret < 0) return ret;
-                                break;
-                            }
-
-                            // Move cursor forward one position
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('C');
-                            if (ret < 0) return ret;
-                            break;
-                        } else if ((maxbyt > 1) && (c->dkey_len == 3) && (value == 'D')) { // Left arrow
-                            if (!editing) editing = TRUE;
-                            if (c->dx <= start) break;
-                            c->dx--;
-
-                            if (!((c->dx + 1) % w.ws_col)) {                    // Cursor has hit the beginning of the line
-                                // Move cursor to the beginning of the previous line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('F');
-                                if (ret < 0) return ret;
-
-                                // Move cursor to the end of the current line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                writebuf.len = uitocstring(writebuf.buf, w.ws_col);
-                                ret = SQ_Write(&writebuf);
-                                if (ret < 0) return ret;
-                                c->dx -= ret;
-                                ret = SQ_WriteStar('G');
-                                if (ret < 0) return ret;
-                                break;
-                            }
-
-                            // Move cursor back one position, stopping at column 1
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('D');
-                            if (ret < 0) return ret;
-                            break;
-                        } else if ((maxbyt > 1) && (c->dkey_len == 4) && (c->dkey[2] == '3') && (value == '~')) { // Delete key
-                            if (!editing) editing = TRUE;
-                            if (c->dx >= (start + bytesread)) break;
-
-                            if ((start + bytesread) > w.ws_col) {               // Input buffer is longer than a single line
-                                // Erase from the current position to the end of the display
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('J');
-                                if (ret < 0) return ret;
-
-                                // Save cursor position (DEC private)
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('7');
-                                if (ret < 0) return ret;
-
-                                // Write from the current position in the buffer to the end of the buffer
-                                ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start + 1], start + bytesread - c->dx - 1);
-
-                                if (ret < 0) return ret;
-
-                                // Restore cursor position (DEC private)
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('8');
-                                if (ret < 0) return ret;
-                            } else {
-                                // Delete current character
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('P');
-                                if (ret < 0) return ret;
-                            }
-
-                            for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
-                            bytesread--;
-                            break;
-                        }
-
-                        buf[bytesread] = curr;
-                        return bytesread;
-                    }
-                }
-
-                c->dkey_len++;
-            }
-
-            if (editing || (in_hist == TRUE)) continue;
-        }                                                                       // End ESCAPE Processing Options
-
-        // Check if an input terminator has been received
-        if ((in_hist > -1) || (c->options & MASK[INTERM])) {
-            if ((in_hist == -1) && (c->in_term.iterm == CRLF)) {
-                if (curr == 13) {
-                    crflag = 1;
-                } else if ((curr == 10) && (crflag == 1)) {
-                    if (in_hist == TRUE) in_hist = FALSE;
-                    editing = FALSE;
-                    c->dkey_len = 2;
-                    c->dkey[0] = (char) 13;
-                    c->dkey[1] = (char) 10;
-                    c->dkey[2] = '\0';
-                    return (bytesread - 1);
-                }
-            } else if (curr < 128) {
-                if (((in_hist > -1) && (curr == 13)) || ((in_hist == -1) && (c->in_term.interm[curr / 64] & MASK[curr % 64]))) {
-                    buf[bytesread] = curr;
-                    if (in_hist == TRUE) in_hist = FALSE;
-                    editing = FALSE;
-                    c->dkey_len = 1;
-                    c->dkey[0] = buf[bytesread];
-                    c->dkey[1] = '\0';
-                    return bytesread;
-                }
-            }
-        }
-
-        // Ignore non-printable characters (when not read * and escape processing is on)
-        if ((c->options & MASK[ESC]) && (maxbyt > 1) && ((curr < 32) || (curr > 126))) continue;
-
-        if (editing) {
-            if ((start + bytesread) < w.ws_col) {                               // Input buffer is a single line
-                // Insert space and move the line to the right
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('@');
-                if (ret < 0) return ret;
-            }
-
-            for (i = bytesread - 1; i >= (c->dx - start); i--) buf[i + 1] = buf[i]; // Shift buffer to the right by one
-            buf[c->dx - start] = curr;                                          // Add new character in the correct position
-        } else {
-            buf[bytesread] = curr;
-        }
-
-        // Echo last byte read
-        if ((c->options & MASK[TTYECHO]) || (in_hist > -1)) {
-            writebuf.len = 1;
-            sprintf((char *) writebuf.buf, "%c", curr);
-            ret = SQ_Write(&writebuf);
-            if (ret < 0) return ret;
-        }
-
-        if (!((start + bytesread + 1) % w.ws_col)) {                            // End of input buffer has hit the edge of the line
-            j = 0;
-            value = '\0';
-
-            // Report cursor position (we want the current line)
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('[');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('6');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('n');
-            if (ret < 0) return ret;
-
-            while ((ret = read(oid, cpr, 1))) {                                 // Read the current position report
-                if (ret == -1) return getError(SYS, errno);
-
-                if (cpr[0] == 27) {
-                    ret = read(oid, cpr, 12);
-                    if (ret == -1) return getError(SYS, errno);
-                    ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
-                    if (ret == -1) return getError(SYS, errno);
-                    if (value == 'R') break;
-                    ret = read(oid, cpr, 12);
-                    if (ret == -1) return getError(SYS, errno);
-                    break;
-                }
-            }
-
-            // End of input buffer is on the last line
-            if (((start + bytesread + 1 - c->dx) / w.ws_col + j) == w.ws_row) {
-                // Scroll display up one line
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('S');
-                if (ret < 0) return ret;
-
-                // Move cursor up one line
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('A');
-                if (ret < 0) return ret;
-            }
-        }
-
-        if (!(c->dx % w.ws_col)) {                                              // Cursor has hit the end of the line
-            // Move cursor to the beginning of the next line
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('[');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('E');
-            if (ret < 0) return ret;
-        }
-
-        if (editing && ((start + bytesread + 1) >= w.ws_col)) {                 // Input buffer is longer than one line
-            // Erase from current position to the end of the display
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('[');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('J');
-            if (ret < 0) return ret;
-
-            // Save cursor position (DEC private)
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('7');
-            if (ret < 0) return ret;
-
-            // Write from current position in the buffer to the end of the buffer
-            ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx + 1);
-            if (ret < 0) return ret;
-
-            // Restore cursor position (DEC private)
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('8');
-            if (ret < 0) return ret;
-        }
-
-        bytesread++;                                                            // Increment number of bytes read
-    }
-}
-
-// SERVER SOCKET SPECIFIC
-
-/*
- * This function initializes the forktab structure. It does not generate
- * any errors.
- */
-void initFORK (forktab *f)
-{
-    f->job_no = -1;
-    f->pid = -1;
-}
-
-/*
- * This function initializes the servertab structure. "chan" is a server
- * socket, where "size" represents the maximum number of processes this
- * socket can spawn to handle incoming client connections. It returns 0 on
- * success. Otherwise, it returns a negative integer value to indicate the
- * error that has occurred.
- */
-int initSERVER(int chan, u_int size)
-{
-    servertab *s;
-    forktab   *f = NULL;                                                        // TEMP FIX
-
-    if (size > systab->maxjob) return getError(INT, ERRZ42);
-    s = &partab.jobtab->seqio[chan].s;
-
-    if (size) {                                                                 // TEMP FIX
-        f = malloc(sizeof(forktab) * size);                                     // to forktab from fork
-        if (f == NULL) return getError(SYS, errno);
-    }                                                                           // TEMP FIX
-
-    for (u_int index = 0; index < size; index++) initFORK(&f[index]);
-    s->slots = size;
-    s->taken = 0;
-    s->cid = -1;
-    s->name[0] = '\0';
-    s->forked = f;
-    return 0;
-}
-
-/*
- * This function opens a server socket on channel "chan". "oper" is used
- * to determine the type of server socket to open:
- *     SERVER - Forking server
- *     NOFORK - Non-forking server
- *
- * If successful, this function returns 0. Otherwise, it returns a
- * negative integer value to indicate the error that has occurred.
- */
-int openSERVER(int chan, char *oper)
-{
-    SQ_Chan *c;
-    char    *ptr;
-    int     ret;
-
-    // Acquire a pointer to the SQ_Chan structure
-    c = &partab.jobtab->seqio[chan];
-
-    // Extract size component from oper (SERVER[=size])
-    ptr = strchr(oper, (int) '=');
-
-    if (ptr == NULL) {
-        c->mode = (u_char) NOFORK;
-        if ((ret = initSERVER(chan, 0)) < 0) return ret;
-    } else {
-        ptr++;
-
-        if (*ptr == '\0') {
-            c->mode = (u_char) NOFORK;
-            if ((ret = initSERVER(chan, 0)) < 0) return ret;
-        } else {
-            int size = atoi(ptr);
-
-            if (size < 1) {
-                return getError(SYS, errno);
-            } else {
-                if ((ret = initSERVER(chan, (u_int) size)) < 0) return ret;
-            }
-        }
-    }
-
-    return 0;
-}
-
-/*
- * This function:
- *   - Accepts a pending connection (if no clients are currently
- *     connected) on the channel "chan";
- *   - Forks a new process to handle the connection if any slots are
- *     available; and
- *   - Maintains a table of forked child processes (removing "dead"
- *     processes as required).
- *
- * If successful, this function will return the descriptor which references
- * the current connected client. Otherwise, it will return a negative integer
- * value to indicate the error that has occurred.
- */
-int acceptSERVER(int chan, int tout)
-{
-    servertab          *s;                                                      // Forked process table
-    SQ_Chan            *c;                                                      // Server socket
-    int                index;                                                   // Useful variable
-    int                len;                                                     // Useful variable
-    struct sockaddr_in sin;                                                     // Peer socket
-    //struct hostent     *host;                                                   // Peer host name
-
-    // Acquire a pointer to the SQ_CHAN structure
-    c = &partab.jobtab->seqio[chan];
-
-    // Acquire a pointer to the SERVERTAB structure
-    s = &c->s;
-
-    // Removing any dead child processes is only required if:
-    //   s->slots > 0 AND s->taken > 0
-    if ((s->slots > 0) && (s->taken > 0)) {
-        for (index = 0; index < s->slots; index++) {
-            if (s->forked[index].pid != -1) {
-                if (systab->jobtab[(s->forked[index].job_no - 1)].pid != s->forked[index].pid) {
-                    // Child dead
-                    initFORK(&s->forked[index]);
-                    s->taken--;
-                }
-            }
-        }
-    }
-
-    // An accept is only required if:
-    //   s->cid == -1
-    if (s->cid == -1) {
-        int ret;                                                                // Return value
-
-        s->cid = SQ_Tcpip_Accept(c->fid, tout);
-
-        if (s->cid < 0) {
-            s->cid = -1;
-            return s->cid;
-        }
-
-        len = sizeof(struct sockaddr_in);
-        ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
-        if (ret == -1) return getError(SYS, errno);
-        len = sizeof(sin.sin_addr);
-        snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-
-        /*
-        host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, addr_family);
-
-        if (host == NULL) {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-        } else {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
-        }
-        */
-    }
-
-    // A rfork is only required if:
-    //   s->slots > 0 AND s->taken < s->slots
-    if ((s->slots > 0) && (s->taken < s->slots)) {
-        forktab *slot = NULL;                                                   // Find first available slot
-        int     jobno;                                                          // M job number
-
-        for (index = 0; index < s->slots; index++) {
-            if (s->forked[index].pid == -1) {
-                slot = &s->forked[index];
-                index = s->slots;
-            }
-        }
-
-        if (slot == NULL) return getError(INT, ERRZ20);
-
-        // Spawn server client process
-        jobno = ForkIt(1);                                                      // copy the file table
-
-        if (jobno > 0) {                                                        // Parent process; child jobno
-            slot->job_no = jobno;
-            slot->pid = systab->jobtab[jobno - 1].pid;
-            s->taken++;
-            close(s->cid);
-            s->cid = -1;
-            s->name[0] = '\0';
-            return 0;
-        } else if (jobno < 0) {                                                 // Child process; parent jobno
-            c = &partab.jobtab->seqio[chan];
-            s = &c->s;
-            s->slots = 0;
-            s->taken = 0;
-            free(s->forked);
-            close(c->fid);
-            c->mode = (u_char) FORKED;
-            s->forked = NULL;
-            c->fid = s->cid;
-            strncpy((char *) c->name, (char *) s->name, MAX_SEQ_NAME);
-            s->cid = -1;
-            s->name[0] = '\0';
-            return c->fid;
-        } else {                                                                // fork/rfork failed
-            if (errno) return getError(SYS, errno);
-            return getError(INT, ERRZ49);                                       // Job table full
-        }
-
-        // An unknown error has occurred
-        return getError(INT, ERRZ20);
-    }
-
-    // Accepted by parent
-    return s->cid;
-}
-
-/*
- * This function closes a connected client. This function will never
- * exit with an error (i.e., will always return 0).
- */
-int closeSERVERClient(int chan)
-{
-    SQ_Chan *c;                                                                 // Socket channel
-
-    // Acquire a pointer to the channel
-    c = &partab.jobtab->seqio[chan];
-
-    // Determine socket to close and close it (if required)
-    if ((int) c->type == SQ_TCP) {
-        if ((int) c->mode == NOFORK) {
-            if (c->s.cid > -1) {
-                close(c->s.cid);
-                free(c->s.forked);
-                initSERVER(chan, 0);
-            }
-        } else if ((int) c->mode == SERVER) {
-            if (c->s.cid > -1) {
-                close(c->s.cid);
-                c->s.cid = -1;
-                c->s.name[0] = '\0';
-            }
-        }
-    }
-
-    return 0;
-}
-
-/*
- * This function closes the socket on channel "chan". This function is
- * called whenever a channel of type SQ_TCP is closed. It will never exit
- * with an error (i.e., will always return 0).
- */
-int closeSERVER (int chan)
-{
-    SQ_Chan   *c;                                                               // Socket
-    servertab *s;                                                               // Forked process table
-
-    c = &partab.jobtab->seqio[chan];
-    s = &c->s;
-
-    switch ((int) c->mode) {                                                    // Close socket client
-    case TCPIP:
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    // Does not close all forked child processes (just the server socket and
-    // the client (if one exists) accepted by the server parent)
-    case SERVER:
-        if (s->cid != -1) close(s->cid);
-        free(s->forked);                                                        // Free fork structure
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    // Closes the connected client (if one exists) and the server socket
-    case NOFORK:
-        if (s->cid != -1) close(s->cid);
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    // Closes the connected client accepted by a forked child process
-    case FORKED:
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    // Unknown class of socket
-    default:
-        break;
-    }
-
-    return 0;
 }
