@@ -53,7 +53,7 @@
  * successful completion, a value of 0 is returned. Otherwise, a negative
  * integer value is returned to indicate the error that has occurred.
  */
-int createPipe (char *pipe)
+int createPipe(char *pipe)
 {
     int ret;
 
@@ -80,7 +80,7 @@ int createPipe (char *pipe)
  * descriptor. Otherwise, a negative integer value is returned to indicate the
  * error that has occurred.
  */
-int SQ_Pipe_Open (char *pipe, int op)
+int SQ_Pipe_Open(char *pipe, int op)
 {
     int ret;
     int flag;
@@ -115,7 +115,7 @@ int SQ_Pipe_Open (char *pipe, int op)
  * Upon successful completion, a value of 0 is returned. Otherwise, a negative
  * integer value is returned to indicate the error that has occurred.
  */
-int SQ_Pipe_Close (int pid, char *pipe)
+int SQ_Pipe_Close(int pid, char *pipe)
 {
     int ret;
     int oid;
@@ -152,7 +152,7 @@ int SQ_Pipe_Close (int pid, char *pipe)
  * generated. This signal is caught, where write will return -1 with errno set
  * to EPIPE (i.e., broken pipe).
  */
-int SQ_Pipe_Write (int pid, u_char *writebuf, int nbytes)
+int SQ_Pipe_Write(int pid, u_char *writebuf, int nbytes)
 {
     int ret;
 
@@ -175,7 +175,7 @@ int SQ_Pipe_Write (int pid, u_char *writebuf, int nbytes)
  * of bytes actually read is returned. Otherwise, a negative integer value is
  * returned to indicate the error that has occurred.
  */
-int SQ_Pipe_Read (int pid, u_char *readbuf, int tout)
+int SQ_Pipe_Read(int pid, u_char *readbuf, int tout)
 {
     int ret;
     int bytesread;

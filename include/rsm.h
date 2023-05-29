@@ -35,13 +35,15 @@
 #define FALSE               0                                                   // nicer than using 0
 #define TRUE                1                                                   // or 1
 
+#define OFF                 -1                                                  // Buffer history is turned off
+
 #define RSM_MAGIC           4155766917U                                         // Seems unique
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       78                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
-#define VERSION_PRE         1                                                   // Pre-release number
+#define VERSION_PRE         2                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
@@ -69,7 +71,7 @@
 
 #define MAX_NUM_ARGS        (127 - 1)                                           // max number of arguments
 #define MAX_NUM_TAGS        256                                                 // max number of tags/labels
-#define MAX_NUM_VARS        256                                                 // max number of routine variables
+#define MAX_NUM_VARS        255                                                 // max number of routine variables
 
 #if RSM_DBVER == 1
 #   define VAR_LEN          8                                                   // length of var_u - must be multiple of 8
@@ -82,6 +84,7 @@
 #define SECDAY              86400                                               // seconds per day ($HOROLOG)
 #define YRADJ               47117                                               // days from 1 Jan 1841 to 1970
 
+#define MAX_VOL             1                                                   // max number of vols
 #define UCIS                64                                                  // always 64
 
 // KeyCmp outputs
@@ -91,7 +94,11 @@
 
 #define MAX_DO_FRAMES       128                                                 // maximum permitted do_frame
 #define STM1_FRAME          (MAX_DO_FRAMES - 1)                                 // where $STACK(-1) data goes
-#define MAX_SEQ_IO          64                                                  // maximum sequential IO chans
+
+#define UNLIMITED           -1                                                  // unlimited timeout for sequential IO
+
+#define MIN_SEQ_IO          0                                                   // Minimum sequential IO channel
+#define MAX_SEQ_IO          64                                                  // maximum sequential IO channel
 #define MAX_SEQ_NAME        256                                                 // max file name size
 #define MAX_SEQ_OUT         6                                                   // max output terminator size
 #define MAX_DKEY_LEN        16                                                  // max $KEY seq stored
@@ -112,10 +119,10 @@
 #define SQ_USE_DEL8         512                                                 // use backspace as delete
 #define SQ_USE_DEL127       1024                                                // use delete as delete
 #define SQ_USE_DELBOTH      2048                                                // use both as delete
-#define SQ_CONTROLC         4096                                                // enable control c trapping
-#define SQ_NOCONTROLC       8192                                                // no control c trap, ignore it
-#define SQ_CONTROLT         16384                                               // enable control t status
-#define SQ_NOCONTROLT       32768                                               // disable control t status
+#define SQ_CONTROLC         4096                                                // enable Control-C trapping
+#define SQ_NOCONTROLC       8192                                                // no Control-C trap, ignore it
+#define SQ_CONTROLT         16384                                               // enable Control-T status
+#define SQ_NOCONTROLT       32768                                               // disable Control-T status
 
 #if defined(__APPLE__) && defined(__LP64__)
 #   define SHMAT_SEED       (void *) 0x200000000
@@ -166,7 +173,7 @@
 #define TYPE_JOB            2                                                   // got jobbed [0] only
 #define TYPE_DO             3                                                   // DO
 #define TYPE_EXTRINSIC      4                                                   // Extrinsic
-#define TYPE_XECUTE         5                                                   // execute
+#define TYPE_XECUTE         5                                                   // eXecute
 
 #define DO_FLAG_TEST        1                                                   // $TEST value (0/1)
 #define DO_FLAG_ATT         2                                                   // sym attach done
@@ -185,7 +192,6 @@
 #define SIG_U2              (1U << 31)                                          // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define MAX_VOL             1                                                   // max number of vols
 #define VOL_FILENAME_MAX    256                                                 // max chars in stored filename
 #define JNL_FILENAME_MAX    226                                                 // max chars in journal filename
 

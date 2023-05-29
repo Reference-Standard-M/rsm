@@ -116,7 +116,7 @@ void dodollar(void)                                                             
                             return;                                             // and exit
                         }
 
-                        p = p + s;                                              // point here
+                        p += s;                                                 // point here
                         *p = OPMVAR;                                            // get the mvar onto stack
                     }
 
@@ -449,7 +449,7 @@ function:                                                                       
 
     while (TRUE) {
         args++;                                                                 // count an argument
-        if (args > 255) EXPRE;                                                  // too many args
+        if (args > 255) EXPRE;                                                  // too many args (255 for intrinsics)
         c = *source_ptr++;                                                      // get term char
         if (c == ')') break;                                                    // all done if closing )
 

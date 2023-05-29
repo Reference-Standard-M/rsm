@@ -351,7 +351,7 @@ void ic_full(void)                                                              
     u_char msg[20];                                                             // for messages
 
     doing_full = 1;                                                             // set this
-    size = volsiz / 8 + 1;                                                    // number of bytes
+    size = volsiz / 8 + 1;                                                      // number of bytes
     rlnk = malloc(size);                                                        // for right links
     if (rlnk == NULL) panic("ic_full: can't get memory for rlnk");              // if failed then die
     dlnk = malloc(size);                                                        // for down links
@@ -507,7 +507,7 @@ void ic_map(int flag)                                                           
  */
 int DB_ic(int vol, int block)                                                   // integrity checker
 {
-    int   uci;                                                                  // UCI#
+    int uci;                                                                    // UCI#
     int b1;                                                                     // a block
 
     if (vol > MAX_VOL) return -ERRM26;                                          // within limits? if not - error

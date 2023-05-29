@@ -50,7 +50,7 @@
 }                                                                               // report an error
 
 #define INDSNOK(size) (((size * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)       // For testing indirection size - a guess
-#define INDANOK(addr) ((addr + (sizeof(int) * 2) + 1) >= &indstk[MAX_ISTK])     // For testing the address of compiled indirection
+#define INDANOK(addr) ((addr + (sizeof(long) * 2) + 1) >= &indstk[MAX_ISTK])    // For testing the address of compiled indirection
 
 #define RBD_OVERHEAD (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
                      + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))

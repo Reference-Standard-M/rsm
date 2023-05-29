@@ -453,7 +453,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     }
 
     src_slen = src->slen;                                                       // save source key size
-    line->buf[0] = '0';                                                         // seed the $O()
+    line->buf[0] = '0';                                                         // seed the $ORDER()
     line->buf[1] = '\0';                                                        // null terminated
     line->len = 1;                                                              // this long
     ss = UTIL_Key_Build(line, &src->key[src_slen]);                             // build the key
@@ -585,8 +585,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
                 if (cnt > MAX_NUM_ARGS) cnt = -(ERRZ75 + ERRMLAST);             // too many
 
                 if (cnt < 0) {                                                  // got an error?
-                    --p;                                                        // back up the ptr
-                    comp_ptr = p;                                               // backup
+                    comp_ptr = --p;                                             // backup
                     comperror(cnt);                                             // compile error
                     continue;                                                   // ignore rest of line
                 }
@@ -597,7 +596,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 
         lino++;                                                                 // count a line
 
-        if (!same) {                                                            // write if reqd
+        if (!same) {                                                            // write if required
             for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ') continue; // convert leading tab to space
 DISABLE_WARN(-Warray-bounds)
             cptr->len = itocstring(cptr->buf, lino);                            // convert to a cstring

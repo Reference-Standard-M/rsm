@@ -105,8 +105,8 @@ void pminmax(cstring *str, int *min, int *max)
 
             cnt = 0;                                                            // init counter
             while (str->buf[++i] != DELIM) cnt++;                               // while more to do increment counter
-            mininc = mininc * cnt;                                              // set this minimum
-            maxinc = maxinc * cnt;                                              // set this maximum
+            mininc *= cnt;                                                      // set this minimum
+            maxinc *= cnt;                                                      // set this maximum
         }
 
         if (str->buf[i] == '"') {
@@ -171,7 +171,7 @@ short pattern(cstring *a, cstring *b)
     short   ptrpcd[PATDEPTH];
     short   position[PATDEPTH];
     short   mincnt[PATDEPTH] = {0};                                             // minimum number of matches
-    short   maxcnt[PATDEPTH];                                                   // maximum number of matches
+    short   maxcnt[PATDEPTH] = {0};                                             // maximum number of matches
     short   actcnt[PATDEPTH];                                                   // actual count of matches
     short   Pflag;
     short   Pchar;                                                              // status in alternation
@@ -540,8 +540,7 @@ nomatch:
 match:                                                                          // match
             y++;                                                                // move pointer to next char
 
-match0:
-            continue;                                                           // no action
+match0:                                                                         // no action
         }
 
         position[patx++] = y;                                                   // pos after last match

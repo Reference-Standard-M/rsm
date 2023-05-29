@@ -35,13 +35,6 @@ OBJ     := $(SRC:.c=.o)
 CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude -D_FILE_OFFSET_BITS=64
 LDFLAGS := -lcrypt
 
-ifeq ($(MAKECMDGOALS),debug)
-    CONFIG := -O0 -g3
-else
-    CONFIG := -O3
-    CFLAGS += -DNDEBUG
-endif
-
 ifneq ($(OS),AIX)
     LDFLAGS += -lm
 endif
@@ -55,8 +48,21 @@ ifeq ($(OS),Darwin)
     LDFLAGS := -lm -framework CoreServices -framework DirectoryService -framework Security
 endif
 
+ifeq ($(MAKECMDGOALS),profile)
+    CONFIG  := -O0 -g3
+    CFLAGS  += -pg
+    LDFLAGS += -pg -lc
+else
+    ifeq ($(MAKECMDGOALS),debug)
+        CONFIG  := -O0 -g3
+    else
+        CONFIG  := -O3
+        CFLAGS  += -DNDEBUG
+    endif
+endif
+
 ifdef dbver
-    CFLAGS += -DRSM_DBVER=$(dbver)
+    CFLAGS  += -DRSM_DBVER=$(dbver)
 endif
 
 ifdef path
@@ -68,11 +74,14 @@ endif
 %.o: %.c ${DEPS}
 	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
 
-all: ${OBJ}
+${PROG}: ${OBJ}
 	${CC} -o ${PROG} $^ ${LDFLAGS}
 
-debug: ${OBJ}
-	${CC} -o ${PROG} $^ ${LDFLAGS}
+all: ${PROG}
+
+debug: ${PROG}
+
+profile: ${PROG}
 
 install: ${PROG}
 
@@ -114,4 +123,4 @@ uninstall:
 clean:
 	${RM} ${OBJ} ${PROG} $(wildcard *core)
 
-.PHONY: all debug install uninstall clean
+.PHONY: all debug profile install uninstall clean

@@ -104,7 +104,7 @@ int cstringtoi(cstring *str)                                                    
         }
     }
 
-    if (minus) ret = -ret;                                                      // change sign if reqd
+    if (minus) ret = -ret;                                                      // change sign if required
     return (int) ret;                                                           // return the value
 }                                                                               // end cstringtoi()
 
@@ -114,9 +114,7 @@ int cstringtob(cstring *str)                                                    
     int i;                                                                      // for loops
     int dp = 0;                                                                 // decimal place flag
 
-    for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++) { // check leading characters
-        continue;
-    }
+    for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++) continue; // check leading characters
 
     for (; i < (int) str->len; i++) {                                           // for each character
         if (str->buf[i] == '0') continue;                                       // ignore zeroes
@@ -149,7 +147,7 @@ u_short itocstring(u_char *buf, int n)                                          
 
     while (n) {                                                                 // while there is a value
         a[i++] = n % 10;                                                        // get low decimal digit
-        n = n / 10;                                                             // reduce number
+        n /= 10;                                                                // reduce number
     }
 
     while (i) buf[p++] = a[--i] + 48;                                           // copy digits backwards
@@ -168,7 +166,7 @@ u_short uitocstring(u_char *buf, u_int n)                                       
 
     while (n) {                                                                 // while there is a value
         a[i++] = n % 10;                                                        // get low decimal digit
-        n = n / 10;                                                             // reduce number
+        n /= 10;                                                                // reduce number
     }
 
     while (i) buf[p++] = a[--i] + 48;                                           // copy digits backwards
@@ -202,10 +200,10 @@ int Set_Error(int err, cstring *user, cstring *space)
         cstring *tmp;                                                           // spare cstring ptr
         char    temp[16];                                                       // and some space
 
-        if ((t == 0) || (space->buf[t - 1] != ',')) space->buf[t++] = ',';      // for new $EC
+        if ((t == 0) || (space->buf[t - 1] != ',')) space->buf[t++] = ',';      // for new $ECODE
         j = -err;                                                               // copy the error (-ve)
 
-        if (err == USRERR) {                                                    // was it a SET $EC
+        if (err == USRERR) {                                                    // was it a SET $ECODE
             memmove(&space->buf[t], user->buf, user->len);                      // copy the error
             t += user->len;                                                     // add the length
         } else {                                                                // not user error

@@ -95,7 +95,7 @@ short Vhorolog(u_char *ret_buffer)
     int    day = sec / SECDAY + YRADJ;                                          // get number of days
 
     sec %= SECDAY;                                                              // and number of seconds
-    return (short) sprintf((char *) ret_buffer, "%d,%d", day, (int) sec);       // return count and $H
+    return (short) sprintf((char *) ret_buffer, "%d,%d", day, (int) sec);       // return count and $HOROLOG
 }
 
 // $KEY
@@ -124,7 +124,7 @@ short Vsystem(u_char *ret_buffer)
     int i = uitocstring(ret_buffer, RSM_SYSTEM);                                // copy assigned #
 
     ret_buffer[i++] = ',';                                                      // and a comma
-    i = i + rsm_version(&ret_buffer[i]);                                        // do it elsewhere
+    i += rsm_version(&ret_buffer[i]);                                           // do it elsewhere
     return (short) i;                                                           // return the count
 }
 

@@ -87,7 +87,7 @@ void DB_ViewPut(u_int vol, gbd *ptr)                                            
     level = 0;                                                                  // for Queit
 
     if (ptr->dirty == NULL) {                                                   // check dirty ptr
-        ptr->dirty = ptr;                                                       // set if reqd
+        ptr->dirty = ptr;                                                       // set if required
         blk[level] = ptr;                                                       // ditto
         Queit();                                                                // do this
     }

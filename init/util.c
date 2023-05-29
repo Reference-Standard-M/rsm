@@ -69,8 +69,7 @@ void help(void)                                                                 
     printf("     [-R]\t\t\tStarts in restricted mode\n");
     printf("     [<database-file>]\t\tName of database file\n\n");
     printf("Stop and shut down environment:\n");
-    printf("  rsm -k\t\t\tKill environment\n");
-    printf("     [<database-file>]\t\tName of database file\n\n");
+    printf("  rsm -k [<database-file>]\tKill environment\n\n");
     printf("Set environment variable RSM_DBFILE=<database-file> or pass it to each command\n");
     exit(EXIT_SUCCESS);                                                         // give help and exit
 }

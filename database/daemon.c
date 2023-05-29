@@ -143,7 +143,7 @@ void do_write(void)                                                             
 
 /*
  * Function: do_free
- * Descript: Free a block in the map and GBDs (if reqd)
+ * Descript: Free a block in the map and GBDs (if required)
  * Input(s): block number to free
  * Return:   none
  */
@@ -573,8 +573,8 @@ int DB_Daemon(int slot, int vol)                                                
     logfile[i + 1] = (char) '\0';                                               // terminate for strlen
     sprintf(&logfile[strlen(logfile)], "log/");                                 // add the log directory to the file path
 
-    // --- Create the log directory, ignore if it already exists
-    if (mkdir(logfile, (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) == -1) {
+    // --- Create the log directory, with 0755 permissions, ignore if it already exists
+    if (mkdir(logfile, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
         if (errno != EEXIST) return errno;
     }
 

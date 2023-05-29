@@ -189,7 +189,7 @@ void Garbit(u_int blknum)                                                       
     i = systab->vol[volnum - 1]->garbQw;                                        // where to put it
 
     for (j = 0; ; j++) {
-        if (systab->vol[volnum - 1]->garbQ[i] == 0) break;                      // if slot avbl then exit
+        if (systab->vol[volnum - 1]->garbQ[i] == 0) break;                      // if slot available then exit
         if (j == 9) panic("Garbit: could not get a garbage slot after 10 seconds");
         sleep(1);                                                               // wait a bit
     }                                                                           // NOTE: I don't think this can work either
@@ -206,7 +206,7 @@ void Garbit(u_int blknum)                                                       
  * Return:   none
  * Note:     Must hold a write lock before calling this function
  */
-void Free_block(int blknum)                                                     // free blk in map
+void Free_block(u_int blknum)                                                   // free blk in map
 {
     int    i;                                                                   // a handy int
     int    off;                                                                 // and another
@@ -238,7 +238,7 @@ void Free_block(int blknum)                                                     
  *              scan in progress, this block is less than "upto".
  * This is only called from rsm/database/view.c
  */
-void Used_block(int blknum)                                                     // set blk in map
+void Used_block(u_int blknum)                                                   // set blk in map
 {
     int    i;                                                                   // a handy int
     int    off;                                                                 // and another
@@ -514,12 +514,12 @@ short Compress1(void)
         blk[level] = NULL;                                                      // ignore
 
         if (blk[level + 1]->mem->right_ptr) {                                   // if we have a RL
-            s = Get_block(blk[level + 1]->mem->right_ptr);                      // get it
+            Get_block(blk[level + 1]->mem->right_ptr);                          // get it
         }                                                                       // and hope it worked
     } else {
         if (blk[level]->dirty == (gbd *) 1) {                                   // if not queued
             blk[level]->dirty = (gbd *) 2;                                      // mark to queue
-            s = Add_rekey(blk[level]->block, level);                            // queue to re-key later
+            Add_rekey(blk[level]->block, level);                                // queue to re-key later
         }
     }
 
@@ -573,12 +573,11 @@ void ClearJournal(int vol)                                                      
         off_t free;
     } tmp;
 
-    jfd = open(systab->vol[vol]->vollab->journal_file,                          // open this file
-               (O_CREAT | O_TRUNC | O_WRONLY),                                  // create the file
-               (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));                        // make 0660 - jobs write their own journal entries
+    // Create journal file, with 0660 permissions, jobs write their own journal entries
+    jfd = open(systab->vol[vol]->vollab->journal_file, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
     if (jfd > 0) {                                                              // if OK
-        tmp.magic = (RSM_MAGIC - 1);
+        tmp.magic = RSM_MAGIC - 1;
 #if RSM_DBVER == 1
         tmp.free = 20;                                                          // next free byte
 #else
@@ -595,7 +594,7 @@ void ClearJournal(int vol)                                                      
 #endif
         jj.action = JRN_CREATE;
         jj.uci = 0;
-        i = write(jfd, &jj, jj.size);                                           // write the create rec
+        i = write(jfd, &jj, jj.size);                                           // write the create record
         if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
         close(jfd);                                                             // and close it
         systab->vol[vol]->jrn_next = (off_t) tmp.free;                          // where it's upto

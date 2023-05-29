@@ -226,7 +226,7 @@ int ForkIt(int cft)                                                             
         memcpy(&systab->jobtab[mid], partab.jobtab, sizeof(jobtab));            // copy job info
         systab->jobtab[mid].pid = i;                                            // save the pid
         SemOp(SEM_SYS, systab->maxjob);                                         // unlock
-        return (mid + 1);                                                       // return child job number
+        return mid + 1;                                                         // return child job number
     }
 
     ret = -(partab.jobtab - systab->jobtab + 1);                                // save minus parent job#

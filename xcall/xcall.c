@@ -168,7 +168,7 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstri
         fprintf(stderr, "TRANTAB size %zu\r\n", sizeof(struct TRANTAB));
         fprintf(stderr, "SYSTAB size %zu\r\n", sizeof(struct SYSTAB));
         fprintf(stderr, "PARTAB size %zu\r\n", sizeof(struct PARTAB));
-        fprintf(stderr, "NEW_STACK size %zu\r\n", sizeof(struct NEW_STACK));
+        //fprintf(stderr, "NEW_STACK size %zu\r\n", sizeof(struct NEW_STACK));
         fprintf(stderr, "ST_DEPEND size %zu\r\n", sizeof(struct ST_DEPEND));
         fprintf(stderr, "ST_DATA size %zu\r\n", sizeof(struct ST_DATA));
         fprintf(stderr, "SYMTAB size %zu\r\n", sizeof(struct SYMTAB));
@@ -236,7 +236,7 @@ int isPatternMatch(char *pattern, char *filename)
                 pattern += 1;
             }
         } else if (flag == 1) {                                                 // Find first occurrence
-            filename = findNextChar (*pattern, filename);
+            filename = findNextChar(*pattern, filename);
 
             if (*filename == '\0') {
                 return 0;
@@ -274,7 +274,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) c
 
     if (file->buf[0] == '\0') {
         while (TRUE) {
-            dent = readdir (dirp);
+            dent = readdir(dirp);
 
             if (dent == NULL) {                                                 // No more matching directory entries
                 ret_buffer = NULL;
@@ -367,18 +367,18 @@ short Xcall_errmsg(char *ret_buffer, cstring *err, __attribute__((unused)) cstri
     if (err->buf[0] == 'U') {                                                   // user error ?
         memcpy(ret_buffer, "User error: ", 12);
         memmove(&ret_buffer[12], err->buf, err->len);
-        return (err->len + 12);
+        return err->len + 12;
     }
 
     if (err->len < 2) return -ERRM11;                                           // they gotta pass something
 
     if (err->buf[0] == 'Z') {
-        errnum = errnum + ERRMLAST;                                             // point at Z errors
+        errnum += ERRMLAST;                                                     // point at Z errors
     } else if (err->buf[0] != 'M') {
         return -ERRM99;                                                         // that's junk
     }
 
-    errnum = errnum + atoi((char *) &err->buf[1]);                              // add the number to it
+    errnum += atoi((char *) &err->buf[1]);                                      // add the number to it
     return UTIL_strerror(errnum, (u_char *) ret_buffer);                        // do it
 }
 
@@ -891,7 +891,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     tDirStatus       junk;
     tDataBufferPtr   buf;
     tDirPatternMatch patternToFind;
-    UInt32           nodeCount;
+    UInt32           nodeCount = 0;
     tContextData     context;
 
     assert(dirRef != 0);
@@ -978,7 +978,7 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
     tDataListPtr      recordType;
     tDataListPtr      recordName;
     tDataListPtr      requestedAttributes;
-    UInt32            recordCount;
+    UInt32            recordCount = 0;
     tAttributeListRef foundRecAttrList;
     tContextData      context;
     tRecordEntryPtr   foundRecEntry;
@@ -1481,7 +1481,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, __attribute__((unused)) cstr
 }
 #endif
 
-// Video - Generate an Escape sequence for (Y,X) positioning
+// Video - Generate an absolute Escape sequence for (Y,X) positioning
 int Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
 {
     int i;
@@ -1602,7 +1602,7 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
  */
 short Xcall_fork(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
 {
-    int s = ForkIt(1);                                                          // do it, copy file table
+    int s = ForkIt(1);                                                          // fork it, copy file table
 
     return itocstring((u_char *) ret_buffer, s);                                // return result
 }
@@ -1658,7 +1658,7 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
         return (short) ret;                                                     // Size of ret_buffer (EXISTS)
     } else {                                                                    // Invalid attribute name
         ret_buffer[0] = '\0';
-        return -ERRM46;
+        return -ERRM47;
     }
 
     // Unreachable

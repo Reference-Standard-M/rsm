@@ -3,7 +3,7 @@ stages:
 
 host-build:
   stage: build
-  image: gcc:12.1.0
+  image: gcc:12.2.0
   script:
     - export USER=root
     - make -j

@@ -31,7 +31,7 @@
 #define DTBLKSIZE (sizeof(short) + sizeof(u_short) + sizeof(u_char) + sizeof(ST_depend *)) // ST_data - empty data
 #define DTMINSIZE (sizeof(short) + sizeof(u_short) + (sizeof(u_char) * 20) + sizeof(ST_depend *)) // ST_data - 20 for data
 #define DPBLKSIZE ((sizeof(u_char) * 2) + sizeof(u_short) + sizeof(ST_depend *)) // ST_depend - empty bytes
-#define NTBLKSIZE ((sizeof(short) * 2) + sizeof(short *) + sizeof(ST_newtab *) + sizeof(ST_locdata *)) // not currently used
+//#define NTBLKSIZE ((sizeof(short) * 2) + sizeof(short *) + sizeof(ST_newtab *) + sizeof(ST_locdata *)) // not currently used
 
 struct ST_DATA;                                                                 // defined below
 
@@ -42,10 +42,10 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK {                         
 } new_stack;                                                                    // end of struct new_stack
 
 // SYMTAB definitions
-#define ST_HASH     1023                                                        // hash size of symtab
-#define ST_FREE     ST_HASH                                                     // head of free list
-#define ST_MAX      ((ST_HASH + 1) * 3)                                         // max number of ST entries
-#define STORAGE     ST_MAX                                                      // $STORAGE uses this to calculate free slots
+#define ST_HASH 1023                                                            // hash size of symtab
+#define ST_FREE ST_HASH                                                         // head of free list
+#define ST_MAX  ((ST_HASH + 1) * 3)                                             // max number of ST entries
+#define STORAGE ST_MAX                                                          // $STORAGE uses this to calculate free slots
 
 // Structures for symbol table data
 #define SIZE_KEY_DATA (MAX_KEY_SIZE + MAX_STR_LEN + 5)                          // for the following

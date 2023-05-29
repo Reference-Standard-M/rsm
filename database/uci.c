@@ -52,16 +52,13 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
 
     if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? no - error
     if ((uci < 1) || (uci > UCIS)) return -ERRM26;                              // too big
-    volnum = vol;                                                               // set this
-    if (systab->vol[volnum - 1] == NULL) return -ERRM26;                        // volume not mounted
+    if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // volume not mounted
 
-    while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
+    while (systab->vol[vol - 1]->writelock) {                                   // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
     }                                                                           // end writelock check
 
-    writing = 1;                                                                // writing
-    level = 0;                                                                  // clear this
     s = SemOp(SEM_GLOBAL, WRITE);                                               // get write lock
     if (s < 0) return s;                                                        // on error then return it
 
@@ -69,6 +66,10 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         SemOp(SEM_GLOBAL, -curr_lock);
         return -ERRM26;                                                         // no - error
     }
+
+    volnum = vol;                                                               // set this
+    writing = 1;                                                                // writing
+    level = 0;                                                                  // clear this
 
     if (!systab->vol[vol - 1]->vollab->uci[uci - 1].global) {                   // if no GD
         s = New_block();                                                        // get a new block
@@ -83,7 +84,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         blk[level]->mem->last_idx = IDX_START;                                  // one index
         VAR_CLEAR(blk[level]->mem->global);
         memcpy(&blk[level]->mem->global, "$GLOBAL", 7);                         // the global
-        blk[level]->mem->last_free = (systab->vol[volnum - 1]->vollab->block_size >> 2) - 7; // use 6 words
+        blk[level]->mem->last_free = (systab->vol[vol - 1]->vollab->block_size >> 2) - 7; // minus extra for rec length
         idx[IDX_START] = blk[level]->mem->last_free + 1;                        // the data
         chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at it
         chunk->len = 24;                                                        // 5 words
@@ -118,16 +119,13 @@ short DB_UCIKill(int vol, int uci)                                              
 
     if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? no - error
     if ((uci < 1) || (uci > UCIS)) return -ERRM26;                              // too big
-    volnum = vol;                                                               // set this
-    if (systab->vol[volnum - 1] == NULL) return -ERRM26;                        // volume not mounted
+    if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // volume not mounted
 
-    while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
+    while (systab->vol[vol - 1]->writelock) {                                   // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
     }                                                                           // end writelock check
 
-    writing = 1;                                                                // writing
-    level = 0;                                                                  // clear this
     s = SemOp(SEM_GLOBAL, WRITE);                                               // get write lock
     if (s < 0) return s;                                                        // on error, return it
 
@@ -141,6 +139,9 @@ short DB_UCIKill(int vol, int uci)                                              
         return 0;                                                               // no - just return
     }
 
+    volnum = vol;                                                               // set this
+    writing = 1;                                                                // writing
+    level = 0;                                                                  // clear this
     gb = systab->vol[vol - 1]->vollab->uci[uci - 1].global;                     // get global directory
     s = Get_block(gb);                                                          // get the block
 

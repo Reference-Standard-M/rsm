@@ -94,7 +94,7 @@ int getError(int type, int errnum)
  */
 void setSignalBitMask(int sig)
 {
-    if (sig == SIGQUIT) {
+    if (sig == SIGQUIT) {                                                       // TODO: decide whether to keep hijacking SIGQUIT
         DoInfo();
     /*
     } else if (sig == SIGCHLD) {                                                // TODO: look at this more

@@ -87,7 +87,6 @@ static struct {
     {ERRM40,              "Call-by-reference in JOB actual"},
     {ERRM43,              "Invalid range ($X, $Y)"},
     {ERRM45,              "Invalid GOTO reference"},
-    {ERRM46,              "Invalid attribute name"},
     {ERRM47,              "Invalid attribute name"},
     {ERRM56,              "Name length exceeds implementation's limit"},
     {ERRM57,              "More than one defining occurrence of label in routine"},

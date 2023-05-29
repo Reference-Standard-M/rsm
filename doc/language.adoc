@@ -1,10 +1,14 @@
-:source-highlighter: pygments
+:source-highlighter: highlight.js
+:highlightjs-languages: cos
 :toc: macro
 :toclevels: 2
 
 [role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
+
+[role="right"]
+link:index.adoc[Index]
 
 '''
 
@@ -77,7 +81,7 @@ RSM currently supports only one volume (database file) per volume set, though
 that will change in the future. Each volume is created with an initial manager
 UCI [User Class Identifier], which is named `MGR` by default, but which can be
 named at volume creation with the `-e` option. Each volume can also contain up
-to 63 user-defined UCIs.
+to a total of 63 UCIs, including the default manager UCI.
 
 === VIEW and $VIEW
 
@@ -133,7 +137,7 @@ Mostly complies, but the standard does not permit a `;` in the first column.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 ; This is a comment
 ----
@@ -197,7 +201,7 @@ Complies, as the standard does not specify arguments or signals.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 break "+7^routine:do ^debug" ; Break at line 7 of ^routine, and call ^debug
 break "+3^routine:"          ; Set simple breakpoint at line 3 of ^routine
@@ -242,10 +246,12 @@ Complies exactly, as device parameters are implementation-specific in the standa
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 close 1,2 ; Close channels 1 and 2
 ----
+
+See link:seqio.adoc[Sequential I/O Interface] for details on how to use `CLOSE`.
 
 === D[O]
 
@@ -281,7 +287,7 @@ may be turned off with `set ^$system("offok")=0` as a privileged user.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 do  ; Do the following block of code
 . write "First line in the block",!
@@ -314,7 +320,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 if 0 write "True!",!   ; This write command will not execute - $test=0
 else  write "False!",! ; This write command will execute - $test=0
@@ -352,7 +358,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 for i=10:1:9 do something ; This will do nothing
 
@@ -395,7 +401,7 @@ may be turned off with `set ^$system("offok")=0` as a privileged user.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 goto done:ok,fail ; Dispatch to done or fail on ok flag
 ----
@@ -422,7 +428,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 halt ; Terminate the job
 ----
@@ -452,7 +458,7 @@ process scheduler, rather than doing nothing.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 hang 30   ; Wait for 30 seconds
 hang 30.9 ; Behaves the same as hang 30
@@ -485,7 +491,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 if a=b,c=d goto tag ; Dispatch to tag when a=b and c=d
 ----
@@ -522,7 +528,7 @@ Complies exactly, as process parameters are implementation-specific in the stand
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 job int^routine("param1") ; Start background job
 ----
@@ -552,7 +558,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 kill (a,b)        ; Remove all local variables except a and b
 kill ^database(1) ; Remove ^database(1) and its descendants
@@ -589,7 +595,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 lock +^database(1) ; Acquire an incremental lock
 lock +^database(1) ; Increment the lock
@@ -626,7 +632,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 merge ^database(1)=local ; Save our data in the database
 ----
@@ -661,8 +667,8 @@ Additionally, the following intrinsic special variables may be ``NEW``ed:
 |===
 | ISV       | Action when ``NEW``ed
 
-| `$ETRAP`  | Value is unchanged
 | `$ESTACK` | Value set to zero
+| `$ETRAP`  | Value is unchanged
 |===
 
 ==== Standard
@@ -671,7 +677,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 new       ; Save all local variables
 new (a,b) ; Save all local variables except a and b
@@ -720,11 +726,13 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 open 1:("/home/user/data.txt":"write") close 1 ; Delete the file
 open 2:("80":"server=4") use 2 read job        ; Setup a TCP server (4 jobs)
 ----
+
+See link:seqio.adoc[Sequential I/O Interface] for details on how to use `OPEN`.
 
 === Q[UIT]
 
@@ -751,7 +759,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 quit:ok     ; Quit when done
 quit result ; Return the result
@@ -808,10 +816,12 @@ use of character transforms which aren't implemented.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 read !,"Answer: ",ans:10 ; Give them 10 seconds to answer and store it in ans
 ----
+
+See link:seqio.adoc[Sequential I/O Interface] for details on how to use `READ`.
 
 === S[ET]
 
@@ -850,7 +860,7 @@ extension.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 set $etrap="do ^%error"     ; Setup the error trap
 set $piece(list,",",5)=date ; Update date in list piece 5
@@ -873,24 +883,21 @@ List of `_channel_[:(_parameter1_[:__parameter2__...])[:__namespace__]]`.
 
 Make an owned device current for input and/or output.
 
-Valid parameters (passed as strings) by file/device type are:
+Valid parameters (passed as strings) by file/socket/pipe/device class type are:
 
 [%autowidth]
 .U[SE] Parameters
 |===
-| Parameter                     | Valid Types     | Description
+| Parameter                      | Valid Class Types | Description
 
-| `TERMINATOR=$CHAR(_n_[,...])` | All             | Input/read terminators
-| `OUTPUT=$CHAR(_n_[,...])`     | All             | Output terminators -- max 6
-| `[NO]CONTROLC`                | Stdin           | Control-C processing
-| `[NO]CONTROLT`                | Stdin           | Control-T processing
-| `[NO]ESCAPE`                  | Device/TCP/Pipe | Set/clear escape processing
-| `[NO]ECHO`                    | Device/TCP/Pipe | Set/clear echo processing
-| `DISCONNECT`                  | TCP [Server]    | Disconnect the client
-| `DELETE=NONE`                 | Device          | Setup key(s) for DEL key
-| `DELETE=BACK`                 | Device          | Setup key(s) for DEL key
-| `DELETE=DELETE`               | Device          | Setup key(s) for DEL key
-| `DELETE=BOTH`                 | Device          | Setup key(s) for DEL key
+| `DELETE=NONE|BACK|DELETE|BOTH` | Device            | Setup key(s) for DELETE
+| `DISCONNECT`                   | TCP Server        | Disconnect the client
+| `[NO]CONTROLC`                 | Principal Device  | Control-C processing
+| `[NO]CONTROLT`                 | Principal Device  | Control-T processing
+| `[NO]ECHO`                     | Device            | Echo processing
+| `[NO]ESCAPE`                   | Device            | Escape processing
+| `OUTPUT=$CHAR(_n_[,...])`      | All               | Output `!` sequence (6)
+| `TERMINATOR=$CHAR(_n_[,...])`  | All               | Input/read terminators
 |===
 
 IMPORTANT: `TERMINATOR` arguments must be ASCII characters [0-127]
@@ -905,11 +912,13 @@ the `"%X364"` mnemonic space is non-standard.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 use term read *chk:0 use file                      ; See if user has hit a key
 use 0:("terminator="_$char(1,5,7,13):"nocontrolc") ; Set terminators, disable ^C
 ----
+
+See link:seqio.adoc[Sequential I/O Interface] for details on how to use `USE`.
 
 === V[IEW]
 
@@ -939,7 +948,7 @@ As the standard is so vague, nearly anything complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 view -1:1 ; Get the global directory for the manager UCI
 ----
@@ -992,10 +1001,12 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write "Heading",! ; Output Heading to display
 ----
+
+See link:seqio.adoc[Sequential I/O Interface] for details on how to use `WRITE`.
 
 === X[ECUTE]
 
@@ -1022,7 +1033,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 xecute "write ""x is 1""":x=1,"write ""x is not 1""":x-1 ; Run string as M code
 ----
@@ -1051,7 +1062,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $ascii("ABC",2) ; -> 66
 ----
@@ -1076,7 +1087,7 @@ Complies exactly using the ASCII character set.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $char(65,66,-1,67) ; -> "ABC"
 ----
@@ -1108,7 +1119,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 set A(1)=42 write $data(A)               ; -> 10
 set A="forty-two",A(1)=42 write $data(A) ; -> 11
@@ -1135,7 +1146,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $extract("ABCD",-1,2) ; -> "AB"
 ----
@@ -1161,7 +1172,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $find("ABCDEF","CD") ; -> 5
 ----
@@ -1200,7 +1211,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $fnumber(1234.567,"T+,",2) ; -> 1,234.57+
 ----
@@ -1224,7 +1235,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $get(^DATABASE(1),"Undefined") ; -> "Undefined" if $data(^DATABASE(1))#2=0
 ----
@@ -1249,7 +1260,7 @@ implementations, and will likely be added to the next standard.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 set value=500
 write $increment(value)     ; -> 501
@@ -1278,7 +1289,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $justify("ABC",5)  ; -> "  ABC"
 write $justify(.456,6,2) ; -> "  0.46"
@@ -1304,7 +1315,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $length("ABC")             ; -> 3
 write $length("ABC,DEF,GHI",",") ; -> 3
@@ -1332,7 +1343,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $name(A(1,2,3),0)                  ; -> "A"
 set %=$data(^A(1,2,3)) write $name(^(6)) ; -> ^A(1,2,6)
@@ -1361,7 +1372,7 @@ feature may be turned off with `set ^$system("$nextok")=0` as a privileged user.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 kill A set A(1,2)="",A(1,4)="" ; Create A array
 write $next(A(1,""))           ; -> 2
@@ -1391,7 +1402,7 @@ Complies exactly using the M collating sequence.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 kill A set A(1,2)="",A(1,4)="" ; Create A array
 write $order(A(1,""))          ; -> 2
@@ -1424,7 +1435,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $piece("ABC,DE,FG,H,I",",",2,4) ; -> "DE,FG,H"
 ----
@@ -1448,7 +1459,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $qlength("A(3)")           ; -> 1
 write $qlength($name(^A(1,2,3))) ; -> 3
@@ -1476,7 +1487,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $qsubscript("^ABC(1,6,2)",2) ; -> 6
 ----
@@ -1507,7 +1518,7 @@ instead, RSM follows the behavior of `$ORDER` on this point.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 kill A set A(4,3)="" ; Create A array
 write $query(A)      ; -> "A(4,3)"
@@ -1534,7 +1545,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $random(1) ; -> 0
 ----
@@ -1557,7 +1568,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $reverse("ABC") ; -> "CBA"
 ----
@@ -1582,7 +1593,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 kill A write $select($data(A):1,1:4) ; -> 4
 ----
@@ -1629,7 +1640,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $stack(1) ; -> "DO"
 ----
@@ -1656,7 +1667,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $text(+0^ROUTINE) ; -> "ROUTINE"
 write $text(+0)         ; -> Current routine name
@@ -1681,7 +1692,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $translate("ABCDEF","FED","*$") ; -> "ABC$*"
 ----
@@ -1706,7 +1717,7 @@ As the standard is so vague, anything complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $view(-1,44,2) ; -> Index for first key in block
 ----
@@ -1742,9 +1753,9 @@ Mostly complies, except it may not be set.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
-write $device ; -> "0,2,203.18.85.33 80"
+write $device ; -> "0,2,127.0.0.1 80"
 ----
 
 === $EC[ODE]
@@ -1761,7 +1772,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $ecode ; -> ""
 ----
@@ -1780,7 +1791,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $estack ; -> 0
 ----
@@ -1799,7 +1810,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $etrap ; -> "do ^%error"
 ----
@@ -1822,7 +1833,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $horolog ; -> "57623,29373" (Wednesday 07 Oct 1998 08:09:33)
 ----
@@ -1841,7 +1852,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $io ; -> 0
 ----
@@ -1860,7 +1871,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $job ; -> 1
 ----
@@ -1880,7 +1891,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $key ; -> $char(27,91,65) (the <up-arrow> key)
 write $key ; -> $char(255) (EOF)
@@ -1900,7 +1911,7 @@ Complies exactly (always returns `0`).
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $principal ; -> 0
 ----
@@ -1920,7 +1931,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $quit ; -> 0
 ----
@@ -1940,7 +1951,7 @@ This is not defined in the standard, though it is referenced there.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $reference ; -> ""
 ----
@@ -1959,7 +1970,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $stack ; -> 0
 ----
@@ -1980,7 +1991,7 @@ characters of free space remaining.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $storage ; -> 3072
 ----
@@ -1999,7 +2010,7 @@ Complies exactly, assuming that it really is unique.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $system ; -> "50,Reference Standard M V<major>.<minor>.<patch> for ..."
 ----
@@ -2019,7 +2030,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $test ; -> 0
 ----
@@ -2039,7 +2050,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $x ; -> 0
 ----
@@ -2059,7 +2070,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write $y ; -> 0
 ----
@@ -2072,7 +2083,7 @@ with square bracket notation
 `$QUERY` may not be used on any SSV, and `MERGE` may not be used on any SSV
 except to compile a routine into `^$ROUTINE`:
 
-[source,m]
+[source,cos]
 ----
 merge ^$routine("routine")=^UTILITY($job)
 ----
@@ -2104,7 +2115,7 @@ character set, and doesn't provide a "PATCODE" node or algorithm.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write ^$character("m","collate")    ; -> "" - empty string for M collation
 write ^$character("m","ident")      ; -> "" - empty string for M identifiers
@@ -2161,7 +2172,7 @@ Complies exactly, as most nodes are implementation-specific in the standard.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write ^$device(1,"$x")        ; horizontal cursor position
 write ^$device(1,"$y")        ; vertical cursor position
@@ -2219,7 +2230,7 @@ Mostly complies, but provides more functionality than in the standard.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write ^$global("RSM")             ; -> block number of "RSM" global root
 write ^$global("RSM","character") ; -> "M" - the only supported character set
@@ -2293,7 +2304,7 @@ Mostly complies, but provides more functionality than in the standard.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 ; Write last global reference and current routine line source for job JN
 write ^$job(JN,"$reference"),!,^$job(JN,"$stack",^$job(JN,"$stack"),"mcode"),!
@@ -2323,7 +2334,7 @@ The standard is too vague to say.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 ; Returns the owning job number, a comma, and then the lock count
 write ^$lock("^lock") ; -> "1,2"
@@ -2361,7 +2372,7 @@ Mostly complies, but provides more functionality than in the standard.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 merge ^$routine("ROUTINE")=^UTILITY($job)
 ----
@@ -2431,10 +2442,10 @@ Does not conform, though the standard is vague.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
-write ^$system("vol",1,"dbget")      ; Print DB GETS
-set ^$system("vol",1,"uci",2)="FRED" ; Create UCI environment
+write ^$system("vol",1,"dbget")     ; Print database get statistics
+set ^$system("vol",1,"uci",2)="DEV" ; Create UCI environment
 ----
 
 == Operators
@@ -2442,7 +2453,7 @@ set ^$system("vol",1,"uci",2)="FRED" ; Create UCI environment
 NOTE: All M operations are parsed in a strict left-to-right order; parentheses
 may be used to alter this order
 
-[source,m]
+[source,cos]
 ----
 write 1+2*3   ; -> 9
 write 1+(2*3) ; -> 7
@@ -2460,7 +2471,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write "A"_"B" ; -> "AB"
 ----
@@ -2477,7 +2488,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 1+1 ; -> 2
 ----
@@ -2494,7 +2505,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 4-3 ; -> 1
 ----
@@ -2511,7 +2522,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 2*2 ; -> 4
 ----
@@ -2528,7 +2539,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 8/2 ; -> 4
 ----
@@ -2545,7 +2556,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 5\2 ; -> 2
 ----
@@ -2562,7 +2573,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 5#2 ; -> 1
 ----
@@ -2579,7 +2590,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 3**2 ; -> 9
 ----
@@ -2596,7 +2607,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 2=2 ; -> 1
 ----
@@ -2613,7 +2624,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 1<2 ; -> 1
 ----
@@ -2630,7 +2641,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 1>2 ; -> 0
 ----
@@ -2647,7 +2658,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write "B"]"A" ; -> 1
 ----
@@ -2664,7 +2675,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write "ABC"["A" ; -> 1
 ----
@@ -2681,7 +2692,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write " "]]2 ; -> 1
 ----
@@ -2698,7 +2709,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write '4 ; -> 0
 ----
@@ -2715,7 +2726,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 4&0 ; -> 0
 ----
@@ -2732,7 +2743,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write 4!0 ; -> 1
 ----
@@ -2749,7 +2760,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 write "ABC"?1.UNP ; -> 1
 ----
@@ -2766,7 +2777,7 @@ Complies exactly.
 
 ==== Examples
 
-[source,m]
+[source,cos]
 ----
 set A="B",@A=1 ; sets B to 1
 ----
@@ -2805,7 +2816,7 @@ There are two forms of indirection, name indirection and argument indirection.
 Name indirection is where the name of a variable (or part of the name of a
 variable) is replaced by _@indirect_ (or _@indirect@_).
 
-[source,m]
+[source,cos]
 ----
 set A="ABC" write @A        ; Will write the contents of ABC
 write @A@(1)                ; Will write the contents of ABC(1)
@@ -2814,7 +2825,7 @@ set A="ABC(2)" write @A@(1) ; Will write the contents of ABC(2,1)
 
 Argument indirection is where one or more arguments are replaced by _@indirect_.
 
-[source,m]
+[source,cos]
 ----
 set A="B=1,C=2" set @A ; Will assign 1 to B and 2 to C
 ----
@@ -2847,3 +2858,6 @@ The routine source is stored at `^$ROUTINE(_routine_,_linenum_)=_source_`. The
 compiled routine is stored at `^$ROUTINE(_routine_,0)=_bytecode_`. Where
 _routine_ is the name of the routine, and _linenum_ is an integer greater than
 `0`.
+
+[role="right"]
+link:index.adoc[Index]

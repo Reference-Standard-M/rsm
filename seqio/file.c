@@ -52,14 +52,14 @@
  * non-negative integer, termed a file descriptor. Otherwise, a negative
  * integer is returned to indicate the error that has occurred.
  */
-int SQ_File_Open (char *file, int op)
+int SQ_File_Open(char *file, int op)
 {
     int flag;
     int fid;
 
     switch (op) {
     case WRITE:
-        flag = (O_WRONLY | O_TRUNC | O_CREAT);
+        flag = O_WRONLY | O_TRUNC | O_CREAT;
         break;
 
     case READ:
@@ -67,11 +67,11 @@ int SQ_File_Open (char *file, int op)
         break;
 
     case APPEND:
-        flag = (O_WRONLY | O_APPEND | O_CREAT);
+        flag = O_WRONLY | O_APPEND | O_CREAT;
         break;
 
     case IO:
-        flag = (O_RDWR | O_CREAT);
+        flag = O_RDWR | O_CREAT;
         break;
 
     default:
@@ -80,7 +80,7 @@ int SQ_File_Open (char *file, int op)
 
     /*
      * I am assuming that MODE will always be ignored, except when the file does
-     * not exist and "op" is either WRITE or APPEND.
+     * not exist and "op" is either WRITE, APPEND, or IO.
      */
 
     fid = open(file, flag, MODE);
@@ -94,7 +94,7 @@ int SQ_File_Open (char *file, int op)
  * of bytes actually written is returned. Otherwise, a negative integer is
  * returned to indicate the error that has occurred.
  */
-int SQ_File_Write (int fid, u_char *writebuf, int nbytes)
+int SQ_File_Write(int fid, u_char *writebuf, int nbytes)
 {
     int ret;
 
@@ -109,7 +109,7 @@ int SQ_File_Write (int fid, u_char *writebuf, int nbytes)
  * actually read is returned. Otherwise, a negative integer is returned to
  * indicate the error that has occurred.
  */
-int SQ_File_Read (int fid, u_char *readbuf)
+int SQ_File_Read(int fid, u_char *readbuf)
 {
     int ret;
 

@@ -42,11 +42,6 @@
 #include "proto.h"                                                              // standard includes
 #include "database.h"                                                           // database includes
 
-#ifdef __CYGWIN__
-#   define SHM_R 0400
-#   define SHM_W 0200
-#endif                                                                          // Cygwin
-
 /*********************************************************\
 * Initialize an environment - switches are:               *
 *      database file name           (1 to VAR_LEN)    Req *
@@ -182,11 +177,11 @@ int INIT_Start(char  *file,                                                     
                 + hbuf[3]                                                       // size of block (zero block)
                 + ((long) rmb * MBYTE);                                         // MiB of routine buffers
 
-    volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize;              // round up
+    volset_size = ((volset_size - 1) / pagesize + 1) * pagesize;                // round up
     share_size = sjlt_size + volset_size;                                       // shared memory size
     addoff = share_size;                                                        // where add buff starts
-    share_size = share_size + ((long) addmb * MBYTE);                           // and the additional
-    shar_mem_id = shmget(shar_mem_key, share_size, (SHM_R | SHM_W | (SHM_R >> 3) | (SHM_W >> 3) | IPC_CREAT)); // create share mem
+    share_size += (long) addmb * MBYTE;                                         // and the additional
+    shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create share mem (0660)
 
     if (shar_mem_id == -1) {                                                    // die on error
         fprintf(stderr, "Unable to create shared memory section - %s\n", strerror(errno)); // give an error
@@ -210,8 +205,7 @@ int INIT_Start(char  *file,                                                     
         return errno;                                                           // and return with error
     }
 
-    sem_id = semget(shar_mem_key, SEM_MAX,                                      // create semaphores
-                    (SHM_R | SHM_W | (SHM_R >> 3) | (SHM_W >> 3) | IPC_CREAT)); // Use SHM_ not SEM_ as Linux needs that
+    sem_id = semget(shar_mem_key, SEM_MAX, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create semaphores (0660)
 
     if (sem_id < 0) {
         fprintf(stderr, "Unable to create semaphore set - %s\n", strerror(errno)); // give an error
@@ -302,7 +296,7 @@ int INIT_Start(char  *file,                                                     
         systab->vol[0]->map_dirty_flag = 1;                                     // and map needs writing
     }
 
-    jobs = jobs / DAEMONS;                                                      // number of daemons
+    jobs /= DAEMONS;                                                            // number of daemons
     if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;                                 // minimum of MIN_DAEMONS
     if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;                                 // and the max
     systab->vol[0]->num_of_daemons = jobs;                                      // initialize this

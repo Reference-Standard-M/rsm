@@ -341,7 +341,7 @@ start:
                 }
 
                 hash_start = i;                                                 // remember this
-                blk[level] = ptr;                                               // store where reqd
+                blk[level] = ptr;                                               // store where required
                 goto exit;                                                      // common exit code
             }                                                                   // end found expired
 
@@ -377,7 +377,7 @@ start:
         ptr->next = oldptr->next;                                               // unlink it
     }
 
-    blk[level] = oldptr;                                                        // store where reqd
+    blk[level] = oldptr;                                                        // store where required
 
 exit:
     blk[level]->block = 0;                                                      // no block attached

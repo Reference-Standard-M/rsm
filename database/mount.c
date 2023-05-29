@@ -23,8 +23,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see http://www.gnu.org/licenses/.
- *
- * ### UNDER DEVELOPMENT ###
  */
 
 #include <stdio.h>                                                              // always include
@@ -44,11 +42,6 @@
 #include "proto.h"                                                              // standard includes
 #include "database.h"                                                           // database includes
 #include "error.h"                                                              // error strings
-
-#ifdef __CYGWIN__
-#   define SHM_R 0400
-#   define SHM_W 0200
-#endif                                                                          // Cygwin
 
 /*
  * Mount an environment:
@@ -149,7 +142,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
                 + labelblock->block_size
                 + ((long) rmb * MBYTE);                                         // MiB of routine buffers
 
-    volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize;              // round up
+    volset_size = ((volset_size - 1) / pagesize + 1) * pagesize;                // round up
     if (systab->addsize < (u_long) volset_size) return -(ERRZ60 + ERRMLAST);    // check for spare buffer space
     avbl = systab->addsize - volset_size;                                       // and available size
     systab->vol[vol]->map = (void*) ((char *) systab->vol[vol]->vollab + sizeof(label_block));
@@ -201,7 +194,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
         systab->vol[vol]->map_dirty_flag = 1;                                   // and map needs writing
     }
 
-    jobs = jobs / DAEMONS;                                                      // number of daemons
+    jobs /= DAEMONS;                                                            // number of daemons
     if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;                                 // minimum of MIN_DAEMONS
     if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;                                 // and the max
     systab->vol[vol]->num_of_daemons = jobs;                                    // initialize this
@@ -299,7 +292,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     gptr = systab->vol[vol]->gbd_head;                                          // get start of GBDs
     ptr = (u_char *) systab->vol[vol]->global_buf;                              // get start of Globuff
 
-    for (u_int j = 0; j < systab->vol[vol]->num_gbd; j++) {                           // for each GBD
+    for (u_int j = 0; j < systab->vol[vol]->num_gbd; j++) {                     // for each GBD
         gptr[j].mem = (DB_Block *) ptr;                                         // point at block
         ptr += systab->vol[vol]->vollab->block_size;                            // point at next
 

@@ -36,7 +36,7 @@
 #include "proto.h"                                                              // the prototypes
 
 // The following is called ONLY from rsm/init/start.c and rsm/database/mount.c
-void Routine_Init(int vol)                                                      // setup rdb for this vol
+void Routine_Init(int vol)                                                      // setup rbd for this vol
 {
     rbd   *rou;                                                                 // a routine pointer
     u_int i;                                                                    // an int
@@ -277,7 +277,7 @@ rbd *Routine_Find(u_int size)                                                   
         p->fwd_link = ptr->fwd_link;                                            // and forward link
         p->chunk_size = ptr->chunk_size - size;                                 // its size
         p->attached = 0;                                                        // clear this lot
-        p->last_access = 0;                                                     // no time reqd
+        p->last_access = 0;                                                     // no time required
         VAR_CLEAR(p->rnam);                                                     // no routine name
         p->uci = 0;                                                             // no UCI
         p->vol = 0;                                                             // no vol
@@ -320,7 +320,7 @@ rbd *Routine_Attach(var_u routine)                                              
     ptr = p;                                                                    // use it in ptr
     uci = partab.jobtab->ruci;                                                  // get current UCI
     vol = partab.jobtab->rvol;                                                  // and vol
-    if (routine.var_cu[0] == '%') uci = vol = 1;                               // check for a % routine
+    if (routine.var_cu[0] == '%') uci = vol = 1;                                // check for a % routine
 
     while (ptr != NULL) {                                                       // while we have something
         if (var_equal(ptr->rnam, routine) && (ptr->uci == uci) && (ptr->vol == vol)) { // if this is the right one

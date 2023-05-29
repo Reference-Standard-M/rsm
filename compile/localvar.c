@@ -66,8 +66,8 @@
  *     TYPVARGBL:          subscripts OPVAR TYPVARGBL+#subs (var_u) name
  *     TYPVARNAKED:        subscripts OPVAR TYPVARNAKED #subs
  *     TYPVARGBLUCI:       subscripts UCI OPVAR TYPVARGBLUCI #subs (var_u) name
- *     TYPVARGBLUCIENV:    subs UCI env OPVAR TYPVARGBLUCIENV #subs (var_u) name
- *     TYPVARIND:          (str on addstk[]) [subs] OPVAR TYPEVARIND #subs
+ *     TYPVARGBLUCIENV:    subscripts UCI env OPVAR TYPVARGBLUCIENV #subs (var_u) name
+ *     TYPVARIND:          (str on addstk[]) subscripts OPVAR TYPEVARIND #subs
 */
 short localvar(void)                                                            // evaluate local variable
 {
@@ -156,7 +156,7 @@ short localvar(void)                                                            
         c = *source_ptr++;                                                      // get next char
 
         if (isalnum((int) c) == 0) {                                            // if not alpha numeric
-            --source_ptr;                                                       // point back at it
+            source_ptr--;                                                       // point back at it
             break;                                                              // and exit
         }
 

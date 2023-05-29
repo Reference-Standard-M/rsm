@@ -124,7 +124,7 @@ void atom(void)                                                                 
     }
 
     if ((isalpha((int) c) != 0) || (c == '%') || (c == '^')) {                  // check for local variable or a global var
-        --source_ptr;                                                           // backup to first character
+        source_ptr--;                                                           // backup to first character
         s = localvar();                                                         // parse the variable
 
         if (s < 0) {                                                            // if we got an error
@@ -368,7 +368,7 @@ void eval(void)                                                                 
                 }
 
                 if ((c == ')') && (pattern > 1)) {                              // close bracket
-                    --pattern;                                                  // count it
+                    pattern--;                                                  // count it
                     *comp_ptr++ = c;                                            // copy char
                     continue;                                                   // go for more
                 }

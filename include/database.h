@@ -159,12 +159,12 @@ int   Set_data(cstring *data);                                                  
 void  Align_record(void);                                                       // align record (int)
 void  Copy_data(gbd *fptr, int fidx);                                           // copy records
 void  DoJournal(jrnrec *jj, cstring *data);                                     // Write journal
-void  Free_block(int blknum);                                                   // free blk in map
+void  Free_block(u_int blknum);                                                 // free blk in map
 void  Garbit(u_int blknum);                                                     // queue a blk for garbage
 short Insert(u_char *key, cstring *data);                                       // insert a node
 void  Queit(void);                                                              // queue a GBD for write
 void  Tidy_block(void);                                                         // tidy current blk
-void  Used_block(int blknum);                                                   // set blk in map
+void  Used_block(u_int blknum);                                                 // set blk in map
 short Compress1(void);                                                          // compress 1 block
 
 #endif                                                                          // !_RSM_DATABASE_H_

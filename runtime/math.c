@@ -254,7 +254,6 @@ again:
             a[0] = ZERO;
         } else {
             i = 0;
-            carry = 0;
 
             while ((ch = a[++i]) != EOL) {
                 if (ch != POINT) a[i] = ZERO + NINE - ch;
@@ -466,7 +465,7 @@ multwo:
 
         while (acur > 0) {
             if (a[--acur] == point) continue;
-            if (c[--ccur] == point) --ccur;
+            if (c[--ccur] == point) ccur--;
             tmpx = a[acur] * b[bcur] + c[ccur] + carry;
             carry = tmpx / NUMBASE;
             c[ccur] = tmpx % NUMBASE;
@@ -731,7 +730,7 @@ short runtime_div(char *uu, char *v, short typ)
             if (u[i] != point) {
                 carry += u[i] * d;
                 u[i] = carry % NUMBASE;
-                carry = carry / NUMBASE;
+                carry /= NUMBASE;
             }
 
             i--;
@@ -744,7 +743,7 @@ short runtime_div(char *uu, char *v, short typ)
         while (i > 0) {
             carry += v[i] * d;
             v[i] = carry % NUMBASE;
-            carry = carry / NUMBASE;
+            carry /= NUMBASE;
             i--;
         }
 
@@ -1278,12 +1277,12 @@ short runtime_power(char *a, char *b)
         j = 1;
 
         while (j < i) {
-            j = j * 2;
+            j *= 2;
             if (j < 0) return -ERRM92;
         }
 
-        if (i != j) j = j / 2;
-        j = j / 2;
+        if (i != j) j /= 2;
+        j /= 2;
 
         while (j) {
             strcpy(c, a);
@@ -1296,7 +1295,7 @@ short runtime_power(char *a, char *b)
                 if (s < 0) return s;
             }
 
-            j = j / 2;
+            j /= 2;
         }
 
         if (e[0] == EOL) return (short) strlen(a);
@@ -1377,7 +1376,7 @@ short runtime_power(char *a, char *b)
         j = ((d[0] == ONE) ? ZERO : NINE);
 
         for (;;) {
-            ++i;
+            i++;
             if ((d[i] != j) && (d[i] != POINT)) break;
         }
 

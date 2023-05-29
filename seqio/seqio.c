@@ -103,8 +103,6 @@
 
 // Miscellaneous
 #define STDCHAN     0                                                           // STDIN, STDOUT and STDERR
-#define MIN_SEQ_IO  0                                                           // Minimum sequential IO channel
-#define UNLIMITED   -1                                                          // Unlimited
 
 static u_int64 MASK[MASKSIZE];                                                  // Set bit mask
 static u_int64 CRLF;                                                            // CRLF
@@ -484,7 +482,7 @@ int signalCaught(SQ_Chan *c)
  * This function initializes the forktab structure. It does not generate
  * any errors.
  */
-void initFORK (forktab *f)
+void initFORK(forktab *f)
 {
     f->job_no = -1;
     f->pid = -1;
@@ -723,7 +721,7 @@ int closeSERVERClient(int chan)
  * called whenever a channel of type SQ_TCP is closed. It will never exit
  * with an error (i.e., will always return 0).
  */
-int closeSERVER (int chan)
+int closeSERVER(int chan)
 {
     SQ_Chan   *c;                                                               // Socket
     servertab *s;                                                               // Forked process table
@@ -845,7 +843,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
                 return ret;
             }
         } else {
-            byteswritten = (byteswritten + ret);
+            byteswritten += ret;
         }
     }
 
@@ -858,7 +856,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
  *     "buf"    - Guaranteed not to be NULL, and large enough to store
  *                "maxbyt" bytes
  *     "maxbyt" - Guaranteed to be a positive integer value less than
- *                MAX_STR_LEN
+ *                BUFSIZE
  *     "tout"   - If 0, forces the read to retrieve the next character
  *                from the object. If no character is immediately
  *                available, a timeout will occur (this does not
@@ -881,12 +879,12 @@ int readFILE(int chan, u_char *buf, int maxbyt)
 
     c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
     bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize CR flag
+    crflag = FALSE;                                                             // Initialize CR flag
 
     for (;;) {                                                                  // Read in bytes
         int ret;                                                                // Return value
 
-        if (bytesread >= maxbyt) {                                              // Check if # byts reqd are rec
+        if (bytesread >= maxbyt) {                                              // Check if # bytes required are over max
             c->dkey_len = 0;
             c->dkey[0] = '\0';
             return bytesread;
@@ -909,13 +907,13 @@ int readFILE(int chan, u_char *buf, int maxbyt)
         if (c->options & MASK[INTERM]) {
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    crflag = TRUE;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -984,7 +982,7 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
     }
 
     bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize crflag
+    crflag = FALSE;                                                             // Initialize crflag
 
     for (;;) {                                                                  // Read in bytes
         if (bytesread >= maxbyt) {                                              // Check for bytes read
@@ -1019,13 +1017,13 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
         if (c->options & MASK[INTERM]) {
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    crflag = TRUE;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1066,7 +1064,7 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
     }
 
     bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize CR flag
+    crflag = FALSE;                                                             // Initialize CR flag
 
     for (;;) {                                                                  // Read in bytes
         int ret;                                                                // Return value
@@ -1094,13 +1092,13 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
         } else if ((c->options & MASK[INTERM]) && ret) {                        // Check if an input terminator has been received
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    crflag = TRUE;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1124,7 +1122,7 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
  * indicate the error that has occurred.
  *
  * Note: Terminal input buffer handling, including editing and history,
- *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
+ *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991).
  */
 int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 {
@@ -1147,7 +1145,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     // Aquire a pointer to the appropriate channel structure
     c = &partab.jobtab->seqio[chan];
 
-    if (in_hist > -1) {
+    if (in_hist > OFF) {
         start = prompt_len;                                                     // Input for direct and debug modes
     } else {
         start = c->dx;                                                          // Input for M input [read]
@@ -1168,7 +1166,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If STDOUT is redirected, default to 80 columns
 
     bytesread = 0;
-    crflag = 0;
+    crflag = FALSE;
 
     // Read in bytes
     for (;;) {
@@ -1203,7 +1201,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
             return bytesread;
         }
 
-        // Check for Ctrl-H or Backspace key for Backspace
+        // Check for Ctrl-H (ASCII 8 BS) or Backspace key (ASCII 127 DEL) for Backspace
         if ((curr == 8) || (curr == 127)) {
             if ((in_hist > -1) || ((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
                 if ((bytesread > 0) && (c->dx > start)) {
@@ -1709,20 +1707,20 @@ int initObject(int chan, int type)
 
     case SQ_FILE:
         c->type = (u_char) SQ_FILE;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
+        snprintf((char *) outerm.buf, BUFSIZE, "%c", (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
         break;
 
     case SQ_TCP:
         c->type = (u_char) SQ_TCP;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
         break;
 
     case SQ_PIPE:
         c->type = (u_char) SQ_PIPE;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
+        snprintf((char *) outerm.buf, BUFSIZE, "%c", (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
         break;
 
     case SQ_TERM:
@@ -1747,8 +1745,8 @@ int initObject(int chan, int type)
         }
 
         par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_DEL127 | SQ_CONTROLC);
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 13);
+        snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 13);
         break;
 
     default:
@@ -2087,14 +2085,12 @@ short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
     if (!chan && (par & (SQ_CONTROLC | SQ_NOCONTROLC | SQ_CONTROLT | SQ_NOCONTROLT))) { // Chan zero only
         struct termios settings;                                                // man 3 termios
 
-        ret = tcgetattr(STDCHAN, &settings);
-        if (ret == -1) return (short) getError(SYS, errno);
+        if (tcgetattr(STDCHAN, &settings) == -1) return (short) getError(SYS, errno); // Get parameters
         if (par & SQ_CONTROLC) settings.c_cc[VINTR] = '\003';                   // ^C
         if (par & SQ_NOCONTROLC) settings.c_cc[VINTR] = _POSIX_VDISABLE;        // No ^C
         if (par & SQ_CONTROLT) settings.c_cc[VQUIT] = '\024';                   // ^T
         if (par & SQ_NOCONTROLT) settings.c_cc[VQUIT] = _POSIX_VDISABLE;        // No ^T
-        ret = tcsetattr(STDCHAN, TCSANOW, &settings);                           // Set parameters
-        if (ret == -1) return (short) getError(SYS, errno);
+        if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return (short) getError(SYS, errno); // Set parameters
     }
 
     // Set bit ESC in channel's options
@@ -2336,8 +2332,8 @@ short SQ_WriteFormat(int count)
             }
 
             IOptr->dx = IOptr->dx + ret;
-            byteswritten = byteswritten + ret;
-            numspaces = numspaces - bytestowrite;
+            byteswritten += ret;
+            numspaces -= bytestowrite;
         }
 
         return byteswritten;
@@ -2369,7 +2365,7 @@ int SQ_Read(u_char *buf, int tout, int maxbyt)
     // Initialize variables
     partab.jobtab->seqio[chan].dkey_len = 0;
     partab.jobtab->seqio[chan].dkey[0] = '\0';
-    if (maxbyt == UNLIMITED) maxbyt = MAX_STR_LEN;
+    if (maxbyt == UNLIMITED) maxbyt = BUFSIZE;
     type = (int) partab.jobtab->seqio[chan].type;
 
     if ((tout > 0) && (type != SQ_FILE)) alarm(tout);
@@ -2531,7 +2527,7 @@ short SQ_Flush(void)
 int SQ_Device(u_char *buf)
 {
     int     chan;                                                               // Current IO channel
-    char    errmsg[MAX_STR_LEN];                                                // Error message
+    char    errmsg[BUFSIZE];                                                    // Error message
     SQ_Chan *c;                                                                 // $IO pointer
     char    *name;                                                              // Channel's attributes
 

@@ -62,10 +62,11 @@ void Debug_off(void)                                                            
 /*
  * Turn on (or modify) debug stuff
  * We are passed one cstring containing:
- *     Debug_ref         Remove breakpoint
  *     Debug_ref:        Add simple breakpoint
+ *     Debug_ref         Remove breakpoint
  *     Debug_ref:code    Add breakpoint with code to Xecute
  *     :code             Code to execute at QUIT n breakpoint
+ *     :                 Remove QUIT n breakpoint
  *     ""                Remove all breakpoints and turn off debugging
  */
 short Debug_on(cstring *param)                                                  // turn on/modify debug
@@ -220,13 +221,13 @@ short Debug(int savasp, int savssp, int dot)                                    
         partab.jobtab->dostk[partab.jobtab->cur_do].type = TYPE_RUN;
         partab.jobtab->dostk[partab.jobtab->cur_do].level = 0;
         partab.jobtab->dostk[partab.jobtab->cur_do].flags = 0;
-        partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
         partab.jobtab->dostk[partab.jobtab->cur_do].asp = savasp;
         partab.jobtab->dostk[partab.jobtab->cur_do].ssp = savssp;
+        partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
         partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
         partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         s = run(savasp, savssp);                                                // do it
-        if (s == OPHALT) return (short) s;                                      // just halt if reqd
+        if (s == OPHALT) return (short) s;                                      // just halt if required
         partab.jobtab->cur_do--;                                                // restore do frame
         rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;                 // restore pc
 
@@ -282,7 +283,7 @@ short Debug(int savasp, int savssp, int dot)                                    
             if (s < 0) return s;                                                // if error, return it
         }
 
-        s = SQ_Read(ptr->buf, -1, 256);                                         // read something
+        s = SQ_Read(ptr->buf, UNLIMITED, 256);                                  // read something
         if (s < 1) continue;                                                    // ignore nulls and errors
 
         if (!hist_next || strcmp(history[hist_next - 1], (char *) ptr->buf)) {
@@ -318,13 +319,13 @@ short Debug(int savasp, int savssp, int dot)                                    
         partab.jobtab->dostk[partab.jobtab->cur_do].type = TYPE_RUN;
         partab.jobtab->dostk[partab.jobtab->cur_do].level = 0;
         partab.jobtab->dostk[partab.jobtab->cur_do].flags = 0;
-        partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
-        partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         partab.jobtab->dostk[partab.jobtab->cur_do].asp = savasp;
         partab.jobtab->dostk[partab.jobtab->cur_do].ssp = savssp;
         partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
+        partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
+        partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         s = run(savasp, savssp);                                                // do it
-        if (s == OPHALT) return (short) s;                                      // just halt if reqd
+        if (s == OPHALT) return (short) s;                                      // just halt if required
         partab.jobtab->cur_do--;                                                // restore do frame
         if (!partab.debug) break;                                               // go away if debug now off
 

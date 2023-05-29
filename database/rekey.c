@@ -54,7 +54,7 @@ short Set_key(u_int ptr_blk, int this_level)                                    
     u_int    i;                                                                 // a handy unsigned int
     u_int    *ui;                                                               // an int ptr
     cstring  *ptr;                                                              // spare ptr
-    int      rs;                                                                // reqd space
+    int      rs;                                                                // required space
     int      ts;                                                                // trailing size
     int      rls;                                                               // RL space
     u_int    trailings;                                                         // ptr to orig trail
@@ -163,7 +163,7 @@ ENABLE_WARN
         }
     }
 
-    rs = 4 + db_var.slen + 4;                                                   // reqd key + ptr space
+    rs = 4 + db_var.slen + 4;                                                   // required key + ptr space
     if (rs & 3) rs += (4 - (rs & 3));                                           // if required then round up
     rs += 4;                                                                    // allow for index
     cblk[0] = blk[level];                                                       // remember this

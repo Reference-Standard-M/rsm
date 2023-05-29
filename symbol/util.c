@@ -111,7 +111,7 @@ short ST_Locate(var_u var)                                                      
 short ST_LocateIdx(int idx)                                                     // var index
 {
     short fwd;                                                                  // fwd link pointer
-    var_u var;                                                                  // var name (if reqd)
+    var_u var;                                                                  // var name (if required)
     rbd   *p;                                                                   // for looking at routines
     var_u *vt;                                                                  // for the var table
 
@@ -201,7 +201,7 @@ short ST_Kill(mvar *var)                                                        
 {
     short     ptr;                                                              // for the pointer
     ST_data   *data;                                                            // and ptr to data block
-    ST_depend *check;                                                           // working dependent pointer
+    ST_depend *check = ST_DEPEND_NULL;                                          // working dependent pointer
     ST_depend *checkprev = ST_DEPEND_NULL;                                      // previous dependent pointer
 
     if (var->volset) {                                                          // if by index
@@ -270,14 +270,14 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
         }                                                                       // end if keys part match
     }                                                                           // end if more to do
 
-    if (mvardr->slen == 0) {                                                    // killing a data block
+    if (mvardr->slen == 0) {                                                    // killing a data block - TODO: dead code?
         if (prev != ST_DEPEND_NULL) {                                           // prev is defined
             prev->deplnk = ST_DEPEND_NULL;                                      // unlink all deps regardless
-            free(dp);                                                           // get rid of dep
         } else {                                                                // end if prev defined - prev not defined
             dblk->deplnk = ST_DEPEND_NULL;                                      // unlink one and only dep
-            free(dp);                                                           // get rid of that dep
         }                                                                       // end if prev not defined
+
+        free(dp);                                                               // get rid of dep
     } else {                                                                    // end if killing a data block - killing a dep tree
         if (memcmp(dp->bytes, mvardr->key, mvardr->slen) == 0) {                // keys match to slen
             if (prev != ST_DEPEND_NULL) {                                       // if not removing first dep
@@ -370,11 +370,11 @@ int ST_Set(mvar *var, cstring *data)                                            
     if (fwd < 0) return fwd;                                                    // error if none free
 
     if (symtab[fwd].data == ST_DATA_NULL) {                                     // if not already exists
-        u_int i = DTBLKSIZE + data->len;                                       // reqd memory
+        u_int i = DTBLKSIZE + data->len;                                        // required memory
 
-        if ((var->slen != 0) || (i < DTMINSIZE)) i = DTMINSIZE;                 // not reqd or too small so make it min size
+        if ((var->slen != 0) || (i < DTMINSIZE)) i = DTMINSIZE;                 // not required or too small so make it min size
         newPtrDt = malloc(i);                                                   // allocate necessary space
-        if (newPtrDt == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);              // no memory avlb
+        if (newPtrDt == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);              // no memory available
 
         if (var->slen == 0) {                                                   // no subscript key
             newPtrDt->deplnk = ST_DEPEND_NULL;                                  // no dependents
@@ -384,7 +384,7 @@ int ST_Set(mvar *var, cstring *data)                                            
         } else {                                                                // end if - slen is zero, subscript defined
             newPtrDp = malloc(DPBLKSIZE + data->len + var->slen + pad);         // new dep blk
 
-            if (newPtrDp == ST_DEPEND_NULL) {                                   // no memory avlb
+            if (newPtrDp == ST_DEPEND_NULL) {                                   // no memory available
                 free(newPtrDt);                                                 // free memory
                 return -(ERRZ56 + ERRMLAST);
             }
@@ -399,7 +399,7 @@ ENABLE_WARN
             n = var->slen;                                                      // get the key size
             memcpy(&newPtrDp->bytes[0], &var->key[0], n);                       // copy the key
             if (n & 1) n++;                                                     // ensure n is even
-            ptr2ushort = (u_short *) &newPtrDp->bytes[n];                       // get an (u_short *) to here
+            ptr2ushort = (u_short *) &newPtrDp->bytes[n];                       // get a (u_short *) to here
             *ptr2ushort = data->len;                                            // save the data length
             n += 2;                                                             // point past the DBC
             memcpy(&newPtrDp->bytes[n], &data->buf[0], data->len + 1);          // data & term 0
@@ -416,7 +416,7 @@ ENABLE_WARN
 
         if (var->slen == 0) {                                                   // not dependent setting
             newPtrDt = realloc(symtab[fwd].data, DTBLKSIZE + data->len);        // allocate data block
-            if (newPtrDt == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);          // no memory avlb
+            if (newPtrDt == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);          // no memory available
 
             if ((newPtrDt != symtab[fwd].data) && (newPtrDt->attach > 1)) {     // did it move? and has many attached
                 FixData(symtab[fwd].data, newPtrDt, newPtrDt->attach);          // fix it
@@ -428,7 +428,7 @@ ENABLE_WARN
             memcpy(&newPtrDt->data, &data->buf[0], data->len + 1);              // copy the data in
         } else {                                                                // end if-not dependent setting - setting dependent
             newPtrDp = malloc(DPBLKSIZE + data->len + var->slen + pad);         // allocate DP blk
-            if (newPtrDp == ST_DEPEND_NULL) return -(ERRZ56 + ERRMLAST);        // no memory avlb
+            if (newPtrDp == ST_DEPEND_NULL) return -(ERRZ56 + ERRMLAST);        // no memory available
             newPtrDp->deplnk = ST_DEPEND_NULL;                                  // init dependent pointer
             newPtrDp->keylen = var->slen;                                       // copy sub keylength
             n = var->slen;                                                      // get the key size
@@ -453,25 +453,22 @@ ENABLE_WARN
                     if (prevPtr == ST_DEPEND_NULL) {                            // if no prev pointer
                         newPtrDp->deplnk = ptr1->deplnk;                        // link to previous first dep
                         symtab[fwd].data->deplnk = newPtrDp;                    // link in as first dep
-                        free(ptr1);                                             // remove previous dep link
                     } else {                                                    // end if no prev ptr - if prev pointer is defined
                         newPtrDp->deplnk = ptr1->deplnk;                        // set new dependent link
                         prevPtr->deplnk = newPtrDp;                             // alter previous to link in
-                        free(ptr1);                                             // remove previous dep link
                     }                                                           // end else bypassing mid list
 
-                // if we have a dependent
+                    free(ptr1);                                                 // remove previous dep link
+                // if we have a dependent, create more data
                 } else if ((ptr1 != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, ptr1->bytes, var->slen, ptr1->keylen) < 0)) {
-                    if (ptr1 != ST_DEPEND_NULL) {                               // create more data
-                        if (prevPtr == ST_DEPEND_NULL) {                        // new first element
-                            newPtrDp->deplnk = ptr1;                            // link in
-                            symtab[fwd].data->deplnk = newPtrDp;                // link in
-                        } else {                                                // insert new element, mid list
-                            newPtrDp->deplnk = ptr1;                            // link in
-                            prevPtr->deplnk = newPtrDp;                         // link in
-                        }                                                       // end insert mid list
-                    }                                                           // end if-create more data
-                } else if ((ptr1 == ST_DEPEND_NULL) && (prevPtr != ST_DEPEND_NULL)) { // end dep's currently exist
+                    if (prevPtr == ST_DEPEND_NULL) {                            // new first element
+                        newPtrDp->deplnk = ptr1;                                // link in
+                        symtab[fwd].data->deplnk = newPtrDp;                    // link in
+                    } else {                                                    // insert new element, mid list
+                        newPtrDp->deplnk = ptr1;                                // link in
+                        prevPtr->deplnk = newPtrDp;                             // link in
+                    }                                                           // end insert mid list
+                } else if ((ptr1 == ST_DEPEND_NULL) && (prevPtr != ST_DEPEND_NULL)) { // end deps currently exist
                     newPtrDp->deplnk = ST_DEPEND_NULL;                          // link in
                     prevPtr->deplnk = newPtrDp;                                 // link in
                 }                                                               // end add to end of list
@@ -498,7 +495,7 @@ ENABLE_WARN
 short ST_Data(mvar *var, u_char *buf)                                           // put var type in buf
 {
     int       ptr1;                                                             // position in symtab
-    ST_depend *depPtr;                                                          // active pointer
+    ST_depend *depPtr = ST_DEPEND_NULL;                                         // active pointer
 
     if (var->volset) {                                                          // if by index
         ptr1 = ST_LocateIdx(var->volset - 1);                                   // get it this way
@@ -532,7 +529,7 @@ short ST_Data(mvar *var, u_char *buf)                                           
             if (depPtr->keylen < i) i = depPtr->keylen;                         // adjust length if needed
         }                                                                       // end while
 
-        if (depPtr == ST_DEPEND_NULL) {                                         // if we ran out of dep's
+        if (depPtr == ST_DEPEND_NULL) {                                         // if we ran out of deps
             memcpy(buf, "0\0", 2);
             return 1;                                                           // return same
         }                                                                       // end if
@@ -612,7 +609,7 @@ short ST_Data(mvar *var, u_char *buf)                                           
 short ST_Order(mvar *var, u_char *buf, int dir)
 {
     int       ptr1;                                                             // position in symtab
-    ST_depend *current;                                                         // active pointer
+    ST_depend *current = ST_DEPEND_NULL;                                        // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
     int       pieces = 0;                                                       // subscripts in key
     int       subs;
@@ -654,8 +651,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     }                                                                           // output same, return length
 
     if (dir == -1) {                                                            // reverse order
-        current = prev;                             // save current
-        if (current == ST_DEPEND_NULL) return 0; // if current pointing nowhere then return length of zero
+        current = prev;                                                         // save current
+        if (current == ST_DEPEND_NULL) return 0;                                // if pointing nowhere then return length of zero
         crud[0] = UTIL_Key_Chars_In_Subs((char *) current->bytes, (int) current->keylen, pieces - 1, &subs, (char *) &crud[1]);
 
         if ((crud[0] != 0) && (upOneLev[0] != 0)) {
@@ -685,10 +682,10 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     for (i = 1; i <= pieces; i++) {                                             // number of keys
         int upto = 0;                                                           // clear flag
 
-        ret = UTIL_Key_Extract(&current->bytes[index], (u_char *) keysub, &upto); // nxt key
-        index = index + upto;                                                   // increment index
+        ret = UTIL_Key_Extract(&current->bytes[index], (u_char *) keysub, &upto); // next key
+        index += upto;                                                          // increment index
         if ((index >= current->keylen) && (i < pieces)) return 0;               // hit end of key & !found then return null
-    }                                                                           // end for-pieces to level reqd
+    }                                                                           // end for-pieces to level required
 
     // Now have ASCII key in desired position number, put the ASCII value of that key in *buf and return the length of it
     return (short) mcopy((u_char *) keysub, buf, ret);
@@ -772,7 +769,7 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
                 i = UTIL_Key_KeyCmp(var->key, depPtr->bytes, var->slen, depPtr->keylen);
                 if (i == K2_GREATER) return -ERRM6;                             // error if we passed it
                 if (i == KEQUAL) break;                                         // found it
-                depPtr = depPtr->deplnk;                                        // save previous, get next
+                depPtr = depPtr->deplnk;                                        // get next
             }                                                                   // end while - compare keys
 
             if (depPtr == ST_DEPEND_NULL) return -ERRM6;                        // if no exist then return same
@@ -980,10 +977,7 @@ short ST_KillAll(int count, var_u *keep)
     partab.src_var.volset = 0;                                                  // init volume set
 
     for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST
-        if ((symtab[i].varnam.var_cu[0] == '$') || (symtab[i].varnam.var_cu[0] == '\0')) {
-            continue;                                                           // dont touch $ vars
-        }
-
+        if ((symtab[i].varnam.var_cu[0] == '$') || (symtab[i].varnam.var_cu[0] == '\0')) continue; // dont touch $ vars
         if (symtab[i].data == ST_DATA_NULL) continue;                           // ditto if it's undefined
 
         for (j = 0; j < count; j++) {                                           // scan the keep list
@@ -1006,9 +1000,8 @@ short ST_KillAll(int count, var_u *keep)
  */
 short ST_SymAtt(var_u var)
 {
-    short pos;                                                                  // position in symtab
+    short pos = ST_Create(var);                                                 // position in symtab - locate/create variable
 
-    pos = ST_Create(var);                                                       // locate/create variable
     if (pos >= 0) symtab[pos].usage++;                                          // if ok, increment usage
     return pos;                                                                 // return whatever we found
 }

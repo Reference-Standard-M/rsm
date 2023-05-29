@@ -51,7 +51,7 @@
 #include "error.h"
 #include "seqio.h"
 
-#define BACKLOG 5                                                               // Connections to queue
+#define BACKLOG 20                                                              // Connections to queue (max is SOMAXCONN)
 
 extern short proto_family;                                                      // PF_INET or PF_INET6
 extern short addr_family;                                                       // AF_INET or AF_INET6
@@ -227,9 +227,7 @@ int SQ_Socket_Read(int sid, u_char *readbuf, int tout)
         }
 
         return getError(SYS, errno);
-    } else if (ret == 0) {                                                      // Connection closed by remote peer
-        return ret;
-    } else {
-        return ret;
     }
+
+    return ret;
 }
