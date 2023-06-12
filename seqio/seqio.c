@@ -500,7 +500,7 @@ int initSERVER(int chan, u_int size)
     servertab *s;
     forktab   *f = NULL;                                                        // TEMP FIX
 
-    if (size > systab->maxjob) return getError(INT, ERRZ42);
+    if (size > (systab->maxjob - 1)) return getError(INT, ERRZ42);
     s = &partab.jobtab->seqio[chan].s;
 
     if (size) {                                                                 // TEMP FIX

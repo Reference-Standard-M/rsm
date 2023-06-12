@@ -69,7 +69,8 @@ void ser(int s)                                                                 
     u_char  junk[100];
 
     if (s == -(ERRZ27 + ERRMLAST)) panic("Chanel zero has gone away");          // if totally confused then die
-    if (s == -(ERRMLAST + ERRZLAST + EIO)) panic("Input/output error");         // $&%FORK errors (maybe others?)
+    if (s == -(ERRMLAST + ERRZLAST + EIO)) panic("Input/output error");         // $&%FORK errors (maybe others?) - TODO: improve
+    if (s == -(ERRMLAST + ERRZLAST + EBADF)) panic("Bad file descriptor");      // Socket errors (maybe others?) - TODO: improve
     cptr = (cstring *) junk;                                                    // some space
     if (s < 0) s = -s;                                                          // make error positive
     UTIL_strerror(s, &cptr->buf[0]);                                            // get the text
@@ -346,6 +347,7 @@ start:
         partab.jobtab->async_error = 0;
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
+        if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
         if (s == OPHALT) goto exit;                                             // look after halt
         if (s == JOBIT) goto jobit;                                             // look after JOB
         partab.jobtab->io = 0;                                                  // force chan 0
@@ -470,6 +472,7 @@ start:
         partab.jobtab->async_error = 0;
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
+        if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
         if (s == JOBIT) goto jobit;                                             // look after JOB
         if (s == OPHALT) break;                                                 // exit on halt
         partab.jobtab->io = 0;                                                  // force chan 0
@@ -515,6 +518,7 @@ exit:                                                                           
 
     for (i = 0; i < MAX_VOL; i++) {
         if (partab.vol_fds[i]) close(partab.vol_fds[i]);                        // close the databases
+        if (partab.jnl_fds[i]) close(partab.jnl_fds[i]);                        // close the journals
     }
 
     if (!failed_tty) failed_tty = tcsetattr(STDIN_FILENO, TCSANOW, &tty_settings); // reset terminal if possible

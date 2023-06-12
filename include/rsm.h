@@ -43,7 +43,7 @@
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       78                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
-#define VERSION_PRE         2                                                   // Pre-release number
+#define VERSION_PRE         3                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs

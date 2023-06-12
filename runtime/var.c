@@ -209,16 +209,14 @@ int Vset(mvar *var, cstring *cptr)                                              
 
     if (strncasecmp((char *) &var->name.var_cu[1], "x", 1) == 0) {              // $X
         i = cstringtoi(cptr);                                                   // get val
-        if (i < 0) i = 0;
-        //if (i < 0) return -ERRM43                                             // TODO: The Standard requires this - need to test
+        if ((i < 0) || (i > (MAX_STR_LEN + 1))) return -ERRM43;                 // return range error
         partab.jobtab->seqio[partab.jobtab->io].dx = (u_short) i;
         return 0;                                                               // and return
     }
 
     if (strncasecmp((char *) &var->name.var_cu[1], "y", 1) == 0) {              // $Y
         i = cstringtoi(cptr);                                                   // get val
-        if (i < 0) i = 0;
-        //if (i < 0) return -ERRM43                                             // TODO: The Standard requires this - need to test
+        if ((i < 0) || (i > (MAX_STR_LEN + 1))) return -ERRM43;                 // return range error
         partab.jobtab->seqio[partab.jobtab->io].dy = (u_short) i;
         return 0;                                                               // and return
     }

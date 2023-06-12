@@ -50,9 +50,17 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
 {
     short s;                                                                    // for functions
 
-    if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? no - error
-    if ((uci < 1) || (uci > UCIS)) return -ERRM26;                              // too big
+    if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // not within volume range
+    if ((uci < 1) || (uci > (UCIS - 1))) return -ERRM26;                        // not within UCI range
     if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // volume not mounted
+
+    for (int i = 0; i < (UCIS - 1); i++) {                                      // make sure no other UCIs with the same name
+        if (i == (uci - 1)) continue;                                           // allow renaming UCIs
+
+        if (var_equal(name, systab->vol[vol - 1]->vollab->uci[i].name)) {
+            return -(ERRZ12 + ERRMLAST);                                        // exit with error
+        }
+    }
 
     while (systab->vol[vol - 1]->writelock) {                                   // check for write lock
         sleep(1);                                                               // wait a bit
@@ -117,8 +125,8 @@ short DB_UCIKill(int vol, int uci)                                              
     short s;                                                                    // for functions
     u_int gb;                                                                   // block number
 
-    if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? no - error
-    if ((uci < 1) || (uci > UCIS)) return -ERRM26;                              // too big
+    if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // not within volume range
+    if ((uci < 1) || (uci > (UCIS - 1))) return -ERRM26;                        // not within UCI range
     if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // volume not mounted
 
     while (systab->vol[vol - 1]->writelock) {                                   // check for write lock

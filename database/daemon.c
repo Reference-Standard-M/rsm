@@ -572,12 +572,14 @@ int DB_Daemon(int slot, int vol)                                                
     strncpy(logfile, systab->vol[volnum - 1]->file_name, i + 1);                // copy to log filename
     logfile[i + 1] = (char) '\0';                                               // terminate for strlen
     sprintf(&logfile[strlen(logfile)], "log/");                                 // add the log directory to the file path
+    umask(0);                                                                   // set umask to 0000
 
     // --- Create the log directory, with 0755 permissions, ignore if it already exists
     if (mkdir(logfile, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
         if (errno != EEXIST) return errno;
     }
 
+    umask(S_IWGRP | S_IROTH | S_IWOTH);                                         // set umask to 0026
     sprintf(&logfile[strlen(logfile)], "daemon-%d.log", volnum);                // create daemon log file path
     myslot = slot;                                                              // remember my slot
 

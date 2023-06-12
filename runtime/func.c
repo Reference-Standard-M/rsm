@@ -87,11 +87,11 @@ short Dchar(u_char *ret_buffer, int i)
 }
 
 // $DATA(variable)
-short Ddata(u_char *ret_buffer, mvar *var)
+short Ddata(u_char *ret_buffer, mvar *var, int update)
 {
     if (var->uci == 255) return ST_Data(var, ret_buffer);                       // for a local var
     if (var->name.var_cu[0] == '$') return SS_Data(var, ret_buffer);            // SSVN? then do it
-    memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);
+    if (update) memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
     return DB_Data(var, ret_buffer);                                            // else it's global
 }
 
@@ -457,7 +457,11 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
     }
 
     if (s < 0) return s;
-    numexpr->len = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
+    s = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
+    if (s < 0) return s;
+DISABLE_WARN(-Warray-bounds)
+    numexpr->len = s;
+ENABLE_WARN
     memmove(&ret_buffer[0], &numexpr->buf[0], numexpr->len);                    // copy here
     ret_buffer[numexpr->len] = '\0';                                            // ensure null terminated
     if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, numexpr);               // set it back and return

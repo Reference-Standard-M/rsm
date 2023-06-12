@@ -83,8 +83,8 @@
 #define ERRM43      43                                                          // Invalid range ($X, $Y)
 
 #define ERRM45      45                                                          // Invalid GOTO reference
-
-#define ERRM47      47                                                          // Invalid attribute name
+#define ERRM46      46                                                          // Invalid attribute name
+#define ERRM47      47                                                          // Invalid attribute value
 
 #define ERRM56      56                                                          // Name length exceeds implementation's limit
 #define ERRM57      57                                                          // More than one defining occurrence
@@ -182,6 +182,8 @@
 #define ERRZ73      73                                                          // Invalid database file specified
 #define ERRZ74      74                                                          // Too many variables (max 255)
 #define ERRZ75      75                                                          // Too many arguments (max 127)
+
+#define ERRZ77      77                                                          // RSM is in restricted mode
 
 #define ERRZLAST    200                                                         // Must equal last implementation error
 

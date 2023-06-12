@@ -483,7 +483,7 @@ void parse_kill(void)                                                           
     return;
 }
 
-void parse_lock(void)                                                           // LOCK
+void parse_lock(int runtime)                                                    // LOCK
 {
     short   s;                                                                  // for functions
     u_short us;                                                                 // for cstring count
@@ -512,12 +512,11 @@ void parse_lock(void)                                                           
                 atom();                                                         // eval the string
 
                 if (*(comp_ptr - 1) == INDEVAL) {                               // if it was indirect
-                    if (!type) {                                                // entire arg?
+                    if (!type && !i) {                                          // normal lock not in a lock list
                         *(comp_ptr - 1) = INDLOCK;                              // say lock indirect
-                        return;                                                 // and quit
+                    } else {
+                        *(comp_ptr - 1) = INDMVAR;                              // make an mvar of it
                     }
-
-                    *(comp_ptr - 1) = INDMVAR;                                  // make an mvar of it
                 } else if (*(comp_ptr - 3) == OPVAR) {
                     *(comp_ptr - 3) = OPMVAR;                                   // change to OPMVAR
                 }
@@ -544,6 +543,8 @@ void parse_lock(void)                                                           
             if (*source_ptr != ',') break;                                      // do it elsewhere
             source_ptr++;                                                       // skip the comma
         }
+
+        if (runtime) return;                                                    // timeout was already handled
 
         if (*source_ptr == ':') {                                               // timeout ?
             source_ptr++;                                                       // skip the colon
@@ -649,6 +650,7 @@ void parse_merge(void)                                                          
             *ptr1 = OPMVARF;                                                    // change to a OPMVARF
         }
 
+        *comp_ptr++ = OPNAKED;                                                  // reset naked indicator
         if (source_ptr != ptr2) SYNTX;                                          // junk characters
         source_ptr = ptr3;                                                      // restore source pointer
         *comp_ptr++ = CMMERGE;                                                  // do that
@@ -1703,7 +1705,7 @@ void parse(void)                                                                
                 *comp_ptr++ = CMLCKU;                                           // save op code
             } else {
                 source_ptr--;                                                   // backup pointer
-                parse_lock();
+                parse_lock(0);
             }
 
             break;                                                              // end of MERGE code

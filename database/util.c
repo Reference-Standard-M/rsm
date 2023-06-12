@@ -573,6 +573,8 @@ void ClearJournal(int vol)                                                      
         off_t free;
     } tmp;
 
+    umask(0);                                                                   // set umask to 0000
+
     // Create journal file, with 0660 permissions, jobs write their own journal entries
     jfd = open(systab->vol[vol]->vollab->journal_file, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 

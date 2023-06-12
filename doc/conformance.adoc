@@ -19,6 +19,7 @@ Reference Standard M Version 1.77.0 conforms to ANSI/MDC X11.1-1995 (ISO/IEC
 11756:1999) with the following exceptions (there may be more):
 
 * Supports up to 32 uniquely distinguished characters in names, rather than 8
+* Supports lower case alphabetic characters in names, not just upper case
 * Returns an error (`M56`) with longer names, rather than truncating them
 * Only supports the M character set profile
 * Transaction processing is not implemented

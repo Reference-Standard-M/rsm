@@ -541,6 +541,7 @@ match:                                                                          
             y++;                                                                // move pointer to next char
 
 match0:                                                                         // no action
+            continue;
         }
 
         position[patx++] = y;                                                   // pos after last match

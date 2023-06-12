@@ -134,7 +134,7 @@ void  parse_hang(void);                                                         
 void  parse_if(long i);                                                         // IF
 void  parse_job(int runtime);                                                   // JOB
 void  parse_kill(void);                                                         // KILL
-void  parse_lock(void);                                                         // LOCK
+void  parse_lock(int runtime);                                                  // LOCK
 void  parse_merge(void);                                                        // MERGE
 void  parse_new(void);                                                          // NEW
 void  parse_open(void);                                                         // OPEN

@@ -254,11 +254,11 @@ ENABLE_WARN
                     return mcopy((u_char *) "APPEND", buf, 6);
                 } else if (partab.jobtab->seqio[i].mode == 4) {
                     return mcopy((u_char *) "IO", buf, 2);
-                } else if (partab.jobtab->seqio[i].mode == 5) {
+                } else if (partab.jobtab->seqio[i].mode == 5) {                 // TCPIP
                     return mcopy((u_char *) "TCPIP", buf, 5);
-                } else if (partab.jobtab->seqio[i].mode == 6) {
+                } else if (partab.jobtab->seqio[i].mode == 6) {                 // SERVER
                     return mcopy((u_char *) "SERVER", buf, 6);
-                } else if (partab.jobtab->seqio[i].mode == 7) {
+                } else if (partab.jobtab->seqio[i].mode == 7) {                 // NOFORK
                     return mcopy((u_char *) "NOFORK", buf, 6);
                 } else if (partab.jobtab->seqio[i].mode == 8) {
                     return mcopy((u_char *) "FORKED", buf, 6);
@@ -386,8 +386,8 @@ ENABLE_WARN
 
                         s = 0;
 
-                        for (j = 0; count < in_term; j++) {
-                            count = 1U << j;
+                        for (j = 0; (count < in_term) && (j < 64); j++) {
+                            count = 1UL << j;
 
                             if (in_term & count) {
                                 s += itocstring(&temp_buf[s], j);
@@ -398,8 +398,8 @@ ENABLE_WARN
                         in_term = partab.jobtab->seqio[i].in_term.interm[1];
                         count = 0;
 
-                        for (j = 0; count < in_term; j++) {
-                            count = 1U << j;
+                        for (j = 0; (count < in_term) && (j < 64); j++) {
+                            count = 1UL << j;
 
                             if (in_term & count) {
                                 s += itocstring(&temp_buf[s], j + 64);
@@ -703,7 +703,7 @@ ENABLE_WARN
             if (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0) {
                 if (nsubs != 4) return -ERRM38;                                 // must be 4 subs
                 j = cstringtoi(subs[3]) - 1;                                    // make an int of UCI#
-                if ((j < 0) || (j >= UCIS)) return -ERRM26;                     // validate it, junk
+                if ((j < 0) || (j >= (UCIS - 1))) return -ERRM26;               // validate it, junk
 
                 for (s = 0; s < VAR_LEN; s++) {
                     if ((buf[s] = systab->vol[i]->vollab->uci[j].name.var_cu[s]) == 0) break;
@@ -847,7 +847,7 @@ ENABLE_WARN
 
         if ((partab.jobtab - systab->jobtab) == i) {                            // same job?
             if (strncasecmp((char *) subs[1]->buf, "global\0", 7) == 0) {
-                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                if ((j < 1) || (j > (UCIS - 1))) return -ERRM26;                // out of range
                 systab->jobtab[i].uci = j;                                      // set it
                 VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $REFERENCE
                 return 0;                                                       // and quit
@@ -862,7 +862,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "lock\0", 5) == 0) {
-                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                if ((j < 1) || (j > (UCIS - 1))) return -ERRM26;                // out of range
                 systab->jobtab[i].luci = j;                                     // set it
                 return 0;                                                       // and quit
             }
@@ -881,7 +881,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
-                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                if ((j < 1) || (j > (UCIS - 1))) return -ERRM26;                // out of range
                 systab->jobtab[i].ruci = j;                                     // set it
                 return 0;                                                       // and quit
             }
@@ -1049,10 +1049,8 @@ ENABLE_WARN
 
         if ((nsubs == 4) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
           (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
-            i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            j = cstringtoi(subs[3]) - 1;                                        // and UCI#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
-            if ((j < 0) || (j >= UCIS)) return -ERRM60;                         // out of range
+            i = cstringtoi(subs[1]);                                            // get vol#
+            j = cstringtoi(subs[3]);                                            // and UCI#
             if ((data->len < 1) || (data->len > VAR_LEN)) return -(ERRZ12 + ERRMLAST); // syntx
             VAR_CLEAR(n);                                                       // clear name
 
@@ -1061,7 +1059,7 @@ ENABLE_WARN
                 n.var_cu[s] = data->buf[s];                                     // copy to name
             }
 
-            return DB_UCISet(i + 1, j + 1, n);                                  // do it and return
+            return DB_UCISet(i, j, n);                                          // do it and return
         }
 
         if ((nsubs == 3) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) { // ^$SYSTEM("VOL",n,..)
@@ -1382,11 +1380,9 @@ ENABLE_WARN
     case 'S':                                                                   // $SYSTEM
         if ((nsubs == 4) && priv() && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
           (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
-            i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            j = cstringtoi(subs[3]) - 1;                                        // and UCI#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
-            if ((j < 0) || (j >= UCIS)) return -ERRM60;                         // out of range
-            return DB_UCIKill(i + 1, j + 1);                                    // do it and return
+            i = cstringtoi(subs[1]);                                            // get vol#
+            j = cstringtoi(subs[3]);                                            // and UCI#
+            return DB_UCIKill(i, j);                                            // do it and return
         }
 
         if ((nsubs == 2) && priv() && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) {
@@ -1543,7 +1539,7 @@ ENABLE_WARN
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             j = cstringtoi(subs[3]) - 1;                                        // and UCI#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM26;                      // out of range
-            if ((j < -1) || (j >= UCIS)) return -ERRM26;                        // out of range
+            if ((j < -1) || (j >= (UCIS - 1))) return -ERRM26;                  // out of range
             if (systab->vol[i] == NULL) return -ERRM26;                         // not mounted
             buf[0] = '\0';                                                      // JIC
 

@@ -54,11 +54,13 @@ int UTIL_Share(char *dbf)                                                       
     shar_mem_id = shmget(shar_mem_key, 0, 0);                                   // attach to existing share
     if (shar_mem_id == -1) return errno;                                        // die on error
     sad = (systab_struct *) shmat(shar_mem_id, SHMAT_SEED, 0);                  // map it
+    if (sad == (void *) -1) return errno;                                       // die on error
     systab = (systab_struct *) sad->address;                                    // get required address
 
     if (sad != systab) {                                                        // if not in correct place
-        int i = shmdt(sad);                                                     // unmap it
+        int i;
 
+        i = shmdt(sad);                                                         // unmap it
         if (i == -1) fprintf(stderr, "shmdt return = %X\n", i);
         sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);         // try again
         if (sad == (void *) -1) fprintf(stderr, "systab = %lX  attach = %lX\n", (u_long) systab, (u_long) sad);

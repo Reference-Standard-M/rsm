@@ -132,6 +132,7 @@ int INIT_Create_File(u_int blocks,                                              
     printf("and a %u KiB label/map block.\n", map / 1024);                      // say what we are doing
     ret = 0;
     errno = 0;                                                                  // clear error flag
+    umask(0);                                                                   // set umask to 0000
 
     // Create database file - with 0640 permissions
     fid = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP);

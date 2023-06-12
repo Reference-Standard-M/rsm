@@ -423,16 +423,12 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
     int    ret;
     int    tmp;
     FILE   *fp = NULL;
-    struct termios save;
-    struct termios term;
+    struct termios term, save;
 
-    if (restricted) {                                                   // -R was passed when job started
-        tmp = sprintf(ret_buffer, "RSM is in restricted mode\r\n");
-        if (tmp < 0) return -(ERRMLAST + ERRZLAST + errno);
-        return tmp;
-    }
-
+    if (restricted) return -(ERRZ77 + ERRMLAST);                                // -R was passed when job started
     tmp = tcgetattr(STDIN_FILENO, &term);
+    if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+    tmp = tcgetattr(STDIN_FILENO, &save);                                       // Store current settings
     if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
     if ((type->len == 1) && (type->buf[0] == '1')) {
@@ -460,6 +456,10 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         // Close pipe
         pclose(fp);
 
+        // Restore original settings
+        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
+        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+
         // Return error if necessary
         if (echk != 0) {
             return -(ERRMLAST + ERRZLAST + err);
@@ -467,9 +467,6 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
             return (short) ret;
         }
     } else {
-        // Store current settings
-        int tchk = tcgetattr(STDIN_FILENO, &save);
-
         // Change to sane settings for shell out
         term.c_iflag |= ICRNL;
         term.c_oflag |= ONLCR;
@@ -486,11 +483,9 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         // allow ECHILD
         if ((ret == -1) && (errno == ECHILD)) ret = 0;
 
-        if (tchk != -1) {
-            // Restore original settings
-            tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
-            if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
-        }
+        // Restore original settings
+        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
+        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // Return 0 or error
         if (ret == -1) {
@@ -1658,7 +1653,7 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
         return (short) ret;                                                     // Size of ret_buffer (EXISTS)
     } else {                                                                    // Invalid attribute name
         ret_buffer[0] = '\0';
-        return -ERRM47;
+        return -ERRM46;
     }
 
     // Unreachable

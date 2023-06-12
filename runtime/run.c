@@ -761,8 +761,16 @@ short run(int savasp, int savssp)                                               
             }
 
             var = (mvar *) addstk[--asp];                                       // the variable
+
+            if (var->name.var_cu[0] == '$') {                                   // can't do that so complain
+                if (var->uci == UCI_IS_LOCALVAR) {                              // if it's an ISV
+                    ERROR(-ERRM8);
+                } else {                                                        // or an SSVN
+                    ERROR(-ERRM29);
+                }
+            }
+
             cptr = (cstring *) addstk[asp - 1];                                 // source - leave asp alone
-            if (var->name.var_cu[0] == '$') ERROR(-ERRM8);                      // can't do that so complain
 
             if (opc == CMSETP) {                                                // need a delimiter?
                 t = DSetpiece(p, cptr, var, ptr1, i, j);                        // do a SET $PIECE()
@@ -1026,6 +1034,7 @@ short run(int savasp, int savssp)                                               
                 }
             }
 
+            if (partab.jobtab->async_error) break;                              // break on error from loop
             j = cstringtoi((cstring *) addstk[--asp]);                          // finally get chan#
             s = SQ_Use(j, ptr1, ptr2, i);                                       // do it
             if (s < 0) ERROR(s);                                                // complain on error
@@ -1056,6 +1065,8 @@ short run(int savasp, int savssp)                                               
                     if (i && !isalnum(p[i])) ERROR(-ERRM36);                    // complain if invalid
                     ((u_char *) &rou)[i] = p[i];                                // copy one char
                 }
+
+                if (partab.jobtab->async_error) break;                          // break on error from loop
             }
 
             VAR_COPY(partab.jobtab->seqio[j].namespace, rou);
@@ -1393,7 +1404,7 @@ short run(int savasp, int savssp)                                               
         case FUND:                                                              // $D[ATA]
             var = (mvar *) addstk[--asp];                                       // get the variable pointer
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            s = Ddata(cptr->buf, var);                                          // do it
+            s = Ddata(cptr->buf, var, TRUE);                                    // do it - update naked
             if (s < 0) ERROR(s);                                                // complain on error
             cptr->len = s;                                                      // the count
             ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
@@ -1509,6 +1520,15 @@ short run(int savasp, int savssp)                                               
 
         case FUNI1:                                                             // $I[NCREMENT] 1 arg
             var = (mvar *) addstk[--asp];                                       // get the variable pointer
+
+            if (var->name.var_cu[0] == '$') {                                   // can't do that so complain
+                if (var->uci == UCI_IS_LOCALVAR) {                              // if it's an ISV
+                    ERROR(-ERRM8);
+                } else {                                                        // or an SSVN
+                    ERROR(-ERRM29);
+                }
+            }
+
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             s = Dincrement1(cptr->buf, var);                                    // do it
             if (s < 0) ERROR(s);                                                // complain on error
@@ -1520,12 +1540,20 @@ short run(int savasp, int savssp)                                               
         case FUNI2:                                                             // $I[NCREMENT] 2 arg
             cptr = (cstring *) addstk[--asp];
             p = cptr->buf;
-            ptr1 = (cstring *) &strstk[ssp];
+            ptr1 = (cstring *) temp;                                            // some temp storage for arithmetic
             s = ncopy(&p, ptr1->buf);                                           // convert to canonic number
             if (s < 0) ERROR(s);                                                // complain on error
             ptr1->len = s;
-            ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
             var = (mvar *) addstk[--asp];                                       // get first arg
+
+            if (var->name.var_cu[0] == '$') {                                   // can't do that so complain
+                if (var->uci == UCI_IS_LOCALVAR) {                              // if it's an ISV
+                    ERROR(-ERRM8);
+                } else {                                                        // or an SSVN
+                    ERROR(-ERRM29);
+                }
+            }
+
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             s = Dincrement2(cptr->buf, var, ptr1);                              // do it
             if (s < 0) ERROR(s);                                                // complain on error
@@ -1908,6 +1936,7 @@ short run(int savasp, int savssp)                                               
             var2 = (mvar *) addstk[--asp];                                      // get the source mvar ptr
 
             if (var->name.var_cu[0] == '$') {                                   // destination is SSVN
+                if (var->uci == UCI_IS_LOCALVAR) ERROR(-ERRM8);                 // must be ^$ROUTINE()
                 if (toupper(var->name.var_cu[1]) != 'R') ERROR(-ERRM29);        // must be ^$ROUTINE()
                 t = Compile_Routine(var, var2, &strstk[ssp]);                   // compile this routine
                 if (t < 0) ERROR(t);                                            // give up on error
@@ -1915,9 +1944,16 @@ short run(int savasp, int savssp)                                               
             }
 
             if (var2->name.var_cu[0] == '$') ERROR(-ERRM29);                    // source is SSVN so can't do that (except above)
-            s = Ddata(temp, var2);                                              // see if source exists
+            s = Ddata(temp, var2, FALSE);                                       // see if source exists - don't update naked
             if (s < 0) ERROR(s);                                                // complain on error
             if (temp[0] == '0') break;                                          // quit if no such
+
+            if ((memcmp(var, var2, sizeof(var_u) + 2) == 0) &&                  // source and destination are the same variable
+              ((UTIL_Key_KeyCmp(var->key, var2->key, var2->slen, var2->slen) == 0) || // and the subscripts of one are a descendant
+              (UTIL_Key_KeyCmp(var->key, var2->key, var->slen, var->slen) == 0))) { //   of the other
+                ERROR(-ERRM19);                                                 // that's not allowed
+            }
+
             cptr = (cstring *) &strstk[ssp];                                    // somewhere to put this
 
             if (var2->uci == UCI_IS_LOCALVAR) {
@@ -1934,7 +1970,7 @@ short run(int savasp, int savssp)                                               
                 if (var->uci == UCI_IS_LOCALVAR) {
                     t = ST_Set(var, cptr);                                      // set local
                 } else {
-                    t = DB_Set(var, cptr);                                      // set local
+                    t = DB_Set(var, cptr);                                      // set global
                 }
 
                 if (t < 0) ERROR(t);                                            // die on error
@@ -2123,6 +2159,8 @@ short run(int savasp, int savssp)                                               
                     curframe->pc = &curframe->pc[i + 1];                        // point at next line
                     offset--;                                                   // decrement the offset
                 }                                                               // end offset junk
+
+                if (partab.jobtab->async_error) break;                          // break on error from loop
             }
 
             curframe->newtab = NULL;                                            // where news go
@@ -2460,6 +2498,8 @@ short run(int savasp, int savssp)                                               
                     curframe->pc = &curframe->pc[i + 1];                        // point at next line
                     offset--;                                                   // decrement the offset
                 }                                                               // end offset junk
+
+                if (partab.jobtab->async_error) break;                          // break on error from loop
             }
 
             curframe->line_num = 1;                                             // current routine line#
@@ -2647,6 +2687,8 @@ short run(int savasp, int savssp)                                               
                 if ((u_long) p & 1) p++;                                        // ensure even
             }
 
+            if (partab.jobtab->async_error) break;                              // break on error from loop
+
             if (opc == CMLCK) {
                 s = LCK_Old(args, cptr, j);                                     // old style lock
             } else if (opc == CMLCKP) {
@@ -2702,6 +2744,7 @@ short run(int savasp, int savssp)                                               
                 }
             }
 
+            if (partab.jobtab->async_error) break;                              // break on error from loop
             if ((args == 0) && flag) break;                                     // in case it was a NEW $ESTACK
 
             if (opc == CMNEW) {
@@ -2764,6 +2807,7 @@ short run(int savasp, int savssp)                                               
                 VAR_COPY(list[i], var->name);                                   // get the name
             }
 
+            if (partab.jobtab->async_error) break;                              // break on error from loop
             s = ST_KillAll(args, list);                                         // do it in symbol
             if (s < 0) ERROR(s);                                                // complain on error
             break;
@@ -3155,7 +3199,7 @@ ENABLE_WARN
                 break;
 
             case INDLOCK:                                                       // LOCK
-                parse_lock();
+                parse_lock(1);
                 break;
 
             case INDMERG:                                                       // MERGE
@@ -3423,6 +3467,7 @@ ENABLE_WARN
         case XCROUCHK:                                                          // Xcall $&%ROUCHK()
             ptr2 = (cstring *) addstk[--asp];                                   // get arg 2 (ignored)
             ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
+            if (ptr1->len < 1) ERROR(-ERRM11);                                  // they gotta pass something
             var2 = (mvar *) &strstk[ssp];                                       // some space
             ssp += sizeof(mvar);                                                // cover it
             VAR_CLEAR(var2->name);

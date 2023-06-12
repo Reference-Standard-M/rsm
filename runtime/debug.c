@@ -71,7 +71,7 @@ void Debug_off(void)                                                            
  */
 short Debug_on(cstring *param)                                                  // turn on/modify debug
 {
-    int     j = 0;                                                              // and another
+    int     j = 0;                                                              // a handy int
     cstring *ptr;                                                               // string pointer
     u_char  temp_src[256];                                                      // some space for entered
     u_char  temp_cmp[1024];                                                     // ditto compiled
@@ -158,6 +158,7 @@ short Debug(int savasp, int savssp, int dot)                                    
 {
     int      i;                                                                 // a handy int
     int      io;                                                                // save current $IO
+    u_char   options;                                                           // save current $IO options
     int      s = 0;                                                             // for calls
     short    ts;                                                                // for temp index
     do_frame *curframe;                                                         // a do frame pointer
@@ -239,12 +240,13 @@ short Debug(int savasp, int savssp, int dot)                                    
                 partab.jobtab->attention = 1;                                   // say to check this thing
                 s = 0;                                                          // don't confuse the return
             }
-        } else if (s > 0) {
-            return (short) s;                                                   // return whatever with quit sp sp
         }
+
+        if (dot == 0) return (short) s;                                         // return from breakpoint check
     }
 
     io = partab.jobtab->io;                                                     // save current $IO
+    options = partab.jobtab->seqio[0].options;                                  // save channel 0 options
     partab.jobtab->io = 0;                                                      // ensure 0
     partab.jobtab->seqio[0].options |= 8;                                       // ensure echo on
     ptr = (cstring *) src;                                                      // some space
@@ -259,7 +261,6 @@ short Debug(int savasp, int savssp, int dot)                                    
             if (var_empty(curframe->rounam)) {
                 memcpy(ptr->buf, "Debug", 5);
                 ptr->len = 5;
-                partab.debug = -1;                                              // reset debug state
             } else {
                 ptr->len = 0;                                                   // clear ptr
                 ptr->buf[ptr->len++] = '+';                                     // lead off
@@ -335,7 +336,6 @@ short Debug(int savasp, int savssp, int dot)                                    
             if (s > 0) {
                 partab.debug = s + partab.jobtab->commands;                     // when to stop
                 partab.jobtab->attention = 1;                                   // say to check this thing
-                s = 0;
                 break;                                                          // exit
             }
         }
@@ -343,12 +343,6 @@ short Debug(int savasp, int savssp, int dot)                                    
         if (s == CMQUIT) {
             partab.debug = -1;                                                  // reset debug state
             break;                                                              // exit on QUIT
-        }
-
-        if (s == OPHALT) {
-            partab.jobtab->io = io;                                             // restore io
-            rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;             // restore pc
-            return (short) s;
         }
 
         var = (mvar *) &strstk[savssp];                                         // space to setup a var
@@ -375,6 +369,7 @@ short Debug(int savasp, int savssp, int dot)                                    
     }
 
     partab.jobtab->io = io;                                                     // restore io
+    partab.jobtab->seqio[0].options = options;                                  // restore channel 0 options
     rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;                     // restore pc
     return 0;
 }

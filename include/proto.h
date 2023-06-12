@@ -120,7 +120,7 @@ short runtime_comp(char *s, char *t);                                           
 short Dascii1(u_char *ret_buffer, cstring *expr);
 short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);
-short Ddata(u_char *ret_buffer, mvar *var);
+short Ddata(u_char *ret_buffer, mvar *var, int update);
 int   Dextract(u_char *ret_buffer, cstring *expr, int start, int stop);
 int   Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
 int   Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start);
@@ -209,22 +209,21 @@ int   UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int   UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *KeyBuffer);
 
 // General utility
-u_short UTIL_strerror(int err, u_char *buf);                                    // return string error msg
-int     mcopy(u_char *src, u_char *dst, int bytes);                             // memmove with checking etc.
-short   ncopy(u_char **src, u_char *dst);                                       // copy as number
-void    CleanJob(int job);                                                      // tidy up a job
-void    panic(char *msg);                                                       // die on error
-void    Routine_Init(int vol);                                                  // proto for routine setup
-struct  RBD *Routine_Attach(var_u routine);                                     // attach to routine
-void    Routine_Detach(struct RBD *pointer);                                    // Detach from routine
-void    Routine_Delete(var_u routine, int uci);                                 // mark mapped routine deleted
-void    Dump_rbd(void);                                                         // dump descriptors
-void    Dump_lt(void);                                                          // dump used/free lockspace
+u_short    UTIL_strerror(int err, u_char *buf);                                 // return string error msg
+int        mcopy(u_char *src, u_char *dst, int bytes);                          // memmove with checking etc.
+short      ncopy(u_char **src, u_char *dst);                                    // copy as number
+void       CleanJob(int job);                                                   // tidy up a job
+void       panic(char *msg);                                                    // die on error
+void       Routine_Init(int vol);                                               // proto for routine setup
+struct RBD *Routine_Attach(var_u routine);                                      // attach to routine
+void       Routine_Detach(struct RBD *pointer);                                 // Detach from routine
+void       Routine_Delete(var_u routine, int uci);                              // mark mapped routine deleted
+void       Dump_rbd(void);                                                      // dump descriptors
+void       Dump_lt(void);                                                       // dump used/free lockspace
 
-short  UTIL_String_Lock(locktab *var,                                           // address of lock entry
-                        u_char  *str);                                          // locn of dest string
-
-short  UTIL_mvartolock(mvar *var, u_char *buf);                                 // convert mvar to string
+// Lock string conversion utility
+short UTIL_String_Lock(locktab *var, u_char  *str);                             // convert lock entry to full environment string
+short UTIL_mvartolock(mvar *var, u_char *buf);                                  // convert mvar to string
 
 // Share and semaphore stuff
 int   UTIL_Share(char *dbf);                                                    // attach share and semaphores

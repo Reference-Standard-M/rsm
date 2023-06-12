@@ -105,7 +105,8 @@ INT(vol,blk,xx,%,f,i,g,li,d,da,buf,ccc,ucc,k,key,data,zr) new $etrap
  new varlen,hdrsize,long set varlen=$get(^$system("name_length"),8),hdrsize=varlen+12,long=0
  ; NOTE: If blk ends in +, it will output the full data, not truncate it to 500
  if $extract(blk,$length(blk))="+" set long=$get(^$system("string_max"),32767),blk=+blk
- if vol,blk view vol:blk ; Note: blk=0 means vol:blk is already in View Buffer
+ ; Note: blk=0 means vol:blk is already in View Buffer and should be removed
+ quit:vol>-1!(blk<1)  view vol:blk
  set %=$view(vol,0) if '% write "Block not in use",! view vol:0 goto EXIT
  if '$data(xx) write "Block: ",$select(blk:blk,1:"")," belongs to UCI# ",%#64," "
  set f=^$system("vol",-vol,"uci",%#64) if '$data(xx) write:$length(f) "(",f,") "
@@ -845,7 +846,7 @@ INT(j,%,zr) set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or Job#"
  if $extract("SYSTEM",1,$length(j))=j do  quit
  . write "$SYSTEM=",$system,!,"UCI# Name",!
  . ; Dump the UCIs
- . for %=1:1:64 set j=^$system("vol",vol,"uci",%) if $length(j) write $justify(%,3),"  ",j,!
+ . for %=1:1:63 set j=^$system("vol",vol,"uci",%) if $length(j) write $justify(%,3),"  ",j,!
  . write "Max: ",^$job," jobs",!
  . write "Vol: ",^$system("vol",vol,"name")," in file ",^$system("vol",vol,"file"),!
  . write ^$system("vol",vol,"size")," x ",^$system("vol",vol,"block")/1024," KiB Blocks, "
@@ -966,9 +967,9 @@ CD(uci,%,zr) set zr="CD^%U"
  new vol set vol=^$job($job,"global_vol")
  if uci="" goto ^%ZUCI
  ; Make it into a number if possible
- if 'uci for %=1:1:64 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
+ if 'uci for %=1:1:63 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
  ; Validate it
- goto CDE:uci<1!(uci>64),CDE:'$length(^$system("vol",vol,"uci",uci))
+ goto CDE:uci<1!(uci>63),CDE:'$length(^$system("vol",vol,"uci",uci))
  ; Set all the bits
  for %="GLOBAL","LOCK","ROUTINE" set ^$job($job,%)=uci
  quit
@@ -1252,7 +1253,7 @@ UCICHECK(x) ;
  if '(x?3U!(x?3U1","3U)) quit ""
  set vol=^$job($job,"global_vol")
  if $piece(x,",",2)'="",$piece(x,",",2)'=^$system("vol",vol,"name") quit ""
- set u=$piece(x,","),y="" for %=1:1:64 if ^$system("vol",vol,"uci",%)=u set y=u_","_^$s("vol",vol,"name") quit
+ set u=$piece(x,","),y="" for %=1:1:63 if ^$system("vol",vol,"uci",%)=u set y=u_","_^$s("vol",vol,"name") quit
  quit y
 ;---
 SHARELIC(type) ; See if can share a C/S license DSM 7.2
@@ -1468,12 +1469,12 @@ EN1 ; Main entry point
 ;---
 CD(uci) ;
  new vol set vol=^$job($job,"global_vol")
- if 'uci for %=1:1:64 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
  ; Make it into a number if possible
- goto CDE^%U:uci<1!(uci>64),CDE^%U:'$length(^$system("vol",vol,"uci",uci))
+ if 'uci for %=1:1:63 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
  ; Validate it
- for %="global","lock","routine" set ^$job($job,%)=uci
+ goto CDE^%U:uci<1!(uci>63),CDE^%U:'$length(^$system("vol",vol,"uci",uci))
  ; Set all the bits
+ for %="global","lock","routine" set ^$job($job,%)=uci
  quit
 ;---
 LIST ; List all UCIs within a volume set
@@ -1483,7 +1484,7 @@ LIST ; List all UCIs within a volume set
  write !,?10,"UCI#",?40,"UCI"
  write !,?10,"----",?40,"---"
  do GET(vol,.uci)
- for x=1:1:uci write !,?10,x,?40,uci(x)
+ set x=0 for  set x=$order(uci(x)) quit:x=""  write !,?10,x,?40,uci(x)
  quit
 ;---
 GET(vol,uci) ; Build an array of all the UCIs within the volume set
@@ -1792,7 +1793,8 @@ ASK write:$x ! write "FIX> " read cmd,! set lcmd=cmd,cmd=$&e(cmd) set:cmd="" cmd
  do HELP^FIX2 goto ASK
 ;---
 ; Get the block and right link (if any)
-BLK view vol:blk set rl=$view(vol,4,4) if rl do
+BLK if 'blk do HELP^FIX2 quit
+ view vol:blk set rl=$view(vol,4,4) if rl do
  . ; Get the block, addr of first record and size of same - adj for view
  . view vol:rl set r=$view(vol,hdrsize,2)*4,ucc=$view(vol,r+3,1),%=ucc set:%<3 %=3 set:%=4 %=5
  . ; Get the key into rl1
@@ -3832,11 +3834,11 @@ CREAT ; Create a UCI but not UCI 1 (manager)
 CR1 ; Prompt
  read !!,"Enter new UCI name: ",nuci quit:nuci=""
  if $get(^$system("name_length"),8)=32,nuci'?1.32A write !,"INVALID UCI NAME??",*7 goto CR1
- if $get(^$system("name_length"),8)=8,nuci'?1.8A write !,"INVALID UCI NAME??",*7 goto CR1
- set flg=0
- for x=1:1:uci if uci(x)=nuci write !,"CAN NOT NAME UCI THE SAME AS EXISTING UCI.",*7 set flg=1 quit
+ else  if $get(^$system("name_length"),8)=8,nuci'?1.8A write !,"INVALID UCI NAME??",*7 goto CR1
+ set (x,flg)=0
+ for  set x=$order(uci(x)) quit:x=""  if uci(x)=nuci write !,"CAN NOT NAME UCI THE SAME AS EXISTING UCI.",*7 set flg=1 quit
  if flg goto CR1
- set uci=uci+1,^$system("vol",vol,"uci",uci)=nuci write !,nuci," has been created..."
+ for uci=2:1:63 if ^$system("vol",vol,"uci",uci)="" set ^$system("vol",vol,"uci",uci)=nuci write !,nuci," has been created..." quit
  do LIST^UCI
  quit
 ;---
@@ -3881,7 +3883,7 @@ DISP(head,vol,uci) ; Generic display of UCI
  write !,head
  do LIST
  do GET(vol,.uci)
- for x=1:1:uci set z=uci(x),uci(z)=x
+ set x=0 for  set x=$order(uci(x)) quit:x=""  set z=uci(x),uci(z)=x
  quit
 ;---
 LIST ; List all UCIs within a volume set
@@ -3891,14 +3893,14 @@ LIST ; List all UCIs within a volume set
  write !,?10,"UCI#",?40,"UCI"
  write !,?10,"----",?40,"---"
  do GET(vol,.uci)
- for x=1:1:uci write !,?10,x,?40,uci(x)
+ set x=0 for  set x=$order(uci(x)) quit:x=""  write !,?10,x,?40,uci(x)
  quit
 ;---
 GET(vol,uci) ; Build an array of all the UCIs within the volume set
  new x
- set uci=0
- quit:vol'>0  set x=0
- for  set x=$order(^$system("vol",vol,"uci",x)) quit:x<1  set uci=x,uci(x)=^$system("vol",vol,"uci",x)
+ if vol'>0 quit
+ set (x,uci)=0
+ for  set x=$order(^$system("vol",vol,"uci",x)) quit:x=""  set uci=x,uci(x)=^$system("vol",vol,"uci",x)
  quit
 ;---
 MENU ; Menu list

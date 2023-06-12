@@ -316,7 +316,7 @@ short DB_Kill(mvar *var)                                                        
             if (s < 0) {                                                        // no such or error
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
                 if (s == -ERRM7) s = 0;
-                return 0;                                                       // nothing to do
+                return (short) s;                                               // nothing to do
             }
         }
     }
@@ -463,7 +463,7 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
             return (short) t;                                                   // and return the error
         }
 
-        if ((level == 0) && (s == -ERRM7)) {                                    // if no such global
+        if ((level == 0) && (t == -ERRM7)) {                                    // if no such global
             buf[0] = '\0';                                                      // null terminate ret
             if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                       // if locked then release global lock
             return 0;                                                           // and return

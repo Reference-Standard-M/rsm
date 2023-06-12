@@ -50,7 +50,8 @@ static struct {
     int                   err;
     char                  *msg;
 } merrtab[] = {
-    {0,                   "No error"},                                          // standard errors
+    // MDC standard errors
+    {0,                   "No error"},
     {ERRM1,               "Naked indicator undefined"},
     {ERRM2,               "Invalid $FNUMBER P code string combination"},
     {ERRM3,               "$RANDOM argument less than 1"},
@@ -87,7 +88,8 @@ static struct {
     {ERRM40,              "Call-by-reference in JOB actual"},
     {ERRM43,              "Invalid range ($X, $Y)"},
     {ERRM45,              "Invalid GOTO reference"},
-    {ERRM47,              "Invalid attribute name"},
+    {ERRM46,              "Invalid attribute name"},
+    {ERRM47,              "Invalid attribute value"},
     {ERRM56,              "Name length exceeds implementation's limit"},
     {ERRM57,              "More than one defining occurrence of label in routine"},
     {ERRM58,              "Too few formal parameters"},
@@ -147,6 +149,7 @@ static struct {
     {(ERRZ46 + ERRMLAST), "IO: Peer has disconnected"},
     {(ERRZ47 + ERRMLAST), "IO: No peer connected"},
     {(ERRZ48 + ERRMLAST), "IO: Invalid internet address"},
+    // The following are more implementation specific errors
     {(ERRZ49 + ERRMLAST), "Job table is full"},
     {(ERRZ50 + ERRMLAST), "Invalid argument to $STACK()"},
     {(ERRZ51 + ERRMLAST), "Interrupt - Control-C Received"},
@@ -174,6 +177,7 @@ static struct {
     {(ERRZ73 + ERRMLAST), "Invalid database file specified"},
     {(ERRZ74 + ERRMLAST), "Too many variables (max " RSM_STRING(MAX_NUM_VARS) ")"},
     {(ERRZ75 + ERRMLAST), "Too many arguments (max " RSM_STRING(MAX_NUM_ARGS) ")"},
+    {(ERRZ77 + ERRMLAST), "RSM is in restricted mode"},
     {0,                   NULL}
 };                                                                              // merrtab[]
 

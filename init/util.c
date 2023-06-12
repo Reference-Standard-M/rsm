@@ -43,13 +43,11 @@ void help(void)                                                                 
 
     rsm_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
-    printf("David Wicksell <dlw@linux.com>\n");
-    printf("Copyright (c) 2020-2023 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
     printf("Show information:\n");
     printf("  rsm -V\t\t\tOutput short version string\n");
     printf("  rsm -h\t\t\tOutput help menu\n");
-    printf("  rsm -i [<database-file>]\tOutput system info menu\n\n");
+    printf("  rsm -i [<database-file>]\tOutput environment info\n\n");
     printf("Create database:\n");
     printf("  rsm -v <volume-name>\t\tName of volume (1-%d alpha characters)\n", VAR_LEN);
     printf("      -b <block-size>\t\tSize of database blocks (1-256 KiB)\n");
@@ -85,10 +83,8 @@ void info(char *file)                                                           
 
     rsm_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
+    printf("https://gitlab.com/Reference-Standard-M/rsm\n");
     printf("Database Version: %d\tCompiler Version: %d\n\n", DB_VER, COMP_VER);
-    printf("David Wicksell <dlw@linux.com>\n");
-    printf("Copyright (c) 2020-2023 Fourth Watch Software LC\n");
-    printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
     printf("Database and Environment Configuration Information:\n\n");
 
     if (file == NULL) {
@@ -103,7 +99,7 @@ void info(char *file)                                                           
         exit(EXIT_FAILURE);
     }
 
-    printf("Job Table Slots:\t%u\tJob%s\n", systab->maxjob, ((systab->maxjob > 1) ? "s" : ""));
+    printf("Job Table Size:\t\t%u\tSlot%s\n", systab->maxjob, (systab->maxjob == 1) ? "" : "s");
     printf("Lock Table Size:\t%d\tKiB\n", systab->locksize / 1024);
     printf("Semaphore Array ID:\t%d\n", systab->sem_id);
 
@@ -118,7 +114,7 @@ void info(char *file)                                                           
                ((systab->vol[i]->vollab->journal_file[0] != '\0') ? systab->vol[i]->vollab->journal_file : "--"),
                (systab->vol[i]->vollab->journal_available ? "ON" : "OFF"));
 
-        printf("DB Size in Blocks:\t%u\n", systab->vol[i]->vollab->max_block);
+        printf("DB Volume Size:\t\t%u\tBlocks\n", systab->vol[i]->vollab->max_block);
         printf("DB Map Block Size:\t%u\tKiB\n", systab->vol[i]->vollab->header_bytes / 1024);
         printf("DB Block Size:\t\t%u\tKiB\n", systab->vol[i]->vollab->block_size / 1024);
 

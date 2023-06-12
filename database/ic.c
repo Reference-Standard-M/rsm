@@ -125,6 +125,15 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
     u_char  *eob;                                                               // end of block
     u_int   lb;                                                                 // last block
     u_int   brl;                                                                // block rl
+    u_int   max_block = systab->vol[volnum - 1]->vollab->max_block;             // max block for volume
+
+    if (block > max_block) {                                                    // if block is larger than max
+        outc->len = sprintf((char *) &outc->buf[0], "%10u is larger than max block (%u)", block, max_block);
+        icerr++;                                                                // count it
+        SQ_Write(outc);                                                         // output it
+        SQ_WriteFormat(SQ_LF);                                                  // and a !
+        return 0;                                                               // give up
+    }
 
     while (SemOp(SEM_GLOBAL, READ)) continue;                                   // get a read lock
     s = Get_block(block);                                                       // get it
@@ -144,6 +153,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         icerr++;                                                                // count it
         SQ_Write(outc);                                                         // output it
         SQ_WriteFormat(SQ_LF);                                                  // and a !
+        SemOp(SEM_GLOBAL, -curr_lock);                                          // release the lock
         return 0;                                                               // give up
     }
 
