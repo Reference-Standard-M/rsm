@@ -521,7 +521,7 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *
             for (i++; Key[i]; i++) continue;                                    // loop til find NULL
             i++;                                                                // skip NULL char
         } else {                                                                // else if -ve
-            for (i++; Key[i] != -1; i++) continue;                              // loop til find $C(255)
+            for (i++; Key[i] != -1; i++) continue;                              // loop til find $CHAR(255)
             i++;                                                                // skip past 255
         }
 

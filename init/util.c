@@ -75,11 +75,12 @@ void help(void)                                                                 
 // *** Give database and environment info if they entered -i ***
 void info(char *file)                                                           // give some info
 {
-    int  i = 0;                                                                 // an int
-    int  j = 0;                                                                 // another int
-    char version[100];                                                          // a string
-    char pidlen;                                                                // calculate length of daemon PID
-    char margin = 24;                                                           // calculate margin for daemon PID list
+    int   i = 0;                                                                // an int
+    int   j = 0;                                                                // another int
+    u_int cnt = 0;                                                              // current job count
+    char  version[100];                                                         // a string
+    char  pidlen;                                                               // calculate length of daemon PID
+    char  margin = 24;                                                          // calculate margin for daemon PID list
 
     rsm_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
@@ -100,6 +101,12 @@ void info(char *file)                                                           
     }
 
     printf("Job Table Size:\t\t%u\tSlot%s\n", systab->maxjob, (systab->maxjob == 1) ? "" : "s");
+
+    for (u_int k = 0; k < systab->maxjob; k++) {
+        if (systab->jobtab[k].pid) cnt++;                                       // count active jobs
+    }
+
+    printf("Current Job Count:\t%u\tJob%s\n", cnt, (cnt == 1) ? "" : "s");
     printf("Lock Table Size:\t%d\tKiB\n", systab->locksize / 1024);
     printf("Semaphore Array ID:\t%d\n", systab->sem_id);
 

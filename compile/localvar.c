@@ -142,8 +142,8 @@ short localvar(void)                                                            
 
         /*
          * TODO: Add check for real intrinsic variables, not just their first letter
-         *       $device, $ecode, $estack, $etrap, $horolog, $io, $job, $key, $principal,
-         *       $quit, $reference, $storage, $stack, $system, $test, $x, $y, $zbp
+         *       $DEVICE, $ECODE, $ESTACK, $ETRAP, $HOROLOG, $IO, $JOB, $KEY, $PRINCIPAL,
+         *       $QUIT, $REFERENCE, $STORAGE, $STACK, $SYSTEM, $TEST, $X, $Y, $ZBP (an array, not a function)
          *       cf. dodollar() in rsm/compile/dollar.c
         */
         if (strchr("DEHIJKPQRSTXYZ", i) == NULL) return -ERRM8;                 // if letter is invalid complain

@@ -552,7 +552,7 @@ int DB_Daemon(int slot, int vol)                                                
     int    k;                                                                   // and another
     int    fit;                                                                 // for fork ret
     int    pid;                                                                 // for child PID
-    char   logfile[VOL_FILENAME_MAX + 18];                                      // daemon log file name
+    char   logfile[VOL_FILENAME_MAX + 22];                                      // daemon log file name
     time_t t;                                                                   // for ctime()
 
     volnum = vol;                                                               // save vol# here
@@ -580,7 +580,7 @@ int DB_Daemon(int slot, int vol)                                                
     }
 
     umask(S_IWGRP | S_IROTH | S_IWOTH);                                         // set umask to 0026
-    sprintf(&logfile[strlen(logfile)], "daemon-%d.log", volnum);                // create daemon log file path
+    sprintf(&logfile[strlen(logfile)], "rsm-daemon-%d.log", volnum);            // create daemon log file path
     myslot = slot;                                                              // remember my slot
 
 #ifndef __FreeBSD__

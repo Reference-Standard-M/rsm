@@ -12,6 +12,31 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.78.0 -- 2023 Jun 16
+
+* Add performance optimization to the symbol table search algorithm
+* Add support to `MERGE` a whole routine out of `^$ROUTINE`, for local changes
+* Add `$DATA` support to the first subscript of the `^$DEVICE` system variable
+* Add `WRITE` support for the contents of the debugger handler code
+* Add current job count to the environment info command
+* Add support for additional file attributes to the `$&%FILE` XCall
+* Make `$INCREMENT` fully atomic (add a new SEM_ATOMIC semaphore)
+* Fix bug preventing `SET` with standard (vertical bar) extended references
+* Fix bug preventing `SET` with square bracket extended references with volumes
+* Improve the configuration of the `DELETE` parameter in the `USE` command
+* Add contents of the debugger handlers to the `^%SHOWBP` vendor utility
+* Add `^%DEBUG` routine as an example `QUIT` handler for use in the debugger
+* Add M source lines to the output of the `^DECOMP` vendor utility
+* Add date filtering to the journal lister routine [`^JOURNLST`]
+* Increase translation table entries from 8 to 64
+* Increase jobs per daemon from 10 to 16
+* Decrease maximum daemons per volume from 20 to 16
+* Improve name of daemon log files (add `rsm-` as a prepended namespace)
+
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
+
 === v1.78.0-pre.3 -- 2023 Jun 12
 
 * Fix error handling bug that causes hangs in the `$QUERY` global implementation
@@ -375,6 +400,10 @@ routines.
 * Improve data typing throughout
 * Improve parts of the documentation
 * Rename release-notes.adoc to CHANGELOG.adoc
+
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
 
 === v1.73.1 -- 2021 Mar 4
 

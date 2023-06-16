@@ -189,9 +189,10 @@ many commands (not lines) before breaking again.
 
 The `$ZBP` array (case-sensitive), stores all the currently active breakpoints.
 Its format is `$ZBP(_routine_,_linenumber_)`. You can `$ORDER` or `$QUERY`
-through it to list current breakpoints. There is also an included vendor routine
-called `^%SHOWBP`, found in `utils.rsm`, which will list all current
-breakpoints, and report whether the `QUIT` handler has been set.
+through it to list current breakpoints, or you can use `WRITE` to dump the
+contents of breakpoints or `QUIT` handler code, if set. There is also an
+included vendor routine called `^%SHOWBP`, found in `utils.rsm`, which will list
+all current breakpoints and handlers.
 
 WARNING: Code entered in the debugger must be 255 characters or less
 
@@ -2080,12 +2081,15 @@ write $y ; -> 0
 NOTE: SSV names are case-insensitive, and have a short and long form, denoted
 with square bracket notation
 
-`$QUERY` may not be used on any SSV, and `MERGE` may not be used on any SSV
-except to compile a routine into `^$ROUTINE`:
+`$QUERY` will not work on any SSV, while `$ORDER` and `$DATA` will work on
+specific nodes within each SSV. `MERGE` will not work on any SSV except for
+`^$ROUTINE`, both to compile a routine into `^$ROUTINE`, and to take a copy
+of a routine's source code, for local modification, before meging it back:
 
 [source,cos]
 ----
-merge ^$routine("routine")=^UTILITY($job)
+merge ^$routine("routine")=utility($job,"routine")
+merge utility($job,"routine")=^$routine("routine")
 ----
 
 === ^$C[HARACTER]
@@ -2374,7 +2378,9 @@ Mostly complies, but provides more functionality than in the standard.
 
 [source,cos]
 ----
-merge ^$routine("ROUTINE")=^UTILITY($job)
+merge utility($job,"routine")=^$routine("routine")       ; local copy of source
+set utility($job,"routine",1)="routine ; A test routine" ; change a source line
+merge ^$routine("routine")=utility($job,"routine")       ; recompile routine
 ----
 
 === ^$S[YSTEM]

@@ -1277,7 +1277,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
         }
 
         // Check to see if an escape sequence is about to be received
-        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > -1))) {
+        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > OFF))) {
             c->dkey_len = 1;
             c->dkey[0] = (char) 27;
 
@@ -2111,26 +2111,22 @@ short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
         c->options = setOptionsBitMask(c->options, TTYECHO, LEAVE);
     }
 
-    // Set bit DEL8 in channel's options
-    if (par & SQ_USE_DEL8) {
+    // Set bit DEL127 and bit DEL8 in channel's options
+    if (par & SQ_USE_DELBOTH) {
+        c->options = setOptionsBitMask(c->options, DEL127, SET);
         c->options = setOptionsBitMask(c->options, DEL8, SET);
-    } else if (par & SQ_USE_DELBOTH) {
-        c->options = setOptionsBitMask(c->options, DEL8, SET);
-    } else if (par & SQ_USE_DELNONE) {
+    } else if (par & SQ_USE_DEL127) {
+        c->options = setOptionsBitMask(c->options, DEL127, SET);
         c->options = setOptionsBitMask(c->options, DEL8, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, DEL8, LEAVE);
-    }
-
-    // Set bit DEL127 in channel's options
-    if (par & SQ_USE_DEL127) {
-        c->options = setOptionsBitMask(c->options, DEL127, SET);
-    } else if (par & SQ_USE_DELBOTH) {
-        c->options = setOptionsBitMask(c->options, DEL127, SET);
+    } else if (par & SQ_USE_DEL8) {
+        c->options = setOptionsBitMask(c->options, DEL127, UNSET);
+        c->options = setOptionsBitMask(c->options, DEL8, SET);
     } else if (par & SQ_USE_DELNONE) {
         c->options = setOptionsBitMask(c->options, DEL127, UNSET);
+        c->options = setOptionsBitMask(c->options, DEL8, UNSET);
     } else {
         c->options = setOptionsBitMask(c->options, DEL127, LEAVE);
+        c->options = setOptionsBitMask(c->options, DEL8, LEAVE);
     }
 
     // Disconnect client from socket

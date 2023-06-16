@@ -242,7 +242,10 @@ void dodollar(void)                                                             
     source_ptr += len;                                                          // move source along
     len++;                                                                      // add in first character
     name[len] = '\0';                                                           // null terminate name
-    if (*source_ptr == '(') goto function;                                      // check for a function
+
+    if ((*source_ptr == '(') && (strncmp(name, "ZBP\0", 4) != 0)) {             // check for a function
+        goto function;                                                          // $ZBP is an M array, not a function
+    }
 
     switch (name[0]) {                                                          // dispatch on initial
     case 'D':                                                                   // $D[EVICE]
@@ -384,6 +387,17 @@ void dodollar(void)                                                             
     case 'Y':                                                                   // $Y
         if (len > 1) UNVAR;                                                     // check for extended name
         *comp_ptr++ = VARY;                                                     // add the opcode
+        return;                                                                 // and exit
+
+    case 'Z':                                                                   // $ZBP (M array, not a function)
+        if (strncmp(name, "ZBP\0", 4) != 0) UNVAR;
+        source_ptr -= len + 1;                                                  // backup to first character
+        s = localvar();                                                         // parse the variable
+
+        if (s < 0) {                                                            // if we got an error
+            comperror(s);                                                       // compile it
+        }
+
         return;                                                                 // and exit
 
     default:                                                                    // an error

@@ -35,6 +35,7 @@
 #include "rsm.h"                                                                // standard includes
 #include "error.h"                                                              // standard includes
 #include "proto.h"                                                              // standard includes
+#include "database.h"                                                           // for semaphore macro
 
 extern int curr_lock;                                                           // for tracking SEM_GLOBAL
 
@@ -82,17 +83,39 @@ int UTIL_Share(char *dbf)                                                       
 short SemOp(int sem_num, int numb)                                              // Add/Remove semaphore
 {
     int           i;                                                            // for try loop
-    struct sembuf buf = {0, 0, SEM_UNDO};                                       // for semop()
+    struct sembuf buf[2] = {{0, 0, SEM_UNDO}, {SEM_ATOMIC, WRITE, SEM_UNDO}};   // for semop()
+    short         semops = 1;
+    static int    atomic = FALSE;                                               // flag whether atomic lock is held by current job
 
     if (numb == 0) return 0;                                                    // check for junk? then just return
-    buf.sem_num = (u_short) sem_num;                                            // get the one we want
-    buf.sem_op = (short) numb;                                                  // and the number of them
+    buf[0].sem_num = (u_short) sem_num;                                         // get the one we want
+    buf[0].sem_op = (short) numb;                                               // and the number of them
 
     for (i = 0; i < 5; i++) {                                                   // try this many times
-        short s = semop(systab->sem_id, &buf, 1);                               // do it
+        short s;
+
+        if ((atomic == FALSE) && (sem_num == SEM_GLOBAL) && (numb < 0) && (partab.jobtab != NULL)) {
+            semops = 2;                                                         // need to add a check for the atomic
+        }
+
+        s = semop(systab->sem_id, buf, semops);                                 // do it
 
         if (s == 0) {                                                           // if that worked
-            if (sem_num == SEM_GLOBAL) curr_lock += numb;                       // adjust curr_lock
+            if (sem_num == SEM_GLOBAL) {
+                curr_lock += numb;                                              // adjust curr_lock
+
+                if (semops == 2) {                                              // if the atomic was acquired
+                    buf[1].sem_op = -WRITE;
+                    semop(systab->sem_id, &buf[1], 1);                          // release the atomic
+                }
+            } else if (sem_num == SEM_ATOMIC) {
+                if (numb == WRITE) {
+                    atomic = TRUE;
+                } else {
+                    atomic = FALSE;
+                }
+            }
+
             return 0;                                                           // exit success
         }
 

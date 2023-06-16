@@ -45,11 +45,32 @@ int parse2eq(const u_char *ptr)                                                 
     int i = 0;                                                                  // a handy int
     int b = 0;                                                                  // in brackets
     int q = 0;                                                                  // in quotes
+    int v = 0;                                                                  // in vertical brackets
+    int s = 0;                                                                  // in square brackets
 
     while (TRUE) {                                                              // keep looping
         u_char c = ptr[i++];                                                    // get the current character
 
         if (c == '\0') break;                                                   // ran out of string
+
+        if (!b && (c == '|')) {                                                 // new style extended reference?
+            v = !v;
+            continue;                                                           // and go for more
+        }
+
+        if (v) continue;                                                        // ignore in vertical brackets
+
+        if (!b && (c == '[')) {                                                 // square bracket extended reference?
+            s++;
+            continue;                                                           // and go for more
+        }
+
+        if (!b && (c == ']')) {                                                 // end square brackets
+            s--;
+            continue;                                                           // and go for more
+        }
+
+        if (s) continue;                                                        // ignore in square brackets
 
         if (c == '"') {                                                         // a quote?
             q = !q;                                                             // reverse quote switch

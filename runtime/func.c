@@ -444,6 +444,8 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
         s = ST_Get(var, temp);                                                  // attempt to get the data
     } else {                                                                    // for a global var
         memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);   // update naked
+        s = SemOp(SEM_ATOMIC, WRITE);                                           // take an atomic write
+        if (s < 0) return s;                                                    // if we got an error then return it
         s = DB_Get(var, temp);                                                  // attempt to get the data
     }
 
@@ -451,21 +453,33 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
         ret_buffer[0] = '0';
         s = 0;
     } else if (s < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
         return s;
     } else {
         s = ncopy(&tmp, ret_buffer);
     }
 
-    if (s < 0) return s;
+    if (s < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
+        return s;
+    }
+
     s = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
-    if (s < 0) return s;
+
+    if (s < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
+        return s;
+    }
+
 DISABLE_WARN(-Warray-bounds)
     numexpr->len = s;
 ENABLE_WARN
-    memmove(&ret_buffer[0], &numexpr->buf[0], numexpr->len);                    // copy here
+    memcpy(&ret_buffer[0], &numexpr->buf[0], numexpr->len);                     // copy here
     ret_buffer[numexpr->len] = '\0';                                            // ensure null terminated
     if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, numexpr);               // set it back and return
-    return DB_Set(var, numexpr);                                                // set it back and return
+    s = DB_Set(var, numexpr);                                                   // set it back
+    SemOp(SEM_ATOMIC, -WRITE);                                                  // release the atomic write
+    return s;                                                                   // and return
 }
 
 // $JUSTIFY(expr,int1[,int2])

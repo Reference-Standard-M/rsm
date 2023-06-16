@@ -139,13 +139,10 @@ ENABLE_WARN
     if ((param->len - j) > 255) return -(ERRZ9 + ERRMLAST);                     // too bloody long
     source_ptr = &param->buf[j];                                                // point at the source
     ptr = (cstring *) temp_cmp;                                                 // where it goes
-    comp_ptr = ptr->buf;                                                        // for parse
-    parse();                                                                    // compile it
-    *comp_ptr++ = ENDLIN;                                                       // eol
-    *comp_ptr++ = ENDLIN;                                                       // eor
 DISABLE_WARN(-Warray-bounds)
-    ptr->len = comp_ptr - ptr->buf;                                             // save the length
+    ptr->len = param->len - j;                                                  // save the length
 ENABLE_WARN
+    memcpy(&ptr->buf[0], source_ptr, ptr->len);                                 // store source for handler
     return ST_Set(&dvar, ptr);                                                  // set and return
 }
 
@@ -191,15 +188,15 @@ short Debug(int savasp, int savssp, int dot)                                    
         dvar.key[dvar.slen - 1] |= s;                                           // fix type
         dvar.slen += s;                                                         // and length
         dvar.slen++;                                                            // count the null
-        s = ST_Get(&dvar, &cmp[sizeof(short)]);                                 // get whatever
+        s = ST_Get(&dvar, &src[sizeof(short)]);                                 // get whatever
         if (s < 0) return 0;                                                    // just return if nothing
         ts = (short) s;                                                         // endian agnostic
-        memcpy(cmp, &ts, sizeof(short));                                        // save the length
+        memcpy(src, &ts, sizeof(short));                                        // save the length
     } else if (dot == -1) {                                                     // from a QUIT n
-        s = ST_Get(&dvar, &cmp[sizeof(short)]);                                 // get whatever
+        s = ST_Get(&dvar, &src[sizeof(short)]);                                 // get whatever
         if (s < 0) s = 0;                                                       // ignore errors
         ts = (short) s;                                                         // endian agnostic
-        memcpy(cmp, &ts, sizeof(short));                                        // save the length
+        memcpy(src, &ts, sizeof(short));                                        // save the length
     }
 
     if (partab.jobtab->cur_do >= MAX_DO_FRAMES) return -(ERRZ8 + ERRMLAST);     // too many (perhaps ??????)
@@ -207,8 +204,16 @@ short Debug(int savasp, int savssp, int dot)                                    
 
     if (s > 0) {                                                                // code to execute
         partab.jobtab->cur_do++;                                                // increment do frame
+        source_ptr = &src[2];                                                   // point at the source
+        ptr = (cstring *) cmp;                                                  // where it goes
+        comp_ptr = ptr->buf;                                                    // for parse
+        parse();                                                                // compile it
+        *comp_ptr++ = ENDLIN;                                                   // eol
+        *comp_ptr++ = ENDLIN;                                                   // eor
+        DISABLE_WARN(-Warray-bounds)
+        ptr->len = comp_ptr - ptr->buf;                                         // save the length
+        ENABLE_WARN
         rsmpc = &cmp[sizeof(short)];                                            // where it is
-        src[0] = '\0';                                                          // a spare null
         partab.jobtab->dostk[partab.jobtab->cur_do].routine = src;
         partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;
         partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;

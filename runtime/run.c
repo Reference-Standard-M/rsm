@@ -61,6 +61,7 @@ short run(int savasp, int savssp)                                               
     int       j;                                                                // and another
     int       args;                                                             // num arguments
     int       flag;                                                             // a random flag
+    int       pieces;                                                           // number of subscripts
     cstring   *cptr;                                                            // a cstring ptr
     cstring   *ptr1 = NULL;                                                     // a cstring ptr
     cstring   *ptr2;                                                            // a cstring ptr
@@ -1930,12 +1931,13 @@ short run(int savasp, int savssp)                                               
 
         case CMMERGE:                                                           // MERGE 1 var from next
             partab.jobtab->commands++;                                          // count a command
+            pieces = 0;                                                         // count subscripts
 
             // Note: The below two mvars have been pre-expanded to maximum size (i.e., sizeof(mvar)).
             var = (mvar *) addstk[--asp];                                       // get the destination mvar ptr
             var2 = (mvar *) addstk[--asp];                                      // get the source mvar ptr
 
-            if (var->name.var_cu[0] == '$') {                                   // destination is SSVN
+            if (var->name.var_cu[0] == '$') {                                   // destination is SSVN/ISV
                 if (var->uci == UCI_IS_LOCALVAR) ERROR(-ERRM8);                 // must be ^$ROUTINE()
                 if (toupper(var->name.var_cu[1]) != 'R') ERROR(-ERRM29);        // must be ^$ROUTINE()
                 t = Compile_Routine(var, var2, &strstk[ssp]);                   // compile this routine
@@ -1943,14 +1945,20 @@ short run(int savasp, int savssp)                                               
                 break;
             }
 
-            if (var2->name.var_cu[0] == '$') ERROR(-ERRM29);                    // source is SSVN so can't do that (except above)
+            if (var2->name.var_cu[0] == '$') {                                  // source is SSVN/ISV
+                if (var2->uci == UCI_IS_LOCALVAR) ERROR(-ERRM8);                // must be ^$ROUTINE()
+                if (toupper(var2->name.var_cu[1]) != 'R') ERROR(-ERRM29);       // must be ^$ROUTINE()
+                UTIL_Key_Chars_In_Subs((char *) var2->key, (int) var2->slen, 255, &pieces, (char *) NULL); // find subscript count
+                if (pieces != 1) ERROR(-ERRM38);                                // must be 1 subscript, the routine name
+            }
+
             s = Ddata(temp, var2, FALSE);                                       // see if source exists - don't update naked
             if (s < 0) ERROR(s);                                                // complain on error
             if (temp[0] == '0') break;                                          // quit if no such
 
             if ((memcmp(var, var2, sizeof(var_u) + 2) == 0) &&                  // source and destination are the same variable
-              ((UTIL_Key_KeyCmp(var->key, var2->key, var2->slen, var2->slen) == 0) || // and the subscripts of one are a descendant
-              (UTIL_Key_KeyCmp(var->key, var2->key, var->slen, var->slen) == 0))) { //   of the other
+              ((UTIL_Key_KeyCmp(var->key, var2->key, var2->slen, var2->slen) == KEQUAL) || // and subscripts of one are a descendant
+              (UTIL_Key_KeyCmp(var->key, var2->key, var->slen, var->slen) == KEQUAL))) { //   of the other
                 ERROR(-ERRM19);                                                 // that's not allowed
             }
 
@@ -1989,6 +1997,12 @@ short run(int savasp, int savssp)                                               
 
                 if (t == -(ERRZ55 + ERRMLAST)) break;                           // done (ran out)
                 if (t < 0) ERROR(t);                                            // die on error
+
+                if (pieces) {                                                   // if a source of ^$ROUTINE(), skip the bytecode
+                    pieces = 0;
+                    continue;
+                }
+
                 if (memcmp(var2->key, temp, j)) break;                          // all done
                 cptr->len = t;                                                  // save the length
                 memmove(&var->key[i], &var2->key[j], var2->slen - j);           // from end of src key to end of dest key

@@ -1171,7 +1171,13 @@ ENABLE_WARN
         return -ERRM38;                                                         // junk
 
     case 'D':                                                                   // $DEVICE
-        return -ERRM38;                                                         // junk
+        if (nsubs != 1) return -ERRM38;                                         // junk
+        i = cstringtoi(subs[0]);                                                // make an int of channel#
+        if ((i < 0) || (i >= MAX_SEQ_IO)) return -ERRM38;                       // out of I/O channel range
+        buf[0] = '1';                                                           // assume true
+        buf[1] = '\0';                                                          // null terminate
+        if (partab.jobtab->seqio[i].type == 0) buf[0] = '0';                    // not a currently opened device
+        return 1;                                                               // return the count
 
     case 'G':                                                                   // $GLOBAL
         if (nsubs > 1) return -ERRM38;                                          // junk

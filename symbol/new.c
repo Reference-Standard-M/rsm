@@ -221,7 +221,7 @@ void ST_Restore(ST_newtab *newtab)
 
         if (symtab[ptr->locdata[i].stindex].data != ST_DATA_NULL) {             // any data?
             if ((symtab[ptr->locdata[i].stindex].data->deplnk == ST_DEPEND_NULL) &&
-              (symtab[ptr->locdata[i].stindex].data->attach < 2) &&
+              (symtab[ptr->locdata[i].stindex].data->attach <= 1) &&
               (symtab[ptr->locdata[i].stindex].data->dbc == VAR_UNDEFINED)) {
                 free(symtab[ptr->locdata[i].stindex].data);                     // free data memory
                 symtab[ptr->locdata[i].stindex].data = ST_DATA_NULL;            // clear ptr

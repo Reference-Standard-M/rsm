@@ -43,13 +43,13 @@
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       78                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
-#define VERSION_PRE         3                                                   // Pre-release number
+#define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
-#define DAEMONS             10                                                  // Jobs per daemon
+#define DAEMONS             16                                                  // Jobs per daemon
 #define MIN_DAEMONS         2                                                   // Minimum of these
-#define MAX_DAEMONS         20                                                  // Maximum of these
+#define MAX_DAEMONS         16                                                  // Maximum of these
 #define MAX_GLOBAL_BUFFERS  131072                                              // Maximum global buffers in MiB
 #define MAX_ROUTINE_BUFFERS 4095                                                // Maximum routine buffers in MiB
 
@@ -205,15 +205,17 @@
  * Semaphores are setup with a value equal to systab->maxjob
  * A read takes one semaphore unit
  * A write takes systab->maxjob units
+ * A SEM_ATOMIC only takes a write and also sets the atomic flag
  */
 #define SEM_SYS             0                                                   // Systab Semaphore
 #define SEM_LOCK            1                                                   // Lock Table Semaphore
 #define SEM_GLOBAL          2                                                   // global database module
 #define SEM_ROU             3                                                   // routine buffers
 #define SEM_WD              4                                                   // write daemons
-#define SEM_MAX             5                                                   // total number of these
+#define SEM_ATOMIC          5                                                   // atomic operations
+#define SEM_MAX             6                                                   // total number of these
 
-#define MAX_TRANTAB         8                                                   // total number of entries
+#define MAX_TRANTAB         64                                                  // total number of entries
 
 #if defined(linux) || defined(_AIX) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun__) || defined(__CYGWIN__)
 typedef union semun {

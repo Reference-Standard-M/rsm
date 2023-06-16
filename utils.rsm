@@ -251,6 +251,18 @@ INT(pat,st,end,g,%,%d,%v,f,r,zr) set zr="INT^%DD"
  . write $justify(f,10)," lines",!
  quit
 
+%DEBUG
+%DEBUG ; A quit handler for the interactive debugger (run as `break ":do ^%DEBUG"` - not goto)
+ new io,stack
+ set io=$io
+ write !," STACK | $ECODE |       PLACE        | MCODE",!
+ write "--------------------------------------------",!
+ for stack=$stack-1:-1:0 do  write !
+ . use $principal
+ . write $justify(stack,5),$justify($stack(stack,"ecode"),10),$justify($stack(stack,"place"),21),?39,$stack(stack,"mcode"),!
+ . use io
+ quit
+
 %DED
 %DED ; Edit a document using $EDITOR
  read !,"Document: ",doc,! quit:doc=""  do INT(doc) quit
@@ -817,12 +829,16 @@ RC(ccl,%,r,sel,zr) set zr="RC^%RD"
 
 %SHOWBP
 %SHOWBP ; Show current debugging breakpoints
- write "QUIT breakpoint code is "_$select($data($ZBP)#2:"ON",1:"OFF"),!!
- write "Current breakpoints:",!
+ new routine,line
+ write "QUIT breakpoint handler code is:",!
+ if $get($ZBP)'="" write $ZBP,!
+ write !,"Current breakpoints and handlers:",!
  set (routine,line)=""
  for  set routine=$order($ZBP(routine)) quit:routine=""  do
  . for  set line=$order($ZBP(routine,line)) quit:line=""  do
  . . write ?4,"+"_line_"^"_routine,!
+ . . if $ZBP(routine,line)'="" write $ZBP(routine,line),!!
+ write !
  quit
 
 %SS
@@ -1615,12 +1631,15 @@ INT(c,%,v,usr,d,t,h,tag,var,i,s,a) new $etrap set $etrap="do ^%ET"
  . set var(v-1)=d ; Save var name indexed by idx
  write !,"Variables by Index",!
  set %="" for  set %=$order(var(%)) quit:%=""  write:$x>70 ! write var(%),?$x\10+1*10
- write:$x ! write !,"Code at offset ",h(5)," for ",h(6)," bytes.",!
+ write:$x ! write !,"Code at offset ",h(5)," for ",h(6)," bytes."
  set v=h(5)+1,t=v+h(6),a=""
 ;---
-LIN goto EXIT:v>t set d=$ascii(c,v),v=v+1 write ! if d=170 do
+LIN goto EXIT:v>t set d=$ascii(c,v),v=v+1
+ if d=170 write ! do
  . set i=$$S(v),s=$$S(v+2),v=v+4 set:s s=s-1
- . write "Line:",$justify(i,5),"   Size ",s,!,?6 if $length(a) write a,!,?6 set a=""
+ . ; Dump source right above decompiled bytecode
+ . write !,^$routine(rou,i),!
+ . write "Line:",$justify(i,5),"   Size: ",s,!,?6 if $length(a) write a,!,?6 set a=""
  . for %=1:1:s write:$x>75 !,?6 write $justify($ascii(c,v),4) set v=v+1
  if d=171 set a="Formal: (" set i=$ascii(c,v),v=v+1 do
  . if i=0 set a=a_")"
@@ -2081,7 +2100,8 @@ JOURNLST
 JOURNLST ; List journal file contents
  new $etrap set $etrap="close 1 do ^%ET"
 ;---
-ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,timelen,slen,key,ref,dbc,long
+ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,timelen
+ new slen,key,ref,dbc,long,quit,start,end,epoch
  set file=$get(^$system("vol",^$job($job,"global_vol"),"journal_file")),long=0
  write "Enter file"_$select(file'="":" [<space><enter> for "_file_"]",1:"")_": "
  read ans set:ans'=" "&(ans'="+") file=ans write:ans=" "!(ans="+") file write ! set:ans="+" file=file_ans quit:file=""
@@ -2096,23 +2116,40 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  set off=12 use 1 read time#timelen use $principal
  set size=$$CVT($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
  ; Configure for new format journal, with 64 bit time_t and 32 character names
- if size=12 set varlen=32,timelen=12 use 1 read ext#4 use 0 set time=time_ext write !,"Reference Standard M Journal Version 2",!
- else  write !,"Reference Standard M Journal Version 1",!
- write "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
+ if size=12 do
+ . set varlen=32,timelen=12 use 1 read ext#4 use $principal set time=time_ext write !,"Reference Standard M Journal Version 2",!!
+ else  write !,"Reference Standard M Journal Version 1",!!
+ write "Do you want to display the entire journal ["_file_"]?"
+ read " ([Y]/N): ",ans write !
+ set ans=$translate(ans,"yn","YN"),ans=$extract(ans)
+ if ans="N" do
+ . read "Enter start datetime for journal display: ",start write !
+ . if start set start=$translate($&%spawn("date -ud '"_start_"' +""%s""",1),$char(10,13))
+ . else  set start=0
+ . read "Enter end datetime for journal display: ",end write !
+ . if end set end=$translate($&%spawn("date -ud '"_end_"' +""%s""",1),$char(10,13))
+ . else  set end=999999999999
+ else  set start=0,end=999999999999
+ set quit=0
+ write !,"Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
  ; Scan the file
  for  do  quit:off'<offset!quit
  . ; Get the fixed fields
  . if off>12 use 1 read time#timelen use $principal set size=$$CVT($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
  . ; Convert time
- . set time=$$CVT($extract(time,5,timelen)),time=(time\86400+47117)_","_(time#86400)
+ . set epoch=$$CVT($extract(time,5,timelen)),time=(epoch\86400+47117)_","_(epoch#86400)
  . ; Setup action
  . set action=$select(action=5:"KILL",action=4:"SET",action=3:"ESTOP",action=2:"STOP",action=1:"START",'action:"CREATE")
  . ; Write the first bit
- . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?24,action write:uci ?31,uci
+ . if epoch'>end&(epoch'<start) do
+ . . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?24,action write:uci ?31,uci
+ . . if size=timelen write !
  . ; If a "small" one, that's all
- . if size=timelen set off=off+size write ! quit
+ . if size=timelen set off=off+size quit
  . ; Get the rest of the record
  . set:size#4 size=size\4+1*4 set off=off+size use 1 read data#(size-timelen) use $principal
+ . if epoch>end set quit=1 quit
+ . if epoch<start quit
  . ; Check for a 64 bit time_t here when listing an old format journal
  . if timelen=8,$extract(data,1,4)=$char(0,0,0,0) set data=$extract(data,5,99999)
  . ; Extract the name and key length
@@ -2138,7 +2175,7 @@ JOURNREC ; Forward recover database from backup and journal file
  new $etrap set $etrap="close 1 do ^%ET"
 ;---
 ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,timelen
- new slen,key,ref,dbc,long,quit,type,start,end,flg,verbose,setcnt,killcnt,epoch
+ new slen,key,ref,dbc,long,quit,type,start,end,verbose,setcnt,killcnt,epoch
  new vol set vol=^$job($job,"global_vol")
  if ^$job>1 write "Journal recovery must be run in single-user mode",! quit
  set file=$get(^$system("vol",vol,"journal_file")),long=0
@@ -2159,12 +2196,13 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  write "Do you want to apply the entire journal ["_file_"] to "_^$system("vol",vol,"name")_" ["_^$system("vol",vol,"file")_"]?"
  read " ([Y]/N): ",ans write !
  set ans=$translate(ans,"yn","YN"),ans=$extract(ans)
- if ans="N" set flg=0 do
- . for  quit:flg  do
- . . read "Enter start datetime for journal recovery: ",start set start=$&%spawn("date -ud '"_start_"' +""%s""",1) write !
- . . read "Enter end datetime for journal recovery: ",end set end=$&%spawn("date -ud '"_end_"' +""%s""",1) write !
- . . set start=$translate(start,$char(10,13)),end=$translate(end,$char(10,13))
- . . if start,end set flg=1
+ if ans="N" do
+ . read "Enter start datetime for journal display: ",start write !
+ . if start set start=$translate($&%spawn("date -ud '"_start_"' +""%s""",1),$char(10,13))
+ . else  set start=0
+ . read "Enter end datetime for journal display: ",end write !
+ . if end set end=$translate($&%spawn("date -ud '"_end_"' +""%s""",1),$char(10,13))
+ . else  set end=999999999999
  else  set start=0,end=999999999999
  read "Do you want to apply both sets and kills, only sets, or only kills? ([B]/S/K): ",type write !
  set type=$translate(type,"bsk","BSK")

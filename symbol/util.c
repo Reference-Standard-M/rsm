@@ -47,6 +47,7 @@ short ST_Hash(var_u var)                                                        
 {
     int       i;                                                                // for the loop
     int       ret = 0;                                                          // return value
+
     const int p[32] = {
         3, 5, 7, 11, 13, 17, 19, 23,
         29, 31, 37, 41, 43, 47, 53, 59,
@@ -154,7 +155,7 @@ void ST_Free(var_u var)                                                         
         symtab[last].fwd_link = symtab[fwd].fwd_link;                           // do it this way
     }
 
-    symtab[fwd].data = ST_DATA_NULL;                                            // in case it hasn't been rmvd
+    symtab[fwd].data = ST_DATA_NULL;                                            // in case it hasn't been removed
     VAR_CLEAR(symtab[fwd].varnam);                                              // clear var name
     symtab[fwd].fwd_link = st_hash[ST_FREE];                                    // point at next free
     st_hash[ST_FREE] = fwd;                                                     // point free list at this
@@ -215,22 +216,30 @@ short ST_Kill(mvar *var)                                                        
 
     if (data != ST_DATA_NULL) {                                                 // data block exists
         if (var->slen == 0) {                                                   // killing a data block
-            check = data->deplnk;                                               // point at 1st dp block
+            check = data->deplnk;                                               // point at 1st DP block
 
-            while (check != ST_DEPEND_NULL) {                                   // for all dp blocks
+            while (check != ST_DEPEND_NULL) {                                   // for all DP blocks
                 checkprev = check;                                              // save a copy
                 check = check->deplnk;                                          // get next
                 free(checkprev);                                                // free this one
             }
 
+            data->last_key = ST_DEPEND_NULL;                                    // reset last used key
             data->deplnk = ST_DEPEND_NULL;                                      // clear pointer
             data->dbc = VAR_UNDEFINED;                                          // dong it
         } else {                                                                // end killing data block, start killing dep block
             check = data->deplnk;                                               // get first dep if any
 
             if (check != ST_DEPEND_NULL) {                                      // if deps exist
-                // check key less than supplied
-                while ((check != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(check->bytes, var->key, check->keylen, var->slen) < 0)) {
+                ST_depend *lastkey = data->last_key;                            // pointer to last used key
+
+                // start search at last used key, rather than at the beginning (var after lastkey)
+                if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0)) {
+                    check = lastkey;
+                }
+
+                // check key less than supplied (var after check)
+                while ((check != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, check->bytes, var->slen, check->keylen) > 0)) {
                     checkprev = check;                                          // save current to previous
                     check = check->deplnk;                                      // go to next
                 }                                                               // end if we go past it, or end
@@ -239,9 +248,11 @@ short ST_Kill(mvar *var)                                                        
                     ST_RemDp(data, checkprev, check, var);                      // get rid of it
                 }                                                               // end if valid remove found
             }                                                                   // end if dep exists
+
+            data->last_key = checkprev;                                         // add last used key
         }                                                                       // end else killing a dep blk
 
-        if ((data->deplnk == ST_DEPEND_NULL) && (data->attach < 2) && (data->dbc == VAR_UNDEFINED)) { // none attached
+        if ((data->deplnk == ST_DEPEND_NULL) && (data->attach <= 1) && (data->dbc == VAR_UNDEFINED)) { // none attached
             free(data);                                                         // free data block space
             symtab[ptr].data = ST_DATA_NULL;                                    // and clear the pointer
         }                                                                       // end freeing data block
@@ -262,7 +273,7 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
 {
     if (dp == ST_DEPEND_NULL) return;                                           // no dependents to check
 
-    if ((dp->deplnk != ST_DEPEND_NULL) && (mvardr->slen == 0)) {                // kill DT more dep
+    if ((dp->deplnk != ST_DEPEND_NULL) && (mvardr->slen == 0)) {                // kill DT more dep - (not currently called)
         ST_RemDp(dblk, dp, dp->deplnk, mvardr);                                 // try to get rid of next one
     } else {                                                                    // end if more to do - kill DP or run out of deps
         if ((dp->deplnk != ST_DEPEND_NULL) && (memcmp(dp->bytes, mvardr->key, mvardr->slen) == 0)) { // next dep, has part match key
@@ -270,7 +281,7 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
         }                                                                       // end if keys part match
     }                                                                           // end if more to do
 
-    if (mvardr->slen == 0) {                                                    // killing a data block - TODO: dead code?
+    if (mvardr->slen == 0) {                                                    // killing a data block - (not currently called)
         if (prev != ST_DEPEND_NULL) {                                           // prev is defined
             prev->deplnk = ST_DEPEND_NULL;                                      // unlink all deps regardless
         } else {                                                                // end if prev defined - prev not defined
@@ -378,6 +389,7 @@ int ST_Set(mvar *var, cstring *data)                                            
 
         if (var->slen == 0) {                                                   // no subscript key
             newPtrDt->deplnk = ST_DEPEND_NULL;                                  // no dependents
+            newPtrDt->last_key = ST_DEPEND_NULL;                                // no last used key
             newPtrDt->attach = 1;                                               // initialize attach count
             newPtrDt->dbc = data->len;                                          // initialize data bytes count
             memcpy(&newPtrDt->data, &data->buf[0], data->len + 1);              // copy data in
@@ -392,6 +404,7 @@ int ST_Set(mvar *var, cstring *data)                                            
 DISABLE_WARN(-Warray-bounds)
             newPtrDt->dbc = VAR_UNDEFINED;                                      // initialize data byte count
             newPtrDt->deplnk = newPtrDp;                                        // initialize link to dependent
+            newPtrDt->last_key = newPtrDp;                                      // initialize last key to dependent
             newPtrDt->attach = 1;                                               // initialize attach count
 ENABLE_WARN
             newPtrDp->deplnk = ST_DEPEND_NULL;                                  // no more dependents
@@ -440,16 +453,23 @@ ENABLE_WARN
             memcpy(&newPtrDp->bytes[n], &data->buf[0], data->len + 1);          // copy data and trailing 0
             ptr1 = symtab[fwd].data->deplnk;                                    // go into dependents
 
-            if (ptr1 != ST_DEPEND_NULL) {                                       // dep's currently exist
-                // compare keys
+            if (ptr1 != ST_DEPEND_NULL) {                                       // deps currently exist
+                ST_depend *lastkey = symtab[fwd].data->last_key;                // pointer to last used key
+
+                // start search at last used key, rather than at the beginning (var after lastkey)
+                if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0)) {
+                    ptr1 = lastkey;
+                }
+
+                // compare keys (var after ptr1)
                 while ((ptr1 != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, ptr1->bytes, var->slen, ptr1->keylen) > 0)) {
                     prevPtr = ptr1;                                             // save previous
                     ptr1 = ptr1->deplnk;                                        // get next
                     if (ptr1 == ST_DEPEND_NULL) break;                          // gone beyond last
                 }                                                               // end while-compare keys
 
-                // replace data if var keys equal it means to replace data
-                if ((ptr1 != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(ptr1->bytes, var->key, ptr1->keylen, var->slen) == 0)) {
+                // replace data if var keys equal it means to replace data (var equal ptr1)
+                if ((ptr1 != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, ptr1->bytes, var->slen, ptr1->keylen) == 0)) {
                     if (prevPtr == ST_DEPEND_NULL) {                            // if no prev pointer
                         newPtrDp->deplnk = ptr1->deplnk;                        // link to previous first dep
                         symtab[fwd].data->deplnk = newPtrDp;                    // link in as first dep
@@ -459,7 +479,7 @@ ENABLE_WARN
                     }                                                           // end else bypassing mid list
 
                     free(ptr1);                                                 // remove previous dep link
-                // if we have a dependent, create more data
+                // if we have a dependent, create more data (var before ptr1)
                 } else if ((ptr1 != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, ptr1->bytes, var->slen, ptr1->keylen) < 0)) {
                     if (prevPtr == ST_DEPEND_NULL) {                            // new first element
                         newPtrDp->deplnk = ptr1;                                // link in
@@ -475,6 +495,8 @@ ENABLE_WARN
             } else {                                                            // end if elements exist - no elements curr exist
                 symtab[fwd].data->deplnk = newPtrDp;                            // add as first element ever
             }                                                                   // end else no elements existed
+
+            symtab[fwd].data->last_key = prevPtr;                               // add last used key
         }                                                                       // end else-slen not zero
     }                                                                           // end else-data block not null
 
@@ -515,12 +537,18 @@ short ST_Data(mvar *var, u_char *buf)                                           
 
     if (var->slen > 0) {                                                        // going into dependents
         int i = var->slen;                                                      // get the length
+        ST_depend *lastkey = symtab[ptr1].data->last_key;                       // pointer to last used key
 
         depPtr = symtab[ptr1].data->deplnk;                                     // get first dependent
 
         if (depPtr != ST_DEPEND_NULL) {                                         // only if we should go on
             if (depPtr->keylen < i) i = depPtr->keylen;                         // adjust length if needed
         }                                                                       // end if
+
+        // start search at last used key, rather than at the beginning (var after lastkey)
+        if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0)) {
+            depPtr = lastkey;
+        }
 
         while ((depPtr != ST_DEPEND_NULL) && (memcmp(depPtr->bytes, var->key, i) < 0)) { // while not yet found or past
             depPtr = depPtr->deplnk;                                            // go to next
@@ -611,6 +639,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     int       ptr1;                                                             // position in symtab
     ST_depend *current = ST_DEPEND_NULL;                                        // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
+    ST_depend *lastkey = ST_DEPEND_NULL;                                        // pointer to last used key
     int       pieces = 0;                                                       // subscripts in key
     int       subs;
     int       i = 0;                                                            // generic counter
@@ -639,8 +668,14 @@ short ST_Order(mvar *var, u_char *buf, int dir)
 
     if (symtab[ptr1].data == ST_DATA_NULL) return 0;                            // no data
     current = symtab[ptr1].data->deplnk;                                        // go to first dependent
+    lastkey = symtab[ptr1].data->last_key;                                      // pointer to last used key
 
-    // compare keys - while we have dependent and key match fails
+    // start search at last used key, rather than at the beginning (var after lastkey)
+    if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0) && (dir == 1)) {
+        current = lastkey;
+    }
+
+    // compare keys - while we have dependent and key match fails (var after current)
     while ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) > 0)) {
         prev = current;                                                         // set prev pointer
         current = current->deplnk;                                              // go to next dependent pointer
@@ -668,7 +703,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
 
         if (current == ST_DEPEND_NULL) return 0;                                // if current points nowhere, return length of zero
 
-        if (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) != 0) { // compare keys, if compare fails to match
+        // compare keys, if compare fails to match (var before or after current)
+        if (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) != 0) {
             crud[0] = UTIL_Key_Chars_In_Subs((char *) current->bytes, (int) current->keylen, pieces - 1, &subs, (char *) &crud[1]);
 
             if ((crud[0] != 0) && (upOneLev[0] != 0)) {                         // if lengths aren't 0
@@ -687,6 +723,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
         if ((index >= current->keylen) && (i < pieces)) return 0;               // hit end of key & !found then return null
     }                                                                           // end for-pieces to level required
 
+    symtab[ptr1].data->last_key = prev;                                         // add last used key
+
     // Now have ASCII key in desired position number, put the ASCII value of that key in *buf and return the length of it
     return (short) mcopy((u_char *) keysub, buf, ret);
 }                                                                               // end function - ST_Order
@@ -700,6 +738,7 @@ short ST_Query(mvar *var, u_char *buf, int dir)
     int       ptr1;                                                             // position in symtab
     ST_depend *current = ST_DEPEND_NULL;                                        // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
+    ST_depend *lastkey = ST_DEPEND_NULL;                                        // pointer to last used key
     short     askeylen = 0;                                                     // length of *askey
     mvar      outputVar = *var;                                                 // copy of supplied mvar
 
@@ -714,8 +753,14 @@ short ST_Query(mvar *var, u_char *buf, int dir)
     if (symtab[ptr1].data == ST_DATA_NULL) return 0;                            // no data block, err
     current = symtab[ptr1].data->deplnk;                                        // first dependent pointed at
     if (current == ST_DEPEND_NULL) return 0;                                    // not found
+    lastkey = symtab[ptr1].data->last_key;                                      // pointer to last used key
 
-    // while more exist with keys that are larger, get next dep
+    // start search at last used key, rather than at the beginning (var after lastkey)
+    if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0) && (dir == 1)) {
+        current = lastkey;
+    }
+
+    // while more exist with keys that are larger, get next dep (var after current)
     while ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) > 0)) {
         prev = current;                                                         // save prev pointer
         current = current->deplnk;                                              // go to next dependent pointer
@@ -725,7 +770,7 @@ short ST_Query(mvar *var, u_char *buf, int dir)
         if (dir == -1) {                                                        // reverse order
             if (prev != ST_DEPEND_NULL) current = prev;                         // only if previous ptr defined, go back one
         } else {                                                                // end if reverse order - start forward order
-            // not going past non exist last and keys are equal
+            // not going past non exist last and keys are equal (var equal current)
             if ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) == 0)) {
                 current = current->deplnk;                                      // go to next
             }                                                                   // end if exact match
@@ -741,6 +786,7 @@ short ST_Query(mvar *var, u_char *buf, int dir)
         outputVar.slen = 0;                                                     // flag is as such
     }                                                                           // end if back to a data block
 
+    symtab[ptr1].data->last_key = prev;                                         // add last used key
     askeylen = UTIL_String_Mvar(&outputVar, buf, MAX_NUM_SUBS);                 // convert mvar
     return askeylen;                                                            // return length of key
 }                                                                               // end ST_Query
@@ -763,12 +809,19 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
         if (symtab[ptr1].data == ST_DATA_NULL) return -ERRM6;                   // not found
 
         if (var->slen > 0) {                                                    // go to dependents
+            ST_depend *lastkey = symtab[ptr1].data->last_key;                   // pointer to last used key
+
             depPtr = symtab[ptr1].data->deplnk;                                 // get first dependent
+
+            // start search at last used key, rather than at the beginning (var after lastkey)
+            if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0)) {
+                depPtr = lastkey;
+            }
 
             while (depPtr != ST_DEPEND_NULL) {                                  // while dep ok, compare keys
                 i = UTIL_Key_KeyCmp(var->key, depPtr->bytes, var->slen, depPtr->keylen);
-                if (i == K2_GREATER) return -ERRM6;                             // error if we passed it
-                if (i == KEQUAL) break;                                         // found it
+                if (i == K2_GREATER) return -ERRM6;                             // error if we passed it (var before depPtr)
+                if (i == KEQUAL) break;                                         // found it (var equal depPtr)
                 depPtr = depPtr->deplnk;                                        // get next
             }                                                                   // end while - compare keys
 
@@ -855,7 +908,8 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
     int       ptr1;                                                             // position in symtab
     cstring   *cdata;                                                           // temporary data access
     ST_depend *current = ST_DEPEND_NULL;                                        // active pointer
-    //ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
+    ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
+    ST_depend *lastkey = ST_DEPEND_NULL;                                        // pointer to last used key
     int       i;                                                                // generic counter
 
     if (var->volset) {                                                          // if by index
@@ -869,14 +923,20 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
     if (symtab[ptr1].data == ST_DATA_NULL) return -ERRM6;                       // no data, err
     current = symtab[ptr1].data->deplnk;                                        // first dependent pointed at
     if (current == ST_DEPEND_NULL) return -(ERRZ55 + ERRMLAST);                 // not found so no data below
+    lastkey = symtab[ptr1].data->last_key;
 
-    // more deps exist and key compare fails - compare keys
+    // start search at last used key, rather than at the beginning (var after lastkey)
+    if ((lastkey != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, lastkey->bytes, var->slen, lastkey->keylen) > 0)) {
+        current = lastkey;
+    }
+
+    // more deps exist and key compare fails - compare keys (var after current)
     while ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) > 0)) {
-        //prev = current;                                                       // set prev pointer
+        prev = current;                                                         // set prev pointer
         current = current->deplnk;                                              // to next dependent pointer
     }                                                                           // end while-compare keys
 
-    // while more deps exist and keys match exactly - equal
+    // while more deps exist and keys match exactly - (var equal current)
     if ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) == 0)) {
         current = current->deplnk;                                              // go to next
     }                                                                           // end if keys equal
@@ -887,6 +947,7 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
     i = (int) current->keylen;                                                  // get key length
     if ((i & 1) != 0) i++;                                                      // up it to next even boundary
     cdata = (cstring *) &current->bytes[i];                                     // convert to cstring
+    symtab[ptr1].data->last_key = prev;                                         // add last used key
     return mcopy(cdata->buf, buf, cdata->len);                                  // get data into buf
 }                                                                               // end ST_QueryD
 
@@ -1092,7 +1153,7 @@ short ST_SymKill(short pos)
             free(fptr);                                                         // free this
         }
 
-        if (symtab[pos].data->attach < 2) {                                     // if no more attached
+        if (symtab[pos].data->attach <= 1) {                                    // if no more attached
             free(symtab[pos].data);                                             // free data block
             symtab[pos].data = ST_DATA_NULL;                                    // clear the pointer
         }
