@@ -69,7 +69,8 @@ void ser(int s)                                                                 
     u_char  junk[100];
 
     if (s == -(ERRZ27 + ERRMLAST)) panic("Chanel zero has gone away");          // if totally confused then die
-    if (s == -(ERRMLAST + ERRZLAST + EIO)) panic("Input/output error");         // $&%FORK errors (maybe others?)
+    if (s == -(ERRMLAST + ERRZLAST + EIO)) panic("Input/output error");         // $&%FORK errors (maybe others?) - TODO: improve
+    if (s == -(ERRMLAST + ERRZLAST + EBADF)) panic("Bad file descriptor");      // Socket errors (maybe others?) - TODO: improve
     cptr = (cstring *) junk;                                                    // some space
     if (s < 0) s = -s;                                                          // make error positive
     UTIL_strerror(s, &cptr->buf[0]);                                            // get the text
@@ -264,17 +265,13 @@ start:
     partab.vol_fds[0] = dbfd;                                                   // make sure FD is right
     ST_Init();                                                                  // initialize symbol table
 
-    for (i = 0; i < MAX_VOL; i++) {
-        if (systab->vol[i] == NULL) continue;
+    if (systab->vol[0]->vollab->journal_available && systab->vol[0]->vollab->journal_requested) { // if journaling
+        partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
 
-        if (systab->vol[i]->vollab->journal_available && systab->vol[i]->vollab->journal_requested) { // if journaling
-            partab.jnl_fds[i] = open(systab->vol[i]->vollab->journal_file, O_RDWR);
-
-            if (partab.jnl_fds[i] == -1) {
-                fprintf(stderr, "Failed to open journal file: %s\r\nerrno = %d\r\n", systab->vol[i]->vollab->journal_file, errno);
-                ret = errno;
-                if (cmd != NULL) goto exit;
-            }
+        if (partab.jnl_fds[0] == -1) {
+            fprintf(stderr, "Failed to open journal file: %s\r\nerrno = %d\r\n", systab->vol[0]->vollab->journal_file, errno);
+            ret = errno;
+            if (cmd != NULL) goto exit;
         }
     }
 
@@ -326,7 +323,7 @@ start:
         *comp_ptr++ = ENDLIN;                                                   // JIC
         i = &comp_ptr[0] - &cptr->buf[0];                                       // get number of bytes
         cptr->len = i;                                                          // save for ron
-        ssp = ssp + i + sizeof(u_short) + 1;                                    // point past it
+        ssp += i + sizeof(u_short) + 1;                                         // point past it
         rsmpc = &cptr->buf[0];                                                  // setup the rsmpc
         partab.jobtab->dostk[0].routine = (u_char *) cmd;                       // where we started
         partab.jobtab->dostk[0].pc = rsmpc;                                     // where we started
@@ -351,6 +348,7 @@ start:
         partab.jobtab->async_error = 0;
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
+        if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
         if (s == OPHALT) goto exit;                                             // look after halt
         if (s == JOBIT) goto jobit;                                             // look after JOB
         partab.jobtab->io = 0;                                                  // force chan 0
@@ -414,7 +412,7 @@ start:
             if (s < 0) ser(s);                                                  // check for error
         }
 
-        s = SQ_Read(sptr->buf, -1, -1);                                         // get a string
+        s = SQ_Read(sptr->buf, UNLIMITED, UNLIMITED);                           // get a string
         i = attention();                                                        // check signals
         if (i == OPHALT) break;                                                 // exit on halt
         if (i == -(ERRZ51 + ERRMLAST)) controlc();                              // control c
@@ -439,7 +437,7 @@ start:
 
         hist_curr = hist_next;
         addstk[asp++] = (u_char *) sptr;                                        // save address of string
-        ssp = ssp + s + sizeof(u_short) + 1;                                    // point past it
+        ssp += s + sizeof(u_short) + 1;                                         // point past it
         s = SQ_WriteFormat(SQ_LF);                                              // new line
         if (s < 0) ser(s);                                                      // check for error
         source_ptr = sptr->buf;                                                 // where the code is
@@ -451,7 +449,7 @@ start:
         *comp_ptr++ = ENDLIN;                                                   // JIC
         i = &comp_ptr[0] - &cptr->buf[0];                                       // get number of bytes
         cptr->len = i;                                                          // save for ron
-        ssp = ssp + i + sizeof(u_short) + 1;                                    // point past it
+        ssp += i + sizeof(u_short) + 1;                                         // point past it
         rsmpc = &cptr->buf[0];                                                  // setup the rsmpc
         partab.jobtab->dostk[0].routine = sptr->buf;                            // where we started
         partab.jobtab->dostk[0].pc = rsmpc;                                     // where we started
@@ -476,6 +474,7 @@ start:
         partab.jobtab->async_error = 0;
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
+        if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
         if (s == JOBIT) goto jobit;                                             // look after JOB
         if (s == OPHALT) break;                                                 // exit on halt
         partab.jobtab->io = 0;                                                  // force chan 0
@@ -521,6 +520,7 @@ exit:                                                                           
 
     for (i = 0; i < MAX_VOL; i++) {
         if (partab.vol_fds[i]) close(partab.vol_fds[i]);                        // close the databases
+        if (partab.jnl_fds[i]) close(partab.jnl_fds[i]);                        // close the journals
     }
 
     if (!failed_tty) failed_tty = tcsetattr(STDIN_FILENO, TCSANOW, &tty_settings); // reset terminal if possible

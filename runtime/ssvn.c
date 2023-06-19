@@ -49,7 +49,7 @@ extern struct termios tty_settings;                                             
 
 /*
  * SSVNs use the same structures as
- * ST_* and DB_ *functions (as SS_ *functions)
+ * ST_* and DB_* functions (as SS_* functions)
  *
  * Note valid SSVNs are:  $CHARACTER
  *                        $DEVICE
@@ -224,7 +224,7 @@ ENABLE_WARN
         if (nsubs == 0) return -ERRM38;                                         // junk
         i = cstringtoi(subs[0]);                                                // make an int of I/O channel#
         if ((i < 0) || (i >= MAX_SEQ_IO)) return -ERRM38;                       // out of I/O channel range
-        if (partab.jobtab->seqio[i].type == 0) return -ERRM38;                  // no currently opened device
+        if (partab.jobtab->seqio[i].type == 0) return -ERRM38;                  // not a currently opened device
 
         if (nsubs == 2) {                                                       // two sub case
             if (strncasecmp((char *) subs[1]->buf, "$x\0", 3) == 0) {
@@ -254,11 +254,11 @@ ENABLE_WARN
                     return mcopy((u_char *) "APPEND", buf, 6);
                 } else if (partab.jobtab->seqio[i].mode == 4) {
                     return mcopy((u_char *) "IO", buf, 2);
-                } else if (partab.jobtab->seqio[i].mode == 5) {
+                } else if (partab.jobtab->seqio[i].mode == 5) {                 // TCPIP
                     return mcopy((u_char *) "TCPIP", buf, 5);
-                } else if (partab.jobtab->seqio[i].mode == 6) {
+                } else if (partab.jobtab->seqio[i].mode == 6) {                 // SERVER
                     return mcopy((u_char *) "SERVER", buf, 6);
-                } else if (partab.jobtab->seqio[i].mode == 7) {
+                } else if (partab.jobtab->seqio[i].mode == 7) {                 // NOFORK
                     return mcopy((u_char *) "NOFORK", buf, 6);
                 } else if (partab.jobtab->seqio[i].mode == 8) {
                     return mcopy((u_char *) "FORKED", buf, 6);
@@ -297,19 +297,19 @@ ENABLE_WARN
         } else if (nsubs == 3) {                                                // end of two sub case - three sub case
             if (strncasecmp((char *) subs[1]->buf, "options\0", 8) == 0) {
                 if (strncasecmp((char *) subs[2]->buf, "delete\0", 7) == 0) {
-                    if ((partab.jobtab->seqio[i].options & 32) && (partab.jobtab->seqio[i].options & 16)) {
+                    if ((partab.jobtab->seqio[i].options & 16) && (partab.jobtab->seqio[i].options & 32)) { // DEL8 and DEL127
                         return mcopy((u_char *) "BOTH", buf, 4);
-                    } else if (partab.jobtab->seqio[i].options & 32) {
-                        return mcopy((u_char *) "DELETE", buf, 6);
-                    } else if (partab.jobtab->seqio[i].options & 16) {
+                    } else if (partab.jobtab->seqio[i].options & 16) {          // DEL8
                         return mcopy((u_char *) "BACK", buf, 4);
+                    } else if (partab.jobtab->seqio[i].options & 32) {          // DEL127
+                        return mcopy((u_char *) "DELETE", buf, 6);
                     } else {
                         return mcopy((u_char *) "NONE", buf, 4);
                     }
                 }
 
                 if (strncasecmp((char *) subs[2]->buf, "echo\0", 5) == 0) {
-                    if (partab.jobtab->seqio[i].options & 8) {
+                    if (partab.jobtab->seqio[i].options & 8) {                  // TTYECHO
                         return mcopy((u_char *) "1", buf, 1);
                     } else {
                         return mcopy((u_char *) "0", buf, 1);
@@ -317,7 +317,7 @@ ENABLE_WARN
                 }
 
                 if (strncasecmp((char *) subs[2]->buf, "escape\0", 7) == 0) {
-                    if (partab.jobtab->seqio[i].options & 4) {
+                    if (partab.jobtab->seqio[i].options & 4) {                  // ESC
                         return mcopy((u_char *) "1", buf, 1);
                     } else {
                         return mcopy((u_char *) "0", buf, 1);
@@ -325,7 +325,7 @@ ENABLE_WARN
                 }
 
                 if (strncasecmp((char *) subs[2]->buf, "output\0", 7) == 0) {
-                    if (partab.jobtab->seqio[i].options & 2) {
+                    if (partab.jobtab->seqio[i].options & 2) {                  // OUTERM
                         char temp_buf[24];
 
                         s = 0;
@@ -379,15 +379,15 @@ ENABLE_WARN
                 }
 
                 if (strncasecmp((char *) subs[2]->buf, "terminator\0", 11) == 0) {
-                    if (partab.jobtab->seqio[i].options & 1) {
+                    if (partab.jobtab->seqio[i].options & 1) {                  // INTERM
                         u_int64 in_term = partab.jobtab->seqio[i].in_term.interm[0];
                         u_char  temp_buf[402];                                  // enough to hold all ASCII characters with ,
                         u_int64 count = 0;
 
                         s = 0;
 
-                        for (j = 0; count < in_term; j++) {
-                            count = 1U << j;
+                        for (j = 0; (count < in_term) && (j < 64); j++) {
+                            count = 1UL << j;
 
                             if (in_term & count) {
                                 s += itocstring(&temp_buf[s], j);
@@ -398,8 +398,8 @@ ENABLE_WARN
                         in_term = partab.jobtab->seqio[i].in_term.interm[1];
                         count = 0;
 
-                        for (j = 0; count < in_term; j++) {
-                            count = 1U << j;
+                        for (j = 0; (count < in_term) && (j < 64); j++) {
+                            count = 1UL << j;
 
                             if (in_term & count) {
                                 s += itocstring(&temp_buf[s], j + 64);
@@ -530,9 +530,8 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "process_start\0", 14) == 0) {
-                return mcopy(systab->jobtab[i].start_dh,                        // the data
-                             buf,                                               // the destination
-                             systab->jobtab[i].start_len);                      // and length
+                // the data, destination, and length
+                return mcopy(systab->jobtab[i].start_dh, buf, systab->jobtab[i].start_len);
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
@@ -567,8 +566,9 @@ ENABLE_WARN
                 return Dstack1x(buf, cstringtoi(subs[2]), i);                   // do it elsewhere
             }
         } else if (nsubs == 4) {                                                // end 3 sub case - four sub case
-            if (strncasecmp((char *) subs[1]->buf, "$stack\0", 7) == 0)
-            return Dstack2x(buf, cstringtoi(subs[2]), subs[3], i);              // do it elsewhere
+            if (strncasecmp((char *) subs[1]->buf, "$stack\0", 7) == 0) {
+                return Dstack2x(buf, cstringtoi(subs[2]), subs[3], i);          // do it elsewhere
+            }
         }                                                                       // end 4 sub case
 
         return -ERRM38;                                                         // junk
@@ -634,7 +634,7 @@ ENABLE_WARN
 
         if (strncasecmp((char *) subs[0]->buf, "trantab\0", 8) == 0) {
             i = cstringtoi(subs[1]) - 1;                                        // make an int of entry#
-            if (!(i < MAX_TRANTAB) || (i < 0)) return -ERRM38;                  // validate it, junk
+            if ((i < 0) || (i >= MAX_TRANTAB)) return -ERRM38;                  // validate it, junk
             if (nsubs != 2) return -ERRM38;                                     // must be 2 subs
 
             if (!systab->tt[i].from_vol) {                                      // if nothing there
@@ -650,11 +650,7 @@ ENABLE_WARN
 
         if (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) {
             i = cstringtoi(subs[1]) - 1;                                        // make an int of vol#
-
-            if (!(i < MAX_VOL) || (i < 0) || (systab->vol[i] == NULL)) {        // validate it
-                return -ERRM38;                                                 // junk
-            }
-
+            if ((i < 0) || (i >= MAX_VOL) || (systab->vol[i] == NULL)) return -ERRM26; // validate it, junk
             if (nsubs < 3) return -ERRM38;                                      // must be 3 subs
 
             if (strncasecmp((char *) subs[2]->buf, "block\0", 6) == 0) {
@@ -707,7 +703,7 @@ ENABLE_WARN
             if (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0) {
                 if (nsubs != 4) return -ERRM38;                                 // must be 4 subs
                 j = cstringtoi(subs[3]) - 1;                                    // make an int of UCI#
-                if (!(j < UCIS) || (j < 0)) return -ERRM38;                     // validate it, junk
+                if ((j < 0) || (j >= (UCIS - 1))) return -ERRM26;               // validate it, junk
 
                 for (s = 0; s < VAR_LEN; s++) {
                     if ((buf[s] = systab->vol[i]->vollab->uci[j].name.var_cu[s]) == 0) break;
@@ -851,7 +847,7 @@ ENABLE_WARN
 
         if ((partab.jobtab - systab->jobtab) == i) {                            // same job?
             if (strncasecmp((char *) subs[1]->buf, "global\0", 7) == 0) {
-                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                if ((j < 1) || (j > (UCIS - 1))) return -ERRM26;                // out of range
                 systab->jobtab[i].uci = j;                                      // set it
                 VAR_CLEAR(systab->jobtab[i].last_ref.name);                     // clear $REFERENCE
                 return 0;                                                       // and quit
@@ -866,7 +862,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "lock\0", 5) == 0) {
-                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                if ((j < 1) || (j > (UCIS - 1))) return -ERRM26;                // out of range
                 systab->jobtab[i].luci = j;                                     // set it
                 return 0;                                                       // and quit
             }
@@ -885,7 +881,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "routine\0", 8) == 0) {
-                if ((j < 1) || (j > UCIS)) return -ERRM26;                      // out of range
+                if ((j < 1) || (j > (UCIS - 1))) return -ERRM26;                // out of range
                 systab->jobtab[i].ruci = j;                                     // set it
                 return 0;                                                       // and quit
             }
@@ -922,7 +918,7 @@ ENABLE_WARN
             }
         }
 
-        return -ERRM29;                                                         // SET or KILL on SSVN not on
+        return -ERRM29;                                                         // SET on SSVN not on
 
     case 'L':                                                                   // $LOCK
         return -ERRM29;                                                         // SET on SSVN not on
@@ -933,7 +929,7 @@ ENABLE_WARN
         return -ERRM29;                                                         // SET on SSVN not on
 
     case 'S':                                                                   // $SYSTEM
-        if (!priv()) return -ERRM38;                                            // need privs
+        if (!priv()) return -ERRM29;                                            // need privs
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "$nextok\0", 8) == 0)) {
             if (cstringtob(data)) {
@@ -974,7 +970,7 @@ ENABLE_WARN
 
         if (strncasecmp((char *) subs[0]->buf, "trantab\0", 8) == 0) {
             cnt = cstringtoi(subs[1]) - 1;                                      // make an int of entry#
-            if (!(cnt < MAX_TRANTAB) || (cnt < 0)) return -ERRM38;              // validate it, junk
+            if ((cnt < 0) || (cnt >= MAX_TRANTAB)) return -ERRM38;              // validate it, junk
             if (nsubs != 2) return -ERRM38;                                     // must be 2 subs
 
             if (data->len == 0) {                                               // if null
@@ -1053,29 +1049,22 @@ ENABLE_WARN
 
         if ((nsubs == 4) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
           (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
-            i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            j = cstringtoi(subs[3]) - 1;                                        // and UCI#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
-            if ((j < 0) || (j >= UCIS)) return -ERRM60;                         // out of range
-
-            if ((data->len < 1) || (data->len > VAR_LEN)) {
-                return -(ERRZ12 + ERRMLAST);                                    // syntx
-            }
-
+            i = cstringtoi(subs[1]);                                            // get vol#
+            j = cstringtoi(subs[3]);                                            // and UCI#
+            if ((data->len < 1) || (data->len > VAR_LEN)) return -(ERRZ12 + ERRMLAST); // syntx
             VAR_CLEAR(n);                                                       // clear name
 
             for (s = 0; s < data->len; s++) {
-                if (isalpha(data->buf[s]) == 0)
-                return -(ERRZ12 + ERRMLAST);                                    // syntx
+                if (isalpha(data->buf[s]) == 0) return -(ERRZ12 + ERRMLAST);    // syntx
                 n.var_cu[s] = data->buf[s];                                     // copy to name
             }
 
-            return DB_UCISet(i + 1, j + 1, n);                                  // do it and return
+            return DB_UCISet(i, j, n);                                          // do it and return
         }
 
         if ((nsubs == 3) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) { // ^$SYSTEM("VOL",n,..)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
+            if ((i < 0) || (i >= MAX_VOL)) return -ERRM26;                      // out of range
 
             if (strncasecmp((char *) subs[2]->buf, "file\0", 5) == 0) {         // mount new volume to volume set
                 if (data->len > VOL_FILENAME_MAX) return -ERRM56;               // too long
@@ -1113,7 +1102,7 @@ ENABLE_WARN
             if ((strncasecmp((char *) subs[2]->buf, "name\0", 5) == 0) && (systab->maxjob == 1) &&
               (data->len > 0) && (data->len < VAR_LEN)) {
                 for (j = 0; j < data->len; j++) {
-                    if (isalpha(data->buf[j]) == 0) return -ERRM38;
+                    if (isalpha(data->buf[j]) == 0) return -(ERRZ12 + ERRMLAST);
                 }
 
                 VAR_CLEAR(systab->vol[i]->vollab->volnam);                      // zot name
@@ -1126,12 +1115,12 @@ ENABLE_WARN
                 u_int vsiz;                                                     // for the size
 
                 vsiz = (u_int) atol((char *) data->buf);                        // get the new
-                if (vsiz <= systab->vol[i]->vollab->max_block) return -ERRM38;
+                if (vsiz <= systab->vol[i]->vollab->max_block) return -(ERRZ12 + ERRMLAST);
                 vsiz |= 7;                                                      // fix size
-                if (vsiz > MAX_DATABASE_BLKS) return -ERRM38;
+                if (vsiz > MAX_DATABASE_BLKS) return -(ERRZ12 + ERRMLAST);
 
-                if (vsiz > (((systab->vol[i]->vollab->header_bytes - sizeof(label_block)) * 8) | 7)) {
-                    return -ERRM38;
+                if (vsiz > (((systab->vol[i]->vollab->header_bytes - (sizeof(label_block)) * 8)) | 7)) {
+                    return -(ERRZ12 + ERRMLAST);
                 }
 
                 return DB_Expand(i, vsiz);                                      // do it
@@ -1182,7 +1171,13 @@ ENABLE_WARN
         return -ERRM38;                                                         // junk
 
     case 'D':                                                                   // $DEVICE
-        return -ERRM38;                                                         // junk
+        if (nsubs != 1) return -ERRM38;                                         // junk
+        i = cstringtoi(subs[0]);                                                // make an int of channel#
+        if ((i < 0) || (i >= MAX_SEQ_IO)) return -ERRM38;                       // out of I/O channel range
+        buf[0] = '1';                                                           // assume true
+        buf[1] = '\0';                                                          // null terminate
+        if (partab.jobtab->seqio[i].type == 0) buf[0] = '0';                    // not a currently opened device
+        return 1;                                                               // return the count
 
     case 'G':                                                                   // $GLOBAL
         if (nsubs > 1) return -ERRM38;                                          // junk
@@ -1289,7 +1284,7 @@ ENABLE_WARN
             return 0;                                                           // say it worked
         }
 
-        if (!priv()) return -ERRM29;                                            // SET or KILL on SSVN not on
+        if (!priv()) return -ERRM29;                                            // KILL on SSVN not on
 
         for (i = (MAX_VOL - 1); i >= 0; i--) {
             no_daemons = TRUE;                                                  // assume no daemons
@@ -1313,7 +1308,7 @@ ENABLE_WARN
             systab->vol[i]->writelock = MAX_JOBS + 1;                           // release system write lock on database
         }
 
-        // DLW - move in to previous loop at bottom if new shares are created per volume
+        // NOTE: move in to previous loop at bottom if new shares are created per volume
         if (shmctl(systab->vol[0]->shm_id, IPC_RMID, &sbuf) == -1) {            // remove the share
             return -(ERRMLAST + ERRZLAST + errno);
         }
@@ -1347,7 +1342,7 @@ ENABLE_WARN
 
     case 'L':                                                                   // $LOCK
         if (nsubs != 1) return -ERRM38;                                         // junk
-        if (!priv()) return -ERRM29;                                            // SET or KILL on SSVN not on
+        if (!priv()) return -ERRM29;                                            // KILL on SSVN not on
         if (subs[0]->len > 511) return -(ERRZ12 + ERRMLAST);                    // junk
         vp = (mvar *) &tmp[512];                                                // some temp space
         s = UTIL_MvarFromCStr(subs[0], vp);                                     // convert to mvar
@@ -1364,7 +1359,7 @@ ENABLE_WARN
         if (nsubs > 1) return -ERRM38;                                          // junk
 
         if (var->slen == '\0') {                                                // if unsubscripted
-            if (!priv()) return -ERRM29;                                        // SET or KILL on SSVN not on
+            if (!priv()) return -ERRM29;                                        // KILL on SSVN not on
             s = DB_Data(var, tmp);                                              // see if it's defined
             if (s < 0) return s;                                                // quit on error
             if (s > 1) return -ERRM33;                                          // KILL ^$ROUTINE routine exists
@@ -1372,7 +1367,7 @@ ENABLE_WARN
         }                                                                       // end KILLing ^$ROUTINE
 
         if (!priv() && ((partab.jobtab->ruci != var->uci) || (partab.jobtab->rvol != var->volset))) { // check privs
-            return -ERRM29;                                                     // SET or KILL on SSVN not on
+            return -ERRM29;                                                     // KILL on SSVN not on
         }
 
         VAR_CLEAR(rou);                                                         // clear routine name
@@ -1391,17 +1386,15 @@ ENABLE_WARN
     case 'S':                                                                   // $SYSTEM
         if ((nsubs == 4) && priv() && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
           (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
-            i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            j = cstringtoi(subs[3]) - 1;                                        // and UCI#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
-            if ((j < 0) || (j >= UCIS)) return -ERRM60;                         // out of range
-            return DB_UCIKill(i + 1, j + 1);                                    // do it and return
+            i = cstringtoi(subs[1]);                                            // get vol#
+            j = cstringtoi(subs[3]);                                            // and UCI#
+            return DB_UCIKill(i, j);                                            // do it and return
         }
 
         if ((nsubs == 2) && priv() && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) {
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            if ((i < 1) || (i >= MAX_VOL)) return -ERRM60;                      // out of range (can't dismount vol 1 this way)
-            if (systab->vol[i] == NULL) return -ERRM60;                         // not mounted
+            if ((i < 1) || (i >= MAX_VOL)) return -ERRM26;                      // out of range (can't dismount vol 1 this way)
+            if (systab->vol[i] == NULL) return -ERRM26;                         // not mounted
             return DB_Dismount(i + 1);                                          // dismount supplemental vol
         }
 
@@ -1525,7 +1518,7 @@ ENABLE_WARN
     case 'S':                                                                   // $SYSTEM
         if ((nsubs == 2) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0)) {
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
-            if ((i < -1) || (i >= MAX_VOL)) return -ERRM60;                     // out of range
+            if ((i < -1) || (i >= MAX_VOL)) return -ERRM26;                     // out of range
             buf[0] = '\0';                                                      // JIC
 
             if (dir > 0) {                                                      // forward?
@@ -1551,9 +1544,9 @@ ENABLE_WARN
           (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             j = cstringtoi(subs[3]) - 1;                                        // and UCI#
-            if ((i < 0) || (i >= MAX_VOL)) return -ERRM60;                      // out of range
-            if ((j < -1) || (j >= UCIS)) return -ERRM60;                        // out of range
-            if (systab->vol[i] == NULL) return -ERRM60;                         // not mounted
+            if ((i < 0) || (i >= MAX_VOL)) return -ERRM26;                      // out of range
+            if ((j < -1) || (j >= (UCIS - 1))) return -ERRM26;                  // out of range
+            if (systab->vol[i] == NULL) return -ERRM26;                         // not mounted
             buf[0] = '\0';                                                      // JIC
 
             if (dir > 0) {                                                      // forward?

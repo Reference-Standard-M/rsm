@@ -4,7 +4,7 @@
 .dockerignore
 Dockerfile
 **/*.o
-./rsm
+rsm
 **/daemon*.log
 RSM_CRASH
 *core
@@ -13,4 +13,5 @@ RSM_CRASH
 tags
 TODO
 .cppcheckrc
+.shellcheckrc
 **/.*.sw[ponx]

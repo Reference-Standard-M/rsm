@@ -114,7 +114,7 @@ int Set_data(cstring *data)                                                     
     u_char   fk[MAX_KEY_SIZE + 5];                                              // for keys
     cstring  *ptr;                                                              // spare ptr
     gbd      *cblk[4];                                                          // current level blks
-    int      rs;                                                                // reqd space
+    int      rs;                                                                // required space
     int      ts;                                                                // trailing size
     int      rls;                                                               // RL space
     u_int    trailings;                                                         // ptr to orig trail
@@ -347,7 +347,7 @@ ENABLE_WARN
     memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
     memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     rs = 4 + db_var.slen + 2 + data->len;                                       // max required space
-    if (rs & 3) rs += (4 - (rs & 3));                                           // if reqd then align
+    if (rs & 3) rs += (4 - (rs & 3));                                           // if required then align
     rs += 4;                                                                    // allow for index
     s = Locate(&db_var.slen);                                                   // locate it again
     fk[0] = 0;                                                                  // clear for now

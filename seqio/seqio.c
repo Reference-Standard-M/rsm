@@ -103,8 +103,6 @@
 
 // Miscellaneous
 #define STDCHAN     0                                                           // STDIN, STDOUT and STDERR
-#define MIN_SEQ_IO  0                                                           // Minimum sequential IO channel
-#define UNLIMITED   -1                                                          // Unlimited
 
 static u_int64 MASK[MASKSIZE];                                                  // Set bit mask
 static u_int64 CRLF;                                                            // CRLF
@@ -123,948 +121,11 @@ short sock_proto   = IPPROTO_TCP;                                               
 #   define S_ISWHT(m) (((m) & 0170000) == 0160000)                              // whiteout
 #endif
 
-int     setOptionsBitMask(int options, int bit, int flag);
-int     checkBytestr(const char *bytestr);
-int     checkNbytes(int nbytes);
-int     checkCstring(cstring *cstr);
-int     getOperation(cstring *op);
-int     getObjectType(char *object);
-int     getObjectMode(int fd);
-int     getModeCategory(int mode);
-int     checkAsciiChars(cstring *cstr);
-IN_Term getBitMask(cstring *cstr, IN_Term in_term);
-//int     isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term);
-int     isChan(int chan);
-//int     isType(int type);
-int     isChanFree(int chan);
-void    getErrorMsg(int errnum, char *errmsg);
-int     initObject(int chan, int type);
-int     objectWrite(int chan, char *buf, int len);
-int     readFILE(int chan, u_char *buf, int maxbyt);
-int     readTCP(int chan, u_char *buf, int maxbyt, int tout);
-int     readPIPE(int chan, u_char *buf, int maxbyt, int tout);
-int     readTERM(int chan, u_char *buf, int maxbyt, int tout);
-void    initFORK(forktab *f);
-int     initSERVER(int chan, u_int size);
-int     openSERVER(int chan, char *oper);
-int     acceptSERVER(int chan, int tout);
-int     closeSERVER(int chan);
-int     closeSERVERClient(int chan);
-int     signalCaught(SQ_Chan *c);
-
 extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
 extern u_short hist_next;                                                       // next history pointer
 extern u_short hist_curr;                                                       // history entry pointer
 extern short   in_hist;                                                         // are we in the history buffer
 extern u_short prompt_len;                                                      // length of the current direct mode prompt
-
-// IO functions
-
-/*
- * This function initializes STDCHAN and other IO related stuff. If
- * successful, this function will return 0. Otherwise, it returns a
- * negative integer value to indicate the error that has occurred.
- */
-short SQ_Init(void)
-{
-    int index;                                                                  // Useful variable
-    int mask;                                                                   // Useful variable
-    int ret;                                                                    // Return value
-    int typ;                                                                    // object type
-
-    // Integer bit mask
-    for (index = 0; index < MASKSIZE; index++) MASK[index] = (1UL << index);
-
-    // CRLF
-    mask = (1U << 13);
-    CRLF = mask;
-    mask = (1U << 10);
-    CRLF |= mask;
-
-    // Define the set of signals that are to be delivered, ignored etc.
-    ret = setSignals();
-    if (ret < 0) return (short) ret;
-
-    // Set the parameters associated with STDCHAN, depending on what it is associated with
-    ret = getObjectMode(STDCHAN);
-    if (ret < 0) return (short) ret;
-    typ = getModeCategory(ret);
-    if (typ < 0) return (short) typ;
-
-    // Initialize object
-    ret = initObject(STDCHAN, typ);
-    if (ret < 0) return (short) ret;
-
-    if (typ == SQ_TCP) {                                                        // from inetd/xinetd?
-        int                len;
-        struct sockaddr_in sin;
-        //struct hostent     *host;                                               // Peer host name
-        servertab          *s;                                                  // Forked process table
-
-        s = &partab.jobtab->seqio[STDCHAN].s;
-        ret = openSERVER(STDCHAN, "S");                                         // set it up
-        if (ret < 0) return (short) ret;
-        s->cid = STDCHAN;                                                       // already accepted
-        len = sizeof(struct sockaddr_in);
-        ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
-        if (ret == -1) return (short) getError(SYS, errno);
-        len = sizeof(sin.sin_addr);
-        snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-
-        /*
-        host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, addr_family);
-
-        if (host == NULL) {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-        } else {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
-        }
-        */
-
-        return 0;                                                               // done
-    }
-
-    // Determine associated terminal if tty
-    if (isatty(STDCHAN)) {
-        snprintf((char *) partab.jobtab->seqio[STDCHAN].name, MAX_SEQ_NAME, "%s", ttyname(STDCHAN));
-    } else {
-        snprintf((char *) partab.jobtab->seqio[STDCHAN].name, MAX_SEQ_NAME, "Not a tty");
-    }
-
-    // Indicate success
-    return 0;
-}
-
-/*
- * This function opens an object "object" on channel "chan". The object can be
- * opened for any (relevant) one of the following operations (i.e., "op"):
- *
- *     read    - Read only
- *     write   - Write only
- *     append  - Append
- *     io      - Read and write
- *     tcpip   - Client socket
- *     server  - Server socket
- *     pipe    - Write to named pipe
- *     newpipe - Read from named pipe
- *
- * A timeout value "tout" (where -1 means unlimited) is also provided. If
- * successful, open returns a non-negative integer, termed a descriptor.
- * Otherwise, it returns a negative integer to indicate the error that has
- * occurred.
- *
- * Note, "tout" does not apply for files; and a "tout" of zero is used to
- *       test ownership success without starting a timer.
- */
-short SQ_Open(int chan, cstring *object, cstring *op, int tout)
-{
-    SQ_Chan *c;                                                                 // Channel to open
-    int     oper;                                                               // Operation identifier
-    int     ford;                                                               // File or device identifier
-    int     obj;                                                                // Object identifier
-    int     oid;                                                                // Object descriptor
-    int     ret;                                                                // Return value
-    int     i;                                                                  // a handy int
-
-    // Check for Opening $Principal. In RSM, this is a no-op (See close code as well).
-    if (chan == STDCHAN) {
-        if (tout > UNLIMITED) {                                                 // if there's a timeout
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;           // say that open succeeded
-            } else {
-                partab.jobtab->test = 1;                                        // say that open succeeded
-            }
-        }
-
-        return 0;
-    }
-
-    /*
-     * TODO: Make sure that object and op are at least one character long. If not,
-     *       this means that somebody tried to use the new syntax [OPEN 1::2] on it.
-     */
-
-    // Check parameters
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);                // Channel out of range
-    if (isChanFree(chan) == 0) return (short) getError(INT, ERRZ26);            // Channel not free
-    c = &partab.jobtab->seqio[chan];
-    ret = checkCstring(object);                                                 // Invalid cstrings
-    if (ret < 0) return (short) ret;
-    ret = checkCstring(op);
-    if (ret < 0) return (short) ret;
-    if (object->len == 0) return (short) getError(INT, ERRZ28);                 // Is device descriptor empty?
-                                                                                //   Invalid except for OPEN $PRINCIPAL::TO
-    // Invalid timeout
-    if (tout < UNLIMITED) return (short) getError(INT, ERRZ22);
-
-    // Assume operation won't time out
-    if (tout > UNLIMITED) {
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;               // assume won't time out
-        } else {
-            partab.jobtab->test = 1;                                            // assume won't time out
-        }
-    }
-
-    // Determine object type and operation
-    oper = getOperation(op);                                                    // Determine operation
-
-    if (oper < 0) {
-        return (short) oper;
-    } else if ((oper == READ) || (oper == WRITE) || (oper == IO)) {             // Determine object
-        ford = getObjectType((char *) object->buf);
-
-        if (ford < 0) {
-            return (short) ford;
-        } else if ((ford == UNKNOWN) && (oper == WRITE)) {
-            obj = SQ_FILE;
-        } else if (ford == CHR) {
-            obj = SQ_TERM;
-        } else if (ford == REG) {
-            obj = SQ_FILE;
-        } else {
-            return (short) getError(INT, ERRZ29);
-        }
-    } else if (oper == APPEND) {
-        obj = SQ_FILE;
-    } else if (oper == TCPIP) {
-        obj = SQ_TCP;
-    } else if (oper == SERVER) {
-        obj = SQ_TCP;
-    } else if (oper == PIPE) {
-        obj = SQ_PIPE;
-    } else if (oper == NEWPIPE) {
-        obj = SQ_PIPE;
-    } else {
-        return (short) getError(INT, ERRZ29);
-    }
-
-    // Start timer
-    if ((tout > 0) && (obj != SQ_FILE)) alarm(tout);
-
-    // Open object
-    switch (obj) {
-    case SQ_FILE:
-        oid = SQ_File_Open((char *) object->buf, oper);
-        break;
-
-    case SQ_TERM:
-        oid = SQ_Device_Open((char *) object->buf, oper);
-        break;
-
-    case SQ_PIPE:
-        oid = SQ_Pipe_Open((char *) object->buf, oper);
-        break;
-
-    case SQ_TCP:
-        oid = SQ_Tcpip_Open((char *) object->buf, oper);
-        break;
-
-    default:
-        return (short) getError(INT, ERRZ30);
-    }
-
-    /*
-     * Open completed (with or without error) - prevent alarm signal from being
-     * sent, if it hasn't already done so.
-     */
-    alarm(0);
-
-    if (oid < 0) {
-        if (tout == 0) {                                                        // Failed to obtain ownership
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-            } else {
-                partab.jobtab->test = 0;
-            }
-        }
-
-        if (partab.jobtab->trap & MASK[SIGALRM]) {                              // Timeout received
-            partab.jobtab->trap &= ~MASK[SIGALRM];
-
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-            } else {
-                partab.jobtab->test = 0;
-            }
-
-            return 0;
-        } else if (partab.jobtab->trap & MASK[SIGINT]) {                        // Caught SIGINT
-            return 0;
-        } else {                                                                // Open error
-            return (short) oid;
-        }
-    }
-
-    // Set default channel attributes
-    ret = initObject(chan, obj);
-    if (ret < 0) return (short) ret;
-    c->mode = (u_char) oper;
-    c->fid = oid;
-    i = snprintf((char *) c->name, MAX_SEQ_NAME, "%s", object->buf);
-    if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
-
-    // Set SQ_Chan appropriately (if server socket)
-    if (oper == SERVER) {
-        ret = openSERVER(chan, (char *) op->buf);
-        if (ret < 0) return (short) ret;
-    }
-
-    // Return object's descriptor
-    return (short) oid;
-}
-
-/*
- * This function modifies the characteristics of a channel; that is, it:
- *
- *   - sets the channel as the current IO channel;
- *   - sets the channel's input terminator bit mask;
- *   - sets the channel's output terminator;
- *   - ignores or catches the SIGINT signal;
- *   - sets the channel's escape sequence set bit flag;
- *   - sets the channel's echo set bit flag;
- *   - sets the channel's delete key bit mask; and
- *   - disconnects a client from a server socket (if client exists).
- *
- * Upon success, this function will return 0. Otherwise, a negative integer
- * value is returned to indicate the error that has occurred.
- */
-short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
-{
-    SQ_Chan *c;                                                                 // Pointer to channel
-    int     ret;                                                                // Return value
-    int     flag;                                                               // UNSET, LEAVE, SET
-
-    // Check parameters
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
-
-    if (isChanFree(chan) == 1) {
-        if (chan == STDCHAN) {
-            return 0;
-        } else {
-            return (short) getError(INT, ERRZ27);
-        }
-    }
-
-    if (interm != NULL) {
-        ret = checkAsciiChars(interm);
-        if (ret < 0) return (short) ret;
-    }
-
-    if (outerm != NULL) {
-        ret = checkCstring(outerm);
-        if (ret < 0) return (short) ret;
-        if (outerm->len > MAX_SEQ_OUT) return (short) getError(INT, ERRZ33);
-    }
-
-    if (par < 0) return (short) getError(INT, ERRZ45);
-    partab.jobtab->io = (u_char) chan;                                          // Set "chan" as the current IO channel
-    c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to the channel
-
-    if (interm != NULL) {                                                       // Set channel's input term(s) bit mask
-        if (interm->len != 0) {
-            c->in_term = getBitMask(interm, c->in_term);
-            flag = SET;
-        } else {
-            c->in_term.interm[0] = 0;
-            c->in_term.interm[1] = 0;
-            flag = UNSET;
-        }
-    } else {
-        flag = LEAVE;
-    }
-
-    // Set bit INTERM in channel's options
-    c->options = setOptionsBitMask(c->options, INTERM, flag);
-
-    if (outerm != NULL) {                                                       // Set channel's output terminator
-        if (outerm->len != 0) {
-            c->out_len = outerm->len;
-            memcpy(c->out_term, outerm->buf, outerm->len);
-            flag = SET;
-        } else {
-            c->out_len = 0;
-            c->out_term[0] = '\0';
-            flag = UNSET;
-        }
-    } else {
-        flag = LEAVE;
-    }
-
-    // Set bit OUTERM in channel's options
-    c->options = setOptionsBitMask(c->options, OUTERM, flag);
-
-    // Set bit CONTROLC in channel's options
-    if (!chan && (par & (SQ_CONTROLC | SQ_NOCONTROLC | SQ_CONTROLT | SQ_NOCONTROLT))) { // Chan zero only
-        struct termios settings;                                                // man 3 termios
-
-        ret = tcgetattr(STDCHAN, &settings);
-        if (ret == -1) return (short) getError(SYS, errno);
-        if (par & SQ_CONTROLC) settings.c_cc[VINTR] = '\003';                   // ^C
-        if (par & SQ_NOCONTROLC) settings.c_cc[VINTR] = _POSIX_VDISABLE;        // No ^C
-        if (par & SQ_CONTROLT) settings.c_cc[VQUIT] = '\024';                   // ^T
-        if (par & SQ_NOCONTROLT) settings.c_cc[VQUIT] = _POSIX_VDISABLE;        // No ^T
-        ret = tcsetattr(STDCHAN, TCSANOW, &settings);                           // Set parameters
-        if (ret == -1) return (short) getError(SYS, errno);
-    }
-
-    // Set bit ESC in channel's options
-    if (par & SQ_USE_ESCAPE) {
-        c->options = setOptionsBitMask(c->options, ESC, SET);
-    } else if (par & SQ_USE_NOESCAPE) {
-        c->options = setOptionsBitMask(c->options, ESC, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, ESC, LEAVE);
-    }
-
-    // Set bit TTYECHO in channel's options
-    if (par & SQ_USE_ECHO) {
-        c->options = setOptionsBitMask(c->options, TTYECHO, SET);
-    } else if (par & SQ_USE_NOECHO) {
-        c->options = setOptionsBitMask(c->options, TTYECHO, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, TTYECHO, LEAVE);
-    }
-
-    // Set bit DEL8 in channel's options
-    if (par & SQ_USE_DEL8) {
-        c->options = setOptionsBitMask(c->options, DEL8, SET);
-    } else if (par & SQ_USE_DELBOTH) {
-        c->options = setOptionsBitMask(c->options, DEL8, SET);
-    } else if (par & SQ_USE_DELNONE) {
-        c->options = setOptionsBitMask(c->options, DEL8, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, DEL8, LEAVE);
-    }
-
-    // Set bit DEL127 in channel's options
-    if (par & SQ_USE_DEL127) {
-        c->options = setOptionsBitMask(c->options, DEL127, SET);
-    } else if (par & SQ_USE_DELBOTH) {
-        c->options = setOptionsBitMask(c->options, DEL127, SET);
-    } else if (par & SQ_USE_DELNONE) {
-        c->options = setOptionsBitMask(c->options, DEL127, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, DEL127, LEAVE);
-    }
-
-    // Disconnect client from socket
-    if (par & SQ_USE_DISCON) {
-        ret = closeSERVERClient(chan);
-        if (ret < 0) return (short) ret;
-    }
-
-    return 0;
-}
-
-/*
- * This function closes the channel "chan". It will always return 0; that
- * is, it will never return an error.
- */
-short SQ_Close(int chan)
-{
-    SQ_Chan     *c;                                                             // Channel to close
-    struct stat sb;                                                             // File properties
-
-    // Check parameters
-    if (isChan(chan) == 0) return 0;                                            // Channel out of range
-    if (isChanFree(chan) == 1) return 0;                                        // Channel free
-    if (chan == STDCHAN) return 0;                                              // Never close STDCHAN
-
-    // If channel is current, the set current channel to STDCHAN
-    if (chan == partab.jobtab->io) partab.jobtab->io = (u_char) STDCHAN;
-
-    // Close channel
-    c = &partab.jobtab->seqio[chan];
-
-    switch ((int) c->type) {
-    case SQ_FILE:
-        // If the file is opened for writing or appending and it is empty, then  delete it
-        if (((int) c->mode == WRITE) || ((int) c->mode == APPEND)) {
-            int ret = fstat(c->fid, &sb);
-
-            if ((ret == 0) && (sb.st_size == 0)) {
-                close(c->fid);
-                unlink((char *) c->name);
-            } else {
-                close(c->fid);
-            }
-        } else {
-            close(c->fid);
-        }
-
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    case SQ_TCP:
-        closeSERVER(chan);
-        break;
-
-    case SQ_PIPE:
-        if ((int) c->mode == NEWPIPE) {
-            SQ_Pipe_Close(c->fid, (char *) c->name);
-        } else {
-            close(c->fid);
-        }
-
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    case SQ_TERM:
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
-        break;
-    }
-
-    return 0;                                                                   // Return success
-}
-
-/*
- * This function writes "writebuf->len" bytes from the buffer "writebuf->buf" to
- * the current IO channel. It also increments $X to the number of bytes
- * written. Upon successful completion, the number of bytes actually written
- * is returned. Otherwise, a negative integer value is returned to indicate
- * the error that has occurred.
- */
-int SQ_Write(cstring *writebuf)
-{
-    int chan;                                                                   // Current IO channel
-    int ret;                                                                    // Return value
-
-    ret = checkCstring(writebuf);
-    if (ret < 0) return ret;
-    chan = (int) partab.jobtab->io;
-    if (isChan(chan) == 0) return getError(INT, ERRZ25);
-    if (isChanFree(chan) == 1) return getError(INT, ERRZ27);
-    if (writebuf->len == 0) return 0;
-    ret = objectWrite(chan, (char *) writebuf->buf, writebuf->len);
-    if (ret < 0) return ret;
-    partab.jobtab->seqio[chan].dx += ret;
-    return ret;
-}
-
-/*
- * This function writes a character "c" to the current IO channel. Upon
- * successful completion, the number of bytes actually written is returned.
- * Otherwise, a negative integer value is returned to indicate the error that
- * has occurred.
- */
-short SQ_WriteStar(u_char c)
-{
-    int chan;                                                                   // Current IO channel
-
-    chan = (int) partab.jobtab->io;
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
-    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
-    return objectWrite(chan, (char *) &c, 1);
-}
-
-/*
- * This function works as follows:
- *
- *     "count" = SQ_FF (-2)
- *
- * Writes seven characters with integer values of 27, 91, 50, 74, 27, 91, and 72
- * to the current IO channel respectively. It also clears $X and $Y.
- *
- *     "count" = SQ_LF (-1)
- *
- * Writes the output terminator (if set) to the current IO channel. It also
- * clears $X, but adds 1 to $Y.
- *
- *     "count" >= 0
- *
- * Writes spaces to the current IO channel until $X is equal to "count".
- *
- * Upon successful completion the number of bytes actually written is returned.
- * Otherwise, a negative integer value is returned to indicate the error that
- * has occurred.
- */
-short SQ_WriteFormat(int count)
-{
-    int     chan;                                                               // Current IO channel
-    SQ_Chan *IOptr;                                                             // Useful pointer
-    char    writebuf[WRITESIZE];                                                // Buffer to write from
-    int     ret;                                                                // Return value
-    int     byteswritten;                                                       // Bytes written
-    int     numspaces;                                                          // Number of spaces to write
-    int     bytestowrite;                                                       // Bytes to write
-    int     index;                                                              // Useful integer
-
-    if (count < -2) return (short) getError(INT, ERRZ41);
-    chan = (int) partab.jobtab->io;
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
-    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
-    IOptr = &partab.jobtab->seqio[chan];
-
-    switch (count) {
-    case SQ_FF:
-        // Erase entire display
-        writebuf[0] = (char) 27;
-        writebuf[1] = '[';
-        writebuf[2] = '2';
-        writebuf[3] = 'J';
-        // Place cursor at home [0,0]
-        writebuf[4] = (char) 27;
-        writebuf[5] = '[';
-        writebuf[6] = 'H';
-        ret = objectWrite(chan, writebuf, 7);
-        if (ret < 0) return ret;
-        IOptr->dx = 0;
-        IOptr->dy = 0;
-        return ret;
-
-    case SQ_LF:
-        ret = 0;
-
-        if (IOptr->options & MASK[OUTERM]) {
-            ret = objectWrite(chan, (char *) IOptr->out_term, IOptr->out_len);
-            if (ret < 0) return ret;
-        }
-
-        IOptr->dx = 0;
-        IOptr->dy++;
-        return ret;
-
-    default:
-        byteswritten = 0;
-        numspaces = count - IOptr->dx;
-
-        while (numspaces > 0) {
-            if (numspaces <= WRITESIZE) {
-                bytestowrite = numspaces;
-            } else {
-                bytestowrite = WRITESIZE;
-            }
-
-            for (index = 0; index < bytestowrite; index++) writebuf[index] = ' ';
-            ret = objectWrite(chan, writebuf, bytestowrite);
-
-            if (ret < 0) {
-                return ret;
-            } else if (ret == 0) {
-                if (partab.jobtab->trap & MASK[SIGINT]) return byteswritten;
-            }
-
-            IOptr->dx = IOptr->dx + ret;
-            byteswritten = byteswritten + ret;
-            numspaces = numspaces - bytestowrite;
-        }
-
-        return byteswritten;
-    }
-}
-
-/*
- * This function reads a maximum of "maxbyt" bytes from the current IO
- * channel into the buffer "buf". Upon successful completion, the number of
- * bytes read into the buffer is returned. Otherwise, a negative integer
- * value is returned to indicate the error which has occurred.
- *
- * Note, that a timeout value (i.e., "tout") or "maxbyt" value of -1 means unlimited.
- */
-int SQ_Read(u_char *buf, int tout, int maxbyt)
-{
-    int chan;                                                                   // Channel to read from
-    int type;                                                                   // Channel type
-    int ret;                                                                    // Return value
-
-    // Check parameters
-    if (buf == NULL) return getError(INT, ERRZ28);
-    chan = (int) partab.jobtab->io;
-    if (isChan(chan) == 0) return getError(INT, ERRZ25);
-    if (isChanFree(chan) == 1) return getError(INT, ERRZ27);
-    if (tout < UNLIMITED) return getError(INT, ERRZ22);
-    if (maxbyt < UNLIMITED) return getError(INT, ERRZ36);
-
-    // Initialize variables
-    partab.jobtab->seqio[chan].dkey_len = 0;
-    partab.jobtab->seqio[chan].dkey[0] = '\0';
-    if (maxbyt == UNLIMITED) maxbyt = MAX_STR_LEN;
-    type = (int) partab.jobtab->seqio[chan].type;
-
-    if ((tout > 0) && (type != SQ_FILE)) alarm(tout);
-
-    if ((tout > UNLIMITED) && (type != SQ_FILE)) {
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;               // assume won't time out
-        } else {
-            partab.jobtab->test = 1;                                            // assume won't time out
-        }
-    }
-
-    // Read from object
-    switch (type) {
-    case SQ_FILE:
-        ret = readFILE(chan, buf, maxbyt);
-        break;
-
-    case SQ_TCP:
-        ret = readTCP(chan, buf, maxbyt, tout);
-        break;
-
-    case SQ_PIPE:
-        ret = readPIPE(chan, buf, maxbyt, tout);
-        break;
-
-    case SQ_TERM:
-        ret = readTERM(chan, buf, maxbyt, tout);
-        break;
-
-    default:
-        return getError(INT, ERRZ30);
-    }
-
-    // Void the current alarm (even if one is not pending)
-    alarm(0);
-
-    // Return bytes read or error
-    if (ret >= 0) {                                                             // Read successful
-        if ((ret == 0) && (tout == 0)) {                                        // no char and 0 TO
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;           // say failed
-            } else {
-                partab.jobtab->test = 0;                                        // say failed
-            }
-        }
-
-        buf[ret] = '\0';                                                        // NULL terminate
-        return ret;
-    } else if (partab.jobtab->trap & MASK[SIGINT]) {                            // SIGINT caught
-        buf[0] = '\0';
-        return 0;
-    } else {                                                                    // Error
-        if (tout == 0) {                                                        // Failed to obtain ownership
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;           // say failed
-            } else {
-                partab.jobtab->test = 0;                                        // say failed
-            }
-        }
-
-        return ret;
-    }
-}
-
-/*
- * This function reads one character from $IO and returns its ASCII value in
- * "result". If an escape sequence or input terminator has been received,
- * then "result" is equal to the first character in the escape sequence.
- * If a timeout expires or the signal SIGINT has been caught, then "result"
- * is equal to -1. This function will return 1 if a character was acquired.
- * It will return 0 if an escape sequence, input terminator, timeout or
- * SIGINT has been received. Otherwise, a negative integer value to indicate
- * the error that has occurred.
- *
- * NOTE: $X and $Y are unchanged, and any key pressed does not echo on a
- * terminal device.
- */
-short SQ_ReadStar(int *result, int timeout)
-{
-    int    chan;                                                                // $IO
-    char   origopt;                                                             // Original options
-    u_char buf[2];                                                              // Read buffer
-    int    ret;                                                                 // Return value
-
-    // Check parameters
-    if (result == NULL) return (short) getError(INT, ERRZ28);
-    if (timeout < UNLIMITED) return (short) getError(INT, ERRZ36);
-    chan = (int) partab.jobtab->io;
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
-    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
-
-    // Save channel's original options
-    origopt = partab.jobtab->seqio[chan].options;
-
-    // Read Star options
-#ifndef  __APPLE__
-    partab.jobtab->seqio[chan].options &= ~MASK[INTERM];                        // MacOS X doesn't like this!!!
-#endif
-    partab.jobtab->seqio[chan].options &= ~MASK[TTYECHO];
-    partab.jobtab->seqio[chan].options &= ~MASK[DEL8];
-    partab.jobtab->seqio[chan].options &= ~MASK[DEL127];
-
-    // Get character
-    ret = SQ_Read(buf, timeout, 1);
-
-    // Restore options
-    partab.jobtab->seqio[chan].options = origopt;
-
-    // Return character's ASCII value or error
-    if (ret < 0) {
-        return (short) ret;                                                     // Read error
-    } else if (ret == 0) {
-        if (partab.jobtab->seqio[chan].dkey_len > 0) {                          // Escape sequence
-            *result = partab.jobtab->seqio[chan].dkey[0];
-            return 0;
-        } else {                                                                // Timeout or SIGINT
-            *result = -1;
-            return 0;
-        }
-    } else {                                                                    // Received character
-        *result = (int) buf[0];
-        return 1;
-    }
-}
-
-/*
- * This function flushes the input queue on a character special device. If
- * successful, 0 is returned. Otherwise, a negative integer is returned to
- * indicate the error that has occurred.
- */
-short SQ_Flush(void)
-{
-    int     chan;                                                               // $IO
-    SQ_Chan *c;                                                                 // Pointer to $IO
-    int     what;                                                               // Queue
-
-    chan = (int) partab.jobtab->io;                                             // Determine $IO
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);                // $IO out of range
-    c = &partab.jobtab->seqio[chan];                                            // Channel to flush
-    what = TCIFLUSH;                                                            // Flush input queue
-
-    if ((int) c->type == SQ_TERM) {
-        int oid;                                                                // Device
-
-        if (chan == STDCHAN) {                                                  // Flush STDIN
-            oid = 0;
-        } else {                                                                // Flush other device
-            oid = c->fid;
-        }
-
-        if (isatty(oid)) {
-            int ret = tcflush(oid, what);                                       // Do flush
-
-            if (ret == -1) return (short) getError(SYS, errno);
-        } else {                                                                // Not a character
-            return (short) getError(INT, ERRZ24);                               // Special device
-        }
-    }
-
-    return 0;
-}
-
-/*
- * This function returns in the buffer "buf" the following three pieces of
- * information about the current IO channel:
- *     Piece Description
- *
- *     1     1 or 0
- *     2     error_code or object type (i.e., SQ_FILE, SQ_TCP, SQ_PIPE, SQ_TERM)
- *     3     error_text or description of channel (e.g., file/device name or
- *           IP address port).
- *
- * Upon successful completion, this function returns the length of the buffer.
- * It returns a negative integer to indicate the internal or system error that
- * has occurred.
- *
- * Note, each piece is comma deliminated.
- */
-int SQ_Device(u_char *buf)
-{
-    int     chan;                                                               // Current IO channel
-    char    errmsg[MAX_STR_LEN];                                                // Error message
-    SQ_Chan *c;                                                                 // $IO pointer
-    char    *name;                                                              // Channel's attributes
-
-    // Check parameters
-    if (buf == NULL) return getError(INT, ERRZ28);
-    chan = (int) partab.jobtab->io;                                             // Determine the current IO channel
-
-    if (isChan(chan) == 0) {                                                    // Check if channel is out of range
-        getErrorMsg(ERRZ25, errmsg);
-        sprintf((char *) buf, "1,%d,%s", ERRZ25, errmsg);
-        return strlen((char *) buf);
-    }
-
-    c = &partab.jobtab->seqio[chan];                                            // Acquire a point to $IO
-
-    if (isChanFree(chan) == 1) {                                                // Channel free
-        sprintf((char *) buf, "1,0,");
-        return strlen((char *) buf);
-    }
-
-    // Get channel's attributes
-    if ((int) c->type == SQ_TCP) {                                              // Socket specific
-        switch ((int) c->mode) {
-        case TCPIP:
-            name = (char *) c->name;
-            break;
-
-        case SERVER:
-            if (c->s.cid != -1) {
-                name = (char *) c->s.name;
-            } else {
-                name = (char *) c->name;
-            }
-
-            break;
-
-        case NOFORK:
-            if (c->s.cid != -1) {
-                name = (char *) c->s.name;
-            } else {
-                name = (char *) c->name;
-            }
-
-            break;
-
-        case FORKED:
-            name = (char *) c->name;
-            break;
-
-        default:
-            name = NULL;
-            break;
-        }
-    } else {                                                                    // All other objects
-        name = (char *) c->name;
-    }
-
-    // Check for NULL pointer (name)
-    if (name == NULL) {
-        getErrorMsg(ERRZ28 + ERRMLAST, errmsg);
-        sprintf((char *) buf, "1,%d,%s", ERRZ28 + ERRMLAST, errmsg);
-        return strlen((char *) buf);
-    }
-
-    // Return channel's attributes
-    sprintf((char *) buf, "0,%d,%s", (int) c->type, name);
-    return strlen((char *) buf);
-}
-
-// ************************************************************************* //
-// This function forces the message "msg" to the character special device
-// "device". Upon successful completion, this functions returns 0.
-// Otherwise, it returns a negative integer value to indicate the error that
-// has occurred.
-short SQ_Force(cstring *device, cstring *msg)
-{
-#ifndef __APPLE__
-    FILE  *fd;                                                                  // Useful variable
-#endif
-    int   ret;                                                                  // Useful variable
-
-    // Check parameters
-    ret = checkCstring(device);
-    if (ret < 0) return (short) ret;                                            // Invalid cstring
-    ret = checkCstring(msg);
-    if (ret < 0) return (short) ret;                                            // Invalid cstring
-    if (msg->len == 0) return 0;                                                // Quit without error if "msg" is empty
-
-#ifdef __APPLE__
-    return 0;
-#else
-    fd = fopen((char *) device->buf, "w");
-    if (fd == NULL) return 0;
-    alarm(2);                                                                   // timeout in two secs
-    ret = fprintf(fd, "%s", msg->buf);
-    if (fclose(fd) == EOF) return errno;
-    if (ret < 0) return ret;
-    alarm(0);
-    return 0;
-#endif
-}
 
 // Common functions
 
@@ -1373,7 +434,7 @@ int getOperation(cstring *op)
  * is equal to 1, then this bit has been set.
  */
 /*
-int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           // DLW - should we use this instead of the 4 loops?
+int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           // NOTE: should we use this instead of the 4 loops?
 {
     int index;
     int value;
@@ -1399,92 +460,314 @@ void getErrorMsg(int errnum, char  *errmsg)
     UTIL_strerror(-errnum, (u_char *) errmsg);
 }
 
-// INITIALIZE SPECIFIC
-
-/*
- * This function initializes the channel "chan" to the defaults setting for
- * an object of type "type". If successful, it returns 0. Otherwise, it
- * returns a negative integer value to indicate the error that has occurred.
- */
-int initObject(int chan, int type)
+int signalCaught(SQ_Chan *c)
 {
-    SQ_Chan        *c;                                                          // Channel to initialize
-    int            par;                                                         // Channel's options
-    cstring        interm;                                                      // Input terminator(s)
-    cstring        outerm;                                                      // Output terminator
-    struct termios settings;                                                    // man 3 termios
-    char           io;                                                          // Current IO channel
+    c->dkey_len = 0;
+    c->dkey[0] = '\0';
 
-    c = &partab.jobtab->seqio[chan];
-    par = 0;
+    if (partab.jobtab->trap & MASK[SIGALRM]) {
+        c->dkey_len = 0;
+        c->dkey[0] = '\0';
+        partab.jobtab->trap &= ~MASK[SIGALRM];
 
-    switch (type) {
-    case SQ_FREE:
-        c->type = (u_char) SQ_FREE;
-        break;
-
-    case SQ_FILE:
-        c->type = (u_char) SQ_FILE;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
-        break;
-
-    case SQ_TCP:
-        c->type = (u_char) SQ_TCP;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        break;
-
-    case SQ_PIPE:
-        c->type = (u_char) SQ_PIPE;
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c", (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 10);
-        break;
-
-    case SQ_TERM:
-        c->type = (u_char) SQ_TERM;
-
-        if ((chan == STDCHAN) && isatty(STDCHAN)) {                             // Setup tty settings (if STDCHAN)
-            if (tcgetattr(STDCHAN, &settings) == -1) return getError(SYS, errno); // Get parameters
-            settings.c_lflag &= ~ICANON;                                        // Non-canonical mode
-            settings.c_lflag &= ~ECHO;                                          // Do not echo
-            settings.c_oflag &= ~ONLCR;                                         // Do not map NL to CR-NL out
-            settings.c_iflag &= ~ICRNL;                                         // Do not map CR to NL in
-            settings.c_cc[VMIN] = 1;                                            // Guarantees one byte is read
-            settings.c_cc[VTIME] = 0;                                           //   in at a time
-            settings.c_cc[VSUSP] = _POSIX_VDISABLE;                             // Disables SIGTSTP signal (^Z)
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-            settings.c_cc[VDSUSP] = _POSIX_VDISABLE;                            // Funny <Ctrl><Y> thing
-            settings.c_cc[VSTATUS] = _POSIX_VDISABLE;                           // Disables status
-#endif
-            settings.c_cc[VINTR] = '\003';                                      // ^C
-            settings.c_cc[VQUIT] = '\024';                                      // ^T (use for status)
-            if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return getError(SYS, errno); // Set parameters
+        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+            partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+        } else {
+            partab.jobtab->test = 0;
         }
 
-        par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_DEL127 | SQ_CONTROLC);
-        snprintf((char *) outerm.buf, MAX_STR_LEN, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, MAX_STR_LEN, "%c", (char) 13);
-        break;
+        return SIGALRM;
+    } else {
+        return -1;
+    }
+}
 
-    default:
+// SERVER SOCKET SPECIFIC
+
+/*
+ * This function initializes the forktab structure. It does not generate
+ * any errors.
+ */
+void initFORK(forktab *f)
+{
+    f->job_no = -1;
+    f->pid = -1;
+}
+
+/*
+ * This function initializes the servertab structure. "chan" is a server
+ * socket, where "size" represents the maximum number of processes this
+ * socket can spawn to handle incoming client connections. It returns 0 on
+ * success. Otherwise, it returns a negative integer value to indicate the
+ * error that has occurred.
+ */
+int initSERVER(int chan, u_int size)
+{
+    servertab *s;
+    forktab   *f = NULL;                                                        // TEMP FIX
+
+    if (size > (systab->maxjob - 1)) return getError(INT, ERRZ42);
+    s = &partab.jobtab->seqio[chan].s;
+
+    if (size) {                                                                 // TEMP FIX
+        f = malloc(sizeof(forktab) * size);                                     // to forktab from fork
+        if (f == NULL) return getError(SYS, errno);
+    }                                                                           // TEMP FIX
+
+    for (u_int index = 0; index < size; index++) initFORK(&f[index]);
+    s->slots = size;
+    s->taken = 0;
+    s->cid = -1;
+    s->name[0] = '\0';
+    s->forked = f;
+    return 0;
+}
+
+/*
+ * This function opens a server socket on channel "chan". "oper" is used
+ * to determine the type of server socket to open:
+ *     SERVER - Forking server
+ *     NOFORK - Non-forking server
+ *
+ * If successful, this function returns 0. Otherwise, it returns a
+ * negative integer value to indicate the error that has occurred.
+ */
+int openSERVER(int chan, char *oper)
+{
+    SQ_Chan *c;
+    char    *ptr;
+    int     ret;
+
+    // Acquire a pointer to the SQ_Chan structure
+    c = &partab.jobtab->seqio[chan];
+
+    // Extract size component from oper (SERVER[=size])
+    ptr = strchr(oper, (int) '=');
+
+    if (ptr == NULL) {
+        c->mode = (u_char) NOFORK;
+        if ((ret = initSERVER(chan, 0)) < 0) return ret;
+    } else {
+        ptr++;
+
+        if (*ptr == '\0') {
+            c->mode = (u_char) NOFORK;
+            if ((ret = initSERVER(chan, 0)) < 0) return ret;
+        } else {
+            int size = atoi(ptr);
+
+            if (size < 1) {
+                return getError(SYS, errno);
+            } else {
+                if ((ret = initSERVER(chan, (u_int) size)) < 0) return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function:
+ *   - Accepts a pending connection (if no clients are currently
+ *     connected) on the channel "chan";
+ *   - Forks a new process to handle the connection if any slots are
+ *     available; and
+ *   - Maintains a table of forked child processes (removing "dead"
+ *     processes as required).
+ *
+ * If successful, this function will return the descriptor which references
+ * the current connected client. Otherwise, it will return a negative integer
+ * value to indicate the error that has occurred.
+ */
+int acceptSERVER(int chan, int tout)
+{
+    servertab          *s;                                                      // Forked process table
+    SQ_Chan            *c;                                                      // Server socket
+    int                index;                                                   // Useful variable
+    int                len;                                                     // Useful variable
+    struct sockaddr_in sin;                                                     // Peer socket
+    //struct hostent     *host;                                                   // Peer host name
+
+    // Acquire a pointer to the SQ_CHAN structure
+    c = &partab.jobtab->seqio[chan];
+
+    // Acquire a pointer to the SERVERTAB structure
+    s = &c->s;
+
+    // Removing any dead child processes is only required if:
+    //   s->slots > 0 AND s->taken > 0
+    if ((s->slots > 0) && (s->taken > 0)) {
+        for (index = 0; index < s->slots; index++) {
+            if (s->forked[index].pid != -1) {
+                if (systab->jobtab[(s->forked[index].job_no - 1)].pid != s->forked[index].pid) {
+                    // Child dead
+                    initFORK(&s->forked[index]);
+                    s->taken--;
+                }
+            }
+        }
+    }
+
+    // An accept is only required if:
+    //   s->cid == -1
+    if (s->cid == -1) {
+        int ret;                                                                // Return value
+
+        s->cid = SQ_Tcpip_Accept(c->fid, tout);
+
+        if (s->cid < 0) {
+            s->cid = -1;
+            return s->cid;
+        }
+
+        len = sizeof(struct sockaddr_in);
+        ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
+        if (ret == -1) return getError(SYS, errno);
+        len = sizeof(sin.sin_addr);
+        snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+
+        /*
+        host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, addr_family);
+
+        if (host == NULL) {
+            snprintf(s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+        } else {
+            snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
+        }
+        */
+    }
+
+    // A fork/rfork is only required if:
+    //   s->slots > 0 AND s->taken < s->slots
+    if ((s->slots > 0) && (s->taken < s->slots)) {
+        forktab *slot = NULL;                                                   // Find first available slot
+        int     jobno;                                                          // M job number
+
+        for (index = 0; index < s->slots; index++) {
+            if (s->forked[index].pid == -1) {
+                slot = &s->forked[index];
+                index = s->slots;
+            }
+        }
+
+        if (slot == NULL) return getError(INT, ERRZ20);
+
+        // Spawn server client process
+        jobno = ForkIt(1);                                                      // copy the file table
+
+        if (jobno > 0) {                                                        // Parent process; child jobno
+            slot->job_no = jobno;
+            slot->pid = systab->jobtab[jobno - 1].pid;
+            s->taken++;
+            close(s->cid);
+            s->cid = -1;
+            s->name[0] = '\0';
+            return 0;
+        } else if (jobno < 0) {                                                 // Child process; parent jobno
+            c = &partab.jobtab->seqio[chan];
+            s = &c->s;
+            s->slots = 0;
+            s->taken = 0;
+            free(s->forked);
+            close(c->fid);
+            c->mode = (u_char) FORKED;
+            s->forked = NULL;
+            c->fid = s->cid;
+            strncpy((char *) c->name, (char *) s->name, MAX_SEQ_NAME);
+            s->cid = -1;
+            s->name[0] = '\0';
+            return c->fid;
+        } else {                                                                // fork/rfork failed
+            if (errno) return getError(SYS, errno);
+            return getError(INT, ERRZ49);                                       // Job table full
+        }
+
+        // An unknown error has occurred
         return getError(INT, ERRZ20);
     }
 
-    c->options = 0;
-    c->mode = (u_char) PRINCIPAL;
-    c->fid = 0;
-    initSERVER(chan, 0);
-    c->dx = 0;
-    c->dy = 0;
-    c->name[0] = '\0';
-    c->dkey_len = 0;
-    c->dkey[0] = '\0';
-    outerm.len = strlen((char *) outerm.buf);
-    interm.len = strlen((char *) interm.buf);
-    io = partab.jobtab->io;
-    SQ_Use(chan, &interm, &outerm, par);
-    partab.jobtab->io = io;
+    // Accepted by parent
+    return s->cid;
+}
+
+/*
+ * This function closes a connected client. This function will never
+ * exit with an error (i.e., will always return 0).
+ */
+int closeSERVERClient(int chan)
+{
+    SQ_Chan *c;                                                                 // Socket channel
+
+    // Acquire a pointer to the channel
+    c = &partab.jobtab->seqio[chan];
+
+    // Determine socket to close and close it (if required)
+    if ((int) c->type == SQ_TCP) {
+        if ((int) c->mode == NOFORK) {
+            if (c->s.cid > -1) {
+                close(c->s.cid);
+                free(c->s.forked);
+                initSERVER(chan, 0);
+            }
+        } else if ((int) c->mode == SERVER) {
+            if (c->s.cid > -1) {
+                close(c->s.cid);
+                c->s.cid = -1;
+                c->s.name[0] = '\0';
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function closes the socket on channel "chan". This function is
+ * called whenever a channel of type SQ_TCP is closed. It will never exit
+ * with an error (i.e., will always return 0).
+ */
+int closeSERVER(int chan)
+{
+    SQ_Chan   *c;                                                               // Socket
+    servertab *s;                                                               // Forked process table
+
+    c = &partab.jobtab->seqio[chan];
+    s = &c->s;
+
+    switch ((int) c->mode) {                                                    // Close socket client
+    case TCPIP:
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Does not close all forked child processes (just the server socket and
+    // the client (if one exists) accepted by the server parent)
+    case SERVER:
+        if (s->cid != -1) close(s->cid);
+        free(s->forked);                                                        // Free fork structure
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Closes the connected client (if one exists) and the server socket
+    case NOFORK:
+        if (s->cid != -1) close(s->cid);
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Closes the connected client accepted by a forked child process
+    case FORKED:
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    // Unknown class of socket
+    default:
+        break;
+    }
+
     return 0;
 }
 
@@ -1566,7 +849,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
                 return ret;
             }
         } else {
-            byteswritten = (byteswritten + ret);
+            byteswritten += ret;
         }
     }
 
@@ -1579,7 +862,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
  *     "buf"    - Guaranteed not to be NULL, and large enough to store
  *                "maxbyt" bytes
  *     "maxbyt" - Guaranteed to be a positive integer value less than
- *                MAX_STR_LEN
+ *                BUFSIZE
  *     "tout"   - If 0, forces the read to retrieve the next character
  *                from the object. If no character is immediately
  *                available, a timeout will occur (this does not
@@ -1602,12 +885,12 @@ int readFILE(int chan, u_char *buf, int maxbyt)
 
     c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
     bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize CR flag
+    crflag = FALSE;                                                             // Initialize CR flag
 
     for (;;) {                                                                  // Read in bytes
         int ret;                                                                // Return value
 
-        if (bytesread >= maxbyt) {                                              // Check if # byts reqd are rec
+        if (bytesread >= maxbyt) {                                              // Check if # bytes required are over max
             c->dkey_len = 0;
             c->dkey[0] = '\0';
             return bytesread;
@@ -1630,13 +913,13 @@ int readFILE(int chan, u_char *buf, int maxbyt)
         if (c->options & MASK[INTERM]) {
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    crflag = TRUE;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1711,7 +994,7 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
     }
 
     bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize crflag
+    crflag = FALSE;                                                             // Initialize crflag
 
     for (;;) {                                                                  // Read in bytes
         if (bytesread >= maxbyt) {                                              // Check for bytes read
@@ -1746,13 +1029,13 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
         if (c->options & MASK[INTERM]) {
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    crflag = TRUE;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1793,7 +1076,7 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
     }
 
     bytesread = 0;                                                              // Initialize bytes read
-    crflag = 0;                                                                 // Initialize CR flag
+    crflag = FALSE;                                                             // Initialize CR flag
 
     for (;;) {                                                                  // Read in bytes
         int ret;                                                                // Return value
@@ -1821,13 +1104,13 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
         } else if ((c->options & MASK[INTERM]) && ret) {                        // Check if an input terminator has been received
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
-                    crflag = 1;
-                } else if (((u_char) buf[bytesread] == 10) && (crflag == 1)) {
+                    crflag = TRUE;
+                } else if (((u_char) buf[bytesread] == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1844,28 +1127,6 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
     }
 }
 
-int signalCaught(SQ_Chan *c)
-{
-    c->dkey_len = 0;
-    c->dkey[0] = '\0';
-
-    if (partab.jobtab->trap & MASK[SIGALRM]) {
-        c->dkey_len = 0;
-        c->dkey[0] = '\0';
-        partab.jobtab->trap &= ~MASK[SIGALRM];
-
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-        } else {
-            partab.jobtab->test = 0;
-        }
-
-        return SIGALRM;
-    } else {
-        return -1;
-    }
-}
-
 /*
  * This function reads at most "maxbyt" bytes from the device referenced by
  * the channel "chan" into the buffer "buf". Upon success, it returns the
@@ -1873,7 +1134,7 @@ int signalCaught(SQ_Chan *c)
  * indicate the error that has occurred.
  *
  * Note: Terminal input buffer handling, including editing and history,
- *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
+ *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991).
  */
 int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 {
@@ -1896,7 +1157,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     // Aquire a pointer to the appropriate channel structure
     c = &partab.jobtab->seqio[chan];
 
-    if (in_hist > -1) {
+    if (in_hist > OFF) {
         start = prompt_len;                                                     // Input for direct and debug modes
     } else {
         start = c->dx;                                                          // Input for M input [read]
@@ -1917,7 +1178,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If STDOUT is redirected, default to 80 columns
 
     bytesread = 0;
-    crflag = 0;
+    crflag = FALSE;
 
     // Read in bytes
     for (;;) {
@@ -1958,7 +1219,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
             return bytesread;
         }
 
-        // Check for Ctrl-H or Backspace key for Backspace
+        // Check for Ctrl-H (ASCII 8 BS) or Backspace key (ASCII 127 DEL) for Backspace
         if ((curr == 8) || (curr == 127)) {
             if ((in_hist > -1) || ((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
                 if ((bytesread > 0) && (c->dx > start)) {
@@ -2034,7 +1295,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
         }
 
         // Check to see if an escape sequence is about to be received
-        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > -1))) {
+        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > OFF))) {
             c->dkey_len = 1;
             c->dkey[0] = (char) 27;
 
@@ -2444,148 +1705,145 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     }
 }
 
-// SERVER SOCKET SPECIFIC
+// INITIALIZE SPECIFIC
 
 /*
- * This function initializes the forktab structure. It does not generate
- * any errors.
+ * This function initializes the channel "chan" to the defaults setting for
+ * an object of type "type". If successful, it returns 0. Otherwise, it
+ * returns a negative integer value to indicate the error that has occurred.
  */
-void initFORK (forktab *f)
+int initObject(int chan, int type)
 {
-    f->job_no = -1;
-    f->pid = -1;
-}
+    SQ_Chan        *c;                                                          // Channel to initialize
+    int            par;                                                         // Channel's options
+    cstring        interm;                                                      // Input terminator(s)
+    cstring        outerm;                                                      // Output terminator
+    struct termios settings;                                                    // man 3 termios
+    char           io;                                                          // Current IO channel
 
-/*
- * This function initializes the servertab structure. "chan" is a server
- * socket, where "size" represents the maximum number of processes this
- * socket can spawn to handle incoming client connections. It returns 0 on
- * success. Otherwise, it returns a negative integer value to indicate the
- * error that has occurred.
- */
-int initSERVER(int chan, u_int size)
-{
-    servertab *s;
-    forktab   *f = NULL;                                                        // TEMP FIX
+    c = &partab.jobtab->seqio[chan];
+    par = 0;
 
-    if (size > systab->maxjob) return getError(INT, ERRZ42);
-    s = &partab.jobtab->seqio[chan].s;
+    switch (type) {
+    case SQ_FREE:
+        c->type = (u_char) SQ_FREE;
+        break;
 
-    if (size) {                                                                 // TEMP FIX
-        f = malloc(sizeof(forktab) * size);                                     // to forktab from fork
-        if (f == NULL) return getError(SYS, errno);
-    }                                                                           // TEMP FIX
+    case SQ_FILE:
+        c->type = (u_char) SQ_FILE;
+        snprintf((char *) outerm.buf, BUFSIZE, "%c", (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
+        break;
 
-    for (u_int index = 0; index < size; index++) initFORK(&f[index]);
-    s->slots = size;
-    s->taken = 0;
-    s->cid = -1;
-    s->name[0] = '\0';
-    s->forked = f;
+    case SQ_TCP:
+        c->type = (u_char) SQ_TCP;
+        snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
+        break;
+
+    case SQ_PIPE:
+        c->type = (u_char) SQ_PIPE;
+        snprintf((char *) outerm.buf, BUFSIZE, "%c", (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
+        break;
+
+    case SQ_TERM:
+        c->type = (u_char) SQ_TERM;
+
+        if ((chan == STDCHAN) && isatty(STDCHAN)) {                             // Setup tty settings (if STDCHAN)
+            if (tcgetattr(STDCHAN, &settings) == -1) return getError(SYS, errno); // Get parameters
+            settings.c_lflag &= ~ICANON;                                        // Non-canonical mode
+            settings.c_lflag &= ~ECHO;                                          // Do not echo
+            settings.c_oflag &= ~ONLCR;                                         // Do not map NL to CR-NL out
+            settings.c_iflag &= ~ICRNL;                                         // Do not map CR to NL in
+            settings.c_cc[VMIN] = 1;                                            // Guarantees one byte is read
+            settings.c_cc[VTIME] = 0;                                           //   in at a time
+            settings.c_cc[VSUSP] = _POSIX_VDISABLE;                             // Disables SIGTSTP signal (^Z)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+            settings.c_cc[VDSUSP] = _POSIX_VDISABLE;                            // Funny <Ctrl><Y> thing
+            settings.c_cc[VSTATUS] = _POSIX_VDISABLE;                           // Disables status
+#endif
+            settings.c_cc[VINTR] = '\003';                                      // ^C
+            settings.c_cc[VQUIT] = '\024';                                      // ^T (use for status)
+            if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return getError(SYS, errno); // Set parameters
+        }
+
+        par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_DEL127 | SQ_CONTROLC);
+        snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 13);
+        break;
+
+    default:
+        return getError(INT, ERRZ20);
+    }
+
+    c->options = 0;
+    c->mode = (u_char) PRINCIPAL;
+    c->fid = 0;
+    initSERVER(chan, 0);
+    c->dx = 0;
+    c->dy = 0;
+    c->name[0] = '\0';
+    c->dkey_len = 0;
+    c->dkey[0] = '\0';
+    outerm.len = strlen((char *) outerm.buf);
+    interm.len = strlen((char *) interm.buf);
+    io = partab.jobtab->io;
+    SQ_Use(chan, &interm, &outerm, par);
+    partab.jobtab->io = io;
     return 0;
 }
 
+// IO functions
+
 /*
- * This function opens a server socket on channel "chan". "oper" is used
- * to determine the type of server socket to open:
- *     SERVER - Forking server
- *     NOFORK - Non-forking server
- *
- * If successful, this function returns 0. Otherwise, it returns a
+ * This function initializes STDCHAN and other IO related stuff. If
+ * successful, this function will return 0. Otherwise, it returns a
  * negative integer value to indicate the error that has occurred.
  */
-int openSERVER(int chan, char *oper)
+short SQ_Init(void)
 {
-    SQ_Chan *c;
-    char    *ptr;
-    int     ret;
+    int index;                                                                  // Useful variable
+    int mask;                                                                   // Useful variable
+    int ret;                                                                    // Return value
+    int typ;                                                                    // object type
 
-    // Acquire a pointer to the SQ_Chan structure
-    c = &partab.jobtab->seqio[chan];
+    // Integer bit mask
+    for (index = 0; index < MASKSIZE; index++) MASK[index] = (1UL << index);
 
-    // Extract size component from oper (SERVER[=size])
-    ptr = strchr(oper, (int) '=');
+    // CRLF
+    mask = (1U << 13);
+    CRLF = mask;
+    mask = (1U << 10);
+    CRLF |= mask;
 
-    if (ptr == NULL) {
-        c->mode = (u_char) NOFORK;
-        if ((ret = initSERVER(chan, 0)) < 0) return ret;
-    } else {
-        ptr++;
+    // Define the set of signals that are to be delivered, ignored etc.
+    ret = setSignals();
+    if (ret < 0) return (short) ret;
 
-        if (*ptr == '\0') {
-            c->mode = (u_char) NOFORK;
-            if ((ret = initSERVER(chan, 0)) < 0) return ret;
-        } else {
-            int size = atoi(ptr);
+    // Set the parameters associated with STDCHAN, depending on what it is associated with
+    ret = getObjectMode(STDCHAN);
+    if (ret < 0) return (short) ret;
+    typ = getModeCategory(ret);
+    if (typ < 0) return (short) typ;
 
-            if (size < 1) {
-                return getError(SYS, errno);
-            } else {
-                if ((ret = initSERVER(chan, (u_int) size)) < 0) return ret;
-            }
-        }
-    }
+    // Initialize object
+    ret = initObject(STDCHAN, typ);
+    if (ret < 0) return (short) ret;
 
-    return 0;
-}
+    if (typ == SQ_TCP) {                                                        // from inetd/xinetd?
+        int                len;
+        struct sockaddr_in sin;
+        //struct hostent     *host;                                               // Peer host name
+        servertab          *s;                                                  // Forked process table
 
-/*
- * This function:
- *   - Accepts a pending connection (if no clients are currently
- *     connected) on the channel "chan";
- *   - Forks a new process to handle the connection if any slots are
- *     available; and
- *   - Maintains a table of forked child processes (removing "dead"
- *     processes as required).
- *
- * If successful, this function will return the descriptor which references
- * the current connected client. Otherwise, it will return a negative integer
- * value to indicate the error that has occurred.
- */
-int acceptSERVER(int chan, int tout)
-{
-    servertab          *s;                                                      // Forked process table
-    SQ_Chan            *c;                                                      // Server socket
-    int                index;                                                   // Useful variable
-    int                len;                                                     // Useful variable
-    struct sockaddr_in sin;                                                     // Peer socket
-    //struct hostent     *host;                                                   // Peer host name
-
-    // Acquire a pointer to the SQ_CHAN structure
-    c = &partab.jobtab->seqio[chan];
-
-    // Acquire a pointer to the SERVERTAB structure
-    s = &c->s;
-
-    // Removing any dead child processes is only required if:
-    //   s->slots > 0 AND s->taken > 0
-    if ((s->slots > 0) && (s->taken > 0)) {
-        for (index = 0; index < s->slots; index++) {
-            if (s->forked[index].pid != -1) {
-                if (systab->jobtab[(s->forked[index].job_no - 1)].pid != s->forked[index].pid) {
-                    // Child dead
-                    initFORK(&s->forked[index]);
-                    s->taken--;
-                }
-            }
-        }
-    }
-
-    // An accept is only required if:
-    //   s->cid == -1
-    if (s->cid == -1) {
-        int ret;                                                                // Return value
-
-        s->cid = SQ_Tcpip_Accept(c->fid, tout);
-
-        if (s->cid < 0) {
-            s->cid = -1;
-            return s->cid;
-        }
-
+        s = &partab.jobtab->seqio[STDCHAN].s;
+        ret = openSERVER(STDCHAN, "SERVER");                                    // set it up
+        if (ret < 0) return (short) ret;
+        s->cid = STDCHAN;                                                       // already accepted
         len = sizeof(struct sockaddr_in);
         ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
-        if (ret == -1) return getError(SYS, errno);
+        if (ret == -1) return (short) getError(SYS, errno);
         len = sizeof(sin.sin_addr);
         snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 
@@ -2598,137 +1856,842 @@ int acceptSERVER(int chan, int tout)
             snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
         }
         */
+
+        return 0;                                                               // done
     }
 
-    // A rfork is only required if:
-    //   s->slots > 0 AND s->taken < s->slots
-    if ((s->slots > 0) && (s->taken < s->slots)) {
-        forktab *slot = NULL;                                                   // Find first available slot
-        int     jobno;                                                          // M job number
-
-        for (index = 0; index < s->slots; index++) {
-            if (s->forked[index].pid == -1) {
-                slot = &s->forked[index];
-                index = s->slots;
-            }
-        }
-
-        if (slot == NULL) return getError(INT, ERRZ20);
-
-        // Spawn server client process
-        jobno = ForkIt(1);                                                      // copy the file table
-
-        if (jobno > 0) {                                                        // Parent process; child jobno
-            slot->job_no = jobno;
-            slot->pid = systab->jobtab[jobno - 1].pid;
-            s->taken++;
-            close(s->cid);
-            s->cid = -1;
-            s->name[0] = '\0';
-            return 0;
-        } else if (jobno < 0) {                                                 // Child process; parent jobno
-            c = &partab.jobtab->seqio[chan];
-            s = &c->s;
-            s->slots = 0;
-            s->taken = 0;
-            free(s->forked);
-            close(c->fid);
-            c->mode = (u_char) FORKED;
-            s->forked = NULL;
-            c->fid = s->cid;
-            strncpy((char *) c->name, (char *) s->name, MAX_SEQ_NAME);
-            s->cid = -1;
-            s->name[0] = '\0';
-            return c->fid;
-        } else {                                                                // fork/rfork failed
-            if (errno) return getError(SYS, errno);
-            return getError(INT, ERRZ49);                                       // Job table full
-        }
-
-        // An unknown error has occurred
-        return getError(INT, ERRZ20);
+    // Determine associated terminal if tty
+    if (isatty(STDCHAN)) {
+        snprintf((char *) partab.jobtab->seqio[STDCHAN].name, MAX_SEQ_NAME, "%s", ttyname(STDCHAN));
+    } else {
+        snprintf((char *) partab.jobtab->seqio[STDCHAN].name, MAX_SEQ_NAME, "Not a tty");
     }
 
-    // Accepted by parent
-    return s->cid;
-}
-
-/*
- * This function closes a connected client. This function will never
- * exit with an error (i.e., will always return 0).
- */
-int closeSERVERClient(int chan)
-{
-    SQ_Chan *c;                                                                 // Socket channel
-
-    // Acquire a pointer to the channel
-    c = &partab.jobtab->seqio[chan];
-
-    // Determine socket to close and close it (if required)
-    if ((int) c->type == SQ_TCP) {
-        if ((int) c->mode == NOFORK) {
-            if (c->s.cid > -1) {
-                close(c->s.cid);
-                free(c->s.forked);
-                initSERVER(chan, 0);
-            }
-        } else if ((int) c->mode == SERVER) {
-            if (c->s.cid > -1) {
-                close(c->s.cid);
-                c->s.cid = -1;
-                c->s.name[0] = '\0';
-            }
-        }
-    }
-
+    // Indicate success
     return 0;
 }
 
 /*
- * This function closes the socket on channel "chan". This function is
- * called whenever a channel of type SQ_TCP is closed. It will never exit
- * with an error (i.e., will always return 0).
+ * This function opens an object "object" on channel "chan". The object can be
+ * opened for any (relevant) one of the following operations (i.e., "op"):
+ *
+ *     read    - Read only
+ *     write   - Write only
+ *     append  - Append
+ *     io      - Read and write
+ *     tcpip   - Client socket
+ *     server  - Server socket
+ *     pipe    - Write to named pipe
+ *     newpipe - Read from named pipe
+ *
+ * A timeout value "tout" (where -1 means unlimited) is also provided. If
+ * successful, open returns a non-negative integer, termed a descriptor.
+ * Otherwise, it returns a negative integer to indicate the error that has
+ * occurred.
+ *
+ * Note, "tout" does not apply for files; and a "tout" of zero is used to
+ *       test ownership success without starting a timer.
  */
-int closeSERVER (int chan)
+short SQ_Open(int chan, cstring *object, cstring *op, int tout)
 {
-    SQ_Chan   *c;                                                               // Socket
-    servertab *s;                                                               // Forked process table
+    SQ_Chan *c;                                                                 // Channel to open
+    int     oper;                                                               // Operation identifier
+    int     ford;                                                               // File or device identifier
+    int     obj;                                                                // Object identifier
+    int     oid;                                                                // Object descriptor
+    int     ret;                                                                // Return value
+    int     i;                                                                  // a handy int
 
+    // Check for Opening $Principal. In RSM, this is a no-op (See close code as well).
+    if (chan == STDCHAN) {
+        if (tout > UNLIMITED) {                                                 // if there's a timeout
+            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+                partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;           // say that open succeeded
+            } else {
+                partab.jobtab->test = 1;                                        // say that open succeeded
+            }
+        }
+
+        return 0;
+    }
+
+    /*
+     * TODO: Make sure that object and op are at least one character long. If not,
+     *       this means that somebody tried to use the new syntax [OPEN 1::2] on it.
+     */
+
+    // Check parameters
+    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);                // Channel out of range
+    if (isChanFree(chan) == 0) return (short) getError(INT, ERRZ26);            // Channel not free
     c = &partab.jobtab->seqio[chan];
-    s = &c->s;
+    ret = checkCstring(object);                                                 // Invalid cstrings
+    if (ret < 0) return (short) ret;
+    ret = checkCstring(op);
+    if (ret < 0) return (short) ret;
+    if (object->len == 0) return (short) getError(INT, ERRZ28);                 // Is device descriptor empty?
+                                                                                //   Invalid except for OPEN $PRINCIPAL::TO
+    // Invalid timeout
+    if (tout < UNLIMITED) return (short) getError(INT, ERRZ22);
 
-    switch ((int) c->mode) {                                                    // Close socket client
-    case TCPIP:
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
+    // Assume operation won't time out
+    if (tout > UNLIMITED) {
+        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+            partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;               // assume won't time out
+        } else {
+            partab.jobtab->test = 1;                                            // assume won't time out
+        }
+    }
+
+    // Determine object type and operation
+    oper = getOperation(op);                                                    // Determine operation
+
+    if (oper < 0) {
+        return (short) oper;
+    } else if ((oper == READ) || (oper == WRITE) || (oper == IO)) {             // Determine object
+        ford = getObjectType((char *) object->buf);
+
+        if (ford < 0) {
+            return (short) ford;
+        } else if ((ford == UNKNOWN) && (oper == WRITE)) {
+            obj = SQ_FILE;
+        } else if (ford == CHR) {
+            obj = SQ_TERM;
+        } else if (ford == REG) {
+            obj = SQ_FILE;
+        } else {
+            return (short) getError(INT, ERRZ29);
+        }
+    } else if (oper == APPEND) {
+        obj = SQ_FILE;
+    } else if (oper == TCPIP) {
+        obj = SQ_TCP;
+    } else if (oper == SERVER) {
+        obj = SQ_TCP;
+    } else if (oper == PIPE) {
+        obj = SQ_PIPE;
+    } else if (oper == NEWPIPE) {
+        obj = SQ_PIPE;
+    } else {
+        return (short) getError(INT, ERRZ29);
+    }
+
+    // Start timer
+    if ((tout > 0) && (obj != SQ_FILE)) alarm(tout);
+
+    // Open object
+    switch (obj) {
+    case SQ_FILE:
+        oid = SQ_File_Open((char *) object->buf, oper);
         break;
 
-    // Does not close all forked child processes (just the server socket and
-    // the client (if one exists) accepted by the server parent)
-    case SERVER:
-        if (s->cid != -1) close(s->cid);
-        free(s->forked);                                                        // Free fork structure
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
+    case SQ_TERM:
+        oid = SQ_Device_Open((char *) object->buf, oper);
         break;
 
-    // Closes the connected client (if one exists) and the server socket
-    case NOFORK:
-        if (s->cid != -1) close(s->cid);
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
+    case SQ_PIPE:
+        oid = SQ_Pipe_Open((char *) object->buf, oper);
         break;
 
-    // Closes the connected client accepted by a forked child process
-    case FORKED:
-        close(c->fid);
-        c->type = (u_char) SQ_FREE;
+    case SQ_TCP:
+        oid = SQ_Tcpip_Open((char *) object->buf, oper);
         break;
 
-    // Unknown class of socket
     default:
-        break;
+        return (short) getError(INT, ERRZ30);
+    }
+
+    /*
+     * Open completed (with or without error) - prevent alarm signal from being
+     * sent, if it hasn't already done so.
+     */
+    alarm(0);
+
+    if (oid < 0) {
+        if (tout == 0) {                                                        // Failed to obtain ownership
+            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+            } else {
+                partab.jobtab->test = 0;
+            }
+        }
+
+        if (partab.jobtab->trap & MASK[SIGALRM]) {                              // Timeout received
+            partab.jobtab->trap &= ~MASK[SIGALRM];
+
+            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
+            } else {
+                partab.jobtab->test = 0;
+            }
+
+            return 0;
+        } else if (partab.jobtab->trap & MASK[SIGINT]) {                        // Caught SIGINT
+            return 0;
+        } else {                                                                // Open error
+            return (short) oid;
+        }
+    }
+
+    // Set default channel attributes
+    ret = initObject(chan, obj);
+    if (ret < 0) return (short) ret;
+    c->mode = (u_char) oper;
+    c->fid = oid;
+    i = snprintf((char *) c->name, MAX_SEQ_NAME, "%s", object->buf);
+    if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+
+    // Set SQ_Chan appropriately (if server socket)
+    if (oper == SERVER) {
+        ret = openSERVER(chan, (char *) op->buf);
+        if (ret < 0) return (short) ret;
+    }
+
+    // Return object's descriptor
+    return (short) oid;
+}
+
+/*
+ * This function modifies the characteristics of a channel; that is, it:
+ *
+ *   - sets the channel as the current IO channel;
+ *   - sets the channel's input terminator bit mask;
+ *   - sets the channel's output terminator;
+ *   - ignores or catches the SIGINT signal;
+ *   - sets the channel's escape sequence set bit flag;
+ *   - sets the channel's echo set bit flag;
+ *   - sets the channel's delete key bit mask; and
+ *   - disconnects a client from a server socket (if client exists).
+ *
+ * Upon success, this function will return 0. Otherwise, a negative integer
+ * value is returned to indicate the error that has occurred.
+ */
+short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
+{
+    SQ_Chan *c;                                                                 // Pointer to channel
+    int     ret;                                                                // Return value
+    int     flag;                                                               // UNSET, LEAVE, SET
+
+    // Check parameters
+    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
+
+    if (isChanFree(chan) == 1) {
+        if (chan == STDCHAN) {
+            return 0;
+        } else {
+            return (short) getError(INT, ERRZ27);
+        }
+    }
+
+    if (interm != NULL) {
+        ret = checkAsciiChars(interm);
+        if (ret < 0) return (short) ret;
+    }
+
+    if (outerm != NULL) {
+        ret = checkCstring(outerm);
+        if (ret < 0) return (short) ret;
+        if (outerm->len > MAX_SEQ_OUT) return (short) getError(INT, ERRZ33);
+    }
+
+    if (par < 0) return (short) getError(INT, ERRZ45);
+    partab.jobtab->io = (u_char) chan;                                          // Set "chan" as the current IO channel
+    c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to the channel
+
+    if (interm != NULL) {                                                       // Set channel's input term(s) bit mask
+        if (interm->len != 0) {
+            c->in_term = getBitMask(interm, c->in_term);
+            flag = SET;
+        } else {
+            c->in_term.interm[0] = 0;
+            c->in_term.interm[1] = 0;
+            flag = UNSET;
+        }
+    } else {
+        flag = LEAVE;
+    }
+
+    // Set bit INTERM in channel's options
+    c->options = setOptionsBitMask(c->options, INTERM, flag);
+
+    if (outerm != NULL) {                                                       // Set channel's output terminator
+        if (outerm->len != 0) {
+            c->out_len = outerm->len;
+            memcpy(c->out_term, outerm->buf, outerm->len);
+            flag = SET;
+        } else {
+            c->out_len = 0;
+            c->out_term[0] = '\0';
+            flag = UNSET;
+        }
+    } else {
+        flag = LEAVE;
+    }
+
+    // Set bit OUTERM in channel's options
+    c->options = setOptionsBitMask(c->options, OUTERM, flag);
+
+    // Set bit CONTROLC in channel's options
+    if (!chan && (par & (SQ_CONTROLC | SQ_NOCONTROLC | SQ_CONTROLT | SQ_NOCONTROLT))) { // Chan zero only
+        struct termios settings;                                                // man 3 termios
+
+        if (tcgetattr(STDCHAN, &settings) == -1) return (short) getError(SYS, errno); // Get parameters
+        if (par & SQ_CONTROLC) settings.c_cc[VINTR] = '\003';                   // ^C
+        if (par & SQ_NOCONTROLC) settings.c_cc[VINTR] = _POSIX_VDISABLE;        // No ^C
+        if (par & SQ_CONTROLT) settings.c_cc[VQUIT] = '\024';                   // ^T
+        if (par & SQ_NOCONTROLT) settings.c_cc[VQUIT] = _POSIX_VDISABLE;        // No ^T
+        if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return (short) getError(SYS, errno); // Set parameters
+    }
+
+    // Set bit ESC in channel's options
+    if (par & SQ_USE_ESCAPE) {
+        c->options = setOptionsBitMask(c->options, ESC, SET);
+    } else if (par & SQ_USE_NOESCAPE) {
+        c->options = setOptionsBitMask(c->options, ESC, UNSET);
+    } else {
+        c->options = setOptionsBitMask(c->options, ESC, LEAVE);
+    }
+
+    // Set bit TTYECHO in channel's options
+    if (par & SQ_USE_ECHO) {
+        c->options = setOptionsBitMask(c->options, TTYECHO, SET);
+    } else if (par & SQ_USE_NOECHO) {
+        c->options = setOptionsBitMask(c->options, TTYECHO, UNSET);
+    } else {
+        c->options = setOptionsBitMask(c->options, TTYECHO, LEAVE);
+    }
+
+    // Set bit DEL127 and bit DEL8 in channel's options
+    if (par & SQ_USE_DELBOTH) {
+        c->options = setOptionsBitMask(c->options, DEL127, SET);
+        c->options = setOptionsBitMask(c->options, DEL8, SET);
+    } else if (par & SQ_USE_DEL127) {
+        c->options = setOptionsBitMask(c->options, DEL127, SET);
+        c->options = setOptionsBitMask(c->options, DEL8, UNSET);
+    } else if (par & SQ_USE_DEL8) {
+        c->options = setOptionsBitMask(c->options, DEL127, UNSET);
+        c->options = setOptionsBitMask(c->options, DEL8, SET);
+    } else if (par & SQ_USE_DELNONE) {
+        c->options = setOptionsBitMask(c->options, DEL127, UNSET);
+        c->options = setOptionsBitMask(c->options, DEL8, UNSET);
+    } else {
+        c->options = setOptionsBitMask(c->options, DEL127, LEAVE);
+        c->options = setOptionsBitMask(c->options, DEL8, LEAVE);
+    }
+
+    // Disconnect client from socket
+    if (par & SQ_USE_DISCON) {
+        ret = closeSERVERClient(chan);
+        if (ret < 0) return (short) ret;
     }
 
     return 0;
+}
+
+/*
+ * This function closes the channel "chan". It will always return 0; that
+ * is, it will never return an error.
+ */
+short SQ_Close(int chan)
+{
+    SQ_Chan     *c;                                                             // Channel to close
+    struct stat sb;                                                             // File properties
+
+    // Check parameters
+    if (isChan(chan) == 0) return 0;                                            // Channel out of range
+    if (isChanFree(chan) == 1) return 0;                                        // Channel free
+    if (chan == STDCHAN) return 0;                                              // Never close STDCHAN
+
+    // If channel is current, the set current channel to STDCHAN
+    if (chan == partab.jobtab->io) partab.jobtab->io = (u_char) STDCHAN;
+
+    // Close channel
+    c = &partab.jobtab->seqio[chan];
+
+    switch ((int) c->type) {
+    case SQ_FILE:
+        // If the file is opened for writing or appending and it is empty, then  delete it
+        if (((int) c->mode == WRITE) || ((int) c->mode == APPEND)) {
+            int ret = fstat(c->fid, &sb);
+
+            if ((ret == 0) && (sb.st_size == 0)) {
+                close(c->fid);
+                unlink((char *) c->name);
+            } else {
+                close(c->fid);
+            }
+        } else {
+            close(c->fid);
+        }
+
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    case SQ_TCP:
+        closeSERVER(chan);
+        break;
+
+    case SQ_PIPE:
+        if ((int) c->mode == NEWPIPE) {
+            SQ_Pipe_Close(c->fid, (char *) c->name);
+        } else {
+            close(c->fid);
+        }
+
+        c->type = (u_char) SQ_FREE;
+        break;
+
+    case SQ_TERM:
+        close(c->fid);
+        c->type = (u_char) SQ_FREE;
+        break;
+    }
+
+    return 0;                                                                   // Return success
+}
+
+/*
+ * This function writes "writebuf->len" bytes from the buffer "writebuf->buf" to
+ * the current IO channel. It also increments $X to the number of bytes
+ * written. Upon successful completion, the number of bytes actually written
+ * is returned. Otherwise, a negative integer value is returned to indicate
+ * the error that has occurred.
+ */
+int SQ_Write(cstring *writebuf)
+{
+    int chan;                                                                   // Current IO channel
+    int ret;                                                                    // Return value
+
+    ret = checkCstring(writebuf);
+    if (ret < 0) return ret;
+    chan = (int) partab.jobtab->io;
+    if (isChan(chan) == 0) return getError(INT, ERRZ25);
+    if (isChanFree(chan) == 1) return getError(INT, ERRZ27);
+    if (writebuf->len == 0) return 0;
+    ret = objectWrite(chan, (char *) writebuf->buf, writebuf->len);
+    if (ret < 0) return ret;
+    partab.jobtab->seqio[chan].dx += ret;
+    return ret;
+}
+
+/*
+ * This function writes a character "c" to the current IO channel. Upon
+ * successful completion, the number of bytes actually written is returned.
+ * Otherwise, a negative integer value is returned to indicate the error that
+ * has occurred.
+ */
+short SQ_WriteStar(u_char c)
+{
+    int chan;                                                                   // Current IO channel
+
+    chan = (int) partab.jobtab->io;
+    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
+    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
+    return objectWrite(chan, (char *) &c, 1);
+}
+
+/*
+ * This function works as follows:
+ *
+ *     "count" = SQ_FF (-2)
+ *
+ * Writes seven characters with integer values of 27, 91, 50, 74, 27, 91, and 72
+ * to the current IO channel respectively. It also clears $X and $Y.
+ *
+ *     "count" = SQ_LF (-1)
+ *
+ * Writes the output terminator (if set) to the current IO channel. It also
+ * clears $X, but adds 1 to $Y.
+ *
+ *     "count" >= 0
+ *
+ * Writes spaces to the current IO channel until $X is equal to "count".
+ *
+ * Upon successful completion the number of bytes actually written is returned.
+ * Otherwise, a negative integer value is returned to indicate the error that
+ * has occurred.
+ */
+short SQ_WriteFormat(int count)
+{
+    int     chan;                                                               // Current IO channel
+    SQ_Chan *IOptr;                                                             // Useful pointer
+    char    writebuf[WRITESIZE];                                                // Buffer to write from
+    int     ret;                                                                // Return value
+    int     byteswritten;                                                       // Bytes written
+    int     numspaces;                                                          // Number of spaces to write
+    int     bytestowrite;                                                       // Bytes to write
+    int     index;                                                              // Useful integer
+
+    if (count < -2) return (short) getError(INT, ERRZ41);
+    chan = (int) partab.jobtab->io;
+    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
+    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
+    IOptr = &partab.jobtab->seqio[chan];
+
+    switch (count) {
+    case SQ_FF:
+        // Erase entire display
+        writebuf[0] = (char) 27;
+        writebuf[1] = '[';
+        writebuf[2] = '2';
+        writebuf[3] = 'J';
+        // Place cursor at home [0,0]
+        writebuf[4] = (char) 27;
+        writebuf[5] = '[';
+        writebuf[6] = 'H';
+        ret = objectWrite(chan, writebuf, 7);
+        if (ret < 0) return ret;
+        IOptr->dx = 0;
+        IOptr->dy = 0;
+        return ret;
+
+    case SQ_LF:
+        ret = 0;
+
+        if (IOptr->options & MASK[OUTERM]) {
+            ret = objectWrite(chan, (char *) IOptr->out_term, IOptr->out_len);
+            if (ret < 0) return ret;
+        }
+
+        IOptr->dx = 0;
+        IOptr->dy++;
+        return ret;
+
+    default:
+        byteswritten = 0;
+        numspaces = count - IOptr->dx;
+
+        while (numspaces > 0) {
+            if (numspaces <= WRITESIZE) {
+                bytestowrite = numspaces;
+            } else {
+                bytestowrite = WRITESIZE;
+            }
+
+            for (index = 0; index < bytestowrite; index++) writebuf[index] = ' ';
+            ret = objectWrite(chan, writebuf, bytestowrite);
+
+            if (ret < 0) {
+                return ret;
+            } else if (ret == 0) {
+                if (partab.jobtab->trap & MASK[SIGINT]) return byteswritten;
+            }
+
+            IOptr->dx = IOptr->dx + ret;
+            byteswritten += ret;
+            numspaces -= bytestowrite;
+        }
+
+        return byteswritten;
+    }
+}
+
+/*
+ * This function reads a maximum of "maxbyt" bytes from the current IO
+ * channel into the buffer "buf". Upon successful completion, the number of
+ * bytes read into the buffer is returned. Otherwise, a negative integer
+ * value is returned to indicate the error which has occurred.
+ *
+ * Note, that a timeout value (i.e., "tout") or "maxbyt" value of -1 means unlimited.
+ */
+int SQ_Read(u_char *buf, int tout, int maxbyt)
+{
+    int chan;                                                                   // Channel to read from
+    int type;                                                                   // Channel type
+    int ret;                                                                    // Return value
+
+    // Check parameters
+    if (buf == NULL) return getError(INT, ERRZ28);
+    chan = (int) partab.jobtab->io;
+    if (isChan(chan) == 0) return getError(INT, ERRZ25);
+    if (isChanFree(chan) == 1) return getError(INT, ERRZ27);
+    if (tout < UNLIMITED) return getError(INT, ERRZ22);
+    if (maxbyt < UNLIMITED) return getError(INT, ERRZ36);
+
+    // Initialize variables
+    partab.jobtab->seqio[chan].dkey_len = 0;
+    partab.jobtab->seqio[chan].dkey[0] = '\0';
+    if (maxbyt == UNLIMITED) maxbyt = BUFSIZE;
+    type = (int) partab.jobtab->seqio[chan].type;
+
+    if ((tout > 0) && (type != SQ_FILE)) alarm(tout);
+
+    if ((tout > UNLIMITED) && (type != SQ_FILE)) {
+        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+            partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;               // assume won't time out
+        } else {
+            partab.jobtab->test = 1;                                            // assume won't time out
+        }
+    }
+
+    // Read from object
+    switch (type) {
+    case SQ_FILE:
+        ret = readFILE(chan, buf, maxbyt);
+        break;
+
+    case SQ_TCP:
+        ret = readTCP(chan, buf, maxbyt, tout);
+        break;
+
+    case SQ_PIPE:
+        ret = readPIPE(chan, buf, maxbyt, tout);
+        break;
+
+    case SQ_TERM:
+        ret = readTERM(chan, buf, maxbyt, tout);
+        break;
+
+    default:
+        return getError(INT, ERRZ30);
+    }
+
+    // Void the current alarm (even if one is not pending)
+    alarm(0);
+
+    // Return bytes read or error
+    if (ret >= 0) {                                                             // Read successful
+        if ((ret == 0) && (tout == 0)) {                                        // no char and 0 TO
+            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;           // say failed
+            } else {
+                partab.jobtab->test = 0;                                        // say failed
+            }
+        }
+
+        buf[ret] = '\0';                                                        // NULL terminate
+        return ret;
+    } else if (partab.jobtab->trap & MASK[SIGINT]) {                            // SIGINT caught
+        buf[0] = '\0';
+        return 0;
+    } else {                                                                    // Error
+        if (tout == 0) {                                                        // Failed to obtain ownership
+            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
+                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;           // say failed
+            } else {
+                partab.jobtab->test = 0;                                        // say failed
+            }
+        }
+
+        return ret;
+    }
+}
+
+/*
+ * This function reads one character from $IO and returns its ASCII value in
+ * "result". If an escape sequence or input terminator has been received,
+ * then "result" is equal to the first character in the escape sequence.
+ * If a timeout expires or the signal SIGINT has been caught, then "result"
+ * is equal to -1. This function will return 1 if a character was acquired.
+ * It will return 0 if an escape sequence, input terminator, timeout or
+ * SIGINT has been received. Otherwise, a negative integer value to indicate
+ * the error that has occurred.
+ *
+ * NOTE: $X and $Y are unchanged, and any key pressed does not echo on a
+ * terminal device.
+ */
+short SQ_ReadStar(int *result, int timeout)
+{
+    int    chan;                                                                // $IO
+    char   origopt;                                                             // Original options
+    u_char buf[2];                                                              // Read buffer
+    int    ret;                                                                 // Return value
+
+    // Check parameters
+    if (result == NULL) return (short) getError(INT, ERRZ28);
+    if (timeout < UNLIMITED) return (short) getError(INT, ERRZ36);
+    chan = (int) partab.jobtab->io;
+    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
+    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
+
+    // Save channel's original options
+    origopt = partab.jobtab->seqio[chan].options;
+
+    // Read Star options
+#ifndef  __APPLE__
+    partab.jobtab->seqio[chan].options &= ~MASK[INTERM];                        // MacOS X doesn't like this!!!
+#endif
+    partab.jobtab->seqio[chan].options &= ~MASK[TTYECHO];
+    partab.jobtab->seqio[chan].options &= ~MASK[DEL8];
+    partab.jobtab->seqio[chan].options &= ~MASK[DEL127];
+
+    // Get character
+    ret = SQ_Read(buf, timeout, 1);
+
+    // Restore options
+    partab.jobtab->seqio[chan].options = origopt;
+
+    // Return character's ASCII value or error
+    if (ret < 0) {
+        return (short) ret;                                                     // Read error
+    } else if (ret == 0) {
+        if (partab.jobtab->seqio[chan].dkey_len > 0) {                          // Escape sequence
+            *result = partab.jobtab->seqio[chan].dkey[0];
+            return 0;
+        } else {                                                                // Timeout or SIGINT
+            *result = -1;
+            return 0;
+        }
+    } else {                                                                    // Received character
+        *result = (int) buf[0];
+        return 1;
+    }
+}
+
+/*
+ * This function flushes the input queue on a character special device. If
+ * successful, 0 is returned. Otherwise, a negative integer is returned to
+ * indicate the error that has occurred.
+ */
+short SQ_Flush(void)
+{
+    int     chan;                                                               // $IO
+    SQ_Chan *c;                                                                 // Pointer to $IO
+    int     what;                                                               // Queue
+
+    chan = (int) partab.jobtab->io;                                             // Determine $IO
+    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);                // $IO out of range
+    c = &partab.jobtab->seqio[chan];                                            // Channel to flush
+    what = TCIFLUSH;                                                            // Flush input queue
+
+    if ((int) c->type == SQ_TERM) {
+        int oid;                                                                // Device
+
+        if (chan == STDCHAN) {                                                  // Flush STDIN
+            oid = 0;
+        } else {                                                                // Flush other device
+            oid = c->fid;
+        }
+
+        if (isatty(oid)) {
+            int ret = tcflush(oid, what);                                       // Do flush
+
+            if (ret == -1) return (short) getError(SYS, errno);
+        } else {                                                                // Not a character
+            return (short) getError(INT, ERRZ24);                               // Special device
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function returns in the buffer "buf" the following three pieces of
+ * information about the current IO channel:
+ *     Piece Description
+ *
+ *     1     1 or 0
+ *     2     error_code or object type (i.e., SQ_FILE, SQ_TCP, SQ_PIPE, SQ_TERM)
+ *     3     error_text or description of channel (e.g., file/device name or
+ *           IP address port).
+ *
+ * Upon successful completion, this function returns the length of the buffer.
+ * It returns a negative integer to indicate the internal or system error that
+ * has occurred.
+ *
+ * Note, each piece is comma deliminated.
+ */
+int SQ_Device(u_char *buf)
+{
+    int     chan;                                                               // Current IO channel
+    char    errmsg[BUFSIZE];                                                    // Error message
+    SQ_Chan *c;                                                                 // $IO pointer
+    char    *name;                                                              // Channel's attributes
+
+    // Check parameters
+    if (buf == NULL) return getError(INT, ERRZ28);
+    chan = (int) partab.jobtab->io;                                             // Determine the current IO channel
+
+    if (isChan(chan) == 0) {                                                    // Check if channel is out of range
+        getErrorMsg(ERRZ25, errmsg);
+        sprintf((char *) buf, "1,%d,%s", ERRZ25, errmsg);
+        return strlen((char *) buf);
+    }
+
+    c = &partab.jobtab->seqio[chan];                                            // Acquire a point to $IO
+
+    if (isChanFree(chan) == 1) {                                                // Channel free
+        sprintf((char *) buf, "1,0,");
+        return strlen((char *) buf);
+    }
+
+    // Get channel's attributes
+    if ((int) c->type == SQ_TCP) {                                              // Socket specific
+        switch ((int) c->mode) {
+        case TCPIP:
+            name = (char *) c->name;
+            break;
+
+        case SERVER:
+            if (c->s.cid != -1) {
+                name = (char *) c->s.name;
+            } else {
+                name = (char *) c->name;
+            }
+
+            break;
+
+        case NOFORK:
+            if (c->s.cid != -1) {
+                name = (char *) c->s.name;
+            } else {
+                name = (char *) c->name;
+            }
+
+            break;
+
+        case FORKED:
+            name = (char *) c->name;
+            break;
+
+        default:
+            name = NULL;
+            break;
+        }
+    } else {                                                                    // All other objects
+        name = (char *) c->name;
+    }
+
+    // Check for NULL pointer (name)
+    if (name == NULL) {
+        getErrorMsg(ERRZ28 + ERRMLAST, errmsg);
+        sprintf((char *) buf, "1,%d,%s", ERRZ28 + ERRMLAST, errmsg);
+        return strlen((char *) buf);
+    }
+
+    // Return channel's attributes
+    sprintf((char *) buf, "0,%d,%s", (int) c->type, name);
+    return strlen((char *) buf);
+}
+
+// ************************************************************************* //
+// This function forces the message "msg" to the character special device
+// "device". Upon successful completion, this functions returns 0.
+// Otherwise, it returns a negative integer value to indicate the error that
+// has occurred.
+short SQ_Force(cstring *device, cstring *msg)
+{
+#ifndef __APPLE__
+    FILE  *fd;                                                                  // Useful variable
+#endif
+    int   ret;                                                                  // Useful variable
+
+    // Check parameters
+    ret = checkCstring(device);
+    if (ret < 0) return (short) ret;                                            // Invalid cstring
+    ret = checkCstring(msg);
+    if (ret < 0) return (short) ret;                                            // Invalid cstring
+    if (msg->len == 0) return 0;                                                // Quit without error if "msg" is empty
+
+#ifdef __APPLE__
+    return 0;
+#else
+    fd = fopen((char *) device->buf, "w");
+    if (fd == NULL) return 0;
+    alarm(2);                                                                   // timeout in two secs
+    ret = fprintf(fd, "%s", msg->buf);
+    if (fclose(fd) == EOF) return errno;
+    if (ret < 0) return ret;
+    alarm(0);
+    return 0;
+#endif
 }

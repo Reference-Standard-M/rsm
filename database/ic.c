@@ -49,138 +49,6 @@ u_int   volsiz;                                                                 
 
 extern int dbfd;                                                                // global db file desc
 
-void  ic_full(void);                                                            // full check
-void  ic_bits(u_int block, int flag, u_int points_at);                          // check bits
-u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global);        // check block
-void  ic_map(int flag);                                                         // check the map
-
-/*
- * Function: DB_ic
- * Descript: Do integrity check on vol according to flag
- * Input(s): Volume number
- *           Check flag
- * Return:   Number of errors found
- */
-int DB_ic(int vol, int block)                                                   // integrity checker
-{
-    int   uci;                                                                  // UCI#
-    int b1;                                                                     // a block
-
-    if (vol > MAX_VOL) return -ERRM26;                                          // within limits? if not - error
-    if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // is it mounted? if not - error
-    volnum = vol;                                                               // save this
-    curr_lock = 0;                                                              // ensure this is clear
-    writing = 0;                                                                // clear this
-    icerr = 0;                                                                  // clear errors
-    doing_full = 0;                                                             // and this
-    outc = (cstring *) wrt_buf;                                                 // for reporting
-    used = (u_char *) systab->vol[volnum - 1]->map;                             // point at map
-    volsiz = systab->vol[volnum - 1]->vollab->max_block;                        // number of blocks
-    gbd_expired = 0;                                                            // clear this
-    for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL) continue;
-
-    if (block == 0) {                                                           // full check?
-        level = 0;
-        ic_full();                                                              // do it
-        gbd_expired = GBD_EXPIRED;
-        return icerr;                                                           // and return
-    } else if (block > 0) {
-        level = 1;
-
-        for (uci = 0; uci < UCIS; uci++) {                                      // scan UCI table
-            b1 = systab->vol[volnum - 1]->vollab->uci[uci].global;              // get GD
-
-            if (b1 == block) {                                                  // if block is GD
-                level = 0;
-                break;
-            }
-        }
-
-        ic_block(block, 0, NULL, (var_u) 0ULL);                                 // check it
-        gbd_expired = GBD_EXPIRED;
-        return icerr;                                                           // and return
-    }
-
-    dbfd = partab.vol_fds[volnum - 1];                                          // set this up
-    ic_map(block);                                                              // map check
-    return icerr;                                                               // and return
-}
-
-/*
- * Function: ic_full
- * Descript: Do full integrity check on volnum (updates icerr)
- * Input(s): None
- * Return:   None
- */
-void ic_full(void)                                                              // full check
-{
-    u_int  size;                                                                // a handy unsigned int
-    int    uci;                                                                 // UCI#
-    u_int  b1;                                                                  // a block
-    u_char off;                                                                 // offset
-    u_char msg[20];                                                             // for messages
-
-    doing_full = 1;                                                             // set this
-    size = volsiz / 8 + 1;                                                    // number of bytes
-    rlnk = malloc(size);                                                        // for right links
-    if (rlnk == NULL) panic("ic_full: can't get memory for rlnk");              // if failed then die
-    dlnk = malloc(size);                                                        // for down links
-    if (dlnk == NULL) panic("ic_full: can't get memory for dlnk");              // if failed then die
-    memset(rlnk, 0, size);                                                      // clear this
-    memset(dlnk, 0, size);                                                      // and this
-    rlnk[0] = 1;                                                                // say blk 0 used
-    dlnk[0] = 1;                                                                // say blk 0 used
-
-    for (uci = 0; uci < UCIS; uci++) {                                          // scan UCI table
-        b1 = systab->vol[volnum - 1]->vollab->uci[uci].global;                  // get GD
-        if (b1 == 0) continue;                                                  // if none then ignore it
-
-        if ((used[b1 / 8] & (1U << (b1 & 7))) == 0) {                           // if marked free
-            outc->len = sprintf((char *) &outc->buf[0], "%10u free (global directory for UCI %d) - skipped", b1, uci + 1); // error
-            icerr++;                                                            // count it
-            SQ_Write(outc);                                                     // output it
-            SQ_WriteFormat(SQ_LF);                                              // and a !
-            continue;                                                           // ignore it
-        }
-
-        ic_bits(b1, 3, 0);                                                      // set link bits
-        level = 0;                                                              // clear level
-        ic_block(b1, 0, NULL, (var_u) 0ULL);                                    // check the block
-    }                                                                           // end main for loop
-
-    for (u_int i = 0; i < (volsiz / 8); i++) {                                  // for each byte in map
-        for (u_int j = 0; j < 8; j++) {                                         // for each bit
-            off = 1U << j;                                                      // setup offset
-            b1 = ((u_int) i * 8) + j;                                           // and block#
-            memcpy(msg, "both pointers\0", 14);                                 // default msg
-
-            if ((used[i] & off) != 0) {                                         // if used
-                if (((rlnk[i] & off) == 0) || ((dlnk[i] & off) == 0)) {         // if no RL OR no DL
-                    if ((rlnk[i] & off) != 0) {                                 // if it has RL
-                        memcpy(msg, "down pointer\0", 13);                      // say down
-                    } else if ((dlnk[i] & off) != 0) {                          // if it has DL
-                        memcpy(msg, "right pointer\0", 14);                     // say right
-                    }
-
-                    outc->len = sprintf((char *) &outc->buf[0], "%10u is used, missing %s", b1, msg); // error msg
-                    icerr++;                                                    // count it
-                    SQ_Write(outc);                                             // output it
-                    SQ_WriteFormat(SQ_LF);                                      // and a !
-                }                                                               // end error code
-            } else if (((rlnk[i] & off) != 0) || ((dlnk[i] & off) != 0)) {      // end used block - or a DL AND NOT used
-                outc->len = sprintf((char *) &outc->buf[0], "%10u is unused but is pointed to", b1);
-                icerr++;                                                        // count it
-                SQ_Write(outc);                                                 // output it
-                SQ_WriteFormat(SQ_LF);                                          // and a !
-            }
-        }
-    }
-
-    free(rlnk);                                                                 // free that
-    free(dlnk);                                                                 // and that
-    return;                                                                     // and exit
-}
-
 /*
  * Function: ic_bits
  * Descript: Check/set bits in rlnk and dlnk
@@ -257,6 +125,15 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
     u_char  *eob;                                                               // end of block
     u_int   lb;                                                                 // last block
     u_int   brl;                                                                // block rl
+    u_int   max_block = systab->vol[volnum - 1]->vollab->max_block;             // max block for volume
+
+    if (block > max_block) {                                                    // if block is larger than max
+        outc->len = sprintf((char *) &outc->buf[0], "%10u is larger than max block (%u)", block, max_block);
+        icerr++;                                                                // count it
+        SQ_Write(outc);                                                         // output it
+        SQ_WriteFormat(SQ_LF);                                                  // and a !
+        return 0;                                                               // give up
+    }
 
     while (SemOp(SEM_GLOBAL, READ)) continue;                                   // get a read lock
     s = Get_block(block);                                                       // get it
@@ -276,6 +153,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         icerr++;                                                                // count it
         SQ_Write(outc);                                                         // output it
         SQ_WriteFormat(SQ_LF);                                                  // and a !
+        SemOp(SEM_GLOBAL, -curr_lock);                                          // release the lock
         return 0;                                                               // give up
     }
 
@@ -469,6 +347,81 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 }
 
 /*
+ * Function: ic_full
+ * Descript: Do full integrity check on volnum (updates icerr)
+ * Input(s): None
+ * Return:   None
+ */
+void ic_full(void)                                                              // full check
+{
+    u_int  size;                                                                // a handy unsigned int
+    int    uci;                                                                 // UCI#
+    u_int  b1;                                                                  // a block
+    u_char off;                                                                 // offset
+    u_char msg[20];                                                             // for messages
+
+    doing_full = 1;                                                             // set this
+    size = volsiz / 8 + 1;                                                      // number of bytes
+    rlnk = malloc(size);                                                        // for right links
+    if (rlnk == NULL) panic("ic_full: can't get memory for rlnk");              // if failed then die
+    dlnk = malloc(size);                                                        // for down links
+    if (dlnk == NULL) panic("ic_full: can't get memory for dlnk");              // if failed then die
+    memset(rlnk, 0, size);                                                      // clear this
+    memset(dlnk, 0, size);                                                      // and this
+    rlnk[0] = 1;                                                                // say blk 0 used
+    dlnk[0] = 1;                                                                // say blk 0 used
+
+    for (uci = 0; uci < UCIS; uci++) {                                          // scan UCI table
+        b1 = systab->vol[volnum - 1]->vollab->uci[uci].global;                  // get GD
+        if (b1 == 0) continue;                                                  // if none then ignore it
+
+        if ((used[b1 / 8] & (1U << (b1 & 7))) == 0) {                           // if marked free
+            outc->len = sprintf((char *) &outc->buf[0], "%10u free (global directory for UCI %d) - skipped", b1, uci + 1); // error
+            icerr++;                                                            // count it
+            SQ_Write(outc);                                                     // output it
+            SQ_WriteFormat(SQ_LF);                                              // and a !
+            continue;                                                           // ignore it
+        }
+
+        ic_bits(b1, 3, 0);                                                      // set link bits
+        level = 0;                                                              // clear level
+        ic_block(b1, 0, NULL, (var_u) 0ULL);                                    // check the block
+    }                                                                           // end main for loop
+
+    for (u_int i = 0; i < (volsiz / 8); i++) {                                  // for each byte in map
+        for (u_int j = 0; j < 8; j++) {                                         // for each bit
+            off = 1U << j;                                                      // setup offset
+            b1 = ((u_int) i * 8) + j;                                           // and block#
+            memcpy(msg, "both pointers\0", 14);                                 // default msg
+
+            if ((used[i] & off) != 0) {                                         // if used
+                if (((rlnk[i] & off) == 0) || ((dlnk[i] & off) == 0)) {         // if no RL OR no DL
+                    if ((rlnk[i] & off) != 0) {                                 // if it has RL
+                        memcpy(msg, "down pointer\0", 13);                      // say down
+                    } else if ((dlnk[i] & off) != 0) {                          // if it has DL
+                        memcpy(msg, "right pointer\0", 14);                     // say right
+                    }
+
+                    outc->len = sprintf((char *) &outc->buf[0], "%10u is used, missing %s", b1, msg); // error msg
+                    icerr++;                                                    // count it
+                    SQ_Write(outc);                                             // output it
+                    SQ_WriteFormat(SQ_LF);                                      // and a !
+                }                                                               // end error code
+            } else if (((rlnk[i] & off) != 0) || ((dlnk[i] & off) != 0)) {      // end used block - or a DL AND NOT used
+                outc->len = sprintf((char *) &outc->buf[0], "%10u is unused but is pointed to", b1);
+                icerr++;                                                        // count it
+                SQ_Write(outc);                                                 // output it
+                SQ_WriteFormat(SQ_LF);                                          // and a !
+            }
+        }
+    }
+
+    free(rlnk);                                                                 // free that
+    free(dlnk);                                                                 // and that
+    return;                                                                     // and exit
+}
+
+/*
  * Function: ic_map
  * Descript: Check map block
  * Input(s): Flag, -1 = Check only, -2 = Check and fix, -3 as -2 + track upto (daemons)
@@ -553,4 +506,56 @@ void ic_map(int flag)                                                           
 
     if (flag == -3) systab->vol[volnum - 1]->upto = 0;                          // daemon? then clear this
     return;                                                                     // done
+}
+
+/*
+ * Function: DB_ic
+ * Descript: Do integrity check on vol according to flag
+ * Input(s): Volume number
+ *           Check flag
+ * Return:   Number of errors found
+ */
+int DB_ic(int vol, int block)                                                   // integrity checker
+{
+    int uci;                                                                    // UCI#
+    int b1;                                                                     // a block
+
+    if (vol > MAX_VOL) return -ERRM26;                                          // within limits? if not - error
+    if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // is it mounted? if not - error
+    volnum = vol;                                                               // save this
+    curr_lock = 0;                                                              // ensure this is clear
+    writing = 0;                                                                // clear this
+    icerr = 0;                                                                  // clear errors
+    doing_full = 0;                                                             // and this
+    outc = (cstring *) wrt_buf;                                                 // for reporting
+    used = (u_char *) systab->vol[volnum - 1]->map;                             // point at map
+    volsiz = systab->vol[volnum - 1]->vollab->max_block;                        // number of blocks
+    gbd_expired = 0;                                                            // clear this
+    for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL) continue;
+
+    if (block == 0) {                                                           // full check?
+        level = 0;
+        ic_full();                                                              // do it
+        gbd_expired = GBD_EXPIRED;
+        return icerr;                                                           // and return
+    } else if (block > 0) {
+        level = 1;
+
+        for (uci = 0; uci < UCIS; uci++) {                                      // scan UCI table
+            b1 = systab->vol[volnum - 1]->vollab->uci[uci].global;              // get GD
+
+            if (b1 == block) {                                                  // if block is GD
+                level = 0;
+                break;
+            }
+        }
+
+        ic_block(block, 0, NULL, (var_u) 0ULL);                                 // check it
+        gbd_expired = GBD_EXPIRED;
+        return icerr;                                                           // and return
+    }
+
+    dbfd = partab.vol_fds[volnum - 1];                                          // set this up
+    ic_map(block);                                                              // map check
+    return icerr;                                                               // and return
 }

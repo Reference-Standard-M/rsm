@@ -1,19 +1,112 @@
+:source-highlighter: highlight.js
+:highlightjs-languages: bash
+
 [role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
+
+[role="right"]
+link:doc/index.adoc[Index]
 
 '''
 
 == Reference Standard M Changelog
 
+=== v1.78.0 -- 2023 Jun 16
+
+* Add performance optimization to the symbol table search algorithm
+* Add support to `MERGE` a whole routine out of `^$ROUTINE`, for local changes
+* Add `$DATA` support to the first subscript of the `^$DEVICE` system variable
+* Add `WRITE` support for the contents of the debugger handler code
+* Add current job count to the environment info command
+* Add support for additional file attributes to the `$&%FILE` XCall
+* Make `$INCREMENT` fully atomic (add a new SEM_ATOMIC semaphore)
+* Fix bug preventing `SET` with standard (vertical bar) extended references
+* Fix bug preventing `SET` with square bracket extended references with volumes
+* Improve the configuration of the `DELETE` parameter in the `USE` command
+* Add contents of the debugger handlers to the `^%SHOWBP` vendor utility
+* Add `^%DEBUG` routine as an example `QUIT` handler for use in the debugger
+* Add M source lines to the output of the `^DECOMP` vendor utility
+* Add date filtering to the journal lister routine [`^JOURNLST`]
+* Increase translation table entries from 8 to 64
+* Increase jobs per daemon from 10 to 16
+* Decrease maximum daemons per volume from 20 to 16
+* Improve name of daemon log files (add `rsm-` as a prepended namespace)
+
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
+
+=== v1.78.0-pre.3 -- 2023 Jun 12
+
+* Fix error handling bug that causes hangs in the `$QUERY` global implementation
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/5
+* Fix indirection bug in old style lock lists
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/5
+* Fix offset bug in lock list algorithm
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/5
+* Fix timeout bug in old style locks with indirection
+* Fix naked indicator support in the `MERGE` command
+* Change umask for database file, journal file, and log directory permissions
+* Add new error to the integrity checker to flag block larger than max block
+* Fix semaphore bug in integrity checker that causes hangs
+* Fix bug preventing some errors from being returned during a database `KILL`
+* Fix several UCI bugs and issues in the source and the M vendor utilities
+* Add code to prevent creating UCIs with the same name as an existing UCI
+* Change restricted mode [`-R`] message from a string to a `Z77` error
+* Improve I/O handling errors when using sockets
+* Fix bug in debugger that prevents some proper resets
+* Add code to cleanly close journal files on job exit
+* Add save of I/O channel options to the interactive debugger
+* Fix several bugs in the interpreter that fail to break properly on errors
+* Change attempts to `MERGE` to or from a descendant variable to an `M19` error
+* Fix bug when calling the `$&%ROUCHK` XCall without an argument [`M11`]
+* Fix potential segfault in `^$DEVICE(_channel_,"OPTIONS","TERMINATOR")`
+* Add range checks and range error `M43` when setting `$X` and `$Y`
+* Improve error handling in `SET $PIECE`/`SET $EXTRACT`
+* Improve error handling in `$INCREMENT`
+* Fix overflow bugs in `$INCREMENT` that could lead to a segfault
+* Improve error handling in `MERGE`
+* Improve error handling when attaching to shared memory
+* Improve terminal handling in the `$&%SPAWN` XCall
+* Update the conformance clause
+* Make improvements to type casting in the lock table code
+
+=== v1.78.0-pre.2 -- 2023 May 28
+
+* Make minor code, comment, and formatting changes throughout the code base
+* Add Bash completion script to the Docker configuration file [`Dockerfile`]
+* Add profile rule to Make configurations for gprof support
+* Update the README file, conformance clause, and language guide
+* Fix parsing bugs in the Bash completion script
+* Add comments to various configuration scripts, providing usage examples
+* Fix various MDC error code bugs and inconsistencies
+* Fix potential double free bug in the interpreter
+* Increase the TCP socket listen queue backlog from 5 to 20
+* Remove code redundancies in symbol table code
+* Improve variable scoping in multiple M vendor utilities
+* Refactor the MATH utility library into five routines instead of seven
+* Fix bug in `^%D` that prevents display of the first day of `$HOROLOG`
+* Add interactive option to the routine pager utility [`^%TYP`]
+* Fix bug in `^%ZRCHG` that calls the wrong routine name for recompiling
+* Fix bug in `^%ZRSE` that executes code out of global nodes that don't exist
+* Improve output formatting in the `^%ZRSEL` vendor utility
+* Fix fall-through entry points in multiple M vendor utilities
+
+=== v1.78.0-pre.1 -- 2023 May 16
+
+* Restructure and simplify source
+* Remove redundant prototypes from source
+* Add support for pre-release numbering
+
 === v1.77.0 -- 2023 Jan 5
 
-* Add restricted mode, `-R`, which prevents jobs from shelling out [`$&%spawn`]
+* Add restricted mode, `-R`, which prevents jobs from shelling out [`$&%SPAWN`]
 * Add current volume to the direct mode prompt
 * Add partial (UCI) support for standard extended references using vertical bars
 * Add error count to routine syntax check
-* Add support for setting `M` and `Z` errors to `$ecode`
-* Add `character` node to the `^$system` system variable
+* Add support for setting `M` and `Z` errors to `$ECODE`
+* Add `CHARACTER` node to the `^$SYSTEM` system variable
 * Add systemd user template service file [`rsm@.service`]
 * Add systemd environment configuration file [`rsm.env`]
 * Add Bash completion script for RSM [`rsm`]
@@ -28,15 +121,15 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
   - Add volume support to routine buffers
   - Add volume support to journal shutdown
   - Add volume support to daemon shutdown queue sync
-  - Add volume support to `$&debug("rbd")`
+  - Add volume support to `$&DEBUG("RBD")`
   - Add volume support to M vendor utilities
 * Change the defaults of the historic language features from off to on
-  - `^$system("$nextok")` - support for `$next`
-  - `^$system("eok")` - support for scientific exponent notation with `E`
-  - `^$system("offok")` - support for tag/label line offsets with `+`
-* Expose semaphore array ID and shared memory IDs to the system information menu
+  - `^$SYSTEM("$NEXTOK")` - support for `$NEXT`
+  - `^$SYSTEM("EOK")` - support for scientific exponent notation with `E`
+  - `^$SYSTEM("OFFOK")` - support for tag/label line offsets with `+`
+* Add semaphore array ID and shared memory IDs to the environment info menu
 * Add missing database block statistics counters
-* Add missing database block counters to the system statistics utility [`%STA`]
+* Add missing database block counters to the system statistics utility [`^%STA`]
 * Lower minimum block size from 4 KiB to 1 KiB
 * Increase size of lock table from 8 KiB to 16 KiB per job
 * Increase minimum number of global buffer descriptors from 40 to 64
@@ -48,10 +141,10 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
   - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/2
 * Fix extrinsic addition expression bug that erroneously compiles as an offset
 * Fix bug preventing job indirection with timeouts
-* Fix bug when setting an error code with only an ending comma in `$ecode`
-* Fix bug when using an empty indirection string as the argument to `$text`
-* Fix `$qsubscript` bug which returns environment names in the wrong order
-* Fix lock table descriptor debugging output [`$&debug("ltd")`]
+* Fix bug when setting an error code with only an ending comma in `$ECODE`
+* Fix bug when using an empty indirection string as the argument to `$TEXT`
+* Fix `$QSUBSCRIPT` bug which returns environment names in the wrong order
+* Fix lock table descriptor debugging output [`$&DEBUG("LTD")`]
 * Simplify and improve the Make configurations
 * Rename the Make configuration files
   - `Makefile` => `GNUmakefile`
@@ -61,7 +154,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 * Improve the `docker` and `upgrade` shell scripts
 * Improve the `magic` configuration file
 * Improve history recall functionality to avoid duplicating history
-* Improve I/O handling errors when using `$&%fork`
+* Improve I/O handling errors when using `$&%FORK`
 * Add improved error handling in various places
 * Improve error messages in various places
 * Fix duplicate startup messages in Docker container by flushing standard out
@@ -79,30 +172,38 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 * Update versioning macros and functions to support pre-release versions of RSM
 * Rework and/or add some of the warning and version macros
 * Update continuous integration configuration script [`.gitlab-ci.yml`]
-* Fix namespace bug in `open` command
+* Fix namespace bug in `OPEN` command
 * Set missing map dirty flag when creating a new UCI
 * Add volume error checks to the view buffers
 * Set missing global volume number when releasing a view buffer
 * Change SIGTSTP, SIGCONT, SIGTTIN, SIGTTOU process signals to default behavior
 * Increase incoming socket pending connection queue from 3 to 5
 * Improve escape processing in more contexts
-* Fix memory leaks in `$fnumber`
+* Fix memory leaks in `$FNUMBER`
 * Add support for PNG files to the RSM web server
 * Add total count to the routine compile check in the MCL
-* Add status of the `quit` breakpoint code to the `%SHOWBP` vendor utility
+* Add status of the `QUIT` breakpoint code to the `^%SHOWBP` vendor utility
 * Improve error handling in multiple M vendor utilities
 * Improve variable scoping in multiple M vendor utilities
-* Fix bug in block dump to global in the block dump utility [`%BLKDMP`]
+* Fix bug in block dump to global in the block dump utility [`^%BLKDMP`]
 * Fix error handling bugs in MCL, including stack and history bugs
-* Fix display bug in system statistics vendor utility [`%STA`]
+* Fix display bug in system statistics vendor utility [`^%STA`]
 * Improve execution of shell commands in the MCL
 * Reformat some of the M code in `utils.rsm`
 
+This version made a change to the MCL source that requires the M vendor
+utilities to be reloaded via the bootstrap method, e.g.,
+
+[source,bash]
+----
+rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
+----
+
 === v1.76.2 -- 2022 Feb 23
 
-* Improve escape processing while editing M input [`read`]
-* Fix `precision` node in `^$job` so jobs can set their own decimal precision
-* Fix incorrect permissions on the UCI and volume configuration nodes in `^$job`
+* Improve escape processing while editing M input [`READ`]
+* Fix `PRECISION` node in `^$JOB` so jobs can set their own decimal precision
+* Fix incorrect permissions on the UCI and volume configuration nodes in `^$JOB`
 * Fix bug that causes jobs to hang when setting UCI to a non-existent one
 * Change constants in the math library [`^MATH`] to support decimal precision
 * Reformat some of the M code in `utils.rsm`
@@ -120,25 +221,25 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 === v1.76.0 -- 2022 Feb 1
 
-* Add `$increment` intrinsic function
-* Add `^$character` system variable
-* Add `^$device` system variable
+* Add `$INCREMENT` intrinsic function
+* Add `^$CHARACTER` system variable
+* Add `^$DEVICE` system variable
 * Add Dockerfile to create a simple RSM Docker container image
-* Add daemon PID information to the system information menu
+* Add daemon PID information to the environment info menu
 * Add new vendor utility for forward journal recovery [`^JOURNREC`]
 * Add multi-line input editing capability to the direct and debug modes
 * Improve multi-line editing in the MCL vendor utility routine [`^%M`]
-* Add support for read-write operations (`io`) on files to the `open` command
+* Add support for read-write operations (`IO`) on files to the `OPEN` command
 * Improve translation table syntax to allow globals without extended references
 * Reformat the M code in `utils.rsm`
-* Add `big_endian` node to the `^$system` system variable
-* Add `collate` node to the `^$global` system variable
+* Add `BIG_ENDIAN` node to the `^$SYSTEM` system variable
+* Add `COLLATE` node to the `^$GLOBAL` system variable
 * Add `docker` script to run RSM in the RSM Docker container
-* Modify vendor utility routine `BIGEND^%U` to use `^$system("big_endian")`
-* Fix `$qsubscript` bug which returns global names without the caret [`^`]
+* Modify vendor utility function `BIGEND^%U` to use `^$SYSTEM("BIG_ENDIAN")`
+* Fix `$QSUBSCRIPT` bug which returns global names without the caret [`^`]
 * Fix bug in the integrity checker loop test that prevents full checks
 * Improve overflow and underflow checks in string to int conversion function
-* Improve the formatting of the `$&debug("rbd")` and `$&debug("ltd")` XCalls
+* Improve the formatting of the `$&DEBUG("RBD")` and `$&DEBUG("LTD")` XCalls
 * Fix error trap bugs in the global extended lister vendor routine [`^%G`]
 * Fix bug in the error trap of the integrity checker vendor routine [`^IC`]
 * Fix 12 hour mode in the time display vendor routine [`^%T`]
@@ -146,8 +247,8 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 * Fix bug in UCI editor vendor routine [`^UCI`], preventing proper editing
 * Add documentation for the new instrinsic function and the new system variables
 * Add missing documentation to the language guide
-* Fix mistake in the documentation for `break` in the language guide
-* Fix description of standard compliance for `set` in the language guide
+* Fix mistake in the documentation for `BREAK` in the language guide
+* Fix description of standard compliance for `SET` in the language guide
 * Change `make test` to `make debug`
 * Move asserts to debug build
 * Remove redundant vendor routine [`^MUMTRIS2`] -- already have `^MUMTRIS`
@@ -157,7 +258,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 * Fix false positive DBC overflow bug in the integrity checker
 * Revert fix of argument encoding from previous release
 * Fix tag/label offset bug with offsets of 2
-* Improve the formatting of the `$&debug("rbd")` XCall
+* Improve the formatting of the `$&DEBUG("RBD")` XCall
 * Improve the platform support section of the documentation
 * Add a helpful note about recompiling routines to the documentation
 * Make various small improvements to source code formatting
@@ -170,7 +271,7 @@ them.
 
 * Add use of all ASCII characters [0-127] as input terminators
 * Add `-V` option to the `rsm` executable, to return the short version string
-* Add `-i` option to the `rsm` executable, to return the system information menu
+* Add `-i` option to the `rsm` executable, to return the environment info menu
 * Improve the `-k` option to the `rsm` executable, making it native and robust
 * Increase max I/O channels from 32 to 64
 * Restructure the help menu and add the new `-V` and `-i` options to it
@@ -180,7 +281,7 @@ them.
 * Finish support for big-endian architectures
 * Add new error [`Z49`] for when the job table is full while trying to fork
 * Improve documentation, including the first draft of the language guide
-* Add the initial conformance guide to the documentation
+* Add the initial conformance clause to the documentation
 * Add new license file for the documentation license
 * Reformat all source files that haven't already been reformatted
 * Rename most of the source files and restructure init utilities
@@ -188,19 +289,19 @@ them.
 * Improve error handling of tag/label offsets that are too large
 * Fix bug in debugger that prevents proper reset in certain scenarios
 * Add current volume to the M Command Language (MCL) prompt
-* Improve output of shell commands in pipe/shell modes of the `^$&%spawn` XCall
+* Improve output of shell commands in pipe/shell modes of the `^$&%SPAWN` XCall
 * Remove terminal hacks in `utils.rsm` that are no longer necessary
-* Change database permissions on creation to 640 to match the journal file
+* Change database permissions on creation to 640 for better security
 * Improve fix to double free bug preventing a possible leak during error frames
 * Fix bug that prevents display of some error messages when starting a job
 * Fix non-existent volume bug that leads to a segfault
-* Fix bug with `t` option not adding a trailing space in `$fnumber`
-* Fix the semantics of timeouts of 0 with the `open` and `read` commands
-* Fix bug that mangles arguments to the `job` command when run via `rsm -x`
+* Fix bug with `T` option not adding a trailing space in `$FNUMBER`
+* Fix the semantics of timeouts of 0 with the `OPEN` and `READ` commands
+* Fix bug that mangles arguments to the `JOB` command when run via `rsm -x`
 * Fix bug in the inline function that tests for empty names (`VAR_U`)
 * Fix bug that left an open database file descriptor when starting the daemons
-* Fix bug that opens the database file a second time during a `job` command
-* Fix bug in the `$&paschk` XCall that closes the password file prematurely
+* Fix bug that opens the database file a second time during a `JOB` command
+* Fix bug in the `$&PASCHK` XCall that closes the password file prematurely
 * Fix issues with some XCalls on MacOS X
 * Improve, and fix, some of the M language error messages
 * Rework some of the error macros
@@ -208,7 +309,7 @@ them.
 * Optimize part of the sequential I/O initialization
 * Add new vendor utility routine to show current breakpoints [`^%SHOWBP`]
 * Fix bug in the big-endian M vendor utility routine entryref [`$$BIGEND^%U`]
-* Fix bug in vendor global extended lister utility routine [`%G`]
+* Fix bug in vendor global extended lister utility routine [`^%G`]
 * Fix display bug in vendor routine directory utility routine [`^%RD`]
 * Improve output of the block dumping vendor utility routine [`^%BLKDMP`]
 * Improve the screen handling of the MCL vendor utility routine [`^%M`]
@@ -238,7 +339,7 @@ routines.
 * Increase size of lock table from 1 KiB to 8 KiB per job
 * Add support for discovered run-time name and subscript indirection
 * Add environment limits for global [128 GiB] and routine [~ 4 GiB] buffers
-* Add `string_max` node to the `^$system` system variable
+* Add `STRING_MAX` node to the `^$SYSTEM` system variable
 * Add current UCI to the direct mode prompt
 * Add current UCI to the M Command Language [MCL] prompt
 * Handle environment start with additional buffers flag with an error for now
@@ -250,20 +351,20 @@ routines.
 * Change the forking TCP server to allow immediate port reconnection [TIME_WAIT]
 * Prevent erroneous extra characters after intrinsic variable or function names
 * Fix multi-level argument indirection to properly return an error
-* Fix setting of volume name in `^$system` to allow for full 32 characters
-* Fix `^$system` bug that leads to a segfault
-* Fix display bug when retrieving historic features support values in `^$system`
-* Fix bug when setting historic features support values in `^$system`
+* Fix setting of volume name in `^$SYSTEM` to allow for full 32 characters
+* Fix `^$SYSTEM` bug that leads to a segfault
+* Fix display bug when retrieving historic features support values in `^$SYSTEM`
+* Fix bug when setting historic features support values in `^$SYSTEM`
 * Fix bug that prevents the debugger from hitting a breakpoint more than once
-* Fix `$text` bug that returns the name of routines that did not exist
-* Fix bug that displays non-existent locks with the `$&debug("ltd")` XCall
-* Fix and improve the display of the `$&debug` XCall
-* Change the arguments to the `$&debug` XCall to be case-insensitive
-* Expose the `struct` argument to the `$&debug` XCall on all platforms
+* Fix `$TEXT` bug that returns the name of routines that did not exist
+* Fix bug that displays non-existent locks with the `$&DEBUG("LTD")` XCall
+* Fix and improve the display of the `$&DEBUG` XCall
+* Change the arguments to the `$&DEBUG` XCall to be case-insensitive
+* Expose the `STRUCT` argument to the `$&DEBUG` XCall on all platforms
 * Coalesce all daemon_*.log files in to one daemon.log file
 * Improve log message format, adding more detailed information
 * Fix symbol table bug preventing symbol table full error [`Z56`]
-* Fix DBC overflow integrity test [`$&%ic` XCall] bug
+* Fix DBC overflow integrity test [`$&%IC` XCall] bug
 * Fix stack smashing bug in math module
 * Improve accuracy of fractional powers in math module
 * Add and improve error messages in math module
@@ -273,8 +374,8 @@ routines.
 * Add extra string length bounds checking for database records
 * Add more information to error messages displayed during startup
 * Add extra error handling to the compiler and the run-time
-* Increase the max string length for `set $piece`/`set $extract` by 1 character
-* Add better max string error handling to the `set $piece` functionality
+* Increase the max string length for `SET $PIECE`/`SET $EXTRACT` by 1 character
+* Add better max string error handling to the `SET $PIECE` functionality
 * Increase max routine tags/labels from 255 to 256
 * Update the help menu with the new limits and functionality
 * Add more source constants for internal language and database size limits
@@ -288,7 +389,7 @@ routines.
 * Modify the `^UCI` utility routine to allow changing the manager UCI name
 * Fix display issues in the global efficiency utility routine [`^%GE`]
 * Improve variable scoping in vendor utility routines
-* Modify vendor utility routines to use `^$system("string_max")`
+* Modify vendor utility routines to use `^$SYSTEM("STRING_MAX")`
 * Improve support for long output to vendor utility routine [`^%U`]
 * Fix bug in the way tags/labels are defined in the `^MATH` utility routines
 * Fix bug preventing the `^%ZUCI` routine from handling user error inputs
@@ -300,12 +401,16 @@ routines.
 * Improve parts of the documentation
 * Rename release-notes.adoc to CHANGELOG.adoc
 
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
+
 === v1.73.1 -- 2021 Mar 4
 
 * Add fix to support ISC Cache routine export format, supplied by Sam Habiel
 
-This version erroneously displays V1.73.0 instead of V1.73.1 when using `write
-$system` and `rsm -h`.
+This version erroneously displays V1.73.0 instead of V1.73.1 when using `WRITE
+$SYSTEM` and `rsm -h`.
 
 === v1.73.0 -- 2020 Dec 26
 
@@ -316,7 +421,7 @@ $system` and `rsm -h`.
   - Routine tag/label names
   - UCI names
   - Volume names
-* Add `name_length` node to the `^$system` system variable for version support
+* Add `NAME_LENGTH` node to the `^$SYSTEM` system variable for version support
 * Change use of name lengths longer than the max at run-time to an `M56` error
 * Update database to version 2
 * Update compiler to version 8
@@ -338,28 +443,28 @@ $system` and `rsm -h`.
 * Handle attaching a new database file to an old memory environment gracefully
 * Improve error handling in several places
 * Improve the daemon log messages
-* Fix `^$system` UCI bugs that lead to segfaults
+* Fix `^$SYSTEM` UCI bugs that lead to segfaults
 * Fix journal header datetime stamp size
-* Fix journal bug that prevents journaling the first `set`/`kill` of a global
+* Fix journal bug that prevents journaling the first `SET`/`KILL` of a global
 * Fix error handling bug that broke the handling of the null character in a key
-* Fix `job` bug when passing one or more arguments with a timeout
-* Fix `$data` bug with the `^$global` system variable top node
+* Fix `JOB` bug when passing one or more arguments with a timeout
+* Fix `$DATA` bug with the `^$GLOBAL` system variable top node
 * Fix device timeout bug
-* Fix integrity checker [`$&%ic` XCall] to work with global directory blocks
-* Improve the fix for the `write` form feed command [`write #`]
-* Change `$storage` to return remaining symbol table slots, rather than 1024
+* Fix integrity checker [`$&%IC` XCall] to work with global directory blocks
+* Improve the fix for the `WRITE` form feed command [`WRITE #`]
+* Change `$STORAGE` to return remaining symbol table slots, rather than 1024
 * Add use of ASCII 127 as an input terminator
 * Fix I/O to support shell heredocs and other I/O redirection
 * Remove hard-coded support for the '`ONE`' application
 * Fix I/O daemonizing bug when starting up write/garbage daemons
 * Change the `$BP` [breakpoints] intrinsic variable to `$ZBP` and expose it in M
-* Fix output bug cutting off last character in `$system`
-* Add pipe mode to the `$&%spawn` XCall, to redirect shell output to a variable
+* Fix output bug cutting off last character in `$SYSTEM`
+* Add pipe mode to the `$&%SPAWN` XCall, to redirect shell output to a variable
 * Fix all compiler errors in the vendor utility routines
 * Update vendor routines to work with version 1 and 2 databases and journals
 * Update vendor utility routines to optionally display full global data
 * Fix bug in the M Command Language OS shelling functionality
-* Fix bug in `UCI` utility routine that allows editing of UCI 1 [manager]
+* Fix bug in `^UCI` utility routine that allows editing of UCI 1 [manager]
 * Fix bug that prevents the `Dump` functionality in the database `^FIX` utility
 * Fix search bug in the `List` functionality in the database `^FIX` utility
 * Fix display bug with empty formal lists in the routine `^DECOMP` utility
@@ -368,14 +473,14 @@ $system` and `rsm -h`.
 * Update formatting of utilities that display data throughout
 * Add support for journals made from database versions 1 and 2 to `^JOURNLST`
 * Add current journal file set as default in the journal `^JOURNLST` utility
-* Add big-endian machine support when using `view`/`$view` in vendor routines
+* Add big-endian machine support when using `VIEW`/`$VIEW` in vendor routines
 * Add support to the vendor routines for manager UCIs not named '`MGR`'
-* Modify vendor utility routines to use `^$system("name_length")`
+* Modify vendor utility routines to use `^$SYSTEM("NAME_LENGTH")`
 * Add support for long output to vendor utility routine [`^%U`]
 * Add `Shutdown` command to the MCL to shut down an environment
 * Add UCI name to the `List` functionality in the database `^FIX` utility
 * Add max jobs option to the vendor-supplied M web server [`^%WWW` `^%WWW1`]
-* Add `kvalue` M polyfill to the `^MATH` utility dispatch routine
+* Add `KVALUE` M polyfill to the `^MATH` utility dispatch routine
 
 === v1.72.0 -- 2020 Nov 2
 
@@ -400,7 +505,10 @@ Standard M V1.72.0.
 * Remove unused, extraneous code
 * Remove alternate terminal code for input terminators
 * Remove use of ASCII 127 as an input terminator
-* Fix the `write` form feed command [`write #`]
-* Improve the `$&%directory` XCall semantics
-* Update, and improve, the `$&paschk` XCall to work on more supported platforms
+* Fix the `WRITE` form feed command [`WRITE #`]
+* Improve the `$&%DIRECTORY` XCall semantics
+* Update, and improve, the `$&PASCHK` XCall to work on more supported platforms
 * Add entryref for port # to the vendor-supplied M web server [`^%WWW` `^%WWW1`]
+
+[role="right"]
+link:doc/index.adoc[Index]

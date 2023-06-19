@@ -46,136 +46,6 @@
 #define NUL      '\0'
 #define DEL      '\177'
 
-short pattern(cstring *a, cstring *b);
-void pminmax(cstring *str, int *min, int *max);
-
-short patmat(cstring *str, cstring *code)
-{
-    u_char  ch;
-    u_char  f;
-    int     i = 0;
-    int     j = 0;
-    int     group = 0;
-    int     x = 0;
-    u_char  buf[257] = {NUL};
-    cstring *tmp;
-
-    tmp = (cstring *) buf;
-    ch = code->buf[x];
-
-    if (((ch > '9') || (ch < '0')) && (ch != '.')) return -ERRM10;              // if not number or dot then bug off with error
-DISABLE_WARN(-Warray-bounds)
-    tmp->buf[0] = ch;                                                           // save this char
-    i = 1;                                                                      // index into string
-    f = '1';                                                                    // 'previous' character
-
-    if (ch == '.') {
-        j = 1;
-    } else {
-        j = 0;                                                                  // point flag
-    }
-
-    group = 0;                                                                  // grouped pattern match
-
-    while (++x < code->len) {                                                   // while more to do
-        ch = code->buf[x];
-
-        if ((ch >= '0') && (ch <= '9')) {                                       // while more in a string of num's
-            tmp->buf[i++] = ch;                                                 // copy the number out
-            f = '1';                                                            // prev char
-            continue;                                                           // go to next char
-        }                                                                       // end if
-
-        if (ch == '.') {                                                        // dot in pattern
-            if (j) return -ERRM10;                                              // they have two dots so bug off with err
-            j++;                                                                // flag error
-            tmp->buf[i++] = ch;                                                 // copy the dot
-            f = '1';                                                            // prev char
-            continue;                                                           // go to next char
-        }                                                                       // end if
-
-        j = 0;                                                                  // flag ok
-
-        if (ch == NOT) {                                                        // negation of pattern class?
-            ch = code->buf[x + 1];
-
-            if ((ch == '"') || ((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z'))) {
-                tmp->buf[i++] = NOT;
-            } else
-                ch = NOT;
-        }
-
-        if (ch == '"') {
-            if ((f != '1') && (f != 'A')) return -ERRM10;
-
-            for (;;) {
-                tmp->buf[i++] = ch;
-                ch = code->buf[++x];
-                if (x >= code->len) return -ERRM10;
-
-                if ((ch == '"') || (ch == DELIM)) {                             // to cater for quotes
-                    if ((f = code->buf[x + 1]) != '"') {                        // inside brackets the
-                        ch = DELIM;                                             // || ch == DELIM was
-                        break;                                                  // added
-                    }
-
-                    x++;
-                }
-            }
-
-            tmp->buf[i++] = ch;
-            f = '"';
-            continue;
-        }
-
-        if (ch == '(') {
-            if (f != '1') return -ERRM10;
-            group++;
-            f = '(';
-            tmp->buf[i++] = ch;
-            continue;
-        }
-
-        if (group && ((ch == ',') || (ch == ')'))) {
-            if ((f == '1') || (f == '(')) return -ERRM10;
-
-            if (ch == ',') {
-                f = '(';
-                tmp->buf[i++] = ch;
-                continue;
-            }
-
-            if (ch == ')') {
-                group--;
-                tmp->buf[i++] = ch;
-                continue;
-            }
-        }
-
-        if ((ch >= 'A') && (ch <= 'Z')) ch += 32;                               // lower case conversion
-
-        if ((ch != 'c') && (ch != 'n') && (ch != 'p') && (ch != 'a') && (ch != 'l') && (ch != 'u') && (ch != 'e')) {
-            break;
-        }
-
-        if ((f != '1') && (f != 'A')) return -ERRM10;
-
-        if (j) {
-            ch -= 32;
-            j = 0;
-        }
-
-        tmp->buf[i++] = ch;
-        f = 'A';
-    }
-
-    if ((f == '1') || group) return -ERRM10;
-    tmp->buf[i++] = DELIM;
-    tmp->len = i;                                                               // the value of 'i' is the length of tmp
-ENABLE_WARN
-    return pattern(str, tmp);
-}
-
 /*
  * Auxiliary function for grouped pattern match
  *
@@ -235,8 +105,8 @@ void pminmax(cstring *str, int *min, int *max)
 
             cnt = 0;                                                            // init counter
             while (str->buf[++i] != DELIM) cnt++;                               // while more to do increment counter
-            mininc = mininc * cnt;                                              // set this minimum
-            maxinc = maxinc * cnt;                                              // set this maximum
+            mininc *= cnt;                                                      // set this minimum
+            maxinc *= cnt;                                                      // set this maximum
         }
 
         if (str->buf[i] == '"') {
@@ -301,7 +171,7 @@ short pattern(cstring *a, cstring *b)
     short   ptrpcd[PATDEPTH];
     short   position[PATDEPTH];
     short   mincnt[PATDEPTH] = {0};                                             // minimum number of matches
-    short   maxcnt[PATDEPTH];                                                   // maximum number of matches
+    short   maxcnt[PATDEPTH] = {0};                                             // maximum number of matches
     short   actcnt[PATDEPTH];                                                   // actual count of matches
     short   Pflag;
     short   Pchar;                                                              // status in alternation
@@ -513,7 +383,7 @@ short pattern(cstring *a, cstring *b)
                         }                                                       // end if a negation
 
                         /*
-                        if (a->buf[y + i - 1] == EOL) {                         // we have reached EOL - DLW: why is it empty???
+                        if (a->buf[y + i - 1] == EOL) {                         // we have reached EOL - NOTE: why is it empty???
                         }                                                       // end if reached EOL
                         */
 
@@ -670,8 +540,8 @@ nomatch:
 match:                                                                          // match
             y++;                                                                // move pointer to next char
 
-match0:
-            continue;                                                           // no action
+match0:                                                                         // no action
+            continue;
         }
 
         position[patx++] = y;                                                   // pos after last match
@@ -679,3 +549,130 @@ match0:
 
     return 0;
 }                                                                               // end of pattern
+
+short patmat(cstring *str, cstring *code)
+{
+    u_char  ch;
+    u_char  f;
+    int     i = 0;
+    int     j = 0;
+    int     group = 0;
+    int     x = 0;
+    u_char  buf[257] = {NUL};
+    cstring *tmp;
+
+    tmp = (cstring *) buf;
+    ch = code->buf[x];
+
+    if (((ch > '9') || (ch < '0')) && (ch != '.')) return -ERRM10;              // if not number or dot then bug off with error
+DISABLE_WARN(-Warray-bounds)
+    tmp->buf[0] = ch;                                                           // save this char
+    i = 1;                                                                      // index into string
+    f = '1';                                                                    // 'previous' character
+
+    if (ch == '.') {
+        j = 1;
+    } else {
+        j = 0;                                                                  // point flag
+    }
+
+    group = 0;                                                                  // grouped pattern match
+
+    while (++x < code->len) {                                                   // while more to do
+        ch = code->buf[x];
+
+        if ((ch >= '0') && (ch <= '9')) {                                       // while more in a string of num's
+            tmp->buf[i++] = ch;                                                 // copy the number out
+            f = '1';                                                            // prev char
+            continue;                                                           // go to next char
+        }                                                                       // end if
+
+        if (ch == '.') {                                                        // dot in pattern
+            if (j) return -ERRM10;                                              // they have two dots so bug off with err
+            j++;                                                                // flag error
+            tmp->buf[i++] = ch;                                                 // copy the dot
+            f = '1';                                                            // prev char
+            continue;                                                           // go to next char
+        }                                                                       // end if
+
+        j = 0;                                                                  // flag ok
+
+        if (ch == NOT) {                                                        // negation of pattern class?
+            ch = code->buf[x + 1];
+
+            if ((ch == '"') || ((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z'))) {
+                tmp->buf[i++] = NOT;
+            } else
+                ch = NOT;
+        }
+
+        if (ch == '"') {
+            if ((f != '1') && (f != 'A')) return -ERRM10;
+
+            for (;;) {
+                tmp->buf[i++] = ch;
+                ch = code->buf[++x];
+                if (x >= code->len) return -ERRM10;
+
+                if ((ch == '"') || (ch == DELIM)) {                             // to cater for quotes
+                    if ((f = code->buf[x + 1]) != '"') {                        // inside brackets the
+                        ch = DELIM;                                             // || ch == DELIM was
+                        break;                                                  // added
+                    }
+
+                    x++;
+                }
+            }
+
+            tmp->buf[i++] = ch;
+            f = '"';
+            continue;
+        }
+
+        if (ch == '(') {
+            if (f != '1') return -ERRM10;
+            group++;
+            f = '(';
+            tmp->buf[i++] = ch;
+            continue;
+        }
+
+        if (group && ((ch == ',') || (ch == ')'))) {
+            if ((f == '1') || (f == '(')) return -ERRM10;
+
+            if (ch == ',') {
+                f = '(';
+                tmp->buf[i++] = ch;
+                continue;
+            }
+
+            if (ch == ')') {
+                group--;
+                tmp->buf[i++] = ch;
+                continue;
+            }
+        }
+
+        if ((ch >= 'A') && (ch <= 'Z')) ch += 32;                               // lower case conversion
+
+        if ((ch != 'c') && (ch != 'n') && (ch != 'p') && (ch != 'a') && (ch != 'l') && (ch != 'u') && (ch != 'e')) {
+            break;
+        }
+
+        if ((f != '1') && (f != 'A')) return -ERRM10;
+
+        if (j) {
+            ch -= 32;
+            j = 0;
+        }
+
+        tmp->buf[i++] = ch;
+        f = 'A';
+    }
+
+    if ((f == '1') || group) return -ERRM10;
+    tmp->buf[i++] = DELIM;
+    tmp->len = i;                                                               // the value of 'i' is the length of tmp
+ENABLE_WARN
+    return pattern(str, tmp);
+}

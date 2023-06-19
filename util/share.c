@@ -35,6 +35,7 @@
 #include "rsm.h"                                                                // standard includes
 #include "error.h"                                                              // standard includes
 #include "proto.h"                                                              // standard includes
+#include "database.h"                                                           // for semaphore macro
 
 extern int curr_lock;                                                           // for tracking SEM_GLOBAL
 
@@ -54,11 +55,13 @@ int UTIL_Share(char *dbf)                                                       
     shar_mem_id = shmget(shar_mem_key, 0, 0);                                   // attach to existing share
     if (shar_mem_id == -1) return errno;                                        // die on error
     sad = (systab_struct *) shmat(shar_mem_id, SHMAT_SEED, 0);                  // map it
+    if (sad == (void *) -1) return errno;                                       // die on error
     systab = (systab_struct *) sad->address;                                    // get required address
 
     if (sad != systab) {                                                        // if not in correct place
-        int i = shmdt(sad);                                                     // unmap it
+        int i;
 
+        i = shmdt(sad);                                                         // unmap it
         if (i == -1) fprintf(stderr, "shmdt return = %X\n", i);
         sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);         // try again
         if (sad == (void *) -1) fprintf(stderr, "systab = %lX  attach = %lX\n", (u_long) systab, (u_long) sad);
@@ -80,17 +83,39 @@ int UTIL_Share(char *dbf)                                                       
 short SemOp(int sem_num, int numb)                                              // Add/Remove semaphore
 {
     int           i;                                                            // for try loop
-    struct sembuf buf = {0, 0, SEM_UNDO};                                       // for semop()
+    struct sembuf buf[2] = {{0, 0, SEM_UNDO}, {SEM_ATOMIC, WRITE, SEM_UNDO}};   // for semop()
+    short         semops = 1;
+    static int    atomic = FALSE;                                               // flag whether atomic lock is held by current job
 
     if (numb == 0) return 0;                                                    // check for junk? then just return
-    buf.sem_num = (u_short) sem_num;                                            // get the one we want
-    buf.sem_op = (short) numb;                                                  // and the number of them
+    buf[0].sem_num = (u_short) sem_num;                                         // get the one we want
+    buf[0].sem_op = (short) numb;                                               // and the number of them
 
     for (i = 0; i < 5; i++) {                                                   // try this many times
-        short s = semop(systab->sem_id, &buf, 1);                               // do it
+        short s;
+
+        if ((atomic == FALSE) && (sem_num == SEM_GLOBAL) && (numb < 0) && (partab.jobtab != NULL)) {
+            semops = 2;                                                         // need to add a check for the atomic
+        }
+
+        s = semop(systab->sem_id, buf, semops);                                 // do it
 
         if (s == 0) {                                                           // if that worked
-            if (sem_num == SEM_GLOBAL) curr_lock += numb;                       // adjust curr_lock
+            if (sem_num == SEM_GLOBAL) {
+                curr_lock += numb;                                              // adjust curr_lock
+
+                if (semops == 2) {                                              // if the atomic was acquired
+                    buf[1].sem_op = -WRITE;
+                    semop(systab->sem_id, &buf[1], 1);                          // release the atomic
+                }
+            } else if (sem_num == SEM_ATOMIC) {
+                if (numb == WRITE) {
+                    atomic = TRUE;
+                } else {
+                    atomic = FALSE;
+                }
+            }
+
             return 0;                                                           // exit success
         }
 

@@ -38,10 +38,7 @@
 #include "proto.h"                                                              // function prototypes
 #include "init.h"                                                               // init prototypes
 
-void help(void);                                                                // give some help
-void info(char *file);                                                          // give some info
-void shutdown(char *file);                                                      // defined in rsm/init/shutdown.c
-int  restricted = FALSE;                                                        // whether RSM is in restricted mode or not
+int restricted = FALSE;                                                         // whether RSM is in restricted mode or not
 
 // *** Main entry for create, init, run, help, info, and shutdown ***
 int main(int argc, char **argv)                                                 // main entry point

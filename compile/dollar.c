@@ -116,7 +116,7 @@ void dodollar(void)                                                             
                             return;                                             // and exit
                         }
 
-                        p = p + s;                                              // point here
+                        p += s;                                                 // point here
                         *p = OPMVAR;                                            // get the mvar onto stack
                     }
 
@@ -242,7 +242,10 @@ void dodollar(void)                                                             
     source_ptr += len;                                                          // move source along
     len++;                                                                      // add in first character
     name[len] = '\0';                                                           // null terminate name
-    if (*source_ptr == '(') goto function;                                      // check for a function
+
+    if ((*source_ptr == '(') && (strncmp(name, "ZBP\0", 4) != 0)) {             // check for a function
+        goto function;                                                          // $ZBP is an M array, not a function
+    }
 
     switch (name[0]) {                                                          // dispatch on initial
     case 'D':                                                                   // $D[EVICE]
@@ -386,9 +389,17 @@ void dodollar(void)                                                             
         *comp_ptr++ = VARY;                                                     // add the opcode
         return;                                                                 // and exit
 
-    case 'Z':                                                                   // $ZUT
-        if (strncasecmp(name, "zut\0", 4) != 0) UNVAR;
-        *comp_ptr++ = VARZUT;                                                   // add the opcode
+    case 'Z':                                                                   // $ZBP and $ZUT
+        if (strncmp(name, "ZBP\0", 4) == 0) {                                   // $ZBP (M array, not a function)
+            source_ptr -= len + 1;                                              // backup to first character
+            s = localvar();                                                     // parse the variable
+            if (s < 0) comperror(s);                                            // if we got an error, compile it
+        } else if (strncasecmp(name, "zut\0", 4) == 0) {                        // $ZUT
+            *comp_ptr++ = VARZUT;                                               // add the opcode
+        } else {
+            UNVAR;                                                              // anything else
+        }
+
         return;                                                                 // and exit
 
     default:                                                                    // an error
@@ -454,7 +465,7 @@ function:                                                                       
 
     while (TRUE) {
         args++;                                                                 // count an argument
-        if (args > 255) EXPRE;                                                  // too many args
+        if (args > 255) EXPRE;                                                  // too many args (255 for intrinsics)
         c = *source_ptr++;                                                      // get term char
         if (c == ')') break;                                                    // all done if closing )
 

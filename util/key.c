@@ -38,7 +38,7 @@
  * Function: UTIL_Key_Build - Build a key from an ASCII source
  * Key is in order: NEGATIVE NUMBER -> ZERO -> POSITIVE NUMBER -> STRING
  */
-short UTIL_Key_Build(cstring *src, u_char *dest)                                // locn of source string and where to put it
+short UTIL_Key_Build(cstring *src, u_char *dest)                                // location of source string and where to put it
 {
     int minus = 0;                                                              // minus flag
     int dp = -1;                                                                // decimal point flag
@@ -85,7 +85,7 @@ short UTIL_Key_Build(cstring *src, u_char *dest)                                
     if ((dp != -1) && (src->buf[src->len - 1] == '0')) goto string;             // check trailing 0 after dp
     if (dp == (src->len - 1)) goto string;                                      // or dp is last char in str
     if (dp == -1) dp = (src->len - minus);                                      // get dp position (assumed)
-    if (dp > 63) goto string;                                                   // max 63 digits b4 dp
+    if (dp > 63) goto string;                                                   // max 63 digits before dp
 
     if (!minus) {                                                               // do a positive number
         dest[to++] = (u_char) (dp + 64);                                        // copy in the count + flag
@@ -150,7 +150,7 @@ short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
 
         for (i = 0; key[i] != 0; i++) {                                         // loop thru
             str[j++] = key[i];                                                  // copy till done
-            if ((key[i] == '"') && flg) str[j++] = '"';                         // double quote if reqd
+            if ((key[i] == '"') && flg) str[j++] = '"';                         // double quote if required
             if (i > MAX_SUB_LEN) return -(ERRZ1 + ERRMLAST);                    // check size
         }
 
@@ -175,7 +175,7 @@ short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
         if (*key == '\0') return (short) idx;                                   // if char 0, all done
         str[idx++] = '.';                                                       // add the dp
         while ((str[idx++] = *key++)) s++;                                      // move to NULL, counting
-        --idx;                                                                  // back to point at NULL
+        idx--;                                                                  // back to point at NULL
         if (s > MAX_SUB_LEN) return -(ERRZ1 + ERRMLAST);                        // check size
         *cnt = s + 2;                                                           // update count
         return (short) idx;                                                     // return string count
@@ -234,10 +234,10 @@ short UTIL_String_Key(u_char *key, u_char *str, int max_subs)
             str[clen++] = '"';                                                  // add leading quote
         }
 
-        clen = clen + (int) ret;                                                // add to string length
+        clen += (int) ret;                                                      // add to string length
         if (string == 1) str[clen++] = '"';                                     // add trailing quote
-        len = len - count;                                                      // subtract used bytes
-        idx = idx + count;                                                      // adjust key index
+        len -= count;                                                           // subtract used bytes
+        idx += count;                                                           // adjust key index
         str[clen++] = ',';                                                      // add a comma
         max_subs--;                                                             // count subscript
         if (max_subs < 1) break;                                                // give up if all done
@@ -277,7 +277,6 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
 {
     int     i;                                                                  // for loops
     int     p = 0;                                                              // string pointer
-    uci_tab up;                                                                 // ptr to UCI tab
     var_u   *vt;                                                                // var table pointer
     u_char  *ptr;                                                               // string ptr
 
@@ -285,7 +284,8 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
         str[p++] = '^';                                                         // lead off with the caret
 
         if (var->uci != 0) {                                                    // if an environment specified
-            int vol = var->volset;                                              // get volume
+            int     vol = var->volset;                                          // get volume
+            uci_tab up;                                                         // ptr to UCI tab
 
             str[p++] = '[';                                                     // open bracket
             str[p++] = '"';                                                     // a leading quote
@@ -332,7 +332,7 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
     if ((var->slen != 0) && (max_subs > 0)) {                                   // if there are subscripts
         i = UTIL_String_Key(&var->slen, &str[p], max_subs);                     // do the subscripts
         if (i < 0) return (short) i;                                            // quit on error
-        p = p + i;                                                              // add to length
+        p += i;                                                                 // add to length
     }
 
     str[p] = '\0';                                                              // null terminate
@@ -406,7 +406,7 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
 
             if (var->volset == 0) var->volset = partab.jobtab->vol;             // default
 
-            for (i = 0; i < UCIS; i++) {                                        // scan UCI list (vol 0)
+            for (i = 0; i < UCIS; i++) {                                        // scan UCI list
                 if (var_equal(systab->vol[var->volset - 1]->vollab->uci[i].name, nam)) {
                     break;                                                      // quit if found
                 }
@@ -489,9 +489,7 @@ ENABLE_WARN
  */
 int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2)
 {
-    int cmpvar;                                                                 // comparison variable
-
-    cmpvar = memcmp(key1, key2, ((kleng1 < kleng2) ? kleng1 : kleng2));         // compare keys
+    int cmpvar = memcmp(key1, key2, ((kleng1 < kleng2) ? kleng1 : kleng2));     // compare keys
 
     if (!cmpvar) {                                                              // if start of keys is same
         if (kleng1 == kleng2) return KEQUAL;                                    // and lengths are = keys are the same
@@ -523,7 +521,7 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *
             for (i++; Key[i]; i++) continue;                                    // loop til find NULL
             i++;                                                                // skip NULL char
         } else {                                                                // else if -ve
-            for (i++; Key[i] != -1; i++) continue;                              // loop til find $C(255)
+            for (i++; Key[i] != -1; i++) continue;                              // loop til find $CHAR(255)
             i++;                                                                // skip past 255
         }
 

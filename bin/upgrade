@@ -131,7 +131,7 @@ do
 
     uci="$("${repo}"/rsm -x "write ^\$system(\"vol\",1,\"uci\",${num})" "${dbfile}")"
 
-    ucis[${cnt}]="${uci}"
+    ucis[cnt]="${uci}"
     cnt=$((cnt + 1))
 
     echo -e "\n${log}Exporting the globals and routines from the ${uci} UCI...${def}"

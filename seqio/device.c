@@ -44,7 +44,54 @@
 #include "error.h"
 #include "seqio.h"
 
-int SQ_Device_Read_TTY(int fid, u_char *buf, int tout);
+// Local functions
+
+/*
+ * This function reads at most one character from the device associated with
+ * the descriptor "did" into the buffer "readbuf". A pending read is not
+ * satisfied until one byte or a signal has been received. Upon successful
+ * completion, the number of bytes actually read is returned. Otherwise, a
+ * negative integer is returned to indicate the error that has occurred.
+ */
+int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
+{
+    struct termios settings;
+    int            ret;
+    int            rret;
+
+    if (tout == 0) {
+        ret = tcgetattr(did, &settings);
+        if (ret == -1) return getError(SYS, errno);
+        settings.c_cc[VMIN] = 0;
+        ret = tcsetattr(did, TCSANOW, &settings);
+        if (ret == -1) return getError(SYS, errno);
+    }
+
+    rret = read(did, readbuf, 1);
+
+    if (tout == 0) {
+        ret = tcgetattr(did, &settings);
+        if (ret == -1) return getError(SYS, errno);
+        settings.c_cc[VMIN] = 1;
+        ret = tcsetattr(did, TCSANOW, &settings);
+        if (ret == -1) return getError(SYS, errno);
+
+        if (rret == 0) {                                                        // zero timeout and no chars
+            partab.jobtab->trap |= 16384;                                       // MASK[SIGALRM]
+            return -1;
+        }
+    }
+
+    if (rret == -1) {
+        if (errno == EAGAIN) {
+            if (raise(SIGALRM)) return getError(SYS, errno);
+        }
+
+        return getError(SYS, errno);
+    } else {
+        return rret;
+    }
+}
 
 // Device functions
 
@@ -125,54 +172,5 @@ int SQ_Device_Read(int did, u_char *readbuf, int tout)
         return SQ_Device_Read_TTY(did, readbuf, tout);
     } else {
         return getError(INT, ERRZ24);
-    }
-}
-
-// Local functions
-
-/*
- * This function reads at most one character from the device associated with
- * the descriptor "did" into the buffer "readbuf". A pending read is not
- * satisfied until one byte or a signal has been received. Upon successful
- * completion, the number of bytes actually read is returned. Otherwise, a
- * negative integer is returned to indicate the error that has occurred.
- */
-int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
-{
-    struct termios settings;
-    int            ret;
-    int            rret;
-
-    if (tout == 0) {
-        ret = tcgetattr(did, &settings);
-        if (ret == -1) return getError(SYS, errno);
-        settings.c_cc[VMIN] = 0;
-        ret = tcsetattr(did, TCSANOW, &settings);
-        if (ret == -1) return getError(SYS, errno);
-    }
-
-    rret = read(did, readbuf, 1);
-
-    if (tout == 0) {
-        ret = tcgetattr(did, &settings);
-        if (ret == -1) return getError(SYS, errno);
-        settings.c_cc[VMIN] = 1;
-        ret = tcsetattr(did, TCSANOW, &settings);
-        if (ret == -1) return getError(SYS, errno);
-
-        if (rret == 0) {                                                        // zero timeout and no chars
-            partab.jobtab->trap |= 16384;                                       // MASK[SIGALRM]
-            return -1;
-        }
-    }
-
-    if (rret == -1) {
-        if (errno == EAGAIN) {
-            if (raise(SIGALRM)) return getError(SYS, errno);
-        }
-
-        return getError(SYS, errno);
-    } else {
-        return rret;
     }
 }

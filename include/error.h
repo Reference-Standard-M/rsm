@@ -40,6 +40,7 @@
 #ifndef _RSM_ERROR_H_                                                           // only do this once
 #define _RSM_ERROR_H_
 
+// The following are the MDC specific errors
 #define ERRM1       1                                                           // Naked indicator undefined
 #define ERRM2       2                                                           // Invalid $FNUMBER P code string combination
 #define ERRM3       3                                                           // $RANDOM argument less than 1
@@ -83,7 +84,7 @@
 
 #define ERRM45      45                                                          // Invalid GOTO reference
 #define ERRM46      46                                                          // Invalid attribute name
-#define ERRM47      47                                                          // Invalid attribute name
+#define ERRM47      47                                                          // Invalid attribute value
 
 #define ERRM56      56                                                          // Name length exceeds implementation's limit
 #define ERRM57      57                                                          // More than one defining occurrence
@@ -125,7 +126,6 @@
 #define ERRZ17      17                                                          // Too many IF commands in one line (max 256)
 #define ERRZ18      18                                                          // Unknown external routine
 #define ERRZ19      19                                                          // Too many nested FOR commands (max 256)
-
 // The following are the sequential IO implementation specific errors
 #define ERRZ20      20                                                          // IO: Unknown internal error
 #define ERRZ21      21                                                          // IO: Unrecognised operation
@@ -156,8 +156,7 @@
 #define ERRZ46      46                                                          // IO: Peer has disconnected
 #define ERRZ47      47                                                          // IO: Peer not connected
 #define ERRZ48      48                                                          // IO: Invalid Internet address
-
-// More standard errors
+// More implementation specific errors
 #define ERRZ49      49                                                          // Job table is full
 #define ERRZ50      50                                                          // Invalid argument to $STACK()
 #define ERRZ51      51                                                          // Interrupt - Control C Received
@@ -183,13 +182,15 @@
 #define ERRZ71      71                                                          // No such host is known
 #define ERRZ72      72                                                          // Type h_errno error has occurred
 #define ERRZ73      73                                                          // Invalid database file specified
-#define ERRZ74      74                                                          // Too many variables (max 256)
+#define ERRZ74      74                                                          // Too many variables (max 255)
 #define ERRZ75      75                                                          // Too many arguments (max 127)
 #define ERRZ76      76                                                          // Invalid global name
+
+#define ERRZ77      77                                                          // RSM is in restricted mode
 
 #define ERRZLAST    200                                                         // Must equal last implementation error
 
 // Database dummy errors
-#define USRERR      -9999                                                       // they SET $EC="U..."
+#define USRERR      -9999                                                       // they SET $ECODE="U..."
 
 #endif                                                                          // !_RSM_ERROR_H_

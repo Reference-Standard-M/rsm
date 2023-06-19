@@ -53,11 +53,6 @@
 #define EOL       ((char) '\000')
 #define toggle(A) (A ^= 01)
 
-// The following sub-routines are called internally in this file only
-int g_sqrt(char *a);                                                            // square root
-int root(char *a, int n);                                                       // n.th root
-void roundit(char *a, int digits);
-
 // Add b to a
 short runtime_add(char *a, char *b)
 {
@@ -259,7 +254,6 @@ again:
             a[0] = ZERO;
         } else {
             i = 0;
-            carry = 0;
 
             while ((ch = a[++i]) != EOL) {
                 if (ch != POINT) a[i] = ZERO + NINE - ch;
@@ -471,7 +465,7 @@ multwo:
 
         while (acur > 0) {
             if (a[--acur] == point) continue;
-            if (c[--ccur] == point) --ccur;
+            if (c[--ccur] == point) ccur--;
             tmpx = a[acur] * b[bcur] + c[ccur] + carry;
             carry = tmpx / NUMBASE;
             c[ccur] = tmpx % NUMBASE;
@@ -736,7 +730,7 @@ short runtime_div(char *uu, char *v, short typ)
             if (u[i] != point) {
                 carry += u[i] * d;
                 u[i] = carry % NUMBASE;
-                carry = carry / NUMBASE;
+                carry /= NUMBASE;
             }
 
             i--;
@@ -749,7 +743,7 @@ short runtime_div(char *uu, char *v, short typ)
         while (i > 0) {
             carry += v[i] * d;
             v[i] = carry % NUMBASE;
-            carry = carry / NUMBASE;
+            carry /= NUMBASE;
             i--;
         }
 
@@ -977,260 +971,6 @@ short runtime_div(char *uu, char *v, short typ)
     return (short) strlen(uu);
 }                                                                               // end runtime_div()
 
-// raise a to the b-th power
-short runtime_power(char *a, char *b)
-{
-    short s;
-    char  c[MAX_NUM_BYTES + 2];
-    char  d[(MAX_NUM_BYTES + 1) * 4];
-    /*
-     * Is a memory leak resulting in wrong results
-     * with fractional powers, e.g. 2**(3/7),
-     * even a value of 513 is too small?
-     *
-     * DLW: test this soon, as we have more than 513 now
-     */
-    char  e[MAX_NUM_BYTES + 2];
-    long  i;
-    long  j;
-    char  Z[MAX_NUM_BYTES + 2];
-
-    // if zero or one there's not much to do
-    if (a[1] == EOL) {
-        if (a[0] == ZERO) {
-            if ((b[1] == EOL) && (b[0] == ZERO)) return -ERRM94;
-            if (b[0] == MINUS) return -ERRM9;
-            return 1;
-        }                                                                       // undef
-
-        if (a[0] == ONE) return 1;
-    }
-
-    if (b[0] == MINUS) {
-        s = runtime_power(a, &b[1]);
-        if (s < 0) return s;
-        strcpy(c, a);
-        a[0] = ONE;
-        a[1] = EOL;
-        s = runtime_div(a, c, OPDIV);
-        return s;
-    }
-
-    if (b[1] == EOL) {
-        switch (b[0]) {
-        case ZERO:
-            a[0] = ONE;
-            a[1] = EOL;
-            // fall through
-
-        case ONE:
-            return (short) strlen(a);
-
-        case TWO:
-            strcpy(c, a);
-            return runtime_mul(a, c);
-        }
-    }
-
-    // look for decimal point
-    e[0] = EOL;
-    i = 0;
-
-    while (b[i] != EOL) {
-        if (b[i] == POINT) {
-            if (a[0] == MINUS) return -ERRM95;
-
-            if ((b[i + 1] == FIVE) && (b[i + 2] == EOL)) {                      // half-integer: extra solution
-                if (i) {
-                    strcpy(c, b);
-                    s = runtime_add(b, c);
-                    if (s < 0) return s;
-                    s = runtime_power(a, b);
-                    if (s < 0) return s;
-                }
-
-                s = (short) g_sqrt(a);
-                return s;
-            }
-
-            strcpy(e, &b[i]);
-            b[i] = EOL;
-            break;
-        }
-
-        i++;
-    }
-
-    strcpy(d, a);
-    i = atoi(b);
-    if (i == INT_MAX) return -ERRM92;
-
-    /*
-     * Do it with a small number of multiplications
-     * the number of multiplications is not optimum, but reasonably small
-     * see Donald E. Knuth "The Art of Computer Programming" Vol.II p.441
-     */
-    if (i == 0) {
-        a[0] = ONE;
-        a[1] = EOL;
-    } else {
-        j = 1;
-
-        while (j < i) {
-            j = j * 2;
-            if (j < 0) return -ERRM92;
-        }
-
-        if (i != j) j = j / 2;
-        j = j / 2;
-
-        while (j) {
-            strcpy(c, a);
-            s = runtime_mul(a, c);
-            if (s < 0) return s;
-
-            if (i & j) {
-                strcpy(c, d);
-                s = runtime_mul(a, c);
-                if (s < 0) return s;
-            }
-
-            j = j / 2;
-        }
-
-        if (e[0] == EOL) return (short) strlen(a);
-    }
-
-    /*
-     * non integer exponent
-     * state of computation at this point:
-     * d == saved value of a
-     * a == d^^int(b);
-     * e == frac(b);
-     */
-
-    // is fraction the inverse of an integer?
-    Z[0] = ONE;
-    Z[1] = EOL;
-    strcpy(c, e);
-    s = runtime_div(Z, c, OPDIV);
-    if (s < 0) return s;
-    i = 0;
-
-    for (;;) {
-        if ((j = Z[i++]) == EOL) {
-            j = atoi(Z);
-            if (j == INT_MAX) return -ERRM92;
-            break;
-        }
-
-        if (j != POINT) continue;
-        j = atoi(Z);
-        if (j == INT_MAX) return -ERRM92;
-        if (Z[i] == NINE) j++;
-        break;
-    }
-
-    Z[0] = ONE;
-    Z[1] = EOL;
-    s = (short) itocstring((u_char *) c, j);
-    if (s < 0) return s;
-    s = runtime_div(Z, c, OPDIV);
-    if (s < 0) return s;
-
-    // if integer
-    if (strcmp(Z, e) == 0) {
-        strcpy(Z, d);
-        s = (short) root(Z, j);
-
-        if (s < 0) {
-            s = runtime_mul(a, Z);
-            return s;
-        }                                                                       // on error try other method
-    }
-
-    Z[0] = ONE;
-    Z[1] = EOL;
-    partab.jobtab->precision += 2;
-
-    for (;;) {
-        c[0] = TWO;
-        c[1] = EOL;
-        s = runtime_mul(e, c);
-        if (s < 0) return s;
-        s = (short) g_sqrt(d);
-        if (s < 0) return s;
-
-        if (e[0] == ONE) {
-            e[0] = ZERO;
-            //numlit(e);                                                          // not required !!
-            strcpy(c, d);
-            s = runtime_mul(Z, c);
-            if (s < 0) return s;
-            roundit(Z, partab.jobtab->precision);
-        }
-
-        // DLW: commenting out improves accuracy of fractional numbers - look at soon
-        //if (e[0] == ZERO) break;
-        i = 0;
-        j = ((d[0] == ONE) ? ZERO : NINE);
-
-        for (;;) {
-            ++i;
-            if ((d[i] != j) && (d[i] != POINT)) break;
-        }
-
-        if ((d[i] == EOL) || (i > partab.jobtab->precision)) break;
-    }
-
-    partab.jobtab->precision -= 2;
-    s = runtime_mul(a, Z);
-    if (s < 0) return s;
-    roundit(a, partab.jobtab->precision + 1);
-    return strlen(a);
-}                                                                               // end power()
-
-// s and t are strings representing M numbers, runtime_comp returns t>s
-short runtime_comp(char *s, char *t)
-{
-    int  s1;
-    int  t1;
-
-    s1 = s[0];
-    t1 = t[0];
-
-    if (s1 != t1) {
-        if (s1 == MINUS) return TRUE;                                           // s<0<t
-        if (t1 == MINUS) return FALSE;                                          // t<0<s
-        if ((s1 == POINT) && (t1 == ZERO)) return FALSE;                        // s>0; t==0
-        if ((t1 == POINT) && (s1 == ZERO)) return TRUE;                         // t>0; s==0
-    }
-
-    if (t1 == MINUS) {
-        char *a;
-
-        a = &t[1];
-        t = &s[1];
-        s = a;
-    }
-
-    s1 = 0;
-    while (s[s1] > POINT) s1++;                                                 // Note: EOL<'.'
-    t1 = 0;
-    while (t[t1] > POINT) t1++;
-    if (t1 > s1) return TRUE;
-    if (t1 < s1) return FALSE;
-
-    while (*t == *s) {
-        if (*t == EOL) return FALSE;
-        t++;
-        s++;
-    }
-
-    if (*t > *s) return TRUE;
-    return FALSE;
-}                                                                               // end of runtime_comp()
-
 // square root
 int g_sqrt(char *a)
 {
@@ -1437,3 +1177,257 @@ void roundit(char *a, int digits)
 
     return;
 }                                                                               // end roundit
+
+// raise a to the b-th power
+short runtime_power(char *a, char *b)
+{
+    short s;
+    char  c[MAX_NUM_BYTES + 2];
+    char  d[(MAX_NUM_BYTES + 1) * 4];
+    /*
+     * Is a memory leak resulting in wrong results
+     * with fractional powers, e.g., 2**(3/7),
+     * even a value of 513 is too small?
+     *
+     * TODO: test this soon, as we have more than 513 now
+     */
+    char  e[MAX_NUM_BYTES + 2];
+    long  i;
+    long  j;
+    char  Z[MAX_NUM_BYTES + 2];
+
+    // if zero or one there's not much to do
+    if (a[1] == EOL) {
+        if (a[0] == ZERO) {
+            if ((b[1] == EOL) && (b[0] == ZERO)) return -ERRM94;
+            if (b[0] == MINUS) return -ERRM9;
+            return 1;
+        }                                                                       // undef
+
+        if (a[0] == ONE) return 1;
+    }
+
+    if (b[0] == MINUS) {
+        s = runtime_power(a, &b[1]);
+        if (s < 0) return s;
+        strcpy(c, a);
+        a[0] = ONE;
+        a[1] = EOL;
+        s = runtime_div(a, c, OPDIV);
+        return s;
+    }
+
+    if (b[1] == EOL) {
+        switch (b[0]) {
+        case ZERO:
+            a[0] = ONE;
+            a[1] = EOL;
+            // fall through
+
+        case ONE:
+            return (short) strlen(a);
+
+        case TWO:
+            strcpy(c, a);
+            return runtime_mul(a, c);
+        }
+    }
+
+    // look for decimal point
+    e[0] = EOL;
+    i = 0;
+
+    while (b[i] != EOL) {
+        if (b[i] == POINT) {
+            if (a[0] == MINUS) return -ERRM95;
+
+            if ((b[i + 1] == FIVE) && (b[i + 2] == EOL)) {                      // half-integer: extra solution
+                if (i) {
+                    strcpy(c, b);
+                    s = runtime_add(b, c);
+                    if (s < 0) return s;
+                    s = runtime_power(a, b);
+                    if (s < 0) return s;
+                }
+
+                s = (short) g_sqrt(a);
+                return s;
+            }
+
+            strcpy(e, &b[i]);
+            b[i] = EOL;
+            break;
+        }
+
+        i++;
+    }
+
+    strcpy(d, a);
+    i = atoi(b);
+    if (i == INT_MAX) return -ERRM92;
+
+    /*
+     * Do it with a small number of multiplications
+     * the number of multiplications is not optimum, but reasonably small
+     * see Donald E. Knuth "The Art of Computer Programming" Vol.II p.441
+     */
+    if (i == 0) {
+        a[0] = ONE;
+        a[1] = EOL;
+    } else {
+        j = 1;
+
+        while (j < i) {
+            j *= 2;
+            if (j < 0) return -ERRM92;
+        }
+
+        if (i != j) j /= 2;
+        j /= 2;
+
+        while (j) {
+            strcpy(c, a);
+            s = runtime_mul(a, c);
+            if (s < 0) return s;
+
+            if (i & j) {
+                strcpy(c, d);
+                s = runtime_mul(a, c);
+                if (s < 0) return s;
+            }
+
+            j /= 2;
+        }
+
+        if (e[0] == EOL) return (short) strlen(a);
+    }
+
+    /*
+     * non integer exponent
+     * state of computation at this point:
+     * d == saved value of a
+     * a == d^^int(b);
+     * e == frac(b);
+     */
+
+    // is fraction the inverse of an integer?
+    Z[0] = ONE;
+    Z[1] = EOL;
+    strcpy(c, e);
+    s = runtime_div(Z, c, OPDIV);
+    if (s < 0) return s;
+    i = 0;
+
+    for (;;) {
+        if ((j = Z[i++]) == EOL) {
+            j = atoi(Z);
+            if (j == INT_MAX) return -ERRM92;
+            break;
+        }
+
+        if (j != POINT) continue;
+        j = atoi(Z);
+        if (j == INT_MAX) return -ERRM92;
+        if (Z[i] == NINE) j++;
+        break;
+    }
+
+    Z[0] = ONE;
+    Z[1] = EOL;
+    s = (short) itocstring((u_char *) c, j);
+    if (s < 0) return s;
+    s = runtime_div(Z, c, OPDIV);
+    if (s < 0) return s;
+
+    // if integer
+    if (strcmp(Z, e) == 0) {
+        strcpy(Z, d);
+        s = (short) root(Z, j);
+
+        if (s < 0) {
+            s = runtime_mul(a, Z);
+            return s;
+        }                                                                       // on error try other method
+    }
+
+    Z[0] = ONE;
+    Z[1] = EOL;
+    partab.jobtab->precision += 2;
+
+    for (;;) {
+        c[0] = TWO;
+        c[1] = EOL;
+        s = runtime_mul(e, c);
+        if (s < 0) return s;
+        s = (short) g_sqrt(d);
+        if (s < 0) return s;
+
+        if (e[0] == ONE) {
+            e[0] = ZERO;
+            //numlit(e);                                                          // not required !!
+            strcpy(c, d);
+            s = runtime_mul(Z, c);
+            if (s < 0) return s;
+            roundit(Z, partab.jobtab->precision);
+        }
+
+        // TODO: commenting out improves accuracy of fractional numbers - look at soon
+        //if (e[0] == ZERO) break;
+        i = 0;
+        j = ((d[0] == ONE) ? ZERO : NINE);
+
+        for (;;) {
+            i++;
+            if ((d[i] != j) && (d[i] != POINT)) break;
+        }
+
+        if ((d[i] == EOL) || (i > partab.jobtab->precision)) break;
+    }
+
+    partab.jobtab->precision -= 2;
+    s = runtime_mul(a, Z);
+    if (s < 0) return s;
+    roundit(a, partab.jobtab->precision + 1);
+    return strlen(a);
+}                                                                               // end power()
+
+// s and t are strings representing M numbers, runtime_comp returns t>s
+short runtime_comp(char *s, char *t)
+{
+    int  s1;
+    int  t1;
+
+    s1 = s[0];
+    t1 = t[0];
+
+    if (s1 != t1) {
+        if (s1 == MINUS) return TRUE;                                           // s<0<t
+        if (t1 == MINUS) return FALSE;                                          // t<0<s
+        if ((s1 == POINT) && (t1 == ZERO)) return FALSE;                        // s>0; t==0
+        if ((t1 == POINT) && (s1 == ZERO)) return TRUE;                         // t>0; s==0
+    }
+
+    if (t1 == MINUS) {
+        char *a;
+
+        a = &t[1];
+        t = &s[1];
+        s = a;
+    }
+
+    s1 = 0;
+    while (s[s1] > POINT) s1++;                                                 // Note: EOL<'.'
+    t1 = 0;
+    while (t[t1] > POINT) t1++;
+    if (t1 > s1) return TRUE;
+    if (t1 < s1) return FALSE;
+
+    while (*t == *s) {
+        if (*t == EOL) return FALSE;
+        t++;
+        s++;
+    }
+
+    if (*t > *s) return TRUE;
+    return FALSE;
+}                                                                               // end of runtime_comp()

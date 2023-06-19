@@ -1,10 +1,12 @@
-:source-highlighter: pygments
 :toc: macro
 :toclevels: 2
 
 [role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
+
+[role="right"]
+link:index.adoc[Index]
 
 '''
 
@@ -21,3 +23,5 @@ toc::[]
 
 '''
 
+[role="right"]
+link:index.adoc[Index]

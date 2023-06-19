@@ -35,19 +35,23 @@ OBJ     := $(SRC:.c=.o)
 CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude
 LDFLAGS := -lm -lcrypt
 
-.ifmake debug
-    CONFIG := -O0 -g3
-.else
-    CONFIG := -O3
-    CFLAGS += -DNDEBUG
-.endif
-
 .if ($(OS) == OpenBSD)
     LDFLAGS := -lm
 .endif
 
+.ifmake profile
+    CONFIG  := -O0 -g3
+    CFLAGS  += -pg
+    LDFLAGS += -pg -lc
+.elifmake debug
+    CONFIG  := -O0 -g3
+.else
+    CONFIG  := -O3
+    CFLAGS  += -DNDEBUG
+.endif
+
 .ifdef dbver
-    CFLAGS += -DRSM_DBVER=$(dbver)
+    CFLAGS  += -DRSM_DBVER=$(dbver)
 .endif
 
 .ifdef path
@@ -59,11 +63,14 @@ LDFLAGS := -lm -lcrypt
 .c.o: ${DEPS}
 	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
 
-all: ${OBJ}
+${PROG}: ${OBJ}
 	${CC} -o ${PROG} ${OBJ} ${LDFLAGS}
 
-debug: ${OBJ}
-	${CC} -o ${PROG} ${OBJ} ${LDFLAGS}
+all: ${PROG}
+
+debug: ${PROG}
+
+profile: ${PROG}
 
 install: ${PROG}
 
@@ -95,4 +102,4 @@ uninstall:
 clean:
 	${RM} ${OBJ} ${PROG} $(wildcard ${PROG}.core)
 
-.PHONY: all debug install uninstall clean
+.PHONY: all debug profile install uninstall clean

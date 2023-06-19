@@ -6,27 +6,31 @@
  read "Restore from file: ",file,! quit:file=""
  do INT(file,0) quit
 ;---
-INT(file,nosay,%,a,r,zr) new $etrap set zr="INT^%RR",nosay=$get(nosay),$etrap="do EX^%RR"
- open 1:(file:"read") use 1 read a,r use 0 set a=$translate(a,$char(13)),r=$translate(r,$char(13))
+INT(file,nosay) new %,a,r,zr,$etrap
+ set zr="INT^%RR",nosay=$get(nosay),$etrap="do EX^%RR"
+ open 1:(file:"read") use 1 read a,r use $principal set a=$translate(a,$char(13)),r=$translate(r,$char(13))
  if nosay<2 write !,a,!,r,!
  if 'nosay read "Restore N> ",%,! if $extract($&e(%))'="Y" close 1 write "ABORTED",! quit
  use 1 for  read r set r=$translate(r,$char(13)) quit:r=""  do  quit:$ascii($key)=255
  . set r=$piece(r,"^") ; Needed to support ISC Cache routine export format
- . if nosay<2 use 0 write:$x>70 ! write r,?$x\10+1*10 use 1
+ . if nosay<2 use $principal write:$x>70 ! write r,?$x\10+1*10 use 1
  . kill a for %=1:1 read a(%) set a(%)=$translate(a(%),$char(13)) quit:a(%)=""  quit:$ascii($key)=255
  . merge ^$routine(r)=a
 ;---
-EX new ecode use 0 write:r'="" "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
+EX new ecode use $principal
+ write:r'="" "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
  write:nosay<2 ! set ecode=$piece($ecode,",",2),$ecode="" use:r'="" 1 if r=""!(ecode="Z51") close 1 quit
 
 %RS
 %RS ; Routine Save
+ new rou,file,head
  read !,"Routine(s): ",rou quit:rou=""
  read !,"Filename:   ",file goto %RS:file=""
  read !,"Header Txt: ",head,! set:head="" head=rou
  do INT(rou,file,head) quit
 ;---
-INT(rou,file,head,%,vol,uci,r,zr) new $etrap set zr="INT^%RS",$etrap="do EX^%RS"
+INT(rou,file,head) new %,vol,uci,r,zr,ui,$etrap
+ set zr="INT^%RS",$etrap="do EX^%RS"
  set head=$get(head,rou)
  set ui=$$UI^%U() kill ^UTILITY(ui) set rou=$$PAT^%U(rou)
  do INT^%RD(3,rou,^$job($job,"routine"),"","z","^UTILITY("_ui_")")
@@ -36,36 +40,41 @@ INT(rou,file,head,%,vol,uci,r,zr) new $etrap set zr="INT^%RS",$etrap="do EX^%RS"
  open 1:(file:"write") use 1 write "Saved by %RS from ["_uci_","_vol_"] on "
  write $$D^%D($horolog)," at ",$$T^%T($piece($horolog,",",2)),!,head,!
  set r="" for  set r=$order(^UTILITY(ui,r)) quit:r=""  do
- . use 0 write:$x>70 ! write r,?$x\10+1*10 use 1 write r,!
+ . use $principal write:$x>70 ! write r,?$x\10+1*10 use 1 write r,!
  . set %=0 for  set %=$order(^$routine(r,%)) quit:%=""  write ^$routine(r,%),!
  . write !
 ;---
-EX new ecode write ! use 0 write:r'="" "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
+EX new ecode write ! use $principal
+ write:r'="" "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
  set ecode=$piece($ecode,",",2),$ecode="" use:r'="" 1 if r=""!(ecode="Z51") close 1 write ! quit
 
 %GR
 %GR ; Global Restore from file
+ new file
  read "Restore from file: ",file,! quit:file=""
  do INT(file,0) quit
 ;---
-INT(file,nosay,%,g,s,zr) new $etrap set zr="INT^%GR",nosay=$get(nosay),$etrap="do EX^%GR"
- open 1:(file:"read") use 1 read g,% use 0 set g=$translate(g,$char(13)),%=$translate(%,$char(13))
+INT(file,nosay) new %,g,s,zr,$etrap
+ set zr="INT^%GR",nosay=$get(nosay),$etrap="do EX^%GR"
+ open 1:(file:"read") use 1 read g,% use $principal set g=$translate(g,$char(13)),%=$translate(%,$char(13))
  if nosay<2 write !,g,!,%,!
  if 'nosay read "Restore N> ",%,! if $extract($&e(%))'="Y" close 1 write "ABORTED",! quit
  use 1 for  read g,% set g=$translate(g,$char(13)),%=$translate(%,$char(13)) quit:$extract(g)="*"  do  quit:$ascii($key)=255
- . set @g=% if nosay<2 use 0 write:$x>70 ! write g,?$x\10+1*10 use 1
+ . set @g=% if nosay<2 use $principal write:$x>70 ! write g,?$x\10+1*10 use 1
  . for  read s,% set s=$translate(s,$char(13)),%=$translate(%,$char(13)) quit:$extract(s)="*"  set:$extract(s)="^" g="" set @(g_s)=%
 ;---
-EX use 0 write:nosay<2 ! close 1 quit
+EX use $principal write:nosay<2 ! close 1 quit
 
 %GS
 %GS ; Global Save
+ new glo,file,head
  read !,"Global(s):  ",glo quit:glo=""
  read !,"Filename:   ",file goto %RS:file=""
  read !,"Header Txt: ",head,! set:head="" head=glo
  do INT(glo,file,head) quit
 ;---
-INT(glo,file,head,%,vol,uci,g,zr) new $etrap set zr="INT^%GS",$etrap="do EX^%GS"
+INT(glo,file,head) new %,vol,uci,g,zr,ui,$etrap
+ set zr="INT^%GS",$etrap="do EX^%GS"
  set head=$get(head,glo)
  set ui=$$UI^%U() kill ^UTILITY(ui) set glo=$$PAT^%U(glo)
  do INT^%GD(3,glo,^$job($job,"global"),"","z","^UTILITY("_ui_")")
@@ -75,10 +84,10 @@ INT(glo,file,head,%,vol,uci,g,zr) new $etrap set zr="INT^%GS",$etrap="do EX^%GS"
  open 1:(file:"write") use 1 write "Saved by %GS from ["_uci_","_vol_"] on "
  write $$D^%D($horolog)," at ",$$T^%T($piece($horolog,",",2)),!,head,!
  set glo="" for  set glo=$order(^UTILITY(ui,glo)) quit:glo=""  set g="^"_glo do
- . use 0 write:$x>70 ! write glo,?$x\10+1*10 use 1
+ . use $principal write:$x>70 ! write glo,?$x\10+1*10 use 1
  . write g,!,$get(@g),! for  set g=$query(@g) quit:g=""  write "("_$piece(g,"(",2,999),!,@g,!
  . write "*",!,"*",!
- write "**",!,"**",! use 0
+ write "**",!,"**",! use $principal
 ;---
 EX close 1 write ! quit
 
@@ -96,7 +105,8 @@ INT(vol,blk,xx,%,f,i,g,li,d,da,buf,ccc,ucc,k,key,data,zr) new $etrap
  new varlen,hdrsize,long set varlen=$get(^$system("name_length"),8),hdrsize=varlen+12,long=0
  ; NOTE: If blk ends in +, it will output the full data, not truncate it to 500
  if $extract(blk,$length(blk))="+" set long=$get(^$system("string_max"),32767),blk=+blk
- if vol,blk view vol:blk ; Note: blk=0 means vol:blk is already in View Buffer
+ ; Note: blk=0 means vol:blk is already in View Buffer and should be removed
+ quit:vol>-1!(blk<1)  view vol:blk
  set %=$view(vol,0) if '% write "Block not in use",! view vol:0 goto EXIT
  if '$data(xx) write "Block: ",$select(blk:blk,1:"")," belongs to UCI# ",%#64," "
  set f=^$system("vol",-vol,"uci",%#64) if '$data(xx) write:$length(f) "(",f,") "
@@ -206,7 +216,7 @@ UNKEY(c,t,x) if $extract(k,1,2)=$char(0,0) set k=$extract(k,3,999) quit """"""
 %D ; Convert %D to printable date
  set:$data(%D)#2=0 %D=+$horolog set %D=$$D(%D) quit
 ;---
-D(d,m,y,%,zr) set zr="D^%D" if d<1!(d>423316) quit ""
+D(d,m,y,%,zr) set zr="D^%D" if d<0!(d>423316) quit ""
  set:d>21608 d=d+1 set m=1,y=d\1461*4+1841,d=d#1461
  set:'d d=1461,y=y-4 for %=1:1:3 quit:d<366  set y=y+1,d=d-365
  for %=31,28+(y#4=0),31,30,31,30,31,31,30,31,30,31 quit:d'>%  set m=m+1,d=d-%
@@ -241,6 +251,18 @@ INT(pat,st,end,g,%,%d,%v,f,r,zr) set zr="INT^%DD"
  . write $justify(f,10)," lines",!
  quit
 
+%DEBUG
+%DEBUG ; A quit handler for the interactive debugger (run as `break ":do ^%DEBUG"` - not goto)
+ new io,stack
+ set io=$io
+ write !," STACK | $ECODE |       PLACE        | MCODE",!
+ write "--------------------------------------------",!
+ for stack=$stack-1:-1:0 do  write !
+ . use $principal
+ . write $justify(stack,5),$justify($stack(stack,"ecode"),10),$justify($stack(stack,"place"),21),?39,$stack(stack,"mcode"),!
+ . use io
+ quit
+
 %DED
 %DED ; Edit a document using $EDITOR
  read !,"Document: ",doc,! quit:doc=""  do INT(doc) quit
@@ -255,26 +277,26 @@ INT(doc,ro,file,f,ui,%d,%v,%l,%,zr) set zr="^%DED",ro=$get(ro) if $get(doc)="" q
 CONT set %=$order(^%D(%d,0)),%v=$order(^(%)) if '%v set %v=%+1 do
  . ; Create a new version
  . set %1=0 for %l=1:1 set %1=$order(^%D(%d,%,%1)) quit:'%1  set ^%D(%d,%v,%l)=^%D(%d,%,%1)
- ; Attempt to lock if reqd
+ ; Attempt to lock if required
  if 'ro lock +^%D(%d):1 else  write !,"?Can't lock document "_doc,! quit
  ; Setup the file name
  set ui=$$UI^%U(),file=doc_"."_ui open 1:(file:"write")
- if 'ro use 1 write "Editing "_doc,!,"Remove above to NOT save document.",! use 0
+ if 'ro use 1 write "Editing "_doc,!,"Remove above to NOT save document.",! use $principal
  set %=0 use 1 for  set %=$order(^%D(%d,%v,%)) quit:'%  write ^(%),!
- use 0 close 1
+ use $principal close 1
  set f=$&%getenv("EDITOR") set:f="" f="vi" set f=f_" "_file
  if $extract(f)="x",ro set f=f_"&"
  set %=$&%spawn(f)
  if ro open 1:(file:"write") close 1 quit
  write !,"Saving edit...",!
- open 1:(file:"read") use 1 read f,% use 0
+ open 1:(file:"read") use 1 read f,% use $principal
  if "Editing "_doc'=f write "Edit NOT saved!",! goto EXIT
  ; Save the data
  use 1 set %v=%v+1 for %l=1:1 read f quit:$ascii($key)=255  set ^%D(%d,%v,%l)=f
  ; Remove an old version - done
  set %v=$order(^%D(%d,""),-1),%v=$order(^(%v),-1) if %v set %=$order(^(%v),-1) if % kill ^(%)
 ;---
-EXIT use 0 close 1 open 1:(file:"write") close 1 lock -^%D(%d) quit
+EXIT use $principal close 1 open 1:(file:"write") close 1 lock -^%D(%d) quit
 
 %ED
 %ED ; Edit a routine using $EDITOR
@@ -289,21 +311,21 @@ INT(rou,ro,ui,file,f,%,zr) new $etrap set $etrap="do EXIT^%ED"
 CONT if 'ro lock +^$routine(rou):1 else  write !,"?Can't lock routine "_rou,! quit
  if ro,'$data(^$routine(rou)) write !,"?No such routine "_rou,! quit
  set ui=$$UI^%U(),file=rou_"-"_ui_".rsm" open 1:(file:"write")
- if 'ro use 1 write "Editing "_rou,!,"Remove above to NOT save routine.",!,rou,! use 0
+ if 'ro use 1 write "Editing "_rou,!,"Remove above to NOT save routine.",!,rou,! use $principal
  if '$data(^$routine(rou)) write !,"Creating routine "_rou,! use 1 write rou_" ; New routine",!
  else  set %=0 use 1 for  set %=$order(^$routine(rou,%)) quit:'%  write ^$routine(rou,%),!
- write !! use 0 close 1
+ write !! use $principal close 1
  set f=$&%getenv("EDITOR") set:f="" f="vi" set f=f_" "_file
  if $extract(f)="x",ro set f=f_"&"
  set %=$&%spawn(f)
  if ro open 1:(file:"write") close 1 quit
  write !,"Saving edit...",!
- open 1:(file:"read") kill ^UTILITY(ui) use 1 read f,%,% use 0
+ open 1:(file:"read") kill ^UTILITY(ui) use 1 read f,%,% use $principal
  if "Editing "_rou'=f write "Edit NOT saved!",! goto EXIT
  use 1 for %=1:1 read ^UTILITY(ui,%) quit:^UTILITY(ui,%)=""  quit:$ascii($key)=255
  merge ^$routine(rou)=^UTILITY(ui) kill ^UTILITY(ui)
 ;---
-EXIT use 0 close 1 open 1:(file:"write") close 1 lock -^$routine(rou) quit
+EXIT use $principal close 1 open 1:(file:"write") close 1 lock -^$routine(rou) quit
 
 %ET
 %ET ; RSM Error Trapper
@@ -576,9 +598,11 @@ INT(g,%,uci,b,nb,all,fre,l,ta,tu,siz,isd,zr) set zr="INT^%GE"
 
 %GL
 %GL ; List global
+ new ccl
  read "Global: ",ccl,! quit:ccl=""  do INT(ccl,"/M") quit
 ;---
-INT(ccl,sw) set gl=ccl if ccl["/" set q=0 do
+INT(ccl,sw) new gl,q,stop,f
+ set gl=ccl if ccl["/" set q=0 do
  . for %=1:1:$length(ccl) do
  . . set:$extract(ccl,%)="""" q='q if 'q,$extract(ccl,%)="/" set sw=$get(sw)_$extract(ccl,%,999),gl=$extract(ccl,1,%-1)
  if $extract(gl)'="^" set gl="^"_gl
@@ -593,7 +617,8 @@ INT(ccl,sw) set gl=ccl if ccl["/" set q=0 do
  . set gl=gl_$select($extract(f,%-1)="""":"",1:"""")_","_$select($extract(f,%+1)="""":"",1:"""")
  set:$extract(gl,$length(gl))'="""" gl=gl_"""" set gl=gl_")"
 ;---
-NA set gl=$name(@gl,999)
+NA new ns,ls,l1,max,lev,do,nc,cnt
+ set gl=$name(@gl,999)
  set ns=$qlength(gl),ls=$qsubscript(gl,ns),l1="" set:ns l1=$name(@gl,ns-1)
  set max=100,lev=999,do=0,nc=0
  if sw["/D" set do=1
@@ -610,6 +635,7 @@ NA set gl=$name(@gl,999)
 
 %LPC
 %LPC ; WAA-Longitudinal Parity Check ;15-June-2000
+ quit
 ;---
 ;;%LPC Version 1.0
 LRC(data) ; Main Entry point
@@ -656,7 +682,7 @@ LOOP ; Main loop to convert to bit
  set $ecode="",$etrap="do ERROR^%M"
 ;---
 START set wid="terminator="_$char(1,2,4,5,6,7,9,10,11,12,13,14,15,16,18,20,21,22,23,24,25,26,28,29,30,31)
- use 0:("controlc":"delete=both":"escape":"echo":wid)
+ use $principal:("controlc":"delete=both":"escape":"echo":wid)
  write $&v(999,999),$char(27)_"[6n" read a set bl=+$piece($key,"[",2),wid=+$piece($key,";",2) ; Work out Bottom Line and Width
  set:'bl bl=24 set:'wid wid=80 ; Default in case terminal is wonky
  do READ if $get(cmd)'="EXIT" goto START
@@ -674,7 +700,6 @@ AD write $&v(bl-($length(cmd)+%pmt\wid-(p-1\wid)),p-1#wid+1)
 RS read *a set key=$key if a=127!(a=8) set key=127,a=27
  if a<32,a'=27 set key=$char(a),a=27
  if a=27 do KEY goto K
- if '(p#wid) write "[B"
  if p>($length(cmd)+%pmt) write $char(a) set cmd=cmd_$char(a),p=p+1 goto RS
  set cmd=$extract(cmd,1,p-%pmt-1)_$char(a)_$extract(cmd,p-%pmt,$length(cmd))
  if '($length(cmd)+%pmt#wid) write e_"["_(p-1\wid+1)_"A"_e_"[2K"_e_"[J"_e_"["_wid_"D"_pmt_cmd
@@ -682,7 +707,7 @@ RS read *a set key=$key if a=127!(a=8) set key=127,a=27
  set p=p+1 goto AD
 ;---
 K set sav=bl-($length(cmd)+%pmt\wid)
- if key=42!(key=45) goto DOIT
+ if key=42!(key=45) goto DOIT ; <Enter>|<Ctrl><J>|<Ctrl><M>
  if key=33 set p=%pmt+1 goto AD ; <Ctrl><A>
  if key=81 set cst=cst-1 set:cst<1 cst=cs+1 set cmd=$get(cs(cst)),key=55,p=%pmt+1+$length(cmd) ; <Up>
  if key=82 set cst=cst+1 set:cst>(cs+1) cst=1 set cmd=$get(cs(cst)),key=55,p=%pmt+1+$length(cmd) ; <Down>
@@ -715,7 +740,7 @@ INT new %,ccl,c,sw
  if c=$extract("HELP",1,$length(c)) goto ^%MH
  set sw=$piece(c,"/",2,9),c=$piece(c,"/") set:$length(sw) sw="/"_sw
  set %=c set:'$data(^%C(c)) %=$order(^%C(c)) if $extract(%,1,$length(c))=c new $etrap,bl xecute ^(%) quit
-  write "?No such MCL command - try HELP",! quit
+ write "?No such MCL command - try HELP",! quit
 ;---
 KEY if key=127 quit
  if $length(key)=1 set key=$ascii(key)+32 quit
@@ -725,12 +750,12 @@ KEY if key=127 quit
 WWW(req,data) ; Web interface
  quit "Not yet implemented"
 ;---
-ERROR new s,er use 0
+ERROR new s,er use $principal
  if $estack<2 write:$ecode "ECODE="_$ecode,! set $ecode="" quit
  quit:$stack-$stack(-1)  set s=$stack-1 if $ecode[",Z51," write:$x ! write "^C",! quit
  set er=$piece($ecode,",",2) write:$x ! if $length(er) write "Error: "_er_" "_$&%errmsg(er),!
  write "$STACK="_s,?12,$stack(s),?20,$stack(s,"place"),!
- write "Code:",?12,$stack(s,"mcode"),!  quit
+ write "Code:",?12,$stack(s,"mcode"),! quit
 
 %MH
 %MH ; Help on MCL
@@ -804,19 +829,23 @@ RC(ccl,%,r,sel,zr) set zr="RC^%RD"
 
 %SHOWBP
 %SHOWBP ; Show current debugging breakpoints
- write "QUIT breakpoint code is "_$select($data($ZBP)#2:"ON",1:"OFF"),!!
- write "Current breakpoints:",!
+ new routine,line
+ write "QUIT breakpoint handler code is:",!
+ if $get($ZBP)'="" write $ZBP,!
+ write !,"Current breakpoints and handlers:",!
  set (routine,line)=""
  for  set routine=$order($ZBP(routine)) quit:routine=""  do
  . for  set line=$order($ZBP(routine,line)) quit:line=""  do
  . . write ?4,"+"_line_"^"_routine,!
+ . . if $ZBP(routine,line)'="" write $ZBP(routine,line),!!
+ write !
  quit
 
 %SS
 %SS ; System Status
  write "Job",?5,"PID",?15,"User",?25,"Pri",?30,"Routine",?40,"Commands",?50
  write "GlobRefs",?60,"Where",!
- set j=0 for  set j=$order(^$job(j)) quit:'j  do  write !
+ new j set j=0 for  set j=$order(^$job(j)) quit:'j  do  write !
  . new $etrap set $etrap="set $EC="""""
  . write j,?5,^$job(j,"pid"),?15,^$job(j,"owner"),?25,$justify(^$job(j,"priority"),3)
  . write ?30,^$job(j,"routine_name"),?40,$justify(^$job(j,"commands"),8),?50
@@ -833,7 +862,7 @@ INT(j,%,zr) set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or Job#"
  if $extract("SYSTEM",1,$length(j))=j do  quit
  . write "$SYSTEM=",$system,!,"UCI# Name",!
  . ; Dump the UCIs
- . for %=1:1:64 set j=^$system("vol",vol,"uci",%) if $length(j) write $justify(%,3),"  ",j,!
+ . for %=1:1:63 set j=^$system("vol",vol,"uci",%) if $length(j) write $justify(%,3),"  ",j,!
  . write "Max: ",^$job," jobs",!
  . write "Vol: ",^$system("vol",vol,"name")," in file ",^$system("vol",vol,"file"),!
  . write ^$system("vol",vol,"size")," x ",^$system("vol",vol,"block")/1024," KiB Blocks, "
@@ -857,7 +886,7 @@ INT(j,%,zr) set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or Job#"
  quit
 
 %STA
-%STA ; System Statistics ;V 3.0 05 Jan 2000 10:44 AM
+%STA ; System Statistics
  read !,"Interval: ",int,! quit:int<1  do INT(int) quit
 ;---
 INT(int,%,o,n,ex,i,ls,zr) new $etrap set zr="INT^%STA",$etrap="do ERR^%STA",ex=0
@@ -889,6 +918,9 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
 
 %TYP
 %TYP ; Type a routine
+ new rou
+ read "Routine: ",rou,! quit:rou=""
+ do 0(rou) quit
 ;---
  ; Type routine rou
 0(rou,%,%1,f,l,w,s,stop,e) set stop=0,e=$char(27)
@@ -918,6 +950,8 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
 
 %U
 %U ; General Utilities
+ quit
+;---
 UI(%,zr) set zr="UI^%U"
  lock +^%AUTH("ui") set %=$get(^%AUTH("ui"))+1,^("ui")=% lock -^%AUTH("ui") quit %
 ;---
@@ -947,10 +981,11 @@ PAT(str,s,n,c,p,zr) set zr="PAT^%U"
 ;---
 CD(uci,%,zr) set zr="CD^%U"
  new vol set vol=^$job($job,"global_vol")
+ if uci="" goto ^%ZUCI
  ; Make it into a number if possible
- if 'uci for %=1:1:64 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
+ if 'uci for %=1:1:63 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
  ; Validate it
- goto CDE:uci<1!(uci>64),CDE:'$length(^$system("vol",vol,"uci",uci))
+ goto CDE:uci<1!(uci>63),CDE:'$length(^$system("vol",vol,"uci",uci))
  ; Set all the bits
  for %="GLOBAL","LOCK","ROUTINE" set ^$job($job,%)=uci
  quit
@@ -1008,7 +1043,7 @@ EXT set fun=$piece($extract(file,2,999),"&"),fun=$$REMP(fun),file=$piece(file,"&
 ;---
 ; Extrinsic error trap
 %ET new f set f=$piece($ecode,",",2),f="RSM Error: "_f_" "_$&%errmsg(f)
- if f["Z51"!(f["Z42")!(f["Z213") close 10 use 0 write f,! set $ecode="" quit
+ if f["Z51"!(f["Z42")!(f["Z213") close 10 use $principal write f,! set $ecode="" quit
  if f["Z49" set $ecode="" hang 1 goto LOOP^%WWW1
  do ERR^%WWW1(f) goto ^%ET
 ;---
@@ -1134,10 +1169,10 @@ IMP read "Enter Name of document to import: ",f,! quit:f=""!f
  . ; Read in each chunk
  . for %l=1:1 set %=f set:%>bs %=bs set f=f-% read ^%D(%d,1,%l)#% quit:'f
  . ; Finish up
- . close 1 use 0 write s," bytes in ",%l," record",$select(%l>1:"s",1:"")," read.",!
+ . close 1 use $principal write s," bytes in ",%l," record",$select(%l>1:"s",1:"")," read.",!
  ; Read in a text file
  use 1 for %l=1:1 read ^%D(%d,1,%l) if $ascii($key)=255 kill:'$length(^%D(%d,1,%l)) ^%D(%d,1,%l) quit
- use 0 close 1 write %l," lines read.",! quit
+ use $principal close 1 write %l," lines read.",! quit
 
 %X364
 %X364 ; Terminal Control Mnemonic Namespace - ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
@@ -1148,7 +1183,7 @@ IMP read "Enter Name of document to import: ",f,! quit:f=""!f
 ;---
 BEL      write *7 quit  ; Ring Bell (non-standard - but common)
 CHA(n)   set n=$get(n,1) write $char(27,91)_n_"G" set $x=n-1 quit  ; Cursor Horizontal Absolute
-CHT(n)   set n=$get(n,1) write $char(27,91)_n_"I" set $x=$x\8*8+(n*8) quit  ; Cursor Horiz Tab
+CHT(n)   set n=$get(n,1) write $char(27,91)_n_"I" set $x=$x\8*8+(n*8) quit  ; Cursor Horizontal Tab
 CNL(n)   set n=$get(n,1) write $char(27,91)_n_"E" set $y=$y+n quit  ; Cursor Next Line
 CPL(n)   set n=$get(n,1) write $char(27,91)_n_"F" set $y=$y-n quit  ; Cursor Preceding Line
 CUB(n)   set n=$get(n,1) write $char(27,91)_n_"D" set $x=$x-n quit  ; Cursor Backward
@@ -1204,7 +1239,7 @@ VTS(x)   set x=$x write $char(27)_"J" set $x=x quit  ; Vertical Tabulation Set
 %ZOSV
 %ZOSV ; SFISC/AC - View commands & special functions. ;06/09/99  12:54
  ;;8.0;KERNEL;**13,65,71,94,107,118**;Jul 05, 1995
- ;;Originally for MUMPS V1 - RDN, and RSM
+ ;;Originally for MUMPS V1 - RDN
  quit
 ;---
 ACTJ(%,cn) ; # active jobs
@@ -1234,7 +1269,7 @@ UCICHECK(x) ;
  if '(x?3U!(x?3U1","3U)) quit ""
  set vol=^$job($job,"global_vol")
  if $piece(x,",",2)'="",$piece(x,",",2)'=^$system("vol",vol,"name") quit ""
- set u=$piece(x,","),y="" for %=1:1:64 if ^$system("vol",vol,"uci",%)=u set y=u_","_^$s("vol",vol,"name") quit
+ set u=$piece(x,","),y="" for %=1:1:63 if ^$system("vol",vol,"uci",%)=u set y=u_","_^$s("vol",vol,"name") quit
  quit y
 ;---
 SHARELIC(type) ; See if can share a C/S license DSM 7.2
@@ -1300,8 +1335,8 @@ SETTRM(x) ; Turn on specified terminators
  set cnt=0
  do ^%ZRSEL
  if '$data(^%UTILITY($job,"ROUTINE")) goto EXIT
- read !,"Replace String: ",replace G:replace="" EXIT
- read !,"With String: ",with G:with="" EXIT
+ read !,"Replace String: ",replace goto:replace="" EXIT
+ read !,"With String: ",with goto:with="" EXIT
  set routine=""
  for  set routine=$order(^%UTILITY($job,"ROUTINE",routine)) quit:routine=""  do
  . new ln,line
@@ -1325,7 +1360,7 @@ SETTRM(x) ; Turn on specified terminators
 ;---
 EXIT ; Clean up
  kill ^UTILITY($job,"ROUTINE")
- do ^%RCOMP
+ do ^%RECOMP
  quit
 
 %ZRS
@@ -1345,11 +1380,11 @@ INT(file,head,%,vol,uci,ui,r,zr) new $etrap set zr="INT^%ZRS",$etrap="do EX^%ZRS
  open 1:(file:"write") U 1 write "Saved by %ZRS(MODIFIED %RS) from ["_uci_","_vol_"] on "
  write $$D^%D($horolog)," at ",$$T^%T($piece($horolog,",",2)),!,head,!
  set r="" for  set r=$order(^UTILITY(ui,r)) quit:r=""  do
- . use 0 write:$x>70 ! write r,?$x\10+1*10 use 1 write r,!
+ . use $principal write:$x>70 ! write r,?$x\10+1*10 use 1 write r,!
  . set %=0 for  set %=$order(^$routine(r,%)) quit:%=""  write ^$routine(r,%),!
  . write !
 ;---
-EX write ! use 0 close 1 write !
+EX write ! use $principal close 1 write !
  kill ^UTILITY(ui),^%UTILITY($job,"ROUTINE")
  quit
 
@@ -1359,20 +1394,20 @@ EX write ! use 0 close 1 write !
  set cnt=0
  do ^%ZRSEL
  if '$data(^%UTILITY($job,"ROUTINE")) goto EXIT
- read !,"Search for: ",string G:string="" EXIT
+ read !,"Search for: ",string goto:string="" EXIT
 ;---
 CASE read !,"Case sensitive? (NO) :",case if case="" set case="NO"
- set x=case xecute ^%ZOSF("UPPERCASE")
+ set x=case,y=$translate(x,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ")
  if '("YN"[$extract(case,1)) goto EXIT
  if $extract(case,1)="Y" set case=1
- if $extract(case,1)="N" set case=0,x=string xecute ^%ZOSF("UPPERCASE") set y=string
+ if $extract(case,1)="N" set case=0,x=string,y=$translate(x,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ"),y=string
  set routine=""
  for  set routine=$order(^%UTILITY($job,"ROUTINE",routine)) quit:routine=""  do
  . new ln
  . set ln=0
  . for  set ln=$order(^$routine(routine,ln)) quit:ln<1  do
  . . set line=^$routine(routine,ln)
- . . if 'case set x=line xecute ^%ZOSF("UPPERCASE") set line=y
+ . . if 'case set x=line,y=$translate(x,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ"),line=y
  . . if line[string write !,"    Routine: ",routine,"  LINE# ",ln,!,line set cnt=cnt+1
  . . quit
  . quit
@@ -1400,7 +1435,7 @@ EN1 ; Main entry point
 LOOP ; Main read loop
  read !,"Select Routine(s): ",x quit:x=""
  if x="^D" do LIST goto LOOP
- if x="^L" do ^%RD goto LOOP
+ if x="^L" write ! do ^%RD goto LOOP
  set j=$extract(x,1) if j="-" set x=$extract(x,2,$length(x)),j=$extract(x,1) do DEL goto LOOP
  if x="*" do AWILD goto LOOP
  if $length(x)>$get(^$system("name_length"),8) write !,"NAME TOO LONG" goto LOOP
@@ -1439,7 +1474,7 @@ LIST ; List selected routines
 
 %ZUCI
 %ZUCI ; WAA-Change UCI; 6/19/00
- ; ZUCI 1.0
+ ; %ZUCI 1.0
  new x
 EN1 ; Main entry point
  read !,"What UCI: ",x
@@ -1450,25 +1485,25 @@ EN1 ; Main entry point
 ;---
 CD(uci) ;
  new vol set vol=^$job($job,"global_vol")
- if 'uci for %=1:1:64 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
  ; Make it into a number if possible
- goto CDE^%U:uci<1!(uci>64),CDE^%U:'$length(^$system("vol",vol,"uci",uci))
+ if 'uci for %=1:1:63 if ^$system("vol",vol,"uci",%)=uci set uci=% quit
  ; Validate it
- for %="global","lock","routine" set ^$job($job,%)=uci
+ goto CDE^%U:uci<1!(uci>63),CDE^%U:'$length(^$system("vol",vol,"uci",uci))
  ; Set all the bits
+ for %="global","lock","routine" set ^$job($job,%)=uci
  quit
 ;---
 LIST ; List all UCIs within a volume set
  new vol,uci,x
  set vol=^$job($job,"global_vol"),uci=""
- write !,"User Class Identifiers [UCI] within the Volume set: ",^$system("vol",vol,"name")
+ write !,"User Class Identifiers [UCI] within the volume set: ",^$system("vol",vol,"name")
  write !,?10,"UCI#",?40,"UCI"
  write !,?10,"----",?40,"---"
  do GET(vol,.uci)
- for x=1:1:uci write !,?10,x,?40,uci(x)
+ set x=0 for  set x=$order(uci(x)) quit:x=""  write !,?10,x,?40,uci(x)
  quit
 ;---
-GET(vol,uci) ; Build an array if all the UCI within the volume set
+GET(vol,uci) ; Build an array of all the UCIs within the volume set
  new x
  set uci=0
  quit:vol'>0  set x=0
@@ -1487,6 +1522,7 @@ UCI() ; Return the current UCI and volume set
 BENCH
 BENCH ; From the DSM - BENCH ;V 2.9 28 Feb 99  01:27 PM
  write !!,"Use this utility to provide a benchmark test of CPU",!!
+ new i,a,b,x
  goto A
 ;---
 AAA quit
@@ -1595,12 +1631,15 @@ INT(c,%,v,usr,d,t,h,tag,var,i,s,a) new $etrap set $etrap="do ^%ET"
  . set var(v-1)=d ; Save var name indexed by idx
  write !,"Variables by Index",!
  set %="" for  set %=$order(var(%)) quit:%=""  write:$x>70 ! write var(%),?$x\10+1*10
- write:$x ! write !,"Code at offset ",h(5)," for ",h(6)," bytes.",!
+ write:$x ! write !,"Code at offset ",h(5)," for ",h(6)," bytes."
  set v=h(5)+1,t=v+h(6),a=""
 ;---
-LIN goto EXIT:v>t set d=$ascii(c,v),v=v+1 write ! if d=170 do
+LIN goto EXIT:v>t set d=$ascii(c,v),v=v+1
+ if d=170 write ! do
  . set i=$$S(v),s=$$S(v+2),v=v+4 set:s s=s-1
- . write "Line:",$justify(i,5),"   Size ",s,!,?6 if $length(a) write a,!,?6 set a=""
+ . ; Dump source right above decompiled bytecode
+ . write !,^$routine(rou,i),!
+ . write "Line:",$justify(i,5),"   Size: ",s,!,?6 if $length(a) write a,!,?6 set a=""
  . for %=1:1:s write:$x>75 !,?6 write $justify($ascii(c,v),4) set v=v+1
  if d=171 set a="Formal: (" set i=$ascii(c,v),v=v+1 do
  . if i=0 set a=a_")"
@@ -1608,7 +1647,7 @@ LIN goto EXIT:v>t set d=$ascii(c,v),v=v+1 write ! if d=170 do
  if d=2 set i=$$S(v) write ?6,"Error: ",i
  goto LIN
 ;---
-EXIT write ! quit
+EXIT write !! quit
 ;---
 S(o) ; Extract a u_short from c at offset o
  if $get(big,0) quit $ascii(c,o)*256+$ascii(c,o+1)
@@ -1674,7 +1713,7 @@ A8 set d=""
  for j=81:1:90 set d=d_"a" for i=71:1:90 set @($char(j,i)_"=d")
  kill i,j,d quit
 ;---
-8 for j=1:1:n set a=j,a=tg,a=wq,a=zz
+8 for j=1:1:n set a=j ;,a=tg,a=wq,a=zz
  quit
 ;---
 9 for j=1:1:n\500 for y=1:1:20 set a=$extract(123456789,1,y#10) for x=1:1:25 set ^TSX(y,x)=a
@@ -1696,7 +1735,7 @@ B11B set l=$order(f(l)) goto:l'="" B11B
  kill a1,a,c1,c,f quit
 
 FIX
-FIX ; Fix Database ; V 3.1 20 May 2021 01:55 PM
+FIX ; Fix Database
  ; New a few things, setup error trap - volume set to current global volume
  new dtyp,d,k,blk,cmd,lcmd,bsiz,i,vol,$estack,$etrap set $etrap="do ERR^FIX"
  set vol=^$job($job,"global_vol"),vol=-vol
@@ -1721,7 +1760,7 @@ ASK write:$x ! write "FIX> " read cmd,! set lcmd=cmd,cmd=$&e(cmd) set:cmd="" cmd
  . ; Enable writes
  . write "Write enabling disk... " set ^$system("vol",-vol,"writelock")=0
  . ; Do it
- . do INT^%BLKDMP(blk_$select(long:"+",1:""),"^%DUMP") write "dumped to ^%DUMP()",!
+ . do INT^%BLKDMP(-vol,blk_$select(long:"+",1:""),"^%DUMP") write "dumped to ^%DUMP()",!
  . set ^$system("vol",-vol,"writelock")=1 write "Writelocking the database"
  . for  write "." quit:^$system("vol",-vol,"writelock")>0  hang 1
  ; Check for Environment (UCI)
@@ -1773,7 +1812,8 @@ ASK write:$x ! write "FIX> " read cmd,! set lcmd=cmd,cmd=$&e(cmd) set:cmd="" cmd
  do HELP^FIX2 goto ASK
 ;---
 ; Get the block and right link (if any)
-BLK view vol:blk set rl=$view(vol,4,4) if rl do
+BLK if 'blk do HELP^FIX2 quit
+ view vol:blk set rl=$view(vol,4,4) if rl do
  . ; Get the block, addr of first record and size of same - adj for view
  . view vol:rl set r=$view(vol,hdrsize,2)*4,ucc=$view(vol,r+3,1),%=ucc set:%<3 %=3 set:%=4 %=5
  . ; Get the key into rl1
@@ -1808,7 +1848,7 @@ ERR if $estack<2 set $ecode="" view:$get(blk) vol:0 quit
  set ^$system("vol",-vol,"writelock")=0 write !,"**ERROR BEING LOGGED**",! goto ^%ET
 
 FIX1
-FIX1 ; Fix subroutine ; V 3.1 20 May 2021 01:55 PM
+FIX1 ; Fix subroutine
  quit
 ;---
 ; Load Arrays d and k and set dtyp from the current block
@@ -1837,7 +1877,7 @@ LOADA kill d,k,dgd new key,%,i,r,ucc,ccc,dbc set key=""
  . . if dbc<5 for %=1:1:dbc set d(i)=d(i)_$char($view(vol,r+1+%,1))
  . . ; This way to get a string
  . . else  set d(i)=$view(vol,r+2,dbc)
- . ; Else it's a pointer (or directory), round up (if reqd) and get blk#
+ . ; Else it's a pointer (or directory), round up (if required) and get blk#
  . else  set:r#4 r=r\4+1*4 set d(i)=$view(vol,r,4)
  . ; If Global directory get DGD flag data
  . if k="$GLOBAL" set dgd(i)=$view(vol,r+4,4)
@@ -1916,7 +1956,7 @@ DOKEY(k,%,q,f) set f="" for  quit:k=""  do
  . . if $extract(k,%)="""" set q='q quit
  . . ; Check for a comma
  . . quit:q  if $extract(k,%)="," set q=-1
- . ; Get this subs into q, rest into k - remove quotes if reqd
+ . ; Get this subs into q, rest into k - remove quotes if required
  . set q=$extract(k,1,%-1),k=$extract(k,%+1,999) if $extract(q)="""" set @("q="_q)
  . ; Add to the key
  . set f=f_$$BLDKEY(q)
@@ -1949,7 +1989,7 @@ FULLUNK(k,a,%,f) set a="" for  set %=$$UNKEY(.k) do:+%'=%  set a=a_","_% quit:k=
  quit $extract(a,2,999)
 
 FIX2
-FIX2 ; Fix subroutines ;V 3.1 20 May 2021 01:55 PM
+FIX2 ; Fix subroutines
  quit
 ;---
 HELP ; Help menu
@@ -2000,7 +2040,7 @@ SAVE if '$get(blk) write "?There is no current block",$char(7),! quit
  for i=idx:1 quit:'$data(k(i))  do
  . ; Locate common character count
  . for ccc=0:1:$length($get(k(i-1))) quit:$extract($get(k(i-1)),ccc+1)'=$extract(k(i),ccc+1)
- . ; Get UCC and Chunk Size - round up if reqd
+ . ; Get UCC and Chunk Size - round up if required
  . set ucc=$length(k(i))-ccc,cs=4+ucc+$select(dtyp:$length(d(i))+2,1:4) set:cs#4 cs=cs\4+1*4
  . ; Add required space
  . set sz=sz+cs+2
@@ -2018,7 +2058,7 @@ SAVE if '$get(blk) write "?There is no current block",$char(7),! quit
  for i=idx:1 quit:'$data(k(i))  do
  . ; Locate common character count
  . for ccc=0:1:$length($get(k(i-1))) quit:$extract($get(k(i-1)),ccc+1)'=$extract(k(i),ccc+1)
- . ; Get UCC and Chunk Size - round up if reqd
+ . ; Get UCC and Chunk Size - round up if required
  . set ucc=$length(k(i))-ccc,cs=4+ucc+$select(dtyp:$length(d(i))+2,1:4) set:cs#4 cs=cs\4+1*4
  . ; Allow for flags word
  . if k="$GLOBAL" set cs=cs+4
@@ -2046,7 +2086,7 @@ SAVE if '$get(blk) write "?There is no current block",$char(7),! quit
  view vol:-blk write "Filed.",! kill blk quit
 
 IC
-IC ; Check database
+IC ; Check database integrity
  new $etrap set $etrap="do ERR^IC"
  new vol set vol=^$job($job,"global_vol")
  set ^$system("vol",vol,"writelock")=1 write !,"Writelocking the database"
@@ -2057,10 +2097,11 @@ IC ; Check database
 ERR set ^$system("vol",vol,"writelock")=0 quit
 
 JOURNLST
-JOURNLST ; List journal file contents ;V 3.1 20 May 2021 01:55 PM
+JOURNLST ; List journal file contents
  new $etrap set $etrap="close 1 do ^%ET"
 ;---
-ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,timelen,slen,key,ref,dbc,long
+ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,timelen
+ new slen,key,ref,dbc,long,quit,start,end,epoch
  set file=$get(^$system("vol",^$job($job,"global_vol"),"journal_file")),long=0
  write "Enter file"_$select(file'="":" [<space><enter> for "_file_"]",1:"")_": "
  read ans set:ans'=" "&(ans'="+") file=ans write:ans=" "!(ans="+") file write ! set:ans="+" file=file_ans quit:file=""
@@ -2068,29 +2109,47 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  if $extract(file,$length(file))="+" set long=$get(^$system("string_max"),32767),file=$extract(file,1,$length(file)-1)
  if '$&%file(file,"exists") write "NO SUCH FILE",! goto ASK
  close 1 open 1:(file:"read") use 1:("terminator=")
- read magic#4,offset#8 use 0
+ read magic#4,offset#8 use $principal
  set magic=$$CVT(magic),offset=$$CVT(offset)
  if magic-4155766916 write "Invalid MAGIC number",! close 1 goto ASK
  set (varlen,timelen)=8
- set off=12 use 1 read time#timelen use 0 set size=$$CVT($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
+ set off=12 use 1 read time#timelen use $principal
+ set size=$$CVT($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
  ; Configure for new format journal, with 64 bit time_t and 32 character names
- if size=12 set varlen=32,timelen=12 use 1 read ext#4 use 0 set time=time_ext write !,"Reference Standard M Journal Version 2",!
- else  write !,"Reference Standard M Journal Version 1",!
- write "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
+ if size=12 do
+ . set varlen=32,timelen=12 use 1 read ext#4 use $principal set time=time_ext write !,"Reference Standard M Journal Version 2",!!
+ else  write !,"Reference Standard M Journal Version 1",!!
+ write "Do you want to display the entire journal ["_file_"]?"
+ read " ([Y]/N): ",ans write !
+ set ans=$translate(ans,"yn","YN"),ans=$extract(ans)
+ if ans="N" do
+ . read "Enter start datetime for journal display: ",start write !
+ . if start set start=$translate($&%spawn("date -ud '"_start_"' +""%s""",1),$char(10,13))
+ . else  set start=0
+ . read "Enter end datetime for journal display: ",end write !
+ . if end set end=$translate($&%spawn("date -ud '"_end_"' +""%s""",1),$char(10,13))
+ . else  set end=999999999999
+ else  set start=0,end=999999999999
+ set quit=0
+ write !,"Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
  ; Scan the file
- for  do  quit:off'<offset
+ for  do  quit:off'<offset!quit
  . ; Get the fixed fields
- . if off>12 use 1 read time#timelen use 0 set size=$$CVT($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
+ . if off>12 use 1 read time#timelen use $principal set size=$$CVT($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
  . ; Convert time
- . set time=$$CVT($extract(time,5,timelen)),time=(time\86400+47117)_","_(time#86400)
+ . set epoch=$$CVT($extract(time,5,timelen)),time=(epoch\86400+47117)_","_(epoch#86400)
  . ; Setup action
  . set action=$select(action=5:"KILL",action=4:"SET",action=3:"ESTOP",action=2:"STOP",action=1:"START",'action:"CREATE")
  . ; Write the first bit
- . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?24,action write:uci ?31,uci
+ . if epoch'>end&(epoch'<start) do
+ . . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?24,action write:uci ?31,uci
+ . . if size=timelen write !
  . ; If a "small" one, that's all
- . if size=timelen set off=off+size write ! quit
+ . if size=timelen set off=off+size quit
  . ; Get the rest of the record
- . set:size#4 size=size\4+1*4 set off=off+size use 1 read data#(size-timelen) use 0
+ . set:size#4 size=size\4+1*4 set off=off+size use 1 read data#(size-timelen) use $principal
+ . if epoch>end set quit=1 quit
+ . if epoch<start quit
  . ; Check for a 64 bit time_t here when listing an old format journal
  . if timelen=8,$extract(data,1,4)=$char(0,0,0,0) set data=$extract(data,5,99999)
  . ; Extract the name and key length
@@ -2116,7 +2175,7 @@ JOURNREC ; Forward recover database from backup and journal file
  new $etrap set $etrap="close 1 do ^%ET"
 ;---
 ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,timelen
- new slen,key,ref,dbc,long,quit,type,start,end,flg,verbose,setcnt,killcnt,epoch
+ new slen,key,ref,dbc,long,quit,type,start,end,verbose,setcnt,killcnt,epoch
  new vol set vol=^$job($job,"global_vol")
  if ^$job>1 write "Journal recovery must be run in single-user mode",! quit
  set file=$get(^$system("vol",vol,"journal_file")),long=0
@@ -2124,23 +2183,26 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  read ans set:ans'=" " file=ans write:ans=" " file write ! quit:file=""
  if '$&%file(file,"exists") write "NO SUCH FILE",! goto ASK
  close 1 open 1:(file:"read") use 1:("terminator=")
- read magic#4,offset#8 use 0
+ read magic#4,offset#8 use $principal
  set magic=$$CVT^JOURNLST(magic),offset=$$CVT^JOURNLST(offset)
  if magic-4155766916 write "Invalid MAGIC number",! close 1 goto ASK
  set (varlen,timelen)=8
- set off=12 use 1 read time#timelen use 0 set size=$$CVT^JOURNLST($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
+ set off=12 use 1 read time#timelen use $principal
+ set size=$$CVT^JOURNLST($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
  ; Configure for new format journal, with 64 bit time_t and 32 character names
- if size=12 set varlen=32,timelen=12 use 1 read ext#4 use 0 set time=time_ext write !,"Reference Standard M Journal Version 2",!!
+ if size=12 do
+ . set varlen=32,timelen=12 use 1 read ext#4 use $principal set time=time_ext write !,"Reference Standard M Journal Version 2",!!
  else  write !,"Reference Standard M Journal Version 1",!!
- write "Do you want to apply the entire journal "_file_" to "_^$system("vol",vol,"name")_" ["_^$system("vol",vol,"file")_"]?"
+ write "Do you want to apply the entire journal ["_file_"] to "_^$system("vol",vol,"name")_" ["_^$system("vol",vol,"file")_"]?"
  read " ([Y]/N): ",ans write !
  set ans=$translate(ans,"yn","YN"),ans=$extract(ans)
- if ans="N" set flg=0 do
- . for  quit:flg  do
- . . read "Enter start datetime for journal recovery: ",start set start=$&%spawn("date -ud '"_start_"' +""%s""",1) write !
- . . read "Enter end datetime for journal recovery: ",end set end=$&%spawn("date -ud '"_end_"' +""%s""",1) write !
- . . set start=$translate(start,$char(10,13)),end=$translate(end,$char(10,13))
- . . if start,end set flg=1
+ if ans="N" do
+ . read "Enter start datetime for journal display: ",start write !
+ . if start set start=$translate($&%spawn("date -ud '"_start_"' +""%s""",1),$char(10,13))
+ . else  set start=0
+ . read "Enter end datetime for journal display: ",end write !
+ . if end set end=$translate($&%spawn("date -ud '"_end_"' +""%s""",1),$char(10,13))
+ . else  set end=999999999999
  else  set start=0,end=999999999999
  read "Do you want to apply both sets and kills, only sets, or only kills? ([B]/S/K): ",type write !
  set type=$translate(type,"bsk","BSK")
@@ -2152,7 +2214,8 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  ; Scan the file
  for  do  quit:off'<offset!quit
  . ; Get the fixed fields
- . if off>12 use 1 read time#timelen use 0 set size=$$CVT^JOURNLST($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
+ . if off>12 do
+ . . use 1 read time#timelen use $principal set size=$$CVT^JOURNLST($extract(time,1,2)),action=$ascii(time,3),uci=$ascii(time,4)
  . ; Convert time
  . set epoch=$$CVT^JOURNLST($extract(time,5,timelen)),time=(epoch\86400+47117)_","_(epoch#86400)
  . ; Setup action
@@ -2164,7 +2227,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  . ; If a "small" one, that's all
  . if size=timelen set off=off+size write:verbose ! quit
  . ; Get the rest of the record
- . set:size#4 size=size\4+1*4 set off=off+size use 1 read data#(size-timelen) use 0
+ . set:size#4 size=size\4+1*4 set off=off+size use 1 read data#(size-timelen) use $principal
  . if type'=action&(type'="BOTH") set off=off+size quit
  . if epoch>end set quit=1 quit
  . if epoch<start quit
@@ -2189,8 +2252,8 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
 
 MATH
 MATH ;
- ; Unless otherwise noted, the code below in ^MATH1 through ^MATH6 was approved
- ; in document X11/95-11.
+ ; Unless otherwise noted, the code below in ^MATH1 through ^MATH4 was approved
+ ; in document X11/95-11 (except for the KVALUE^MATH4 polyfill).
  ;
  ; If corrections have been applied, first the original line appears, with three
  ; semicolons at the beginning of the line.
@@ -2198,7 +2261,7 @@ MATH ;
  ; Then the source of the correction is acknowledged, then the corrected line
  ; appears, followed by a line containing three semicolons.
  ;
- ; MATH dispatch and polyfill routine
+ ; MATH library dispatch routine
 ;---
 ABS(x)                  goto ABS^MATH1
 ARCCOS(x)               goto ARCCOS^MATH1
@@ -2213,13 +2276,13 @@ ARCSINX(x,prec)         goto ARCSINX^MATH1
 ARCSINH(x,prec)         goto ARCSINH^MATH1
 ARCTAN(x,prec)          goto ARCTAN^MATH1
 ARCTANH(x,prec)         goto ARCTANH^MATH1
-CABS(z)                 goto CABS^MATH2
-CADD(x,Y)               goto CADD^MATH2
-CCOS(z,prec)            goto CCOS^MATH2
-CDIV(x,Y)               goto CDIV^MATH2
-CEXP(z,prec)            goto CEXP^MATH2
+CABS(z)                 goto CABS^MATH1
+CADD(x,y)               goto CADD^MATH1
+CCOS(z,prec)            goto CCOS^MATH1
+CDIV(x,y)               goto CDIV^MATH1
+CEXP(z,prec)            goto CEXP^MATH1
 CLOG(z,prec)            goto CLOG^MATH2
-CMUL(x,Y)               goto CMUL^MATH2
+CMUL(x,y)               goto CMUL^MATH2
 COMPLEX(x)              goto COMPLEX^MATH2
 CONJUG(z)               goto CONJUG^MATH2
 COS(x)                  goto COS^MATH2
@@ -2235,7 +2298,7 @@ CSUB(x,y)               goto CSUB^MATH2
 DECDMS(x,prec)          goto DECDMS^MATH2
 DEGRAD(x)               goto DEGRAD^MATH2
 DMSDEC(x)               goto DMSDEC^MATH2
-E()                     goto E^MATH3
+E()                     goto E^MATH2
 EXP(x,prec)             goto EXP^MATH3
 LOG(x,prec)             goto LOG^MATH3
 LOG10(x,prec)           goto LOG10^MATH3
@@ -2250,32 +2313,28 @@ MTXSCA(a,r,rows,cols,s) goto MTXSCA^MATH3
 MTXSUB(a,b,r,rows,cols) goto MTXSUB^MATH3
 MTXTRP(a,r,m,n)         goto MTXTRP^MATH3
 MTXUNIT(r,n,sparse)     goto MTXUNIT^MATH3
-PI()                    goto PI^MATH4
-PRODUCE(in,spec,max)    goto PRODUCE^MATH4
-RADDEG(X)               goto RADDEG^MATH4
-REPLACE(in,spec)        goto REPLACE^MATH4
-SEC(X,prec)             goto SEC^MATH4
-SECH(X,prec)            goto SECH^MATH4
-SIGN(X)                 goto SIGN^MATH4
-SIN(X)                  goto SIN^MATH4
-SINX(X,prec)            goto SINX^MATH4
-SINH(X,prec)            goto SINH^MATH4
-SQRT(X,prec)            goto SQRT^MATH4
-TAN(X,prec)             goto TAN^MATH5
-TANH(X,prec)            goto TANH^MATH5
-FORMAT(v,s)             goto FORMAT^MATH5
-XOR(a,b,w)              goto XOR^MATH6
-CRC16(string,seed)      goto CRC16^MATH6
-CRC32(string,seed)      goto CRC32^MATH6
-CRCCCITT(string,seed)   goto CRCCCITT^MATH6
-LOWER(a,charmod)        goto LOWER^MATH6
-PATCODE(a,pat,charmod)  goto PATCODE^MATH6
-UPPER(a,charmod)        goto UPPER^MATH6
-;---
-KVALUE(r,row,col) ; KVALUE polyfill
- new tmp,i,j merge tmp=r kill r
- for i=1:1:row for j=1:1:col if '(i=row&(j=col)) set r(i,j)=tmp(i,j)
- quit
+PI()                    goto PI^MATH3
+PRODUCE(in,spec,max)    goto PRODUCE^MATH3
+RADDEG(x)               goto RADDEG^MATH3
+REPLACE(in,spec)        goto REPLACE^MATH3
+SEC(x,prec)             goto SEC^MATH4
+SECH(x,prec)            goto SECH^MATH4
+SIGN(x)                 goto SIGN^MATH4
+SIN(x)                  goto SIN^MATH4
+SINX(x,prec)            goto SINX^MATH4
+SINH(x,prec)            goto SINH^MATH4
+SQRT(x,prec)            goto SQRT^MATH4
+TAN(x,prec)             goto TAN^MATH4
+TANH(x,prec)            goto TANH^MATH4
+FORMAT(v,s)             goto FORMAT^MATH4
+XOR(a,b,w)              goto XOR^MATH4
+CRC16(string,seed)      goto CRC16^MATH4
+CRC32(string,seed)      goto CRC32^MATH4
+CRCCCITT(string,seed)   goto CRCCCITT^MATH4
+LOWER(a,charmod)        goto LOWER^MATH4
+PATCODE(a,pat,charmod)  goto PATCODE^MATH4
+UPPER(a,charmod)        goto UPPER^MATH4
+KVALUE(r,row,col)       goto KVALUE^MATH4
 
 MATH1
 MATH1 ;
@@ -2503,9 +2562,6 @@ ARCTANH ;
  set prec=$get(prec,11)
  ;;;
  quit $$LOG^MATH(1+x/(1-x),prec)/2
-
-MATH2
-MATH2 ;
 ;---
 CABS ;
  new zre,zim
@@ -2549,6 +2605,9 @@ CEXP ;
  set zre=+z,zim=+$piece(z,"%",2)
  set r=$$EXP^MATH(zre,prec)
  quit r*$$COSX^MATH(zim,prec)_"%"_(r*$$SINX^math(zim,prec))
+
+MATH2
+MATH2 ;
 ;---
 CLOG ;
  new abs,arg,zim,zre
@@ -2681,7 +2740,7 @@ CPOWER ;
  ;;; Set R=$$SQRT^MATH(ZRE*ZRE+(ZIM*ZIM,PREC)) ; Number ~~
  ; Winfried Gerum (8 June 1995)
  ; Eli Reidler (28 June 1996)
- set r=$$SQRT^MATH(zRE*zRE+(zIM*zIM),pREC)
+ set r=$$SQRT^MATH(zRE*zRE+(zIM*zIM),prec)
  ;;;
  ;;; If ZRE set TH=$$ARCTAN^MATH(ZIM,ZRE,PREC) ; Number ~~
  ; Alan Frank (October 1995)
@@ -2754,9 +2813,6 @@ DEGRAD quit x*$$PI^MATH()/180
 ;---
 DMSDEC ;
  quit $piece(x,":")+($piece(x,":",2)/60)+($piece(x,":",3)/3600)
-
-MATH3
-MATH3 ;
 ;---
 E new prec,e
  set prec=^$job($job,"precision")
@@ -2764,6 +2820,9 @@ E new prec,e
  if prec=0 quit 2
  if prec=64 quit e
  quit $extract(e,1,$length(e)-2)_($extract(e,$length(e)-1)+$select($extract(e,$length(e))>4:1,1:0))
+
+MATH3
+MATH3 ;
 ;---
 EXP ;
  new l,lim,k,value
@@ -2787,7 +2846,7 @@ LOG ;
  set x=(x-1)/(x+1),(value,l)=x
  set lim=$select((prec+3)'>11:prec+3,1:11),@("lim=1E-"_lim)
  for k=3:2 set l=l*x*x,m=l/k,value=m+value set:m<0 m=-m quit:m<lim
-;DLW - log10: E**2.3025850929940456840179914546843642076011014886287729760333279009=10
+ ; NOTE: log10: E**2.3025850929940456840179914546843642076011014886287729760333279009=10
  set value=value*2+(n*2.30258509298749)
  quit value
 ;---
@@ -3015,9 +3074,6 @@ MTXUNIT ;
  . set r(row,col)=$select(row=col:1,1:0)
  . quit
  quit 1
-
-MATH4
-MATH4 ;
 ;---
 PI new prec,pi
  set prec=^$job($job,"precision")
@@ -3067,6 +3123,9 @@ REPLACE ;
  . set:$data(value(k)) value=value_value(k)
  . quit
  quit value
+
+MATH4
+MATH4 ;
 ;---
 SEC ;
  new l,lim,k,sign,value
@@ -3164,14 +3223,11 @@ SQRT ;
  ;;; Set @(E="1E-"_PREC) ; Number ~~
  ; Winfried Gerum (8 June 1995)
  ; Eli Reidler (28 June 1996)
- set @("e=1E-"_pREC)
+ set @("e=1E-"_prec)
  ;;;
  set r=x
  for  set p=r,r=x/r+r/2,p=p-r/r if -e<p,p<e quit
  quit r
-
-MATH5
-MATH5 ;
 ;---
 TAN ;
  new l,lim,k,s,sign,value
@@ -3224,12 +3280,12 @@ FORMAT ;
  ; SR = Separator characters < 1
  ; Then Inherit properties from System,
  ; overwriting the defaults
- ; DLW - ^$system($system,"format",...) is not supported in RSM
+ ; NOTE: ^$system($system,"format",...) is not supported in RSM
  ;;set x="" for  set x=$order(^$system($system,"format",x)) quit:x=""  do
  ;;. set spec(x)=^$system($system,"format",x)
  ;;. quit
  ;Then Inherit properties from current process overwriting the system and the defaults
- ; DLW - ^$job($job,"format",...) is not supported in RSM
+ ; NOTE: ^$job($job,"format",...) is not supported in RSM
  ;;set x="" for  set x=$order(^$job($job,"format",x)) quit:x=""  do
  ;;. set spec(x)=^$job($job,"format",x)
  ;;. quit
@@ -3331,9 +3387,6 @@ FORMAT ;
  . . quit
  . quit
  quit out
-
-MATH6
-MATH6 ;
 ;---
 XOR new i,m,r
  set r=b,m=1
@@ -3411,7 +3464,7 @@ LOWER new lo,up,x,y
  . else  set x=$get(^$global(x,"character"))
  . quit
  if x="" set x=^$job($job,"character")
- ; DLW - RSM doesn't yet implement ^$character(...,"lower")
+ ; NOTE: RSM doesn't yet implement ^$character(...,"lower")
  set x=$get(^$character(x,"lower"))
  if x="" quit $translate(a,up,lo)
  set @("x="_x_"(a)")
@@ -3431,7 +3484,7 @@ PATCODE new x,y
  . else  set x=$get(^$global(x,"character"))
  . quit
  if x="" set x=^$job($job,"character")
- ; DLW - RSM doesn't yet implement ^$character(...,"patcode",...)
+ ; NOTE: RSM doesn't yet implement ^$character(...,"patcode",...)
  set x=$get(^$character(x,"patcode",pat))
  if x="" quit 0
  set @("x="_x_"(a)")
@@ -3453,16 +3506,22 @@ UPPER new lo,up,x,y
  . else  set x=$get(^$global(x,"character"))
  . quit
  if x="" set x=^$job($job,"character")
- ; DLW - RSM doesn't yet implement ^$character(...,"upper")
+ ; NOTE: RSM doesn't yet implement ^$character(...,"upper")
  set x=$get(^$character(x,"upper"))
  if x="" quit $translate(a,lo,up)
  set @("x="_x_"(a)")
  quit x
+;---
+KVALUE(r,row,col) ; KVALUE polyfill
+ new tmp,i,j merge tmp=r kill r
+ for i=1:1:row for j=1:1:col if '(i=row&(j=col)) set r(i,j)=tmp(i,j)
+ quit
 
 MUMTRIS
-MUMTRIS ; Convert for MUMPS V1 - RDN, and RSM ;V 3.011 09 Jun 2012 11:28 AM
+MUMTRIS ;V 3.011 09 Jun 2012 11:28 AM
 ; Mumtris
 ; Copyright (c) 2012 Piotr Koper <piotr.koper@gmail.com>
+; Converted for MUMPS V1 by Ray Douglas Newman
 ;
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU Affero General Public License as
@@ -3480,7 +3539,7 @@ MUMTRIS ; Convert for MUMPS V1 - RDN, and RSM ;V 3.011 09 Jun 2012 11:28 AM
 ; Mumtris
 ; This is a tetris game in MUMPS, for GT.M, have fun.
 ;
-; Resize your terminal (e.g. maximize your PuTTY window), restart GT.M so that
+; Resize your terminal (e.g., maximize your PuTTY window), restart GT.M so that
 ; it can report true size of your terminal, and do ^mumtris.
 ;
 ; Try setting ansi=0 for GT.M compatible cursor positioning.
@@ -3657,7 +3716,7 @@ pos(y,x,c) ;
  . write:$get(c) $char(27)_"[2J"
  else  do
  . use $principal:(x=x:y=y)
- . ; DLW - clearscreen is not defined
+ . ; NOTE: clearscreen is not implemented
  . ;use:$get(c) $principal:clearscreen
  .  use:$get(c) $principal write #
  quit
@@ -3777,7 +3836,7 @@ elements ;
  quit
 
 SSD
-SSD ; Shutdown ; V 3.0 10 Oct 1999 06:23 PM
+SSD ; Shutdown
  new vol set vol=^$job($job,"global_vol")
  set ^$system("vol",vol,"writelock")=1 write !,"Writelocking the database"
  for  write "." quit:^$system("vol",vol,"writelock")>0  hang 1
@@ -3813,11 +3872,11 @@ CREAT ; Create a UCI but not UCI 1 (manager)
 CR1 ; Prompt
  read !!,"Enter new UCI name: ",nuci quit:nuci=""
  if $get(^$system("name_length"),8)=32,nuci'?1.32A write !,"INVALID UCI NAME??",*7 goto CR1
- if $get(^$system("name_length"),8)=8,nuci'?1.8A write !,"INVALID UCI NAME??",*7 goto CR1
- set flg=0
- for x=1:1:uci if uci(x)=nuci write !,"CAN NOT NAME UCI THE SAME AS EXISTING UCI.",*7 set flg=1 quit
+ else  if $get(^$system("name_length"),8)=8,nuci'?1.8A write !,"INVALID UCI NAME??",*7 goto CR1
+ set (x,flg)=0
+ for  set x=$order(uci(x)) quit:x=""  if uci(x)=nuci write !,"CAN NOT NAME UCI THE SAME AS EXISTING UCI.",*7 set flg=1 quit
  if flg goto CR1
- set uci=uci+1,^$system("vol",vol,"uci",uci)=nuci write !,nuci," has been created..."
+ for uci=2:1:63 if ^$system("vol",vol,"uci",uci)="" set ^$system("vol",vol,"uci",uci)=nuci write !,nuci," has been created..." quit
  do LIST^UCI
  quit
 ;---
@@ -3862,7 +3921,7 @@ DISP(head,vol,uci) ; Generic display of UCI
  write !,head
  do LIST
  do GET(vol,.uci)
- for x=1:1:uci set z=uci(x),uci(z)=x
+ set x=0 for  set x=$order(uci(x)) quit:x=""  set z=uci(x),uci(z)=x
  quit
 ;---
 LIST ; List all UCIs within a volume set
@@ -3872,14 +3931,14 @@ LIST ; List all UCIs within a volume set
  write !,?10,"UCI#",?40,"UCI"
  write !,?10,"----",?40,"---"
  do GET(vol,.uci)
- for x=1:1:uci write !,?10,x,?40,uci(x)
+ set x=0 for  set x=$order(uci(x)) quit:x=""  write !,?10,x,?40,uci(x)
  quit
 ;---
 GET(vol,uci) ; Build an array of all the UCIs within the volume set
  new x
- set uci=0
- quit:vol'>0  set x=0
- for  set x=$order(^$system("vol",vol,"uci",x)) quit:x<1  set uci=x,uci(x)=^$system("vol",vol,"uci",x)
+ if vol'>0 quit
+ set (x,uci)=0
+ for  set x=$order(^$system("vol",vol,"uci",x)) quit:x=""  set uci=x,uci(x)=^$system("vol",vol,"uci",x)
  quit
 ;---
 MENU ; Menu list

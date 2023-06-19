@@ -99,7 +99,7 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
 
     if (type < TYPVARNAKED) {                                                   // subs in type
         subs = type & TYPMAXSUB;                                                // the low bits
-        type = type & ~TYPMAXSUB;                                               // and the type
+        type &= ~TYPMAXSUB;                                                     // and the type
     } else {
         subs = *rsmpc++;                                                        // get in line
     }
@@ -109,9 +109,9 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
     var->slen = 0;                                                              // and no subscripts
 
     if (type == TYPVARNAKED) {                                                  // if it's a naked
-        if (var_empty(partab.jobtab->last_ref.name)) return -ERRM1;             // say "Naked indicator undef"
+        if (var_empty(partab.jobtab->last_ref.name)) return -ERRM1;             // say "Naked indicator undefined"
         i = UTIL_Key_Last(&partab.jobtab->last_ref);                            // start of last key
-        if (i < 0) return -ERRM1;                                               // say "Naked indicator undef"
+        if (i == -1) return -ERRM1;                                             // say "Naked indicator undefined"
         memcpy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + i);           // copy naked reference
         var->slen = (u_char) i;                                                 // stuff in the count
     } else if (type == TYPVARIND) {                                             // it's an indirect
@@ -120,11 +120,11 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
     } else if ((type & TYPVARIDX) && (type < TYPVARGBL)) {                      // if it's the index type AND it's local
         i = *rsmpc++;                                                           // get the index
 
-        if (i < 255) {                                                          // can't do the last one
+        if (i < MAX_NUM_VARS) {                                                 // can't do the last one
             var->volset = i + 1;                                                // save the index (+ 1)
             VAR_CLEAR(var->name);                                               // clear the name
         } else {
-            p = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+            p = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
             vt = (var_u *) (((u_char *) p) + p->var_tbl);                       // point at var table
             VAR_COPY(var->name, vt[i]);                                         // get the var name
         }
@@ -142,8 +142,8 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
 
         s = UTIL_Key_Build(ptr, &var->key[var->slen]);                          // get one subscript
         if (s < 0) return s;                                                    // die on error
-        if ((s + var->slen) > 255) return -(ERRZ2 + ERRMLAST);                  // check how big and complain on error
-        var->slen = s + var->slen;                                              // add it in
+        if ((s + var->slen) > MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);         // check how big and complain on error
+        var->slen += s;                                                         // add it in
     }
 
     if (type == TYPVARGBLUCIENV) {                                              // need vol?

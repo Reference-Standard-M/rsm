@@ -28,9 +28,11 @@
 #ifndef _RSM_SYMBOL_H_                                                          // only do this once
 #define _RSM_SYMBOL_H_
 
-#define DTBLKSIZE (sizeof(short) + sizeof(u_short) + sizeof(u_char) + sizeof(ST_depend *)) // ST_data - empty data
-#define DTMINSIZE (sizeof(short) + sizeof(u_short) + (sizeof(u_char) * 20) + sizeof(ST_depend *)) // ST_data - 20 for data
+#define DTBLKSIZE (sizeof(short) + sizeof(u_short) + sizeof(u_char) + (sizeof(ST_depend *) * 2)) // ST_data - empty data
+#define DTMINSIZE (sizeof(short) + sizeof(u_short) + (sizeof(u_char) * 20) + (sizeof(ST_depend *) * 2)) // ST_data - 20 for data
 #define DPBLKSIZE ((sizeof(u_char) * 2) + sizeof(u_short) + sizeof(ST_depend *)) // ST_depend - empty bytes
+
+/*
 #define NTBLKSIZE ((sizeof(short) * 2) + sizeof(short *) + sizeof(ST_newtab *) + sizeof(ST_locdata *)) // not currently used
 
 struct ST_DATA;                                                                 // defined below
@@ -40,12 +42,13 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK {                         
     short  ptr;                                                                 // ptr to variable
     struct ST_DATA *data;                                                       // data address
 } new_stack;                                                                    // end of struct new_stack
+*/
 
 // SYMTAB definitions
-#define ST_HASH     1023                                                        // hash size of symtab
-#define ST_FREE     ST_HASH                                                     // head of free list
-#define ST_MAX      ((ST_HASH + 1) * 3)                                         // max number of ST entries
-#define STORAGE     ST_MAX                                                      // $STORAGE uses this to calculate free slots
+#define ST_HASH 1023                                                            // hash size of symtab
+#define ST_FREE ST_HASH                                                         // head of free list
+#define ST_MAX  ((ST_HASH + 1) * 3)                                             // max number of ST entries
+#define STORAGE ST_MAX                                                          // $STORAGE uses this to calculate free slots
 
 // Structures for symbol table data
 #define SIZE_KEY_DATA (MAX_KEY_SIZE + MAX_STR_LEN + 5)                          // for the following
@@ -58,6 +61,7 @@ typedef struct __attribute__ ((__packed__)) ST_DEPEND {                         
 
 typedef struct __attribute__ ((__packed__)) ST_DATA {                           // symbol data block
     ST_depend *deplnk;                                                          // dependents link
+    ST_depend *last_key;                                                        // last key used
     short     attach;                                                           // variable attach count
     u_short   dbc;                                                              // data byte count
     u_char    data[MAX_STR_LEN + 1];                                            // data bytes

@@ -53,4 +53,8 @@ int INIT_Run(char *file,                                                        
 // Initialize the symbol table
 void ST_Init(void);                                                             // empty symbol table
 
+void help(void);                                                                // give some help
+void info(char *file);                                                          // give some info
+void shutdown(char *file);                                                      // defined in rsm/init/shutdown.c
+
 #endif                                                                          // !_RSM_INIT_H_

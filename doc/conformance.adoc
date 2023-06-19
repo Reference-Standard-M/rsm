@@ -2,6 +2,9 @@
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
 
+[role="right"]
+link:index.adoc[Index]
+
 '''
 
 == Reference Standard M Conformance Clause
@@ -12,13 +15,17 @@ https://gitlab.com/Reference-Standard-M/rsm
 
 === Summary
 
-Reference Standard M Version 1.77.0 conforms to ANSI/MDC X11.1-1995 (ISO/IEC
+Reference Standard M Version 1.78.0 conforms to ANSI/MDC X11.1-1995 (ISO/IEC
 11756:1999) with the following exceptions (there may be more):
 
+* Supports up to 32 uniquely distinguished characters in names, rather than 8
+* Supports lower case alphabetic characters in names, not just upper case
+* Returns an error (`M56`) with longer names, rather than truncating them
 * Only supports the M character set profile
 * Transaction processing is not implemented
 * A comment can start in the first column
 * `$NEXT` is supported by default, but can be disabled
+* `OPEN` does not acquire exclusive access of devices
 * `CLOSE` device parameters are not implemented (allowed by standard)
 * `JOB` process parameters are not implemented (allowed by standard)
 * `HANG 0` is not ignored, it gives up the process timeslice
@@ -37,8 +44,11 @@ Reference Standard M Version 1.77.0 conforms to ANSI/MDC X11.1-1995 (ISO/IEC
 * `^$GLOBAL` includes extra nodes
 * `^$JOB` includes extra nodes
 * `^$ROUTINE` includes extra nodes
-* `^$SYSTEM` includes many extra nodes, is missing a `"CHARACTER"` node, and
-  does not start its first subscript with the contents of `$SYSTEM`
+* `^$SYSTEM` includes many extra nodes, and does not use as its first subscript
+  the contents of `$SYSTEM`
 
 See the link:language.adoc[Language Guide] for more information on how each
 language element conforms to the standard.
+
+[role="right"]
+link:index.adoc[Index]

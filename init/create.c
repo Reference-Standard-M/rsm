@@ -132,8 +132,9 @@ int INIT_Create_File(u_int blocks,                                              
     printf("and a %u KiB label/map block.\n", map / 1024);                      // say what we are doing
     ret = 0;
     errno = 0;                                                                  // clear error flag
+    umask(0);                                                                   // set umask to 0000
 
-    // Create database file - 0640 permissions
+    // Create database file - with 0640 permissions
     fid = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP);
 
     if (fid < 1) {                                                              // if that failed
@@ -208,9 +209,9 @@ int INIT_Create_File(u_int blocks,                                              
     memset(x.buff, 0, bsize);                                                   // clear it
     mgrblk->type = 65;                                                          // type is data blk + UCI
     mgrblk->last_idx = IDX_START;                                               // have one rec
-    mgrblk->last_free = (u_short) (bsize / 4 - 7);                              // minus extra for rec length
+    mgrblk->last_free = (u_short) ((bsize >> 2) - 7);                           // minus extra for rec length
     memcpy(&mgrblk->global, "$GLOBAL", 7);                                      // init the name
-    us = (bsize / 4) - 6;                                                       // point at the record
+    us = (bsize >> 2) - 6;                                                      // point at the record
     memcpy(&x.cuff[sizeof(DB_Block)], &us, sizeof(u_short));                    // save in index
     hunk = (cstring *) &x.buff[us];                                             // point at the hunk
     hunk->len = 24;                                                             // size of this (incl self)

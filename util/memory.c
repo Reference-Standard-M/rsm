@@ -33,7 +33,7 @@
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // standard errors
-#include "compile.h"                                                            // for rdb def
+#include "compile.h"                                                            // for rbd def
 #include "symbol.h"                                                             // for NEW stuff
 
 // This function is used in place of memmove() to trap strstk overflows
@@ -84,7 +84,7 @@ short ncopy(u_char **src, u_char *dst)                                          
                 continue;                                                       // go for more
             }
 
-            if (minus) dst[i++] = '-';                                          // store minus if reqd
+            if (minus) dst[i++] = '-';                                          // store minus if required
         }
 
         if ((i == minus) && (c == '0')) {                                       // if '0' and nothing saved
@@ -132,8 +132,7 @@ short ncopy(u_char **src, u_char *dst)                                          
     if (i && (dst[i - 1] == '-')) i--;                                          // ensure last is not minus
     if (i == 0) dst[i++] = '0';                                                 // make sure we have something
     dst[i] = '\0';                                                              // null terminate it
-    --p;                                                                        // back up the source pointer
-    *src = p;                                                                   // and store it
+    *src = --p;                                                                 // back up the source pointer and store it
     if (!exp) return (short) i;                                                 // if no exponent then return the count
     dst[i] = '0';                                                               // jic
     dp = 0;                                                                     // clear DP flag
@@ -241,8 +240,7 @@ void CleanJob(int job)                                                          
                 ST_Restore((ST_newtab *) systab->jobtab[j].dostk[i].newtab);
             }
 
-            if ((systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) && (systab->jobtab[j].dostk[i].symbol != NULL)) {
-                // detach symbols
+            if ((systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) && (systab->jobtab[j].dostk[i].symbol != NULL)) { // detach symbols
                 ST_SymDet(((rbd *) systab->jobtab[j].dostk[i].routine)->num_vars, systab->jobtab[j].dostk[i].symbol);
             }
         }

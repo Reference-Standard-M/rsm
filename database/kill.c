@@ -175,7 +175,7 @@ cont:
             }
 
             record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                // point at record
-            record->len = NODE_UNDEFINED;                                       // mark not reqd
+            record->len = NODE_UNDEFINED;                                       // mark not required
             i++;                                                                // point at next
         }                                                                       // end removing recs
 
@@ -300,7 +300,7 @@ ENABLE_WARN
                 s = Insert(p, c);                                               // insert the node
 
                 if (s == -(ERRZ62 + ERRMLAST)) {
-                    s = Add_rekey(rblk[level + 1]->block, level + 1);           // do it later
+                    Add_rekey(rblk[level + 1]->block, level + 1);               // do it later
                 } else if (s < 0) {
                     return (short) s;                                           // error!
                 }
@@ -344,7 +344,7 @@ ENABLE_WARN
             s = Insert(p, c);                                                   // insert the node
 
             if (s == -(ERRZ62 + ERRMLAST)) {
-                s = Add_rekey(rblk[level + 1]->block, level + 1);               // do it later
+                Add_rekey(rblk[level + 1]->block, level + 1);                   // do it later
             } else if (s < 0) {
                 return (short) s;                                               // error!
             }

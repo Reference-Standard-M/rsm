@@ -93,10 +93,11 @@ short UTIL_String_Lock(locktab *var, u_char *str)
     int     i;                                                                  // for loops
     int     p = 0;                                                              // string pointer
     int     slen;                                                               // subscript length
-    uci_tab up;                                                                 // ptr to UCI tab
     u_char *vp;                                                                 // ptr to vol name
 
     if (var->uci != UCI_IS_LOCALVAR) {                                          // if it's a global var
+        uci_tab up;                                                             // ptr to UCI tab
+
         str[p++] = '^';                                                         // lead off with the caret
         str[p++] = '[';                                                         // open bracket
         str[p++] = '"';                                                         // a leading quote
@@ -145,10 +146,11 @@ short UTIL_String_Lock(locktab *var, u_char *str)
 short UTIL_mvartolock(mvar *var, u_char *buf)                                   // convert mvar to string
 {
     short s;                                                                    // a handy short
-    var_u *vt;                                                                  // var table pointer
 
     if (var->uci == UCI_IS_LOCALVAR) {                                          // if local
         if (var->volset) {                                                      // if index type
+            var_u *vt;                                                          // var table pointer
+
             rbd *p = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
 
             vt = (var_u *) (((u_char *) p) + p->var_tbl);                       // point at var table
@@ -459,12 +461,12 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
     cstring *current;                                                           // temp cstring
     cstring *tempc;                                                             // temp cstring
     int     removedone;                                                         // flag
-    int     posr;                                                               // position in *list
+    u_int   posr;                                                               // position in *list
     int     toremove;                                                           // number of vars to remove
     locktab *plptr;                                                             // previous locktab
     locktab *nlptr;                                                             // new locktab
     int     i;                                                                  // handy int
-    int     reqd;                                                               // space reqd for lock
+    int     reqd;                                                               // space required for lock
     lck_add ctx, *pctx;
 
     pctx = &ctx;
@@ -475,7 +477,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
     pctx->strttime = current_time(TRUE);                                        // save op start time
 
     while (pctx->tryagain) {                                                    // while we should give it a go
-        int size = 0;                                                           // size of entry count
+        u_int size;                                                             // size of entry count
         int pos = 0;                                                            // position indicator
 
         pctx->tryagain = 0;                                                     // reset retry flag
@@ -507,12 +509,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                     toremove = pctx->done;                                      // save this value
                     removedone = 0;                                             // init this counter
                     posr = 0;                                                   // init position indicator
-                    size = 0;                                                   // reset size for safety
 
                     while (removedone < toremove) {                             // while more removals to do
                         LCK_Kill((cstring *) &((u_char *) list)[posr]);         // rem entry at posr
                         tempc = (cstring *) &((u_char *) list)[posr];           // extract this entry
-                        size = sizeof(short) + tempc->len + sizeof(char);       // find size
+                        size = sizeof(u_short) + tempc->len;                    // find size
                         if (size & 1) size++;                                   // ensure even
                         posr += size;                                           // posr to start of next entry
                         removedone++;                                           // increment removal counter
@@ -566,12 +567,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                         toremove = pctx->done;                  // save this value
                                         removedone = 0;                         // init this counter
                                         posr = 0;                               // init position indicator
-                                        size = 0;                               // reset size for safety
 
                                         while (removedone < toremove) {         // while more removals to do
                                             LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry
                                             tempc = (cstring *) &((u_char *) list)[posr]; // extract
-                                            size = sizeof(short) + tempc->len + sizeof(char); // size
+                                            size = sizeof(u_short) + tempc->len; // size
                                             if (size & 1) size++;               // ensure even
                                             posr += size;                       // posr to start of next entry
                                             removedone++;                       // increment removal counter
@@ -602,12 +602,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                     toremove = pctx->done;                      // save this value
                                     removedone = 0;                             // init this counter
                                     posr = 0;                                   // init position indicator
-                                    size = 0;                                   // reset size for safety
 
                                     while (removedone < toremove) {             // while more removals to do
                                         LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
                                         tempc = (cstring *) &((u_char *) list)[posr]; // extract this entry
-                                        size = sizeof(short) + tempc->len + sizeof(char); // find size
+                                        size = sizeof(u_short) + tempc->len;    // find size
                                         if (size & 1) size++;                   // ensure even
                                         posr += size;                           // posr to start of next entry
                                         removedone++;                           // increment removal counter
@@ -632,12 +631,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                 toremove = pctx->done;                          // save this value
                                 removedone = 0;                                 // init this counter
                                 posr = 0;                                       // init position indicator
-                                size = 0;                                       // reset size for safety
 
                                 while (removedone < toremove) {                 // while more removals to do
                                     LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
                                     tempc = (cstring *) &((u_char *) list)[posr]; // extract this entry
-                                    size = sizeof(short) + tempc->len + sizeof(char); // find size
+                                    size = sizeof(u_short) + tempc->len;        // find size
                                     if (size & 1) size++;                       // ensure even
                                     posr += size;                               // posr to start of next entry
                                     removedone++;                               // increment removal counter
@@ -659,12 +657,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         toremove = pctx->done;                                  // save this value
                         removedone = 0;                                         // init this counter
                         posr = 0;                                               // init position indicator
-                        size = 0;                                               // reset size for safety
 
                         while (removedone < toremove) {                         // while more removals to do
                             LCK_Kill((cstring *) &((u_char *) list)[posr]);     // rem entry at posr
                             tempc = (cstring *) &((u_char *) list)[posr];       // extract this entry
-                            size = sizeof(short) + tempc->len + sizeof(char);   // find size
+                            size = sizeof(u_short) + tempc->len;                // find size
                             if (size & 1) size++;                               // ensure even
                             posr += size;                                       // posr to start of next entry
                             removedone++;                                       // increment removal counter
@@ -681,12 +678,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                             toremove = pctx->done;                              // save this value
                             removedone = 0;                                     // init this counter
                             posr = 0;                                           // init position indicator
-                            size = 0;                                           // reset size for safety
 
                             while (removedone < toremove) {                     // while more removals to do
                                 LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
                                 tempc = (cstring *) &((u_char *) list)[posr];   // extract this entry
-                                size = sizeof(short) + tempc->len + sizeof(char); // find size
+                                size = sizeof(u_short) + tempc->len;            // find size
                                 if (size & 1) size++;                           // ensure even
                                 posr += size;                                   // posr to start of next entry
                                 removedone++;                                   // increment removal counter
@@ -716,12 +712,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                 toremove = pctx->done;                          // save this value
                                 removedone = 0;                                 // init this counter
                                 posr = 0;                                       // init position indicator
-                                size = 0;                                       // reset size for safety
 
                                 while (removedone < toremove) {                 // while more removals to do
                                     LCK_Kill((cstring *) &((u_char *) list)[posr]); // rem entry at posr
                                     tempc = (cstring *) &((u_char *) list)[posr]; // extract this entry
-                                    size = sizeof(short) + tempc->len + sizeof(char); // find size
+                                    size = sizeof(u_short) + tempc->len;        // find size
                                     if (size & 1) size++;                       // ensure even
                                     posr += size;                               // posr to start of next entry
                                     removedone++;                               // increment removal counter
@@ -748,9 +743,9 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
             }                                                                   // end while pctx->lptr not null
 
             if (pctx->tryagain == 0) {
-                size = sizeof(short) + current->len + sizeof(char);             // calc len of entry
+                size = sizeof(u_short) + current->len;                          // calc len of entry
                 if (size & 1) size += 1;                                        // pad to even boundary
-                pos += size;                                               // find next start pos
+                pos += size;                                                    // find next start pos
                 pctx->done++;                                                   // number done + 1
             }
         }                                                                       // end while more to do
@@ -763,7 +758,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 short LCK_Sub(int count, cstring *list)                                         // lock minus
 {
     int     i;                                                                  // a handy int
-    int     pos = 0;                                                            // position in *list
+    u_int   pos = 0;                                                            // position in *list
     int     done = 0;                                                           // number of entries completed
     cstring *current;                                                           // temp cstring
     locktab *lptr;                                                              // locktab pointer
@@ -773,7 +768,7 @@ short LCK_Sub(int count, cstring *list)                                         
     if (x < 0) return x;                                                        // return the error
 
     while (done < count) {                                                      // while more to do
-        u_int size;                                                               // size of entry in *list
+        u_int size;                                                             // size of entry in *list
 
         current = (cstring *) &((u_char *) list)[pos];                          // extract this entry
         lptr = systab->lockhead;                                                // start at first locktab
@@ -827,7 +822,7 @@ short LCK_Sub(int count, cstring *list)                                         
 
         size = sizeof(u_short) + current->len;                                  // calc length of entry
         if (size & 1) size += 1;                                                // pad to even boundary
-        pos += size;                                                       // find next start pos
+        pos += size;                                                            // find next start pos
         done++;                                                                 // number done + 1
     }                                                                           // successful
 

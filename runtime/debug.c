@@ -62,15 +62,16 @@ void Debug_off(void)                                                            
 /*
  * Turn on (or modify) debug stuff
  * We are passed one cstring containing:
- *     Debug_ref         Remove breakpoint
  *     Debug_ref:        Add simple breakpoint
+ *     Debug_ref         Remove breakpoint
  *     Debug_ref:code    Add breakpoint with code to Xecute
  *     :code             Code to execute at QUIT n breakpoint
+ *     :                 Remove QUIT n breakpoint
  *     ""                Remove all breakpoints and turn off debugging
  */
 short Debug_on(cstring *param)                                                  // turn on/modify debug
 {
-    int     j = 0;                                                              // and another
+    int     j = 0;                                                              // a handy int
     cstring *ptr;                                                               // string pointer
     u_char  temp_src[256];                                                      // some space for entered
     u_char  temp_cmp[1024];                                                     // ditto compiled
@@ -138,13 +139,10 @@ ENABLE_WARN
     if ((param->len - j) > 255) return -(ERRZ9 + ERRMLAST);                     // too bloody long
     source_ptr = &param->buf[j];                                                // point at the source
     ptr = (cstring *) temp_cmp;                                                 // where it goes
-    comp_ptr = ptr->buf;                                                        // for parse
-    parse();                                                                    // compile it
-    *comp_ptr++ = ENDLIN;                                                       // eol
-    *comp_ptr++ = ENDLIN;                                                       // eor
 DISABLE_WARN(-Warray-bounds)
-    ptr->len = comp_ptr - ptr->buf;                                             // save the length
+    ptr->len = param->len - j;                                                  // save the length
 ENABLE_WARN
+    memcpy(&ptr->buf[0], source_ptr, ptr->len);                                 // store source for handler
     return ST_Set(&dvar, ptr);                                                  // set and return
 }
 
@@ -157,6 +155,7 @@ short Debug(int savasp, int savssp, int dot)                                    
 {
     int      i;                                                                 // a handy int
     int      io;                                                                // save current $IO
+    u_char   options;                                                           // save current $IO options
     int      s = 0;                                                             // for calls
     short    ts;                                                                // for temp index
     do_frame *curframe;                                                         // a do frame pointer
@@ -189,15 +188,15 @@ short Debug(int savasp, int savssp, int dot)                                    
         dvar.key[dvar.slen - 1] |= s;                                           // fix type
         dvar.slen += s;                                                         // and length
         dvar.slen++;                                                            // count the null
-        s = ST_Get(&dvar, &cmp[sizeof(short)]);                                 // get whatever
+        s = ST_Get(&dvar, &src[sizeof(short)]);                                 // get whatever
         if (s < 0) return 0;                                                    // just return if nothing
         ts = (short) s;                                                         // endian agnostic
-        memcpy(cmp, &ts, sizeof(short));                                        // save the length
+        memcpy(src, &ts, sizeof(short));                                        // save the length
     } else if (dot == -1) {                                                     // from a QUIT n
-        s = ST_Get(&dvar, &cmp[sizeof(short)]);                                 // get whatever
+        s = ST_Get(&dvar, &src[sizeof(short)]);                                 // get whatever
         if (s < 0) s = 0;                                                       // ignore errors
         ts = (short) s;                                                         // endian agnostic
-        memcpy(cmp, &ts, sizeof(short));                                        // save the length
+        memcpy(src, &ts, sizeof(short));                                        // save the length
     }
 
     if (partab.jobtab->cur_do >= MAX_DO_FRAMES) return -(ERRZ8 + ERRMLAST);     // too many (perhaps ??????)
@@ -205,8 +204,16 @@ short Debug(int savasp, int savssp, int dot)                                    
 
     if (s > 0) {                                                                // code to execute
         partab.jobtab->cur_do++;                                                // increment do frame
+        source_ptr = &src[2];                                                   // point at the source
+        ptr = (cstring *) cmp;                                                  // where it goes
+        comp_ptr = ptr->buf;                                                    // for parse
+        parse();                                                                // compile it
+        *comp_ptr++ = ENDLIN;                                                   // eol
+        *comp_ptr++ = ENDLIN;                                                   // eor
+        DISABLE_WARN(-Warray-bounds)
+        ptr->len = comp_ptr - ptr->buf;                                         // save the length
+        ENABLE_WARN
         rsmpc = &cmp[sizeof(short)];                                            // where it is
-        src[0] = '\0';                                                          // a spare null
         partab.jobtab->dostk[partab.jobtab->cur_do].routine = src;
         partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;
         partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;
@@ -220,13 +227,13 @@ short Debug(int savasp, int savssp, int dot)                                    
         partab.jobtab->dostk[partab.jobtab->cur_do].type = TYPE_RUN;
         partab.jobtab->dostk[partab.jobtab->cur_do].level = 0;
         partab.jobtab->dostk[partab.jobtab->cur_do].flags = 0;
-        partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
         partab.jobtab->dostk[partab.jobtab->cur_do].asp = savasp;
         partab.jobtab->dostk[partab.jobtab->cur_do].ssp = savssp;
+        partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
         partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
         partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         s = run(savasp, savssp);                                                // do it
-        if (s == OPHALT) return (short) s;                                      // just halt if reqd
+        if (s == OPHALT) return (short) s;                                      // just halt if required
         partab.jobtab->cur_do--;                                                // restore do frame
         rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;                 // restore pc
 
@@ -238,12 +245,13 @@ short Debug(int savasp, int savssp, int dot)                                    
                 partab.jobtab->attention = 1;                                   // say to check this thing
                 s = 0;                                                          // don't confuse the return
             }
-        } else if (s > 0) {
-            return (short) s;                                                   // return whatever with quit sp sp
         }
+
+        if (dot == 0) return (short) s;                                         // return from breakpoint check
     }
 
     io = partab.jobtab->io;                                                     // save current $IO
+    options = partab.jobtab->seqio[0].options;                                  // save channel 0 options
     partab.jobtab->io = 0;                                                      // ensure 0
     partab.jobtab->seqio[0].options |= 8;                                       // ensure echo on
     ptr = (cstring *) src;                                                      // some space
@@ -258,7 +266,6 @@ short Debug(int savasp, int savssp, int dot)                                    
             if (var_empty(curframe->rounam)) {
                 memcpy(ptr->buf, "Debug", 5);
                 ptr->len = 5;
-                partab.debug = -1;                                              // reset debug state
             } else {
                 ptr->len = 0;                                                   // clear ptr
                 ptr->buf[ptr->len++] = '+';                                     // lead off
@@ -282,7 +289,7 @@ short Debug(int savasp, int savssp, int dot)                                    
             if (s < 0) return s;                                                // if error, return it
         }
 
-        s = SQ_Read(ptr->buf, -1, 256);                                         // read something
+        s = SQ_Read(ptr->buf, UNLIMITED, 256);                                  // read something
         if (s < 1) continue;                                                    // ignore nulls and errors
 
         if (!hist_next || strcmp(history[hist_next - 1], (char *) ptr->buf)) {
@@ -318,13 +325,13 @@ short Debug(int savasp, int savssp, int dot)                                    
         partab.jobtab->dostk[partab.jobtab->cur_do].type = TYPE_RUN;
         partab.jobtab->dostk[partab.jobtab->cur_do].level = 0;
         partab.jobtab->dostk[partab.jobtab->cur_do].flags = 0;
-        partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
-        partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         partab.jobtab->dostk[partab.jobtab->cur_do].asp = savasp;
         partab.jobtab->dostk[partab.jobtab->cur_do].ssp = savssp;
         partab.jobtab->dostk[partab.jobtab->cur_do].isp = isp;
+        partab.jobtab->dostk[partab.jobtab->cur_do].savasp = savasp;
+        partab.jobtab->dostk[partab.jobtab->cur_do].savssp = savssp;
         s = run(savasp, savssp);                                                // do it
-        if (s == OPHALT) return (short) s;                                      // just halt if reqd
+        if (s == OPHALT) return (short) s;                                      // just halt if required
         partab.jobtab->cur_do--;                                                // restore do frame
         if (!partab.debug) break;                                               // go away if debug now off
 
@@ -334,7 +341,6 @@ short Debug(int savasp, int savssp, int dot)                                    
             if (s > 0) {
                 partab.debug = s + partab.jobtab->commands;                     // when to stop
                 partab.jobtab->attention = 1;                                   // say to check this thing
-                s = 0;
                 break;                                                          // exit
             }
         }
@@ -342,12 +348,6 @@ short Debug(int savasp, int savssp, int dot)                                    
         if (s == CMQUIT) {
             partab.debug = -1;                                                  // reset debug state
             break;                                                              // exit on QUIT
-        }
-
-        if (s == OPHALT) {
-            partab.jobtab->io = io;                                             // restore io
-            rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;             // restore pc
-            return (short) s;
         }
 
         var = (mvar *) &strstk[savssp];                                         // space to setup a var
@@ -374,6 +374,7 @@ short Debug(int savasp, int savssp, int dot)                                    
     }
 
     partab.jobtab->io = io;                                                     // restore io
+    partab.jobtab->seqio[0].options = options;                                  // restore channel 0 options
     rsmpc = partab.jobtab->dostk[partab.jobtab->cur_do].pc;                     // restore pc
     return 0;
 }

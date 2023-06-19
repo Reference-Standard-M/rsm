@@ -96,7 +96,7 @@ short Vhorolog(u_char *ret_buffer)
     int    day = sec / SECDAY + YRADJ;                                          // get number of days
 
     sec %= SECDAY;                                                              // and number of seconds
-    return (short) sprintf((char *) ret_buffer, "%d,%d", day, (int) sec);       // return count and $H
+    return (short) sprintf((char *) ret_buffer, "%d,%d", day, (int) sec);       // return count and $HOROLOG
 }
 
 // $KEY
@@ -125,7 +125,7 @@ short Vsystem(u_char *ret_buffer)
     int i = uitocstring(ret_buffer, RSM_SYSTEM);                                // copy assigned #
 
     ret_buffer[i++] = ',';                                                      // and a comma
-    i = i + rsm_version(&ret_buffer[i]);                                        // do it elsewhere
+    i += rsm_version(&ret_buffer[i]);                                           // do it elsewhere
     return (short) i;                                                           // return the count
 }
 
@@ -231,16 +231,14 @@ int Vset(mvar *var, cstring *cptr)                                              
 
     if (strncasecmp((char *) &var->name.var_cu[1], "x", 1) == 0) {              // $X
         i = cstringtoi(cptr);                                                   // get val
-        if (i < 0) i = 0;
-        //if (i < 0) return -ERRM43                                             // DLW - The Standard requires this - need to test
+        if ((i < 0) || (i > (MAX_STR_LEN + 1))) return -ERRM43;                 // return range error
         partab.jobtab->seqio[partab.jobtab->io].dx = (u_short) i;
         return 0;                                                               // and return
     }
 
     if (strncasecmp((char *) &var->name.var_cu[1], "y", 1) == 0) {              // $Y
         i = cstringtoi(cptr);                                                   // get val
-        if (i < 0) i = 0;
-        //if (i < 0) return -ERRM43                                             // DLW - The Standard requires this - need to test
+        if ((i < 0) || (i > (MAX_STR_LEN + 1))) return -ERRM43;                 // return range error
         partab.jobtab->seqio[partab.jobtab->io].dy = (u_short) i;
         return 0;                                                               // and return
     }

@@ -35,19 +35,21 @@
 #define FALSE               0                                                   // nicer than using 0
 #define TRUE                1                                                   // or 1
 
+#define OFF                 -1                                                  // Buffer history is turned off
+
 #define RSM_MAGIC           4155766917U                                         // Seems unique
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       77                                                  // Minor version number
+#define VERSION_MINOR       78                                                  // Minor version number
 #define VERSION_PATCH       0                                                   // Patch version number
-#define VERSION_PRE         0                                                   // Pre-release flag (0 for off, 1 for on)
-#define VERSION_TEST        2                                                   // Test version number
+#define VERSION_PRE         0                                                   // Pre-release number
+#define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            512                                                 // Maximum number of jobs
-#define DAEMONS             10                                                  // Jobs per daemon
+#define DAEMONS             16                                                  // Jobs per daemon
 #define MIN_DAEMONS         2                                                   // Minimum of these
-#define MAX_DAEMONS         20                                                  // Maximum of these
+#define MAX_DAEMONS         16                                                  // Maximum of these
 #define MAX_GLOBAL_BUFFERS  131072                                              // Maximum global buffers in MiB
 #define MAX_ROUTINE_BUFFERS 4095                                                // Maximum routine buffers in MiB
 
@@ -69,7 +71,7 @@
 
 #define MAX_NUM_ARGS        (127 - 1)                                           // max number of arguments
 #define MAX_NUM_TAGS        256                                                 // max number of tags/labels
-#define MAX_NUM_VARS        256                                                 // max number of routine variables
+#define MAX_NUM_VARS        255                                                 // max number of routine variables
 
 #if RSM_DBVER == 1
 #   define VAR_LEN          8                                                   // length of var_u - must be multiple of 8
@@ -82,6 +84,7 @@
 #define SECDAY              86400                                               // seconds per day ($HOROLOG)
 #define YRADJ               47117                                               // days from 1 Jan 1841 to 1970
 
+#define MAX_VOL             1                                                   // max number of vols
 #define UCIS                64                                                  // always 64
 
 // KeyCmp outputs
@@ -91,7 +94,11 @@
 
 #define MAX_DO_FRAMES       128                                                 // maximum permitted do_frame
 #define STM1_FRAME          (MAX_DO_FRAMES - 1)                                 // where $STACK(-1) data goes
-#define MAX_SEQ_IO          64                                                  // maximum sequential IO chans
+
+#define UNLIMITED           -1                                                  // unlimited timeout for sequential IO
+
+#define MIN_SEQ_IO          0                                                   // Minimum sequential IO channel
+#define MAX_SEQ_IO          64                                                  // maximum sequential IO channel
 #define MAX_SEQ_NAME        256                                                 // max file name size
 #define MAX_SEQ_OUT         6                                                   // max output terminator size
 #define MAX_DKEY_LEN        16                                                  // max $KEY seq stored
@@ -112,10 +119,10 @@
 #define SQ_USE_DEL8         512                                                 // use backspace as delete
 #define SQ_USE_DEL127       1024                                                // use delete as delete
 #define SQ_USE_DELBOTH      2048                                                // use both as delete
-#define SQ_CONTROLC         4096                                                // enable control c trapping
-#define SQ_NOCONTROLC       8192                                                // no control c trap, ignore it
-#define SQ_CONTROLT         16384                                               // enable control t status
-#define SQ_NOCONTROLT       32768                                               // disable control t status
+#define SQ_CONTROLC         4096                                                // enable Control-C trapping
+#define SQ_NOCONTROLC       8192                                                // no Control-C trap, ignore it
+#define SQ_CONTROLT         16384                                               // enable Control-T status
+#define SQ_NOCONTROLT       32768                                               // disable Control-T status
 
 #if defined(__APPLE__) && defined(__LP64__)
 #   define SHMAT_SEED       (void *) 0x200000000
@@ -166,7 +173,7 @@
 #define TYPE_JOB            2                                                   // got jobbed [0] only
 #define TYPE_DO             3                                                   // DO
 #define TYPE_EXTRINSIC      4                                                   // Extrinsic
-#define TYPE_XECUTE         5                                                   // execute
+#define TYPE_XECUTE         5                                                   // eXecute
 
 #define DO_FLAG_TEST        1                                                   // $TEST value (0/1)
 #define DO_FLAG_ATT         2                                                   // sym attach done
@@ -185,7 +192,6 @@
 #define SIG_U2              (1U << 31)                                          // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define MAX_VOL             1                                                   // max number of vols
 #define VOL_FILENAME_MAX    256                                                 // max chars in stored filename
 #define JNL_FILENAME_MAX    226                                                 // max chars in journal filename
 
@@ -199,15 +205,17 @@
  * Semaphores are setup with a value equal to systab->maxjob
  * A read takes one semaphore unit
  * A write takes systab->maxjob units
+ * A SEM_ATOMIC only takes a write and also sets the atomic flag
  */
 #define SEM_SYS             0                                                   // Systab Semaphore
 #define SEM_LOCK            1                                                   // Lock Table Semaphore
 #define SEM_GLOBAL          2                                                   // global database module
 #define SEM_ROU             3                                                   // routine buffers
 #define SEM_WD              4                                                   // write daemons
-#define SEM_MAX             5                                                   // total number of these
+#define SEM_ATOMIC          5                                                   // atomic operations
+#define SEM_MAX             6                                                   // total number of these
 
-#define MAX_TRANTAB         8                                                   // total number of entries
+#define MAX_TRANTAB         64                                                  // total number of entries
 
 #if defined(linux) || defined(_AIX) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun__) || defined(__CYGWIN__)
 typedef union semun {
@@ -403,7 +411,7 @@ typedef struct __attribute__ ((__packed__)) JOBTAB {
     int        cur_do;                                                          // current do frame addr
     u_int      commands;                                                        // commands executed
     u_int      grefs;                                                           // global references
-    u_int      last_block_flags;                                                // journal etc. of last db block
+    u_int      last_block_flags;                                                // journal etc. of last DB block
     short      error_frame;                                                     // frame error happened in
     short      etrap_at;                                                        // where $ET was invoked
     u_int      trap;                                                            // outstanding traps

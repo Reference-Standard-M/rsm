@@ -95,7 +95,7 @@ short ST_NewAll(int count, var_u *list)
                 new = 1;                                                        // init delete flag
 
                 if (var_equal(symtab[i].varnam, list[j])) {
-                    new = 0;                                                    // dont new it
+                    new = 0;                                                    // don't new it
                     break;
                 }
             }                                                                   // if var is another non new
@@ -111,7 +111,7 @@ short ST_NewAll(int count, var_u *list)
     }                                                                           // end for all in symtab
 
     newtab = malloc(sizeof(ST_newtab) + (cntnew * sizeof(ST_locdata)) + (cntnon * sizeof(short))); // try allocate some memory
-    if (newtab == NULL) return -(ERRZ56 + ERRMLAST);                            // no memory avlb
+    if (newtab == NULL) return -(ERRZ56 + ERRMLAST);                            // no memory available
     newtab->fwd_link = (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab; // setup for link in
     newtab->count_enn = count;                                                  // existing non new count
     newtab->count_new = 0;                                                      // num vars new'd
@@ -127,7 +127,7 @@ short ST_NewAll(int count, var_u *list)
                 new = 1;                                                        // init delete flag
 
                 if (var_equal(symtab[i].varnam, list[j])) {
-                    new = 0;                                                    // dont new it
+                    new = 0;                                                    // don't new it
                     break;
                 }
             }                                                                   // if var is another non new
@@ -138,7 +138,7 @@ short ST_NewAll(int count, var_u *list)
                 //point at current data
                 newtab->locdata[newtab->count_new].data = symtab[newtab->locdata[newtab->count_new].stindex].data;
                 symtab[newtab->locdata[newtab->count_new].stindex].data = ST_DATA_NULL; // wipe out current data link
-                ++symtab[newtab->locdata[newtab->count_new].stindex].usage;
+                symtab[newtab->locdata[newtab->count_new].stindex].usage++;
                 newtab->count_new++;                                            // incr num new'd vars & usage
             } else {                                                            // setup done for var, don't new, add to enn
                 newtab->stindex[j] = i;                                         // set pos to symtab index
@@ -149,7 +149,7 @@ short ST_NewAll(int count, var_u *list)
             // point at current data
             newtab->locdata[newtab->count_new].data = symtab[newtab->locdata[newtab->count_new].stindex].data;
             symtab[newtab->locdata[newtab->count_new].stindex].data = ST_DATA_NULL; // wipe out current data link
-            ++symtab[newtab->locdata[newtab->count_new].stindex].usage;
+            symtab[newtab->locdata[newtab->count_new].stindex].usage++;
             newtab->count_new++;                                                // incr count of new'd vars
         }                                                                       // end else new everything
     }                                                                           // end for all in symtab
@@ -221,7 +221,7 @@ void ST_Restore(ST_newtab *newtab)
 
         if (symtab[ptr->locdata[i].stindex].data != ST_DATA_NULL) {             // any data?
             if ((symtab[ptr->locdata[i].stindex].data->deplnk == ST_DEPEND_NULL) &&
-              (symtab[ptr->locdata[i].stindex].data->attach < 2) &&
+              (symtab[ptr->locdata[i].stindex].data->attach <= 1) &&
               (symtab[ptr->locdata[i].stindex].data->dbc == VAR_UNDEFINED)) {
                 free(symtab[ptr->locdata[i].stindex].data);                     // free data memory
                 symtab[ptr->locdata[i].stindex].data = ST_DATA_NULL;            // clear ptr
@@ -253,6 +253,6 @@ short ST_ConData(mvar *var, u_char *data)
     cnct = ST_LocateIdx(var->volset - 1);                                       // find connecting var
     if (cnct < 0) return -ERRM6;                                                // if no exist, quit
     symtab[cnct].data = (ST_data *) data;                                       // lnk cnct var to src
-    ++symtab[cnct].data->attach;                                                // incr src attach cnt
+    symtab[cnct].data->attach++;                                                // incr src attach cnt
     return 0;                                                                   // finished OK
 }                                                                               // end ST_ConRef

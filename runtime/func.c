@@ -87,11 +87,11 @@ short Dchar(u_char *ret_buffer, int i)
 }
 
 // $DATA(variable)
-short Ddata(u_char *ret_buffer, mvar *var)
+short Ddata(u_char *ret_buffer, mvar *var, int update)
 {
     if (var->uci == 255) return ST_Data(var, ret_buffer);                       // for a local var
     if (var->name.var_cu[0] == '$') return SS_Data(var, ret_buffer);            // SSVN? then do it
-    memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);
+    if (update) memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
     return DB_Data(var, ret_buffer);                                            // else it's global
 }
 
@@ -100,7 +100,7 @@ int Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
 {
     int i;                                                                      // for loops
 
-    /* DLW: support negative offsets
+    /* NOTE: support negative offsets
     if (start < 0) start = expr->len + start + 1;                               // support negative arguments
     if (stop < 0) stop = expr->len + stop + 1;                                  // support negative arguments
     */
@@ -231,7 +231,7 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
 
             ndlen = i;                                                          // save this pos
             if (numexp->buf[0] == '-') ndlen -= 1;                              // dont count "-"
-            nc = ndlen / 3;                                                     // num commas reqd
+            nc = ndlen / 3;                                                     // num commas required
             if (((ndlen % 3) == 0) && (i > 0)) nc -= 1;                         // if *3 need one less,
             nlen = dest->len + nc - 1;                                          // orig+num commas-idx
             tempc->len = nlen + 1;
@@ -261,7 +261,7 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
         } else {                                                                // no decimal point
             ndlen = numexp->len;                                                // save this start pos
             if (numexp->buf[0] == '-') ndlen -= 1;                              // dont count "-"
-            nc = ndlen / 3;                                                     // num commas reqd
+            nc = ndlen / 3;                                                     // num commas required
             if ((ndlen % 3) == 0) nc -= 1;                                      // if *3 need one less,
             nlen = numexp->len + nc - 1;                                        // orig+num commas-idx
             tempc->len = nlen + 1;
@@ -290,14 +290,14 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
             memcpy(&tempc->buf[1], dest->buf, dest->len);                       // copy original data
             tempc->buf[1 + dest->len] = ' ';                                    // space pad for ')'
             tempc->len = dest->len + 2;
-        }                                                                       // no further action reqd
+        }                                                                       // no further action required
 
         if (numexp->buf[0] == '-') {
             tempc->buf[0] = '(';                                                // prefix a '('
             memcpy(&tempc->buf[1], &dest->buf[1], dest->len - 1);               // copy original data
             tempc->buf[dest->len] = ')';                                        // suffix a ')'
             tempc->len = dest->len + 1;
-        }                                                                       // no further action reqd
+        }                                                                       // no further action required
 
         dest->len = tempc->len;
         memcpy(dest->buf, tempc->buf, tempc->len);
@@ -424,7 +424,7 @@ int Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
         if (s >= 0) return s;                                                   // if we got data, return it
         if ((s == -ERRM38) || (s == -ERRM7)) s = 0;                             // flag undefined SSVN
     } else {                                                                    // for a global var
-        memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);
+        memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);   // update naked
         s = DB_Get(var, ret_buffer);                                            // attempt to get the data
         if (s >= 0) return s;                                                   // if we got data, return it
         if (s == -ERRM7) s = 0;                                                 // flag undefined global var
@@ -463,7 +463,9 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
     if (var->uci == UCI_IS_LOCALVAR) {                                          // for a local var
         s = ST_Get(var, temp);                                                  // attempt to get the data
     } else {                                                                    // for a global var
-        memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);
+        memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);   // update naked
+        s = SemOp(SEM_ATOMIC, WRITE);                                           // take an atomic write
+        if (s < 0) return s;                                                    // if we got an error then return it
         s = DB_Get(var, temp);                                                  // attempt to get the data
     }
 
@@ -471,23 +473,39 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
         ret_buffer[0] = '0';
         s = 0;
     } else if (s < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
         return s;
     } else {
         s = ncopy(&tmp, ret_buffer);
     }
 
-    if (s < 0) return s;
-    numexpr->len = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
-    memmove(&ret_buffer[0], &numexpr->buf[0], numexpr->len);                    // copy here
+    if (s < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
+        return s;
+    }
+
+    s = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
+
+    if (s < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
+        return s;
+    }
+
+DISABLE_WARN(-Warray-bounds)
+    numexpr->len = s;
+ENABLE_WARN
+    memcpy(&ret_buffer[0], &numexpr->buf[0], numexpr->len);                     // copy here
     ret_buffer[numexpr->len] = '\0';                                            // ensure null terminated
     if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, numexpr);               // set it back and return
-    return DB_Set(var, numexpr);                                                // set it back and return
+    s = DB_Set(var, numexpr);                                                   // set it back
+    SemOp(SEM_ATOMIC, -WRITE);                                                  // release the atomic write
+    return s;                                                                   // and return
 }
 
 // $JUSTIFY(expr,int1[,int2])
 int Djustify2(u_char *ret_buffer, cstring *expr, int size)
 {
-    int adj;                                                                    // adjust reqd
+    int adj;                                                                    // adjust required
     int i;                                                                      // for loops
 
     adj = size - (int) expr->len;                                               // get number of spaces
@@ -505,7 +523,7 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
     int i;
     int j = 0;
     int spc;                                                                    // leading space count
-    int zer = 0;                                                                // leading zero reqd flag
+    int zer = 0;                                                                // leading zero required flag
     int len;
     int ru = -2;                                                                // round up flag
     int dp = -2;                                                                // decimal point
@@ -630,7 +648,7 @@ int Dlength2x(cstring *expr, cstring *delim)
 
             if ((j + 1) == (int) delim->len) {                                  // if at end of delim
                 pce++;                                                          // count a piece
-                i = i + j;                                                      // move i on a bit
+                i += j;                                                         // move i on a bit
             }                                                                   // end 'piece matches'
         }                                                                       // end compare loop
     }                                                                           // end of expr
@@ -681,7 +699,7 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
     } else if (var->name.var_cu[0] == '$') {                                    // SSVN?
         s = SS_Order(var, ret_buffer, realdir);                                 // yes
     } else {
-        memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);
+        memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);   // update naked
         if (i != -1) partab.jobtab->last_ref.key[i] = '\0';                     // unfix from above
         s = DB_Order(var, ret_buffer, realdir);                                 // else it's global
     }
@@ -712,15 +730,15 @@ int Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
     int pce = 1;                                                                // current piece
     int f;                                                                      // found flag
     int j;                                                                      // for delim scan
-    // DLW: support negative offsets
+    // NOTE: support negative offsets
     //int np;                                                                     // number of pieces
 
     ret_buffer[0] = '\0';                                                       // just in case
     if (delim->len == 0) return 0;                                              // null delimiter -> nul str
-    /* DLW: support negative offsets
+    /* NOTE: support negative offsets
     np = Dlength2x(expr, delim);                                                // get number of pieces
-    if (i1 < 0) i1 = np + i1 + 1;                                               // support negative arguments
-    if (i2 < 0) i2 = np + i2 + 1;                                               // support negative arguments
+    if (i1 < 0) i1 += np + 1;                                                   // support negative arguments
+    if (i2 < 0) i2 += np + 1;                                                   // support negative arguments
     */
     if (i1 < 0) i1 = 0;                                                         // minus makes no sense
     if (i2 < 0) i2 = 0;                                                         // minus makes no sense
@@ -740,12 +758,12 @@ int Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
 
             if (f == 1) {                                                       // just quit the if on fail
                 if (pce == i2) {                                                // if this is last piece
-                    end--;                                                      // point at last reqd char
+                    end--;                                                      // point at last required char
                     break;                                                      // and quit for loop
                 }                                                               // end last piece processing
 
                 pce++;                                                          // increment current piece
-                end = end + delim->len - 1;                                     // point at last char of delim
+                end += delim->len - 1;                                          // point at last char of delim
                 if (pce == i1) beg = end + 1;                                   // if this is the first pce
             }                                                                   // end found code
         }                                                                       // end of got match
@@ -782,7 +800,7 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 
     if (var->uci == UCI_IS_LOCALVAR) return ST_Query(var, ret_buffer, dir);     // for local var
     if (var->name.var_cu[0] == '$') return -ERRM38;                             // SSVN? then no such
-    memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);
+    memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);       // update naked
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0';                         // unfix from above
     return DB_Query(var, ret_buffer, dir);                                      // else it's global
 }
@@ -1105,7 +1123,7 @@ DISABLE_WARN(-Warray-bounds)
         if (s < 0) {
             ret_buffer[0] = '\0';                                               // nothing
             s = 0;                                                              // zero length
-        } else if (!off) {                                                      // just the name reqd?
+        } else if (!off) {                                                      // just the name required?
             return mcopy(cr->buf, ret_buffer, cr->len);                         // return the name
         }
 
@@ -1136,7 +1154,7 @@ DISABLE_WARN(-Warray-bounds)
         }
 
         if (off == 0) return s;                                                 // no offset - all done
-        j = j + off;                                                            // add the offset
+        j += off;                                                               // add the offset
         cr->len = itocstring(cr->buf, j);                                       // cstring j
 ENABLE_WARN
         s = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
@@ -1322,12 +1340,12 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
 
             if (f == 1) {                                                       // just quit the if on fail
                 if (pce == i2) {                                                // if this is last piece
-                    end--;                                                      // point at last reqd char
+                    end--;                                                      // point at last required char
                     break;                                                      // and quit for loop
                 }                                                               // end last piece processing
 
                 pce++;                                                          // increment current piece
-                end = end + dptr->len - 1;                                      // point at last char of delim
+                end += dptr->len - 1;                                           // point at last char of delim
                 if (pce == i1) beg = end + 1;                                   // if this is the first pce
             }                                                                   // end found code
         }                                                                       // end of got match

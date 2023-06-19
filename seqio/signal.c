@@ -39,7 +39,16 @@
 #include <stdio.h>
 #include "seqio.h"
 
-void signalHandler(int sig);
+// Local functions
+
+/*
+ * This function handles all caught signals.
+ * Note: refer to the function "setSignalBitMask" in the file rsm/seqio/util.c
+ */
+void signalHandler(int sig)                                                     // Caught signal
+{
+    setSignalBitMask(sig);
+}
 
 // Signal functions
 
@@ -152,15 +161,4 @@ int setSignals(void)
     if (sigaction(SIGUSR1, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGUSR2, &action, NULL) == -1) return getError(SYS, errno);
     return 0;
-}
-
-// Local functions
-
-/*
- * This function handles all caught signals.
- * Note: refer to the function "setSignalBitMask" in the file rsm/seqio/util.c
- */
-void signalHandler(int sig)                                                     // Caught signal
-{
-    setSignalBitMask(sig);
 }

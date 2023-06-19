@@ -29,7 +29,7 @@ USER root
 # Install dependencies and upgrade packages
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-    apt-get -qq --no-install-recommends install apt-utils libc6-dev file make gcc vim-nox 2>/dev/null && \
+    apt-get -qq --no-install-recommends install apt-utils libc6-dev file make gcc vim-nox bash-completion 2>/dev/null && \
     apt-get -qq upgrade && \
     apt-get -qq clean
 
@@ -67,6 +67,11 @@ RUN if [ "$journal" = "on" ]; \
 
 # Install and compile the local RSM magic file
 RUN cp etc/magic $HOME/.magic && cd && file -C -m $HOME/.magic && cd - >/dev/null
+
+# Install the Bash completion script
+RUN sed -i '/^#if.*bash_completion/,/^#fi/ s/^#//' /root/.bashrc && \
+    mkdir -p /usr/local/share/bash-completion/completions && \
+    cp etc/rsm /usr/local/share/bash-completion/completions/
 
 # Open port 80 so that the container can host the RSM Web Server (which defaults to port 80)
 EXPOSE 80/tcp

@@ -120,13 +120,13 @@ void crcgen(void)                                                               
  *     or a negative error number.
  *  5. The function name is Xcall_name where the call is $&name().
  *
- *  E.g. short Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
+ *  E.g., short Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
  *    or   int Xcall_name(char *ret_buffer, cstring *arg1, cstring *arg2)
  */
 
 // FUNCTION DEFINITIONS
 
-// DEBUG() - Dump info on console
+// $&DEBUG() - Dump info on console
 short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstring *dummy)
 {
     if (strcasecmp((char *) arg1->buf, "rbd") == 0) {                           // Routine Buffer Descriptors
@@ -138,8 +138,13 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstri
             int val = semctl(systab->sem_id, i, GETVAL, 0);
             int sempid = semctl(systab->sem_id, i, GETPID, 0);
 
-            fprintf(stderr, "%d) %s", i, ((i == SEM_SYS) ? "SEM_SYS" : ((i == SEM_ROU) ? "SEM_ROU" : ((i == SEM_LOCK) ?
-                    "SEM_LOCK" : ((i == SEM_GLOBAL) ? "SEM_GLOBAL" : ((i == SEM_WD) ? "SEM_WD" : "?"))))));
+            fprintf(stderr, "%d) %s", i,
+                    ((i == SEM_SYS) ? "SEM_SYS" :
+                    ((i == SEM_ROU) ? "SEM_ROU" :
+                    ((i == SEM_LOCK) ?  "SEM_LOCK" :
+                    ((i == SEM_GLOBAL) ? "SEM_GLOBAL" :
+                    ((i == SEM_WD) ? "SEM_WD" :
+                    ((i == SEM_ATOMIC) ? "SEM_ATOMIC" : "?")))))));
 
             fprintf(stderr, "\t= %d \t(last pid %d)\r\n", val, sempid);
         }
@@ -168,7 +173,7 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstri
         fprintf(stderr, "TRANTAB size %zu\r\n", sizeof(struct TRANTAB));
         fprintf(stderr, "SYSTAB size %zu\r\n", sizeof(struct SYSTAB));
         fprintf(stderr, "PARTAB size %zu\r\n", sizeof(struct PARTAB));
-        fprintf(stderr, "NEW_STACK size %zu\r\n", sizeof(struct NEW_STACK));
+        //fprintf(stderr, "NEW_STACK size %zu\r\n", sizeof(struct NEW_STACK));
         fprintf(stderr, "ST_DEPEND size %zu\r\n", sizeof(struct ST_DEPEND));
         fprintf(stderr, "ST_DATA size %zu\r\n", sizeof(struct ST_DATA));
         fprintf(stderr, "SYMTAB size %zu\r\n", sizeof(struct SYMTAB));
@@ -236,7 +241,7 @@ int isPatternMatch(char *pattern, char *filename)
                 pattern += 1;
             }
         } else if (flag == 1) {                                                 // Find first occurrence
-            filename = findNextChar (*pattern, filename);
+            filename = findNextChar(*pattern, filename);
 
             if (*filename == '\0') {
                 return 0;
@@ -260,6 +265,7 @@ int isPatternMatch(char *pattern, char *filename)
     return 1;                                                                   // Pattern match
 }
 
+// $&%DIRECTORY - Directory lookup
 short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) cstring *dummy)
 {
     struct dirent *dent;                                                        // Directory entry
@@ -274,7 +280,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) c
 
     if (file->buf[0] == '\0') {
         while (TRUE) {
-            dent = readdir (dirp);
+            dent = readdir(dirp);
 
             if (dent == NULL) {                                                 // No more matching directory entries
                 ret_buffer = NULL;
@@ -357,7 +363,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) c
     }
 }
 
-// %ERRMSG - Return error text
+// $&%ERRMSG - Return error text
 short Xcall_errmsg(char *ret_buffer, cstring *err, __attribute__((unused)) cstring *dummy)
 {
     int errnum = 0;                                                             // init error number
@@ -367,22 +373,22 @@ short Xcall_errmsg(char *ret_buffer, cstring *err, __attribute__((unused)) cstri
     if (err->buf[0] == 'U') {                                                   // user error ?
         memcpy(ret_buffer, "User error: ", 12);
         memmove(&ret_buffer[12], err->buf, err->len);
-        return (err->len + 12);
+        return err->len + 12;
     }
 
     if (err->len < 2) return -ERRM11;                                           // they gotta pass something
 
     if (err->buf[0] == 'Z') {
-        errnum = errnum + ERRMLAST;                                             // point at Z errors
+        errnum += ERRMLAST;                                                     // point at Z errors
     } else if (err->buf[0] != 'M') {
         return -ERRM99;                                                         // that's junk
     }
 
-    errnum = errnum + atoi((char *) &err->buf[1]);                              // add the number to it
+    errnum += atoi((char *) &err->buf[1]);                                      // add the number to it
     return UTIL_strerror(errnum, (u_char *) ret_buffer);                        // do it
 }
 
-// %OPCOM - Message control
+// $&%OPCOM - Message control
 short Xcall_opcom(char *ret_buffer, cstring *msg, cstring *device)
 {
     ret_buffer[0] = '\0';                                                       // null terminate nothing
@@ -395,7 +401,7 @@ short Xcall_opcom(char *ret_buffer, cstring *msg, cstring *device)
     return SQ_Force(device, msg);                                               // do it in seqio
 }
 
-// %SIGNAL - Send signal to PID
+// $&%SIGNAL - Send signal to PID
 short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
 {
     int i;                                                                      // PID
@@ -417,22 +423,18 @@ short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
     return 1;                                                                   // and return
 }
 
-// %SPAWN - Create subprocess
+// $&%SPAWN - Create subprocess
 short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
 {
     int    ret;
     int    tmp;
     FILE   *fp = NULL;
-    struct termios save;
-    struct termios term;
+    struct termios term, save;
 
-    if (restricted) {                                                   // -R was passed when job started
-        tmp = sprintf(ret_buffer, "RSM is in restricted mode\r\n");
-        if (tmp < 0) return -(ERRMLAST + ERRZLAST + errno);
-        return tmp;
-    }
-
+    if (restricted) return -(ERRZ77 + ERRMLAST);                                // -R was passed when job started
     tmp = tcgetattr(STDIN_FILENO, &term);
+    if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+    tmp = tcgetattr(STDIN_FILENO, &save);                                       // Store current settings
     if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
     if ((type->len == 1) && (type->buf[0] == '1')) {
@@ -460,6 +462,10 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         // Close pipe
         pclose(fp);
 
+        // Restore original settings
+        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
+        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+
         // Return error if necessary
         if (echk != 0) {
             return -(ERRMLAST + ERRZLAST + err);
@@ -467,9 +473,6 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
             return (short) ret;
         }
     } else {
-        // Store current settings
-        int tchk = tcgetattr(STDIN_FILENO, &save);
-
         // Change to sane settings for shell out
         term.c_iflag |= ICRNL;
         term.c_oflag |= ONLCR;
@@ -486,11 +489,9 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         // allow ECHILD
         if ((ret == -1) && (errno == ECHILD)) ret = 0;
 
-        if (tchk != -1) {
-            // Restore original settings
-            tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
-            if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
-        }
+        // Restore original settings
+        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
+        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // Return 0 or error
         if (ret == -1) {
@@ -502,7 +503,7 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
 }
 
 /*
- * %VERSION - Supply version information - arg1 must be "NAME"
+ * $&%VERSION - Supply version information - arg1 must be "NAME"
  * returns "Reference Standard M V<major.minor.patch[-pre]> [T<test>] for <platform> <datetime> ..."
  */
 short Xcall_version(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
@@ -511,7 +512,7 @@ short Xcall_version(char *ret_buffer, __attribute__((unused)) cstring *dummy1, _
 }
 
 /*
- * %ZWRITE - Dump local symbol table (arg1/tmp can be a global reference)
+ * $&%ZWRITE - Dump local symbol table (arg1/tmp can be a global reference)
  * returns 0 on success, or negative for errors - sets variables to empty string
  */
 short Xcall_zwrite(char *ret_buffer, cstring *tmp, __attribute__((unused)) cstring *dummy)
@@ -531,7 +532,7 @@ short Xcall_zwrite(char *ret_buffer, cstring *tmp, __attribute__((unused)) cstri
     return ST_DumpV(&var);                                                      // do it
 }
 
-// Edit - Perform string editing functions (two arguments)
+// $&E - Perform string editing functions (two arguments)
 short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
 {
     int  i;
@@ -891,7 +892,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     tDirStatus       junk;
     tDataBufferPtr   buf;
     tDirPatternMatch patternToFind;
-    UInt32           nodeCount;
+    UInt32           nodeCount = 0;
     tContextData     context;
 
     assert(dirRef != 0);
@@ -978,7 +979,7 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
     tDataListPtr      recordType;
     tDataListPtr      recordName;
     tDataListPtr      requestedAttributes;
-    UInt32            recordCount;
+    UInt32            recordCount = 0;
     tAttributeListRef foundRecAttrList;
     tContextData      context;
     tRecordEntryPtr   foundRecEntry;
@@ -1372,6 +1373,7 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     return err;
 }
 
+// $&PASCHK - Check user/password
 short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
 {
     char       *username;
@@ -1408,6 +1410,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
 }
 #else
 
+// $&PASCHK - Check user/password
 #ifndef __CYGWIN__
 short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
 #else
@@ -1481,7 +1484,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, __attribute__((unused)) cstr
 }
 #endif
 
-// Video - Generate an Escape sequence for (Y,X) positioning
+// $&V - Generate an absolute Escape sequence for (Y,X) positioning
 int Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
 {
     int i;
@@ -1494,10 +1497,19 @@ int Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
     for (i = 0; i != (int) col->len; i++) ret_buffer[len++] = col->buf[i];      // for all char in col, copy one char
     ret_buffer[len++] = 72;                                                     // Finally the 'H'
     ret_buffer[len] = '\0';                                                     // NUL terminate
+    partab.jobtab->seqio[partab.jobtab->io].dy = atoi((char *) lin->buf);       // set $y to line
+    partab.jobtab->seqio[partab.jobtab->io].dx = atoi((char *) col->buf);       // set $x to column
+
+    if (partab.jobtab->seqio[partab.jobtab->io].dx > len) {                     // reset $x
+        partab.jobtab->seqio[partab.jobtab->io].dx -= len;
+    } else {
+        partab.jobtab->seqio[partab.jobtab->io].dx = 0;
+    }
+
     return len;                                                                 // and return the length
 }
 
-// Xsum - Checksum a string of characters (normal)
+// $&X - Checksum a string of characters (normal)
 int Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
 {
     u_long crc;
@@ -1527,7 +1539,7 @@ int Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
 }
 
 /*
- * XRSM - Checksum a string of characters (RSM type)
+ * $&XRSM - Checksum a string of characters (RSM type)
  *        Three-byte checksum. chk(3).
  *        This code uses the global variable "crc" to accumulate a 16 bit
  *        CCITT Cyclic Redundancy Check on the string pointed to by "str"
@@ -1556,7 +1568,7 @@ short Xcall_xrsm(char *ret_buffer, cstring *str, __attribute__((unused)) cstring
     return 3;                                                                   // return length (always 3)
 }
 
-// %GETENV - Returns the value of an environment variable
+// $&%GETENV - Returns the value of an environment variable
 int Xcall_getenv(char *ret_buffer, cstring *env, __attribute__((unused)) cstring *dummy)
 {
     char *p;                                                                    // ptr for getenv
@@ -1568,7 +1580,7 @@ int Xcall_getenv(char *ret_buffer, cstring *env, __attribute__((unused)) cstring
 }
 
 /*
- * %SETENV - Sets an environment variable (where it overwrites an
+ * $&%SETENV - Sets an environment variable (where it overwrites an
  *           existing environment variable), or unsets an existing
  *           environment variable if "value" == NULL
  */
@@ -1580,7 +1592,7 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
 
     if (value == NULL) {                                                        // Unset environment variable
 #ifndef _AIX
-        unsetenv ((char *) env->buf);                                           // DLW: AIX doesn't have this, use a different API
+        unsetenv ((char *) env->buf);                                           // TODO: AIX doesn't have this, use a different API
 #endif
         return 0;
     } else {                                                                    // Set environment variable
@@ -1595,28 +1607,33 @@ short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
 }
 
 /*
- * FORK - Create a copy of this process
+ * $&%FORK - Create a copy of this process
  * Returns: Fail: 0
  *          Parent: Child M job number
  *          Child:  Minus Parent M job number
  */
 short Xcall_fork(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
 {
-    int s = ForkIt(1);                                                          // do it, copy file table
+    int s = ForkIt(1);                                                          // fork it, copy file table
 
     return itocstring((u_char *) ret_buffer, s);                                // return result
 }
 
 /*
- * FILE - Obtains information about a file.
+ * $&%FILE - Obtains information about a file.
  *
  * Arguments:
  *     Filename  - File to obtain information about
  *     Attribute - File attribute. The following information can
  *                 be obtained for a file:
  *
- *                 SIZE   - File size, in bytes
  *                 EXISTS - 1:true ; 0:false
+ *                 SIZE   - File size, in bytes
+ *                 ATIME  - Last access time
+ *                 CTIME  - Last status change time
+ *                 MTIME  - Last modification time
+ *                 UID    - User ID
+ *                 GID    - Group ID
  *
  * Returns:
  *     Fail    -  < 0
@@ -1650,12 +1667,27 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
     }
 
     // Get desired attribute
-    if (strcasecmp("size", (char *) attr->buf) == 0) {
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_size);
-        return (short) ret;                                                     // Size of ret_buffer (SIZE)
-    } else if (strcasecmp("exists", (char *) attr->buf) == 0) {                 // File exists
+    if (strcasecmp("exists", (char *) attr->buf) == 0) {                        // File exists
         ret = sprintf(ret_buffer, "%d", exists);
         return (short) ret;                                                     // Size of ret_buffer (EXISTS)
+    } else if (strcasecmp("size", (char *) attr->buf) == 0) {
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_size);
+        return (short) ret;                                                     // Size of ret_buffer (SIZE)
+    } else if (strcasecmp("atime", (char *) attr->buf) == 0) {                  // Last access time
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_atime);
+        return (short) ret;                                                     // Size of ret_buffer (ATIME)
+    } else if (strcasecmp("ctime", (char *) attr->buf) == 0) {                  // Last status change (inode)
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_ctime);
+        return (short) ret;                                                     // Size of ret_buffer (CTIME)
+    } else if (strcasecmp("mtime", (char *) attr->buf) == 0) {                  // Last modification time
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_mtime);
+        return (short) ret;                                                     // Size of ret_buffer (MTIME)
+    } else if (strcasecmp("uid", (char *) attr->buf) == 0) {                    // UID of file
+        ret = sprintf(ret_buffer, "%u", sb.st_uid);
+        return (short) ret;                                                     // Size of ret_buffer (UID)
+    } else if (strcasecmp("gid", (char *) attr->buf) == 0) {                    // GID of file
+        ret = sprintf(ret_buffer, "%u", sb.st_gid);
+        return (short) ret;                                                     // Size of ret_buffer (GID)
     } else {                                                                    // Invalid attribute name
         ret_buffer[0] = '\0';
         return -ERRM46;
@@ -1665,7 +1697,7 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
 }
 
 /*
-* HOST - Resolves a host's IP address
+* $&%HOST - Resolves a host's IP address
 *
 * Arguments:
 *     Name  - Name of host to resolve.
@@ -1766,7 +1798,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
 }
 
 /*
- * WAIT() - Wait on a child
+ * $&%WAIT() - Wait on a child
  *
  * Original author: Martin Kula <mkula@users.sourceforge.net>
  *

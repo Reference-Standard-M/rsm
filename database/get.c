@@ -147,7 +147,7 @@ int Get_data(int dir)                                                           
     if (s < 0) return s;                                                        // failed? then return error
     partab.jobtab->last_block_flags = 0;                                        // clear JIC
     Align_record();                                                             // if not aligned
-    block = *(u_int *) record;                                                    // get block#
+    block = *(u_int *) record;                                                  // get block#
     if (!block) return -ERRM7;                                                  // none there? then say no such
     partab.jobtab->last_block_flags = ((u_int *) record)[1];                    // save flags
 

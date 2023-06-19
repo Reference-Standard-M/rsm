@@ -1,4 +1,5 @@
-:source-highlighter: pygments
+:source-highlighter: highlight.js
+:highlightjs-languages: bash, cos
 
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 ="Fourth Watch Software Logo", width="480", height="80"]
@@ -7,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.77.0 - 2023 Jan 5*
+*Version 1.78.0 - 2023 Jun 16*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -76,7 +77,8 @@ been tested, or known to build and run RSM, are:
 WARNING: RSM will not run on SPARC hardware, due to memory alignment
 requirements
 
-Thanks to John Willis for providing access to his build farm for testing.
+Thanks to link:https://gitlab.com/jpwillis[John Willis] for providing access to
+his build farm, and to Terry Wiechmann for helping me with testing.
 
 To build RSM, clone the RSM git repository:
 
@@ -211,8 +213,11 @@ resources:
 
 [source,bash]
 ----
-$ sudo sysctl -w kern.sysv.shmmax=536870912
-$ sudo sysctl -w kern.sysv.shmall=131072
+# 2 GiB shared segment max:
+$ sudo sysctl -w kern.sysv.shmmax=2147483648
+
+# 8 GiB of system shared memory (in number of pages at 4096 bytes per page):
+$ sudo sysctl -w kern.sysv.shmall=2097152
 ----
 
 On Cygwin, you need to configure and start `cygserver` (as administrator) before
@@ -297,10 +302,10 @@ When upgrading to a new version of RSM, you might occasionally run in to an
 issue executing a routine. Normally this will not be an issue, but if it is, you
 can fix it by recompiling the routines:
 
-[source,m]
+[source,cos]
 ----
-RSM [MGR]> merge ^$routine("%RECOMP")=^$routine("%RECOMP")
-RSM [MGR]> do ^%RECOMP
+RSM [MGR,TST]> merge ^$routine("%RECOMP")=^$routine("%RECOMP")
+RSM [MGR,TST]> do ^%RECOMP
 ----
 
 Stop and shut down environment:
@@ -318,21 +323,21 @@ $ rsm -k
 
 From within an RSM job:
 
-[source,m]
+[source,cos]
 ----
-RSM [MGR]> kill ^$job
+RSM [MGR,TST]> kill ^$job
 ----
 
 If `utils.rsm` has been loaded:
 
-[source,m]
+[source,cos]
 ----
-RSM [MGR]> do ^SSD
+RSM [MGR,TST]> do ^SSD
 ----
 
 From within the MCL shell:
 
-[source,m]
+[source,cos]
 ----
 MCL [MGR,TST]> shutdown
 ----
@@ -451,7 +456,7 @@ other ways you can run and manage the RSM Docker image and container.
 
 === Database Upgrade
 
-A previous version of RSM introduced a change from 8 character identifiers to 32
+Version 1.73.0 of RSM introduced a change from 8 character identifiers to 32
 character identifiers. This necessitated a change to the database format, the
 routine bytecode format, and the journal format, which required bumping the
 database version from 1 to 2, the compiler version from 7 to 8, and the journal

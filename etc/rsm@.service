@@ -18,6 +18,30 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
+#
+# Make sure you have created a database file and configured rsm/etc/rsm.env
+# for your environment before installing and running this service.
+#
+# Copy this file to $HOME/.config/systemd/user/.
+#
+# Then reload the systemd daemon:
+#   $ systemctl --user daemon-reload
+# Then enable it as a non-privileged user with:
+#   $ systemctl --user enable rsm@$USER
+# To start the service:
+#   $ systemctl --user start rsm@$USER
+# To stop the service:
+#   $ systemctl --user stop rsm@$USER
+# To restart the service:
+#   $ systemctl --user restart rsm@$USER
+# To check the status of the service:
+#   $ systemctl --user status rsm@$USER
+# To disable the service:
+#   $ systemctl --user disable rsm@$USER
+# If you want the rsm service to start on boot, you can run:
+#   $ sudo loginctl enable-linger $USER
+# Or as root (where <USER> is the non-privileged user):
+#   # loginctl enable-linger <USER>
 
 [Unit]
 Description=The Reference Standard M Environment Service

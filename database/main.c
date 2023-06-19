@@ -95,7 +95,7 @@ short Copy2local(mvar *var)
     if ((var->volset == 0) && (var->uci == 0)) {                                // no vol or UCI
         for (i = 0; i < systab->max_tt; i++) {                                  // scan trantab
             if (memcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) {      // if a match
-                if (systab->tt[i].to_vol == 0) return (i + 1);                  // flag routine proc (for triggers in the future)
+                if (systab->tt[i].to_vol == 0) return i + 1;                    // flag routine proc (for triggers in the future)
                 memcpy(&db_var.name, (char *) &systab->tt[i] + offsetof(trantab, to_global), sizeof(var_u) + 2);
                 break;
             }                                                                   // end found one
@@ -141,7 +141,7 @@ int DB_Get(mvar *var, u_char *buf)                                              
     s = Get_data(0);                                                            // attempt to get it
 
     if (s >= 0) {                                                               // if worked
-        if (memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0) {              // if ^$G
+        if (memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0) {              // if ^$GLOBAL
             s = uitocstring(buf, *((u_int *) record));                          // block number
         } else {
             s = mcopy(record->buf, buf, record->len);                           // copy the data
@@ -173,7 +173,7 @@ int DB_Set(mvar *var, cstring *data)                                            
     }
     */
 
-    i = 4 + db_var.slen + 2 + data->len;                                        // space reqd
+    i = 4 + db_var.slen + 2 + data->len;                                        // space required
     if (i & 3) i += (4 - (i & 3));                                              // if required then round up
     i += 4;                                                                     // add Index
 
@@ -298,7 +298,7 @@ short DB_Kill(mvar *var)                                                        
         return (short) s;                                                       // nothing to do
     }
 
-    if ((s == -ERRM7) && (db_var.slen)) {                                       // if undefined
+    if ((s == -ERRM7) && db_var.slen) {                                         // if undefined
         if (Index <= blk[level]->mem->last_idx) {                               // and still in block
             if ((db_var.slen > keybuf[0]) || memcmp(&keybuf[1], db_var.key, db_var.slen)) { // smaller key OR not a descendant?
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
@@ -316,7 +316,7 @@ short DB_Kill(mvar *var)                                                        
             if (s < 0) {                                                        // no such or error
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
                 if (s == -ERRM7) s = 0;
-                return 0;                                                       // nothing to do
+                return (short) s;                                               // nothing to do
             }
         }
     }
@@ -385,7 +385,7 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
             return 0;                                                           // and return
         }
 
-        if (Index > blk[level]->mem->last_idx) {                                // no more avbl
+        if (Index > blk[level]->mem->last_idx) {                                // no more available
             s = Locate_next();                                                  // get next (if there)
 
             if (s < 0) {                                                        // failed?
@@ -463,7 +463,7 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
             return (short) t;                                                   // and return the error
         }
 
-        if ((level == 0) && (s == -ERRM7)) {                                    // if no such global
+        if ((level == 0) && (t == -ERRM7)) {                                    // if no such global
             buf[0] = '\0';                                                      // null terminate ret
             if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                       // if locked then release global lock
             return 0;                                                           // and return
@@ -804,9 +804,9 @@ int DB_SetFlags(mvar *var, int flags)                                           
     i = ((int *) record)[1];                                                    // get current flags
 
     if (clearit) {
-        i = i & ~flags;                                                         // clear flags
+        i &= ~flags;                                                            // clear flags
     } else {
-        i = i | flags;                                                          // set flags
+        i |= flags;                                                             // set flags
     }
 
     ((int *) record)[1] = i;                                                    // set back to GD
