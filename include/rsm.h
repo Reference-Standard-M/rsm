@@ -42,7 +42,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       78                                                  // Minor version number
-#define VERSION_PATCH       0                                                   // Patch version number
+#define VERSION_PATCH       1                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -104,9 +104,9 @@
 #define MAX_DKEY_LEN        16                                                  // max $KEY seq stored
 #define SQ_FREE             0                                                   // SQ_Chan->type - free
 #define SQ_FILE             1                                                   // SQ_Chan->type - disk file
-#define SQ_TCP              2                                                   // SQ_Chan->type - TCP/IP
-#define SQ_PIPE             3                                                   // SQ_Chan->type - local pipe
-#define SQ_TERM             4                                                   // SQ_Chan->type - terminal device
+#define SQ_SOCK             2                                                   // SQ_Chan->type - socket
+#define SQ_PIPE             3                                                   // SQ_Chan->type - named pipe
+#define SQ_TERM             4                                                   // SQ_Chan->type - terminal/character device
 #define SQ_LF               -1                                                  // WRITE !
 #define SQ_FF               -2                                                  // WRITE #
 

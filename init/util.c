@@ -96,7 +96,12 @@ void info(char *file)                                                           
     i = UTIL_Share(file);                                                       // attach to shared mem
 
     if ((i != 0) || (systab->vol[0] == NULL)) {                                 // if that failed
-        fprintf(stderr, "Cannot connect to environment.\n");
+        if (i != 0) {
+            fprintf(stderr, "Cannot connect to RSM environment - %s\n", strerror(errno));
+            exit(i);
+        }
+
+        fprintf(stderr, "Cannot connect to RSM environment.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -182,8 +187,8 @@ void shutdown(char *file)                                                       
     i = UTIL_Share(file);                                                       // attach to shared mem
 
     if (i != 0) {                                                               // quit on error
-        fprintf(stderr, "RSM environment is not initialized.\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "RSM environment is not initialized - %s\n", strerror(errno));
+        exit(i);
     }
 
     if (systab->vol[0] == NULL) {

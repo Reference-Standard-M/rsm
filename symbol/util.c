@@ -848,7 +848,7 @@ short ST_Dump(void)                                                             
     int       j;                                                                // generic counter
     int       s;                                                                // for functions
     cstring   *cdata;                                                           // variable data gets dumped
-    u_char    dump[512];                                                        // variable name gets dumped
+    u_char    dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                 // variable name gets dumped
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
 
     for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST

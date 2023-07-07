@@ -89,7 +89,7 @@ short Dchar(u_char *ret_buffer, int i)
 // $DATA(variable)
 short Ddata(u_char *ret_buffer, mvar *var, int update)
 {
-    if (var->uci == 255) return ST_Data(var, ret_buffer);                       // for a local var
+    if (var->uci == UCI_IS_LOCALVAR) return ST_Data(var, ret_buffer);           // for a local var
     if (var->name.var_cu[0] == '$') return SS_Data(var, ret_buffer);            // SSVN? then do it
     if (update) memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
     return DB_Data(var, ret_buffer);                                            // else it's global

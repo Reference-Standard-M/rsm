@@ -83,6 +83,12 @@ UCI [User Class Identifier], which is named `MGR` by default, but which can be
 named at volume creation with the `-e` option. Each volume can also contain up
 to a total of 63 UCIs, including the default manager UCI.
 
+=== Volumes and Journals
+
+RSM currently supports only one after-image journal file per volume, used to
+facilitate forward recovery from a backup file and to provide a higher degree of
+data durability. Support for before-image journaling is planned for the future.
+
 === VIEW and $VIEW
 
 The `VIEW` command and the `$VIEW` function are used exclusively for the
@@ -204,11 +210,12 @@ Complies, as the standard does not specify arguments or signals.
 
 [source,cos]
 ----
-break "+7^routine:do ^debug" ; Break at line 7 of ^routine, and call ^debug
-break "+3^routine:"          ; Set simple breakpoint at line 3 of ^routine
-break "+1^routine"           ; Clear breakpoint on line 1 of ^routine
-break ""                     ; Turn off debugging, and clear all breakpoints
-break                        ; Break here and make debugging active
+break "+7^routine:do ^%debug" ; Break at line 7 of ^routine, and call ^debug
+break "+3^routine:"           ; Set simple breakpoint at line 3 of ^routine
+break "+1^routine"            ; Clear breakpoint on line 1 of ^routine
+break ":do ^%debug"           ; Set up quit handler that fires after each step
+break ""                      ; Turn off debugging, and clear all breakpoints
+break                         ; Break here and make debugging active
 
 ; Loop through and display all the current breakpoints
 set bp=$name($ZBP("")) for  set bp=$query(@bp) quit:bp=""  write bp,!
@@ -338,8 +345,8 @@ Not applicable.
 
 ==== Arguments
 
-A _<space>_ or `_localvariable_=_forparameter(s)_`. A _forparameter_ is either
-an expression, or a range of the form `_start_[:__increment__[:__end__]]`, where
+A _<space>_ or `_localvariable_=_forparam(s)_`. A _forparam_ is either an
+expression, or a range of the form `_start_[:__increment__[:__end__]]`, where
 each of _start_, _increment_, and _end_ are integers. Argument indirection is
 not permitted.
 
@@ -695,7 +702,7 @@ Valid truth-value expression.
 
 ==== Arguments
 
-List of `_channel_:(_param1_:__param2__)[:__timeout__[:__namespace__]]`.
+List of `_channel_:(_device_:__mode__)[:__timeout__[:__namespace__]]`.
 
 ==== Usage
 
@@ -878,7 +885,7 @@ Valid truth-value expression.
 
 ==== Arguments
 
-List of `_channel_[:(_parameter1_[:__parameter2__...])[:__namespace__]]`.
+List of `_channel_[:(_param1_[:__param2__...])[:__namespace__]]`.
 
 ==== Usage
 
@@ -1736,14 +1743,14 @@ The status of the current device.
 
 `0,_devicetype_,_deviceinfo_` or `1,_errorcode_,_errortext_`
 
-If piece one is `0`, returns a full description of the channel in piece three
+If piece one is `0`, returns a description of the channel device in piece three
 (i.e., file/device name or IP address and port), and the type in piece two where
 the type number indicates:
 
-. Disk file
-. TCP/IP
-. Local pipe
-. Terminal device
+1. Disk file
+2. Socket device (TCP)
+3. Named pipe (FIFO)
+4. Character device (terminal, printer, etc.)
 
 If piece one is `1`, returns an error code in piece two, and a string
 representing the device error in piece three.
@@ -2188,7 +2195,7 @@ write ^$device(1,"mode")      ; either "PRINCIPAL", "WRITE", "READ", "APPEND",
 write ^$device(1,"name")      ; operating system device or file name
 write ^$device(1,"namespace") ; mnemonic device routine name
 write ^$device(1,"type")      ; either "1,FILE", "2,SOCKET", "3,PIPE", or
-                              ; "4,TERMINAL"
+                              ; "4,TERMINAL", or "4,CHARACTER"
 
 ; List all open devices in this job
 set dev="" for  set dev=$order(^$device(dev)) quit:dev=""  write dev,!

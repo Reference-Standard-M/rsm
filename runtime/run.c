@@ -140,13 +140,13 @@ short run(int savasp, int savssp)                                               
 
                 partab.jobtab->dostk[partab.jobtab->cur_do].endlin = comp_ptr;
 
-                if ((partab.jobtab->dostk[partab.jobtab->cur_do].type) == TYPE_EXTRINSIC) {
+                if (partab.jobtab->dostk[partab.jobtab->cur_do].type == TYPE_EXTRINSIC) {
                     *comp_ptr++ = OPSTR;                                        // string follows
                     *comp_ptr++ = 0;                                            // endian doesn't matter here
                     *comp_ptr++ = 0;                                            // endian doesn't matter here
                     *comp_ptr++ = '\0';                                         // null terminated
                     *comp_ptr++ = CMQUITA;                                      // quit with arg
-                } else if ((partab.jobtab->dostk[partab.jobtab->cur_do].type) != TYPE_RUN) {
+                } else if (partab.jobtab->dostk[partab.jobtab->cur_do].type != TYPE_RUN) {
                     *comp_ptr++ = CMQUIT;                                       // quit without arg
                 }
 
@@ -2047,7 +2047,7 @@ short run(int savasp, int savssp)                                               
                     rsmpc += VAR_LEN;
                 }
 
-                if ((opc == CMDORTO) && (var_empty(rou))) {                     // could be zero from this op
+                if ((opc == CMDORTO) && var_empty(rou)) {                       // could be zero from this op
                     VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam); // reset to current
                 }
             }
@@ -2209,7 +2209,7 @@ short run(int savasp, int savssp)                                               
                 if (*rsmpc++ != LOADARG) {                                      // any there?
                     curframe->symbol = NULL;
                     partab.jobtab->cur_do--;                                    // point back
-                    s = -ERRM58;                                                // default error
+                    s = -ERRM20;                                                // default error
 
                     if (*--rsmpc == OPERROR) {                                  // if an error there
                         rsmpc++;                                                // point back at error
@@ -3213,7 +3213,7 @@ ENABLE_WARN
                 break;
 
             case INDLOCK:                                                       // LOCK
-                parse_lock(1);
+                parse_lock();
                 break;
 
             case INDMERG:                                                       // MERGE

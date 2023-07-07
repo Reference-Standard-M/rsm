@@ -50,7 +50,7 @@ short attention(void)                                                           
 {
     short s = 0;                                                                // return value
 
-    if (partab.jobtab->trap & SIG_CC) {                                         // control c
+    if (partab.jobtab->trap & SIG_CC) {                                         // Control-C
         partab.jobtab->trap = partab.jobtab->trap & ~SIG_CC;                    // clear it
         partab.jobtab->async_error = -(ERRZ51 + ERRMLAST);                      // store the error
     }

@@ -51,7 +51,7 @@
  *             2 for $TEXT() runtime
  *
  * Return    Means
- * >0        Reserved for byte offset
+ * >0        Reserved for byte offset (not currently applicable)
  * 0         Compiled indirect to end up at addstk[asp]
  * -1        Compiled just a tag (VAR_LEN bytes)
  * -2        Compiled routine and tag (VAR_LEN * 2 bytes)
@@ -227,7 +227,7 @@ short routine(int runtime)                                                      
 
             source_ptr--;
         } else {                                                                // indirect (^@XYZ)
-            // if a $TEXT compile, this never executes b/c $T sets isinder to 1, therefore, it's only for D TAG^@XYZ
+            // if a $TEXT compile, this never executes because $TEXT sets isinder to 1, therefore, it's only for DO TAG^@XYZ
             if (!isinder && !var_empty(tag)) {
                 *comp_ptr++ = OPSTR;                                            // string follows
                 us = (u_short) i;

@@ -818,7 +818,7 @@ RC(ccl,%,r,sel,zr) set zr="RC^%RD"
  new cnt,total
  do INT(3,ccl) set r=""
  for  set r=$order(sel(r)) quit:r=""  write:$x ! write r,! set cnt=$&%rouchk(r) write cnt,! set total=$get(total,0)+cnt
- write !,$fnumber(total,",")_" total errors"
+ write !,$fnumber(total,",")_" total error"_$select(total=1:"",1:"s")
  quit
 
 %RECOMP
