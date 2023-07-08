@@ -89,7 +89,7 @@ short Dchar(u_char *ret_buffer, int i)
 // $DATA(variable)
 short Ddata(u_char *ret_buffer, mvar *var, int update)
 {
-    if (var->uci == 255) return ST_Data(var, ret_buffer);                       // for a local var
+    if (var->uci == UCI_IS_LOCALVAR) return ST_Data(var, ret_buffer);           // for a local var
     if (var->name.var_cu[0] == '$') return SS_Data(var, ret_buffer);            // SSVN? then do it
     if (update) memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen); // update naked
     return DB_Data(var, ret_buffer);                                            // else it's global
@@ -1394,10 +1394,10 @@ int DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i)
     s = UTIL_MvarFromCStr(vptr, &var2);                                         // convert to an mvar
     if (s < 0) return s;                                                        // die on error
 
-    if (i == -1) {                                                              // "environment" reqd
+    if (i == -1) {                                                              // "environment" required
         if (cptr->len == 0) {
             var2.volset = 0;
-            var2.uci = 255;
+            var2.uci = UCI_IS_LOCALVAR;
         } else {
             var2.volset = 0;
             var2.uci = getuci(cptr, var2.volset);

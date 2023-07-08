@@ -40,6 +40,7 @@
 #include <sys/uio.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include "error.h"
 #include "seqio.h"
@@ -117,7 +118,11 @@ int SQ_File_Read(int fid, u_char *readbuf)
 
     if (ret == -1) {
         return getError(SYS, errno);
-    } else {
-        return ret;
+    } else if (ret == 0) {                                                      // EOF received
+        if (strcmp((char *) partab.jobtab->seqio[fid].name, "Not a tty") == 0) { // stdin was probably redirected from a file
+            partab.jobtab->trap |= SIG_QUIT;                                    // don't set partab.jobtab->attention
+        }
     }
+
+    return ret;
 }

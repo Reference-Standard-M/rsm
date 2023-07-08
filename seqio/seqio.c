@@ -102,7 +102,7 @@
 //#define ?           7                                                           // Unused
 
 // Miscellaneous
-#define STDCHAN     0                                                           // STDIN, STDOUT and STDERR
+#define STDCHAN     0                                                           // stdin, stdout and stderr
 
 static u_int64 MASK[MASKSIZE];                                                  // Set bit mask
 static u_int64 CRLF;                                                            // CRLF
@@ -257,7 +257,7 @@ int getObjectMode(int fd)
 int getModeCategory(int mode)
 {
     if (mode == REG) return SQ_FILE;
-    if (mode == SOCK) return SQ_TCP;
+    if (mode == SOCK) return SQ_SOCK;
     if (mode == FIFO) return SQ_PIPE;
     if (mode == CHR) return SQ_TERM;
     return getError(INT, ERRZ30);
@@ -280,7 +280,7 @@ int isChan(int chan)
 /*
 int isType(int type)
 {
-    if ((type != SQ_FREE) && (type != SQ_FILE) && (type != SQ_TCP) && (type != SQ_PIPE) && (type != SQ_TERM)) {
+    if ((type != SQ_FREE) && (type != SQ_FILE) && (type != SQ_SOCK) && (type != SQ_PIPE) && (type != SQ_TERM)) {
         return 0;
     }
 
@@ -466,8 +466,6 @@ int signalCaught(SQ_Chan *c)
     c->dkey[0] = '\0';
 
     if (partab.jobtab->trap & MASK[SIGALRM]) {
-        c->dkey_len = 0;
-        c->dkey[0] = '\0';
         partab.jobtab->trap &= ~MASK[SIGALRM];
 
         if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
@@ -617,8 +615,10 @@ int acceptSERVER(int chan, int tout)
         s->cid = SQ_Tcpip_Accept(c->fid, tout);
 
         if (s->cid < 0) {
+            int error = s->cid;
+
             s->cid = -1;
-            return s->cid;
+            return error;
         }
 
         len = sizeof(struct sockaddr_in);
@@ -703,7 +703,7 @@ int closeSERVERClient(int chan)
     c = &partab.jobtab->seqio[chan];
 
     // Determine socket to close and close it (if required)
-    if ((int) c->type == SQ_TCP) {
+    if ((int) c->type == SQ_SOCK) {
         if ((int) c->mode == NOFORK) {
             if (c->s.cid > -1) {
                 close(c->s.cid);
@@ -724,7 +724,7 @@ int closeSERVERClient(int chan)
 
 /*
  * This function closes the socket on channel "chan". This function is
- * called whenever a channel of type SQ_TCP is closed. It will never exit
+ * called whenever a channel of type SQ_SOCK is closed. It will never exit
  * with an error (i.e., will always return 0).
  */
 int closeSERVER(int chan)
@@ -790,7 +790,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
 
     if (chan == STDCHAN) {                                                      // Get appropriate channel descriptor
         oid = 1;
-    } else if ((int) c->type == SQ_TCP) {
+    } else if ((int) c->type == SQ_SOCK) {
         if ((int) c->mode == TCPIP) {
             oid = c->fid;
         } else if ((int) c->mode == FORKED) {
@@ -832,7 +832,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
             ret = SQ_Pipe_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
             break;
 
-        case SQ_TCP:
+        case SQ_SOCK:
             ret = SQ_Tcpip_Write(oid, (u_char *) &writebuf[byteswritten], bytestowrite);
             break;
 
@@ -1070,7 +1070,7 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
     c = &partab.jobtab->seqio[chan];
 
     if (chan == STDCHAN) {
-        oid = 0;                                                                // STDIN
+        oid = 0;                                                                // stdin
     } else {
         oid = c->fid;
     }
@@ -1101,7 +1101,12 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
             }
         } else if (ret < 0) {
             return ret;
-        } else if ((c->options & MASK[INTERM]) && ret) {                        // Check if an input terminator has been received
+        } else if (ret == 0) {                                                  // EOF reached
+            c->dkey_len = 1;
+            c->dkey[0] = (char) 255;
+            c->dkey[1] = '\0';
+            return bytesread;
+        } else if (c->options & MASK[INTERM]) {                                 // Check if an input terminator has been received
             if (c->in_term.iterm == CRLF) {
                 if ((u_char) buf[bytesread] == 13) {
                     crflag = TRUE;
@@ -1165,7 +1170,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 
     // Initialize local variables
     if (chan == STDCHAN) {
-        oid = STDCHAN;                                                          // STDIN
+        oid = STDCHAN;                                                          // stdin
     } else {
         oid = c->fid;
     }
@@ -1173,9 +1178,9 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     // Get the current terminal device screen dimensions
     ret = ioctl(oid, TIOCGWINSZ, &w);
     if (ret == -1) return getError(SYS, errno);
-    if (w.ws_col == 0) ret = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);              // If oid isn't a terminal device, use STDOUT
+    if (w.ws_col == 0) ret = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);              // If oid isn't a terminal device, use stdout
     if (ret == -1) return getError(SYS, errno);
-    if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If STDOUT is redirected, default to 80 columns
+    if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If stdout is redirected, default to 80 columns
 
     bytesread = 0;
     crflag = FALSE;
@@ -1573,7 +1578,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
-                    return (bytesread - 1);
+                    return bytesread - 1;
                 }
             } else if (curr < 128) {
                 if (((in_hist > -1) && (curr == 13)) || ((in_hist == -1) && (c->in_term.interm[curr / 64] & MASK[curr % 64]))) {
@@ -1735,8 +1740,8 @@ int initObject(int chan, int type)
         snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
         break;
 
-    case SQ_TCP:
-        c->type = (u_char) SQ_TCP;
+    case SQ_SOCK:
+        c->type = (u_char) SQ_SOCK;
         snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
         snprintf((char *) interm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
         break;
@@ -1831,7 +1836,7 @@ short SQ_Init(void)
     ret = initObject(STDCHAN, typ);
     if (ret < 0) return (short) ret;
 
-    if (typ == SQ_TCP) {                                                        // from inetd/xinetd?
+    if (typ == SQ_SOCK) {                                                       // from inetd/xinetd?
         int                len;
         struct sockaddr_in sin;
         //struct hostent     *host;                                               // Peer host name
@@ -1902,7 +1907,7 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
     int     ret;                                                                // Return value
     int     i;                                                                  // a handy int
 
-    // Check for Opening $Principal. In RSM, this is a no-op (See close code as well).
+    // Check for opening $PRINCIPAL. In RSM, this is a no-op (See close code as well).
     if (chan == STDCHAN) {
         if (tout > UNLIMITED) {                                                 // if there's a timeout
             if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
@@ -1964,9 +1969,9 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
     } else if (oper == APPEND) {
         obj = SQ_FILE;
     } else if (oper == TCPIP) {
-        obj = SQ_TCP;
+        obj = SQ_SOCK;
     } else if (oper == SERVER) {
-        obj = SQ_TCP;
+        obj = SQ_SOCK;
     } else if (oper == PIPE) {
         obj = SQ_PIPE;
     } else if (oper == NEWPIPE) {
@@ -1992,7 +1997,7 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
         oid = SQ_Pipe_Open((char *) object->buf, oper);
         break;
 
-    case SQ_TCP:
+    case SQ_SOCK:
         oid = SQ_Tcpip_Open((char *) object->buf, oper);
         break;
 
@@ -2209,7 +2214,7 @@ short SQ_Close(int chan)
 
     switch ((int) c->type) {
     case SQ_FILE:
-        // If the file is opened for writing or appending and it is empty, then  delete it
+        // If the file is opened for writing or appending and it is empty, then delete it
         if (((int) c->mode == WRITE) || ((int) c->mode == APPEND)) {
             int ret = fstat(c->fid, &sb);
 
@@ -2226,7 +2231,7 @@ short SQ_Close(int chan)
         c->type = (u_char) SQ_FREE;
         break;
 
-    case SQ_TCP:
+    case SQ_SOCK:
         closeSERVER(chan);
         break;
 
@@ -2376,7 +2381,7 @@ short SQ_WriteFormat(int count)
                 if (partab.jobtab->trap & MASK[SIGINT]) return byteswritten;
             }
 
-            IOptr->dx = IOptr->dx + ret;
+            IOptr->dx += ret;
             byteswritten += ret;
             numspaces -= bytestowrite;
         }
@@ -2429,7 +2434,7 @@ int SQ_Read(u_char *buf, int tout, int maxbyt)
         ret = readFILE(chan, buf, maxbyt);
         break;
 
-    case SQ_TCP:
+    case SQ_SOCK:
         ret = readTCP(chan, buf, maxbyt, tout);
         break;
 
@@ -2556,7 +2561,7 @@ short SQ_Flush(void)
     if ((int) c->type == SQ_TERM) {
         int oid;                                                                // Device
 
-        if (chan == STDCHAN) {                                                  // Flush STDIN
+        if (chan == STDCHAN) {                                                  // Flush stdin
             oid = 0;
         } else {                                                                // Flush other device
             oid = c->fid;
@@ -2580,7 +2585,7 @@ short SQ_Flush(void)
  *     Piece Description
  *
  *     1     1 or 0
- *     2     error_code or object type (i.e., SQ_FILE, SQ_TCP, SQ_PIPE, SQ_TERM)
+ *     2     error_code or object type (i.e., SQ_FILE, SQ_SOCK, SQ_PIPE, SQ_TERM)
  *     3     error_text or description of channel (e.g., file/device name or
  *           IP address port).
  *
@@ -2615,7 +2620,7 @@ int SQ_Device(u_char *buf)
     }
 
     // Get channel's attributes
-    if ((int) c->type == SQ_TCP) {                                              // Socket specific
+    if ((int) c->type == SQ_SOCK) {                                             // Socket specific
         switch ((int) c->mode) {
         case TCPIP:
             name = (char *) c->name;

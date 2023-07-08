@@ -12,6 +12,19 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.78.1 -- 2023 Jul 7
+
+* Fix lock timeout with indirection bug
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/6
+* Fix bugs when starting RSM with stdin not connected to a terminal device
+* Modify `^$DEVICE` to distinguish between terminals and other character devices
+* Add EOF support to the pipe device
+* Improve MDC error code with parameter passing
+* Fix bug hiding some TCP server errors from the M job
+* Improve error handling when attaching to shared memory
+* Remove code that sets `$X` and `$Y` from the `$&V` XCall
+* Update the conformance clause and language guide
+
 === v1.78.0 -- 2023 Jun 16
 
 * Add performance optimization to the symbol table search algorithm
@@ -246,7 +259,7 @@ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
 * Add 24 hour mode option to the time display vendor routine [`^%T`]
 * Fix bug in UCI editor vendor routine [`^UCI`], preventing proper editing
 * Add documentation for the new instrinsic function and the new system variables
-* Add missing documentation to the language guide
+* Add missing documentation to the language guide [`language.adoc`]
 * Fix mistake in the documentation for `BREAK` in the language guide
 * Fix description of standard compliance for `SET` in the language guide
 * Change `make test` to `make debug`
@@ -259,7 +272,7 @@ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
 * Revert fix of argument encoding from previous release
 * Fix tag/label offset bug with offsets of 2
 * Improve the formatting of the `$&DEBUG("RBD")` XCall
-* Improve the platform support section of the documentation
+* Improve the platform support section of the documentation [`README.adoc`]
 * Add a helpful note about recompiling routines to the documentation
 * Make various small improvements to source code formatting
 
@@ -281,8 +294,8 @@ them.
 * Finish support for big-endian architectures
 * Add new error [`Z49`] for when the job table is full while trying to fork
 * Improve documentation, including the first draft of the language guide
-* Add the initial conformance clause to the documentation
-* Add new license file for the documentation license
+* Add the initial conformance clause to the documentation [`conformance.adoc`]
+* Add new license file for the documentation license [`doc/COPYING`]
 * Reformat all source files that haven't already been reformatted
 * Rename most of the source files and restructure init utilities
 * Fix argument encoding to work with full argument limits
@@ -399,7 +412,7 @@ routines.
 * Fix various minor bugs
 * Improve data typing throughout
 * Improve parts of the documentation
-* Rename release-notes.adoc to CHANGELOG.adoc
+* Rename `release-notes.adoc` to `CHANGELOG.adoc`
 
 This version makes a change to some of the structures in the shared memory
 environment, which requires shutting down the environment with the previous

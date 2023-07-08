@@ -292,7 +292,7 @@ int operator(void)                                                              
     case '!':                                                                   // exclam
         if (*source_ptr == '!') {                                               // if there is another
             source_ptr++;                                                       // advance the pointer
-            return not ? OPNXOR : OPXOR;                                        // xor or xnor
+            return (not ? OPNXOR : OPXOR);                                      // xor or xnor
         }
 
         return (not ? OPNIOR : OPIOR);                                          // or or nor

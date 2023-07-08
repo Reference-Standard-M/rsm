@@ -543,7 +543,7 @@ void parse_kill(int indkillb)                                                   
     return;
 }
 
-void parse_lock(int runtime)                                                    // LOCK
+void parse_lock(void)                                                           // LOCK
 {
     short   s;                                                                  // for functions
     u_short us;                                                                 // for cstring count
@@ -555,8 +555,12 @@ void parse_lock(int runtime)                                                    
         int  args = 0;                                                          // init arg count
         int  i = 0;                                                             // flag no bracket
 
-        if (c == '+') type = 1;                                                 // a LOCK +
-        if (c == '-') type = -1;                                                // a LOCK -
+        if (c == '+') {
+            type = 1;                                                           // a LOCK +
+        } else if (c == '-') {
+            type = -1;                                                          // a LOCK -
+        }
+
         if (type) c = *source_ptr++;                                            // skip the + or -
 
         if (c == '(') {                                                         // a bracket?
@@ -572,11 +576,12 @@ void parse_lock(int runtime)                                                    
                 atom();                                                         // eval the string
 
                 if (*(comp_ptr - 1) == INDEVAL) {                               // if it was indirect
-                    if (!type && !i) {                                          // normal lock not in a lock list
+                    if (!type && !i && (*source_ptr != ':')) {                  // normal lock not in a lock list, with no timeout
                         *(comp_ptr - 1) = INDLOCK;                              // say lock indirect
-                    } else {
-                        *(comp_ptr - 1) = INDMVAR;                              // make an mvar of it
+                        return;                                                 // and return
                     }
+
+                    *(comp_ptr - 1) = INDMVAR;                                  // make an mvar of it
                 } else if (*(comp_ptr - 3) == OPVAR) {
                     *(comp_ptr - 3) = OPMVAR;                                   // change to OPMVAR
                 }
@@ -604,8 +609,6 @@ void parse_lock(int runtime)                                                    
             source_ptr++;                                                       // skip the comma
         }
 
-        if (runtime) return;                                                    // timeout was already handled
-
         if (*source_ptr == ':') {                                               // timeout ?
             source_ptr++;                                                       // skip the colon
             eval();                                                             // get it on the stack
@@ -620,9 +623,14 @@ void parse_lock(int runtime)                                                    
             *comp_ptr++ = '\0';                                                 // null terminate
         }
 
-        if (type == -1) *comp_ptr++ = CMLCKM;                                   // LOCK -
-        if (type == 0) *comp_ptr++ = CMLCK;                                     // LOCK
-        if (type == +1) *comp_ptr++ = CMLCKP;                                   // LOCK +
+        if (type == -1) {
+            *comp_ptr++ = CMLCKM;                                               // LOCK -
+        } else if (type == 0) {
+            *comp_ptr++ = CMLCK;                                                // LOCK
+        } else if (type == 1) {
+            *comp_ptr++ = CMLCKP;                                               // LOCK +
+        }
+
         *comp_ptr++ = args;                                                     // and the number of them
         if (*source_ptr != ',') break;                                          // all done if not comma
         source_ptr++;                                                           // skip the comma
@@ -1158,7 +1166,7 @@ void parse_set(void)                                                            
             if ((strncasecmp((char *) source_ptr, "$e(", 3) == 0) || (strncasecmp((char *) source_ptr, "$extract(", 9) == 0) ||
               (strncasecmp((char *) source_ptr, "$p(", 3) == 0) || (strncasecmp((char *) source_ptr, "$piece(", 7) == 0) ||
               (strncasecmp((char *) source_ptr, "$qs(", 4) == 0) || (strncasecmp((char *) source_ptr, "$qsubscript(", 12) == 0)) {
-                type = (toupper(source_ptr[1]) == 'P') ? CMSETP : (toupper(source_ptr[1]) == 'E') ? CMSETE : CMSETQS; // Set type
+                type = ((toupper(source_ptr[1]) == 'P') ? CMSETP : ((toupper(source_ptr[1]) == 'E') ? CMSETE : CMSETQS)); // Type
                 while ((*source_ptr != '(') && *source_ptr) source_ptr++;       // skip to bracket
                 source_ptr++;                                                   // skip opening bracket
                 p = comp_ptr;                                                   // save position
@@ -1768,7 +1776,7 @@ void parse(void)                                                                
                 *comp_ptr++ = CMLCKU;                                           // save op code
             } else {
                 source_ptr--;                                                   // backup pointer
-                parse_lock(0);
+                parse_lock();
             }
 
             break;                                                              // end of MERGE code

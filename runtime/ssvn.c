@@ -291,7 +291,11 @@ ENABLE_WARN
                 } else if (partab.jobtab->seqio[i].type == 3) {
                     return mcopy((u_char *) "3,PIPE", buf, 6);
                 } else if (partab.jobtab->seqio[i].type == 4) {
-                    return mcopy((u_char *) "4,TERMINAL", buf, 10);
+                    if (isatty(partab.jobtab->seqio[i].fid)) {
+                        return mcopy((u_char *) "4,TERMINAL", buf, 10);
+                    } else {
+                        return mcopy((u_char *) "4,CHARACTER", buf, 11);
+                    }
                 }
             }
         } else if (nsubs == 3) {                                                // end of two sub case - three sub case

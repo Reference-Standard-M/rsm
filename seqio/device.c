@@ -44,6 +44,8 @@
 #include "error.h"
 #include "seqio.h"
 
+#define SIG_ALRM (1U << 14)                                                     // SIGALRM (timeout)
+
 // Local functions
 
 /*
@@ -77,7 +79,7 @@ int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
         if (ret == -1) return getError(SYS, errno);
 
         if (rret == 0) {                                                        // zero timeout and no chars
-            partab.jobtab->trap |= 16384;                                       // MASK[SIGALRM]
+            partab.jobtab->trap |= SIG_ALRM;                                    // MASK[SIGALRM] in seqio/seqio.c
             return -1;
         }
     }
@@ -129,7 +131,7 @@ int SQ_Device_Open(char *device, int op)
         if (did == -1) {
             if (errno != EBUSY) {
                 return getError(SYS, errno);
-            } else if (partab.jobtab->trap & 16384) {                           // MASK[SIGALRM]
+            } else if (partab.jobtab->trap & SIG_ALRM) {                        // MASK[SIGALRM] in seqio/seqio.c
                 return -1;
             }
         } else {

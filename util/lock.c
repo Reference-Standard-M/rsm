@@ -169,7 +169,7 @@ short UTIL_mvartolock(mvar *var, u_char *buf)                                   
 
     if (var->name.var_cu[0] == '$') {                                           // SSVN?
         s = SS_Norm(var);                                                       // normalize it
-        if (s < 0) return s;                                                    // quit on error
+        if (s == -ERRM59) return s;                                             // quit on error
     }
 
     buf[0] = var->volset;                                                       // copy volset

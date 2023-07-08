@@ -210,10 +210,11 @@ short Debug(int savasp, int savssp, int dot)                                    
         parse();                                                                // compile it
         *comp_ptr++ = ENDLIN;                                                   // eol
         *comp_ptr++ = ENDLIN;                                                   // eor
-        DISABLE_WARN(-Warray-bounds)
+DISABLE_WARN(-Warray-bounds)
         ptr->len = comp_ptr - ptr->buf;                                         // save the length
-        ENABLE_WARN
+ENABLE_WARN
         rsmpc = &cmp[sizeof(short)];                                            // where it is
+        src[0] = '\0';                                                          // a spare null
         partab.jobtab->dostk[partab.jobtab->cur_do].routine = src;
         partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;
         partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;

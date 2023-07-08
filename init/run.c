@@ -392,24 +392,27 @@ start:
             sptr = (cstring *) &strstk[0];                                      // front of string stack
             asp = 0;                                                            // zot address stack
             ssp = 0;                                                            // and the string stack
-            volnam = systab->vol[partab.jobtab->vol - 1]->vollab->volnam.var_cu; // get current volume name
-            uci_ptr = &systab->vol[partab.jobtab->vol - 1]->vollab->uci[partab.jobtab->uci - 1]; // get ptr to UCI
-            sptr->len = strlen((char *) volnam) + strlen((char *) uci_ptr->name.var_cu) + 9; // find the length
-            prompt_len = sptr->len;                                             // update the prompt length for direct mode editing
-
-            if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s,%s]> ", uci_ptr->name.var_cu, volnam) < 0) {
-                return errno;                                                   // copy in the prompt
-            }
-
             partab.jobtab->io = 0;                                              // force chan 0
 
-            if (partab.jobtab->seqio[0].dx) {                                   // if not at left margin
-                s = SQ_WriteFormat(SQ_LF);                                      // new line
+            if (strcmp((char *) partab.jobtab->seqio[0].name, "Not a tty") != 0) { // stdin is not a file or heredoc (pipe), etc.
+                volnam = systab->vol[partab.jobtab->vol - 1]->vollab->volnam.var_cu; // get current volume name
+                uci_ptr = &systab->vol[partab.jobtab->vol - 1]->vollab->uci[partab.jobtab->uci - 1]; // get ptr to UCI
+                sptr->len = strlen((char *) volnam) + strlen((char *) uci_ptr->name.var_cu) + 9; // find the length
+                prompt_len = sptr->len;                                         // update the prompt length for direct mode editing
+
+                if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s,%s]> ", uci_ptr->name.var_cu, volnam) < 0) {
+                    return errno;                                               // copy in the prompt
+                }
+
+
+                if (partab.jobtab->seqio[0].dx) {                               // if not at left margin
+                    s = SQ_WriteFormat(SQ_LF);                                  // new line
+                    if (s < 0) ser(s);                                          // check for error
+                }
+
+                s = SQ_Write(sptr);                                             // write the prompt
                 if (s < 0) ser(s);                                              // check for error
             }
-
-            s = SQ_Write(sptr);                                                 // write the prompt
-            if (s < 0) ser(s);                                                  // check for error
         }
 
         s = SQ_Read(sptr->buf, UNLIMITED, UNLIMITED);                           // get a string
@@ -438,8 +441,12 @@ start:
         hist_curr = hist_next;
         addstk[asp++] = (u_char *) sptr;                                        // save address of string
         ssp += s + sizeof(u_short) + 1;                                         // point past it
-        s = SQ_WriteFormat(SQ_LF);                                              // new line
-        if (s < 0) ser(s);                                                      // check for error
+
+        if (strcmp((char *) partab.jobtab->seqio[0].name, "Not a tty") != 0) {  // stdin is not a file or heredoc (pipe), etc.
+            s = SQ_WriteFormat(SQ_LF);                                          // new line
+            if (s < 0) ser(s);                                                  // check for error
+        }
+
         source_ptr = sptr->buf;                                                 // where the code is
         cptr = (cstring *) &strstk[ssp];                                        // where the compiled goes
         comp_ptr = cptr->buf;                                                   // the data bit

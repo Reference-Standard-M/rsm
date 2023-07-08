@@ -1491,21 +1491,12 @@ int Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
     int len = 0;                                                                // length of it
 
     ret_buffer[len++] = 27;                                                     // Store the ESC
-    ret_buffer[len++] = 91;                                                     // Store the '['
+    ret_buffer[len++] = '[';                                                    // Store the '['
     for (i = 0; i != (int) lin->len; i++) ret_buffer[len++] = lin->buf[i];      // for all char in lin, copy one char
-    ret_buffer[len++] = 59;                                                     // Then the ';'
+    ret_buffer[len++] = ';';                                                    // Then the ';'
     for (i = 0; i != (int) col->len; i++) ret_buffer[len++] = col->buf[i];      // for all char in col, copy one char
-    ret_buffer[len++] = 72;                                                     // Finally the 'H'
+    ret_buffer[len++] = 'H';                                                    // Finally the 'H'
     ret_buffer[len] = '\0';                                                     // NUL terminate
-    partab.jobtab->seqio[partab.jobtab->io].dy = atoi((char *) lin->buf);       // set $y to line
-    partab.jobtab->seqio[partab.jobtab->io].dx = atoi((char *) col->buf);       // set $x to column
-
-    if (partab.jobtab->seqio[partab.jobtab->io].dx > len) {                     // reset $x
-        partab.jobtab->seqio[partab.jobtab->io].dx -= len;
-    } else {
-        partab.jobtab->seqio[partab.jobtab->io].dx = 0;
-    }
-
     return len;                                                                 // and return the length
 }
 

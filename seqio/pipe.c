@@ -201,11 +201,14 @@ start:
             goto start;                                                         // and try again
         }
 
-        return getError(SYS, errno);                                            // EOF received
-    } else if (bytesread == 0) {                                                // Force read to time out
-        if (tout == 0) {
+        return getError(SYS, errno);
+    } else if (bytesread == 0) {                                                // EOF received
+        if (tout == 0) {                                                        // Force read to time out
             if (raise(SIGALRM)) return getError(SYS, errno);
             return -1;
+        } else if (strcmp((char *) partab.jobtab->seqio[pid].name, "Not a tty") == 0) { // stdin was probably a heredoc
+            partab.jobtab->trap |= SIG_QUIT;                                    // don't set partab.jobtab->attention
+            return 0;
         }
 
         // Wait, then check for any data on the pipe

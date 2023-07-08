@@ -141,13 +141,13 @@ short run(int savasp, int savssp)                                               
 
                 partab.jobtab->dostk[partab.jobtab->cur_do].endlin = comp_ptr;
 
-                if ((partab.jobtab->dostk[partab.jobtab->cur_do].type) == TYPE_EXTRINSIC) {
+                if (partab.jobtab->dostk[partab.jobtab->cur_do].type == TYPE_EXTRINSIC) {
                     *comp_ptr++ = OPSTR;                                        // string follows
                     *comp_ptr++ = 0;                                            // endian doesn't matter here
                     *comp_ptr++ = 0;                                            // endian doesn't matter here
                     *comp_ptr++ = '\0';                                         // null terminated
                     *comp_ptr++ = CMQUITA;                                      // quit with arg
-                } else if ((partab.jobtab->dostk[partab.jobtab->cur_do].type) != TYPE_RUN) {
+                } else if (partab.jobtab->dostk[partab.jobtab->cur_do].type != TYPE_RUN) {
                     *comp_ptr++ = CMQUIT;                                       // quit without arg
                 }
 
@@ -604,7 +604,7 @@ short run(int savasp, int savssp)                                               
             ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
             s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf);           // make a key out of it
-            if (s < 0) ERROR(s)                                                 // check for error
+            if (s < 0) ERROR(s);                                                // check for error
             ptr1->len = s;                                                      // save the length
             ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
@@ -623,7 +623,7 @@ short run(int savasp, int savssp)                                               
         case OPSAFEQL:                                                          // SORTS AFTER or EQUALS
             ptr2 = (cstring *) &strstk[ssp];                                    // where we put the second arg
             s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf);           // make a key out of it
-            if (s < 0) ERROR(s)                                                 // check for error
+            if (s < 0) ERROR(s);                                                // check for error
             ptr2->len = s;                                                      // save the length
             ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
@@ -870,13 +870,13 @@ short run(int savasp, int savssp)                                               
 
             if (opc != CMSETQS) {
                 j = cstringtoi((cstring *) addstk[--asp]);                      // second numeric arg
-                if (j > (MAX_STR_LEN + 1)) ERROR(-ERRM75)                       // check for too long
+                if (j > (MAX_STR_LEN + 1)) ERROR(-ERRM75);                      // check for too long
             } else {
                 j = 0;                                                          // compiler wants this defined, but not used here
             }
 
             i = cstringtoi((cstring *) addstk[--asp]);                          // first numeric arg
-            if (i > (MAX_STR_LEN + 1)) ERROR(-ERRM75)                           // check for too long
+            if (i > (MAX_STR_LEN + 1)) ERROR(-ERRM75);                          // check for too long
             ptr1 = NULL;                                                        // SET $EXTRACT or $QSUBSCRIPT
 
             if (opc == CMSETP) {
@@ -900,7 +900,7 @@ short run(int savasp, int savssp)                                               
             cptr = (cstring *) addstk[asp - 1];                                 // source - leave asp alone
 
             if (opc == CMSETQS) {                                               // set $QSUBSCRIPT()
-                if (i < -1) ERROR(-(ERRZ12 + ERRMLAST))                         // can't do that
+                if (i < -1) ERROR(-(ERRZ12 + ERRMLAST));                        // can't do that
                 t = DSetqsubscript(p, cptr, var, i);                            // do a SET $QSUBSCRIPT()
             } else if (opc == CMSETP) {                                         // set $PIECE()
                 t = DSetpiece(p, cptr, var, ptr1, i, j);                        // do a SET $PIECE()
@@ -2189,7 +2189,7 @@ short run(int savasp, int savssp)                                               
                     rsmpc += VAR_LEN;
                 }
 
-                if ((opc == CMDORTO) && (var_empty(rou))) {                     // could be zero from this op
+                if ((opc == CMDORTO) && var_empty(rou)) {                       // could be zero from this op
                     VAR_COPY(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam); // reset to current
                 }
             }
@@ -2351,7 +2351,7 @@ short run(int savasp, int savssp)                                               
                 if (*rsmpc++ != LOADARG) {                                      // any there?
                     curframe->symbol = NULL;
                     partab.jobtab->cur_do--;                                    // point back
-                    s = -ERRM58;                                                // default error
+                    s = -ERRM20;                                                // default error
 
                     if (*--rsmpc == OPERROR) {                                  // if an error there
                         rsmpc++;                                                // point back at error
@@ -3380,7 +3380,7 @@ ENABLE_WARN
                 break;
 
             case INDLOCK:                                                       // LOCK
-                parse_lock(1);
+                parse_lock();
                 break;
 
             case INDMERG:                                                       // MERGE

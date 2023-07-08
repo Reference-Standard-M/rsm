@@ -94,12 +94,12 @@ short localvar(void)                                                            
         sptr = source_ptr;                                                      // save source_ptr
         atom();
 
-        if (*source_ptr == '@' && *(source_ptr + 1) == '(') {
+        if ((*source_ptr == '@') && (*(source_ptr + 1) == '(')) {
             *comp_ptr++ = INDMVAR;                                              // make an mvar out of it
             type = TYPVARIND;                                                   // yes @...@ ... on addstk[]
             source_ptr++;
             goto subs;                                                          // go do subscripts
-        } else if (*source_ptr == '(' || *source_ptr == '\0') {
+        } else if ((*source_ptr == '(') || (*source_ptr == '\0')) {
             source_ptr = sptr;                                                  // reset source_ptr
             comp_ptr = ptr;                                                     // reset comp_ptr
             c = *source_ptr++;                                                  // get a character
