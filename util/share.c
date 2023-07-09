@@ -27,6 +27,7 @@
 
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
+#include <string.h>                                                             // for strerror
 #include <sys/types.h>                                                          // for u_char def
 #include <errno.h>                                                              // error stuff
 #include <sys/ipc.h>                                                            // shared memory
@@ -59,13 +60,19 @@ int UTIL_Share(char *dbf)                                                       
     systab = (systab_struct *) sad->address;                                    // get required address
 
     if (sad != systab) {                                                        // if not in correct place
-        int i;
+        int cnt = 5;                                                            // try a few times
 
-        i = shmdt(sad);                                                         // unmap it
-        if (i == -1) fprintf(stderr, "shmdt return = %X\n", i);
-        sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);         // try again
-        if (sad == (void *) -1) fprintf(stderr, "systab = %lX  attach = %lX\n", (u_long) systab, (u_long) sad);
-        if (systab != sad) return errno;                                        // die on error
+        do {
+            if (shmdt(sad) == -1) fprintf(stderr, "shmdt error: %s\n", strerror(errno)); // unmap it
+            sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);     // try again
+            if (systab == sad) break;
+            cnt--;
+        } while (cnt);
+
+        if ((sad == (void *) -1) || (systab != sad)) {
+            fprintf(stderr, "systab = 0x%lx  attach = 0x%lx\n", (u_long) systab, (u_long) sad);
+            return errno;                                                       // die on error
+        }
     }
 
     sem_id = semget(shar_mem_key, 0, 0);                                        // attach to semaphores

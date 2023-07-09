@@ -652,6 +652,7 @@ enum {
     kDefaultDSBufferSize = 1024
 };
 
+#if defined(__clang__) && !defined(NDEBUG)
 /*
  * Open Directory Utility Routines
  * Appends a value to a data buffer. dataPtr and dataLen describe
@@ -693,6 +694,7 @@ static tDirStatus dsDataListAndHeaderDeallocate(tDirReference inDirReference, tD
     if (err == eDSNoErr) free(inDataList);
     return err;
 }
+#endif
 
 /*
  * This routine is designed to handle the case where a
@@ -712,7 +714,6 @@ static tDirStatus dsDataListAndHeaderDeallocate(tDirReference inDirReference, tD
 static void DoubleTheBufferSizeIfItsTooSmall(tDirStatus *errPtr, tDirNodeReference dirRef, tDataBufferPtr *bufPtrPtr)
 {
     tDirStatus     err;
-    tDirStatus     junk;
     tDataBufferPtr tmpBuf;
 
     assert(errPtr != NULL);
@@ -738,8 +739,7 @@ static void DoubleTheBufferSizeIfItsTooSmall(tDirStatus *errPtr, tDirNodeReferen
 #if TEST_BUFFER_DOUBLING
                 fprintf(stderr, "Doubled buffer size to %lu.\r\n", tmpBuf->fBufferSize);
 #endif
-                junk = dsDataBufferDeAllocate(dirRef, *bufPtrPtr);
-                assert(junk == eDSNoErr);
+                assert(dsDataBufferDeAllocate(dirRef, *bufPtrPtr) == eDSNoErr);
                 *bufPtrPtr = tmpBuf;
             }
         }
@@ -889,7 +889,6 @@ static tDirStatus dsDoDirNodeAuthQ(tDirNodeReference inDirReference, tDirNodeRef
 static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * searchNodePathListPtr)
 {
     tDirStatus       err;
-    tDirStatus       junk;
     tDataBufferPtr   buf;
     tDirPatternMatch patternToFind;
     UInt32           nodeCount = 0;
@@ -938,13 +937,11 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
 
     // Clean up.
     if (context != 0) {
-        junk = dsReleaseContinueData(dirRef, context);
-        assert(junk == eDSNoErr);
+        assert(dsReleaseContinueData(dirRef, context) == eDSNoErr);
     }
 
     if (buf != NULL) {
-        junk = dsDataBufferDeAllocate(dirRef, buf);
-        assert(junk == eDSNoErr);
+        assert(dsDataBufferDeAllocate(dirRef, buf) == eDSNoErr);
     }
 
     assert((err == eDSNoErr) == (*searchNodePathListPtr != NULL));
@@ -974,7 +971,6 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
                                     tDataListPtr *pathListToAuthNodePtr, char **userNameForAuthPtr)
 {
     tDirStatus        err;
-    tDirStatus        junk;
     tDataBufferPtr    buf;
     tDataListPtr      recordType;
     tDataListPtr      recordName;
@@ -1116,18 +1112,15 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
 
             // Clean up.
             if (thisValueEntry != NULL) {
-                junk = dsDeallocAttributeValueEntry(dirRef, thisValueEntry);
-                assert(junk == eDSNoErr);
+                assert(dsDeallocAttributeValueEntry(dirRef, thisValueEntry) == eDSNoErr);
             }
 
             if (thisValue != 0) {
-                junk = dsCloseAttributeValueList(thisValue);
-                assert(junk == eDSNoErr);
+                assert(dsCloseAttributeValueList(thisValue) == eDSNoErr);
             }
 
             if (thisAttrEntry != NULL) {
-                junk = dsDeallocAttributeEntry(dirRef, thisAttrEntry);
-                assert(junk == eDSNoErr);
+                assert(dsDeallocAttributeEntry(dirRef, thisAttrEntry) == eDSNoErr);
             }
 
             if (err != eDSNoErr) break;
@@ -1151,45 +1144,37 @@ static tDirStatus FindUsersAuthInfo(tDirReference dirRef, tDirNodeReference node
 
     // Clean up.
     if (pathListToAuthNode != NULL) {
-        junk = dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode);
-        assert(junk == eDSNoErr);
+        assert(dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode) == eDSNoErr);
     }
 
     if (userNameForAuth != NULL) free(userNameForAuth);
 
     if (foundRecAttrList != 0) {
-        junk = dsCloseAttributeList(foundRecAttrList);
-        assert(junk == eDSNoErr);
+        assert(dsCloseAttributeList(foundRecAttrList) == eDSNoErr);
     }
 
     if (context != 0) {
-        junk = dsReleaseContinueData(dirRef, context);
-        assert(junk == eDSNoErr);
+        assert(dsReleaseContinueData(dirRef, context) == eDSNoErr);
     }
 
     if (foundRecAttrList != 0) {
-        junk = dsDeallocRecordEntry(dirRef, foundRecEntry);
-        assert(junk == eDSNoErr);
+        assert(dsDeallocRecordEntry(dirRef, foundRecEntry) == eDSNoErr);
     }
 
     if (requestedAttributes != NULL) {
-        junk = dsDataListAndHeaderDeallocate(dirRef, requestedAttributes);
-        assert(junk == eDSNoErr);
+        assert(dsDataListAndHeaderDeallocate(dirRef, requestedAttributes) == eDSNoErr);
     }
 
     if (recordName != NULL) {
-        junk = dsDataListAndHeaderDeallocate(dirRef, recordName);
-        assert(junk == eDSNoErr);
+        assert(dsDataListAndHeaderDeallocate(dirRef, recordName) == eDSNoErr);
     }
 
     if (recordType != NULL) {
-        junk = dsDataListAndHeaderDeallocate(dirRef, recordType);
-        assert(junk == eDSNoErr);
+        assert(dsDataListAndHeaderDeallocate(dirRef, recordType) == eDSNoErr);
     }
 
     if (buf != NULL) {
-        junk = dsDataBufferDeAllocate(dirRef, buf);
-        assert(junk == eDSNoErr);
+        assert(dsDataBufferDeAllocate(dirRef, buf) == eDSNoErr);
     }
 
     assert((err == eDSNoErr) == ((*pathListToAuthNodePtr != NULL) && (*userNameForAuthPtr != NULL)));
@@ -1208,7 +1193,6 @@ static tDirStatus AuthenticateWithNode(tDirReference dirRef, tDataListPtr pathLi
                                        const char *userNameForAuth, const char *password)
 {
     tDirStatus        err;
-    tDirStatus        junk;
     size_t            userNameLen;
     size_t            passwordLen;
     tDirNodeReference authNodeRef;
@@ -1266,22 +1250,14 @@ static tDirStatus AuthenticateWithNode(tDirReference dirRef, tDataListPtr pathLi
 
     if (err == eDSNoErr) {
         length = userNameLen + 1;                                               // + 1 to include trailing null
-        junk = dsDataBufferAppendData(authInBuf, &length, sizeof(length));
 #ifdef __clang__
-        assert(junk == noErr);
-#endif
-        junk = dsDataBufferAppendData(authInBuf, userNameForAuth, userNameLen + 1);
-#ifdef __clang__
-        assert(junk == noErr);
+        assert(dsDataBufferAppendData(authInBuf, &length, sizeof(length)) == noErr);
+        assert(dsDataBufferAppendData(authInBuf, userNameForAuth, userNameLen + 1) == noErr);
 #endif
         length = passwordLen + 1;                                               // + 1 to include trailing null
-        junk = dsDataBufferAppendData(authInBuf, &length, sizeof(length));
 #ifdef __clang__
-        assert(junk == noErr);
-#endif
-        junk = dsDataBufferAppendData(authInBuf, password, passwordLen + 1);
-#ifdef __clang__
-        assert(junk == noErr);
+        assert(dsDataBufferAppendData(authInBuf, &length, sizeof(length)) == noErr);
+        assert(dsDataBufferAppendData(authInBuf, password, passwordLen + 1) == noErr);
 #endif
 
         // Call dsDoDirNodeAuth to do the authentication.
@@ -1290,23 +1266,19 @@ static tDirStatus AuthenticateWithNode(tDirReference dirRef, tDataListPtr pathLi
 
     // Clean up.
     if (authInBuf != NULL) {
-        junk = dsDataBufferDeAllocate(dirRef, authInBuf);
-        assert(junk == eDSNoErr);
+        assert(dsDataBufferDeAllocate(dirRef, authInBuf) == eDSNoErr);
     }
 
     if (authOutBuf != NULL) {
-        junk = dsDataBufferDeAllocate(dirRef, authOutBuf);
-        assert(junk == eDSNoErr);
+        assert(dsDataBufferDeAllocate(dirRef, authOutBuf) == eDSNoErr);
     }
 
     if (authMethod != NULL) {
-        junk = dsDataNodeDeAllocate(dirRef, authMethod);
-        assert(junk == eDSNoErr);
+        assert(dsDataNodeDeAllocate(dirRef, authMethod) == eDSNoErr);
     }
 
     if (authNodeRef != 0) {
-        junk = dsCloseDirNode(authNodeRef);
-        assert(junk == eDSNoErr);
+        assert(dsCloseDirNode(authNodeRef) == eDSNoErr);
     }
 
     return err;
@@ -1316,7 +1288,6 @@ static tDirStatus AuthenticateWithNode(tDirReference dirRef, tDataListPtr pathLi
 static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const char *password)
 {
     tDirStatus        err;
-    tDirStatus        junk;
     tDirReference     dirRef;
     tDataListPtr      pathListToSearchNode;
     tDirNodeReference searchNodeRef;
@@ -1351,23 +1322,19 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     if (userNameForAuth != NULL) free(userNameForAuth);
 
     if (pathListToAuthNode != NULL) {
-        junk = dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode);
-        assert(junk == eDSNoErr);
+        assert(dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode) == eDSNoErr);
     }
 
     if (searchNodeRef != 0) {
-        junk = dsCloseDirNode(searchNodeRef);
-        assert(junk == eDSNoErr);
+        assert(dsCloseDirNode(searchNodeRef) == eDSNoErr);
     }
 
     if (pathListToSearchNode != NULL) {
-        junk = dsDataListAndHeaderDeallocate(dirRef, pathListToSearchNode);
-        assert(junk == eDSNoErr);
+        assert(dsDataListAndHeaderDeallocate(dirRef, pathListToSearchNode) == eDSNoErr);
     }
 
     if (dirRef != 0) {
-        junk = dsCloseDirService(dirRef);
-        assert(junk == eDSNoErr);
+        assert(dsCloseDirService(dirRef) == eDSNoErr);
     }
 
     return err;

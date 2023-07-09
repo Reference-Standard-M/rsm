@@ -231,7 +231,7 @@ int INIT_Start(char  *file,                                                     
         return errno;                                                           // exit with error
     }
 
-    printf("Systab attached at %lx [semid: %d  shmid: %d]\n", (u_long) systab, sem_id, shar_mem_id);
+    printf("Systab attached at 0x%lx [semid: %d  shmid: %d]\n", (u_long) systab, sem_id, shar_mem_id);
     memset(systab, 0, share_size);                                              // zot the lot
     systab->address = systab;                                                   // store the address for ron
     systab->jobtab = (jobtab *) &systab->last_blk_used[jobs * MAX_VOL];         // setup jobtab pointer
