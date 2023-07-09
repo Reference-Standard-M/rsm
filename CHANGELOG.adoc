@@ -12,6 +12,13 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.78.2 -- 2023 Jul 8
+
+* Improve stability and portability of shared memory usage
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/3
+* Fix minor compiler warnings
+* Make minor improvements to the README file
+
 === v1.78.1 -- 2023 Jul 7
 
 * Fix lock timeout with indirection bug

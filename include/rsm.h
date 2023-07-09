@@ -42,7 +42,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       78                                                  // Minor version number
-#define VERSION_PATCH       1                                                   // Patch version number
+#define VERSION_PATCH       2                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -125,7 +125,11 @@
 #define SQ_NOCONTROLT       32768                                               // disable Control-T status
 
 #if defined(__APPLE__) && defined(__LP64__)
-#   define SHMAT_SEED       (void *) 0x200000000
+#   if defined(__arm64__)
+#       define SHMAT_SEED   NULL
+#   else
+#       define SHMAT_SEED   (void *) 0x200000000
+#   endif
 #elif defined(__arm__) || defined(__aarch64__)
 #   define SHMAT_SEED       (void *) 0x1000000
 #else

@@ -8,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.78.1 - 2023 Jul 7*
+*Version 1.78.2 - 2023 Jul 8*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -68,10 +68,11 @@ been tested, or known to build and run RSM, are:
 * FreeBSD on amd64
 * NetBSD on amd64
 * OpenBSD on amd64
-* MacOS X 10.4 through 11.6 in 32 and 64-bit mode, and M1 ARMv8 (Clang or GCC)
+* MacOS X/macOS 10.4 and newer on 32/64-bit Intel (Clang or GCC)
+* macOS 11.0 and newer on 64-bit M1 ARMv8 (Clang or GCC)
 * Solaris on i86pc
 * Raspberry Pi on armv6l and armv7l running Raspbian
-* Windows XP, 7, and 10, under Cygwin and Windows Subsystem for Linux 1 and 2
+* Windows XP, 7, and 10, under Cygwin and/or Windows Subsystem for Linux 1 and 2
 * Mobian (Mobile Debian Linux) on aarch64
 
 WARNING: RSM will not run on SPARC hardware, due to memory alignment
