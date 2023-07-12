@@ -151,7 +151,7 @@ short Vzut(u_char *ret_buffer)
     struct timeval tv;
 
     if (gettimeofday(&tv, NULL) == -1) return -(ERRMLAST + ERRZLAST + errno);
-    return (short) sprintf((char *) ret_buffer, "%ld%ld", tv.tv_sec, tv.tv_usec); // return count and $ZUT
+    return (short) sprintf((char *) ret_buffer, "%ld", tv.tv_sec * 1000000 + tv.tv_usec); // return count and $ZUT
 }
 
 /*

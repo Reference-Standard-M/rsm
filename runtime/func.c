@@ -195,8 +195,8 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     }
 
     for (int j = 0; j < code->len; j++) {
-        if (strcasecmp((const char *) &code->buf[j], "p") && strcasecmp((const char *) &code->buf[j], "t") &&
-          (code->buf[j] != '+') && (code->buf[j] != '-')) {
+        if (strncasecmp((const char *) &code->buf[j], "p", 1) && strncasecmp((const char *) &code->buf[j], "t", 1) &&
+          (code->buf[j] != ',') && (code->buf[j] != '+') && (code->buf[j] != '-')) {
             return -ERRM2;                                                      // invalid code, error
         }
     }
@@ -336,20 +336,7 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
         memcpy(dest->buf, tempc->buf, tempc->len);
     } else {                                                                    // non trailing signs
         if (numexp->buf[0] != '-') {
-            if ((numexp->buf[0] == '0') && (numexp->len == 1)) {
-                b1 = NULL;                                                      // Turn off + for 0 case
-            } else {
-                short flag = 1;
-
-                for (int i = 0; i < numexp->len; i++) {
-                    if ((numexp->buf[i] != '0') && (numexp->buf[i] != '.')) {
-                        flag = 0;
-                        break;
-                    }
-                }
-
-                if (flag) b1 = NULL;
-            }
+            if ((numexp->buf[0] == '0') && (numexp->len == 1)) b1 = NULL;       // Turn off + for 0 case
 
             if (b1 != NULL) {                                                   // force + sign at front
                 if (dest->buf[0] != '+') {
