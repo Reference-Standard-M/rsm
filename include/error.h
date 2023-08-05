@@ -184,6 +184,7 @@
 #define ERRZ75      75                                                          // Too many arguments (max 127)
 
 #define ERRZ77      77                                                          // RSM is in restricted mode
+#define ERRZ78      78                                                          // Lock count exceeds implementation's limit
 
 #define ERRZLAST    200                                                         // Must equal last implementation error
 

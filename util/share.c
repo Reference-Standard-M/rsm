@@ -60,17 +60,11 @@ int UTIL_Share(char *dbf)                                                       
     systab = (systab_struct *) sad->address;                                    // get required address
 
     if (sad != systab) {                                                        // if not in correct place
-        int cnt = 5;                                                            // try a few times
+        if (shmdt(sad) == -1) return errno;                                     // unmap it
+        sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);         // try again
 
-        do {
-            if (shmdt(sad) == -1) fprintf(stderr, "shmdt error: %s\n", strerror(errno)); // unmap it
-            sad = (systab_struct *) shmat(shar_mem_id, (void *) systab, 0);     // try again
-            if (systab == sad) break;
-            cnt--;
-        } while (cnt);
-
-        if ((sad == (void *) -1) || (systab != sad)) {
-            fprintf(stderr, "systab = 0x%lx  attach = 0x%lx\n", (u_long) systab, (u_long) sad);
+        if ((sad == (void *) -1) || (sad != systab)) {
+            fprintf(stderr, "System table = 0x%lx  Current address = 0x%lx\n", (u_long) systab, (u_long) sad);
             return errno;                                                       // die on error
         }
     }

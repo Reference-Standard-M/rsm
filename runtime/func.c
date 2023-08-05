@@ -1283,7 +1283,7 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     if (dptr->len == 0) {                                                       // null delimiter ?
         s = mcopy(cptr->buf, &vptr->buf[vptr->len], cptr->len);                 // copy at end
         if (s < 0) return s;                                                    // die on error
-        vptr->len = vptr->len + cptr->len;                                      // the new length
+        vptr->len += cptr->len;                                                 // the new length
         if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);              // set it back and return
         return DB_Set(var, vptr);                                               // set it back and return
     }
@@ -1349,7 +1349,7 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     }
 
     if (cptr->len) memmove(&vptr->buf[i1], cptr->buf, cptr->len);               // can't use mcopy() here
-    vptr->len = vptr->len - (i2 - i1 + 1) + cptr->len;
+    vptr->len -= (i2 - i1 + 1) + cptr->len;
     if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);                  // set it back and return
     return DB_Set(var, vptr);                                                   // set it back and return
 }

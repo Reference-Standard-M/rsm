@@ -255,10 +255,23 @@ ENABLE_WARN
                 } else if (partab.jobtab->seqio[i].mode == 4) {
                     return mcopy((u_char *) "IO", buf, 2);
                 } else if (partab.jobtab->seqio[i].mode == 5) {                 // TCPIP
+                    if ((partab.jobtab->seqio[i].options & 64) && (partab.jobtab->seqio[i].options & 128)) { // IPV6 and UDP
+                        return mcopy((u_char *) "UDPIP6", buf, 6);
+                    }
+
+                    if (partab.jobtab->seqio[i].options & 64) return mcopy((u_char *) "TCPIP6", buf, 6); // IPV6
+                    if (partab.jobtab->seqio[i].options & 128) return mcopy((u_char *) "UDPIP", buf, 5); // UDP
                     return mcopy((u_char *) "TCPIP", buf, 5);
                 } else if (partab.jobtab->seqio[i].mode == 6) {                 // SERVER
-                    return mcopy((u_char *) "SERVER", buf, 6);
+                    if (partab.jobtab->seqio[i].options & 64) return mcopy((u_char *) "TCPSERVER6", buf, 10); // IPV6
+                    return mcopy((u_char *) "TCPSERVER", buf, 9);
                 } else if (partab.jobtab->seqio[i].mode == 7) {                 // NOFORK
+                    if ((partab.jobtab->seqio[i].options & 64) && (partab.jobtab->seqio[i].options & 128)) { // IPV6 and UDP
+                        return mcopy((u_char *) "UDPSERVER6", buf, 10);
+                    }
+
+                    if (partab.jobtab->seqio[i].options & 64) return mcopy((u_char *) "NOFORK6", buf, 7); // IPV6
+                    if (partab.jobtab->seqio[i].options & 128) return mcopy((u_char *) "UDPSERVER", buf, 9); // UDP
                     return mcopy((u_char *) "NOFORK", buf, 6);
                 } else if (partab.jobtab->seqio[i].mode == 8) {
                     return mcopy((u_char *) "FORKED", buf, 6);
@@ -272,7 +285,15 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "name\0", 5) == 0) {
-                return mcopy((u_char *) partab.jobtab->seqio[i].name, buf, MAX_SEQ_NAME);
+                if ((partab.jobtab->seqio[i].mode == 5) || (partab.jobtab->seqio[i].mode == 8)) { // TCPIP or FORKED
+                    return 0;
+                } else {
+                    for (j = 0; j < MAX_SEQ_NAME; j++) {
+                        if (partab.jobtab->seqio[i].name[j] == '\0') break;
+                    }
+
+                    return mcopy((u_char *) partab.jobtab->seqio[i].name, buf, j);
+                }
             }
 
             if (strncasecmp((char *) subs[1]->buf, "namespace\0", 10) == 0) {
@@ -281,6 +302,22 @@ ENABLE_WARN
                 }
 
                 return mcopy((u_char *) partab.jobtab->seqio[i].namespace.var_cu, buf, j);
+            }
+
+            if (strncasecmp((char *) subs[1]->buf, "remote\0", 7) == 0) {
+                if ((partab.jobtab->seqio[i].mode == 5) || (partab.jobtab->seqio[i].mode == 8)) { // TCPIP or FORKED
+                    for (j = 0; j < MAX_SEQ_NAME; j++) {
+                        if (partab.jobtab->seqio[i].name[j] == '\0') break;
+                    }
+
+                    return mcopy((u_char *) partab.jobtab->seqio[i].name, buf, j);
+                } else {
+                    for (j = 0; j < MAX_SEQ_NAME; j++) {
+                        if (partab.jobtab->seqio[i].s.name[j] == '\0') break;
+                    }
+
+                    return mcopy((u_char *) partab.jobtab->seqio[i].s.name, buf, j);
+                }
             }
 
             if (strncasecmp((char *) subs[1]->buf, "type\0", 5) == 0) {
@@ -583,7 +620,7 @@ ENABLE_WARN
         vp = (mvar *) &tmp[512];                                                // some temp space
         s = UTIL_MvarFromCStr(subs[0], vp);                                     // convert to mvar
         if (s < 0) return s;                                                    // quit on error
-        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // cvt to locktab style
+        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // convert to locktab style
         if (s < 0) return s;                                                    // quit on error
         subs[0]->len = s;                                                       // save the length
         return LCK_Get(subs[0], buf);                                           // do it and exit
@@ -1202,7 +1239,7 @@ ENABLE_WARN
         vp = (mvar *) &tmp[512];                                                // some temp space
         s = UTIL_MvarFromCStr(subs[0], vp);                                     // convert to mvar
         if (s < 0) return s;                                                    // quit on error
-        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // cvt to locktab style
+        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // convert to locktab style
         if (s < 0) return s;                                                    // quit on error
         subs[0]->len = s;                                                       // save the length
         s = LCK_Get(subs[0], buf);                                              // try to get it
@@ -1239,7 +1276,7 @@ short SS_Kill(mvar *var)                                                        
 #ifdef __APPLE__
     void            *semvals = NULL;
 #else
-    semun_t         semvals;                                                    // dummy for semctl IPC_RMID
+    semun_t         semvals = {.val = 0};                                       // dummy for semctl IPC_RMID
 #endif
 
     while (i < var->slen) {                                                     // for all subs
@@ -1282,17 +1319,19 @@ ENABLE_WARN
                 return -ERRM29;                                                 // KILL on SSVN not on
             }
 
-            if (!kill(i, SIGTERM)) return 0;                                    // tell in to go home
-            systab->jobtab[j].trap = 1U << SIGTERM;                             // say go away
-            systab->jobtab[j].attention = 1;                                    // look at it
+            if (kill(i, SIGTERM) == -1) {                                       // kill this one
+                systab->jobtab[j].trap = 1U << SIGTERM;                         // or say go away
+                systab->jobtab[j].attention = 1;                                // and look at it
+            }
+
             return 0;                                                           // say it worked
         }
 
         if (!priv()) return -ERRM29;                                            // KILL on SSVN not on
+        systab->start_user = -1;                                                // Say 'shutting down'
 
         for (i = (MAX_VOL - 1); i >= 0; i--) {
             no_daemons = TRUE;                                                  // assume no daemons
-
             if (systab->vol[i] == NULL) continue;
             systab->vol[i]->writelock = -(MAX_JOBS + 1);                        // write lock the database (system job)
 
@@ -1300,7 +1339,7 @@ ENABLE_WARN
                 sleep(1);
 
                 for (j = 0; j < systab->vol[i]->num_of_daemons; j++) {          // each one
-                    if (kill(systab->vol[i]->wd_tab[j].pid, 0) == 0) {          // if one exists
+                    if (!kill(systab->vol[i]->wd_tab[j].pid, 0)) {              // if one exists
                         no_daemons = FALSE;
                         break;
                     }
@@ -1310,22 +1349,19 @@ ENABLE_WARN
             }
 
             systab->vol[i]->writelock = MAX_JOBS + 1;                           // release system write lock on database
-        }
 
-        // NOTE: move in to previous loop at bottom if new shares are created per volume
-        if (shmctl(systab->vol[0]->shm_id, IPC_RMID, &sbuf) == -1) {            // remove the share
-            return -(ERRMLAST + ERRZLAST + errno);
+            if (shmctl(systab->vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {        // remove the share
+                return -(ERRMLAST + ERRZLAST + errno);
+            }
         }
-
-        systab->start_user = -1;                                                // Say 'shutting down'
 
         for (u_int k = 0; k < systab->maxjob; k++) {                            // for each job
             cnt = systab->jobtab[k].pid;                                        // get pid
 
-            if ((cnt != partab.jobtab->pid) && cnt) {
-                if (!kill(cnt, SIGTERM)) {                                      // kill this one
-                    systab->jobtab[k].trap = 1U << SIGTERM;                     // say go away
-                    systab->jobtab[k].attention = 1;                            // look at it
+            if (cnt && (cnt != partab.jobtab->pid)) {
+                if (kill(cnt, SIGTERM) == -1) {                                 // kill this one
+                    systab->jobtab[k].trap = 1U << SIGTERM;                     // or say go away
+                    systab->jobtab[k].attention = 1;                            // and look at it
                 }
             }
         }
@@ -1351,7 +1387,7 @@ ENABLE_WARN
         vp = (mvar *) &tmp[512];                                                // some temp space
         s = UTIL_MvarFromCStr(subs[0], vp);                                     // convert to mvar
         if (s < 0) return s;                                                    // quit on error
-        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // cvt to locktab style
+        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // convert to locktab style
         if (s < 0) return s;                                                    // quit on error
         subs[0]->len = s;                                                       // save the length
         while (SemOp(SEM_LOCK, -systab->maxjob)) sleep(1);                      // until success, get semaphore
@@ -1408,7 +1444,7 @@ ENABLE_WARN
     return -ERRM38;                                                             // can't get here?
 }
 
-short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
+short SS_Order(mvar *var, u_char *buf, int dir)                                 // get next subscript
 {
     int     i = 0;                                                              // useful int
     int     j;                                                                  // and another
@@ -1477,7 +1513,7 @@ ENABLE_WARN
 
             for (i = i - 2; i > -1; i--) {                                      // scan backwards
                 if (systab->jobtab[i].pid != 0) {                               // found one
-                    if ((kill(systab->jobtab[i].pid, 0)) && (errno == ESRCH)) { // check the job, clean it out if it doesn't exist
+                    if ((kill(systab->jobtab[i].pid, 0) == -1) && (errno == ESRCH)) { // check job, clean it out if it doesn't exist
                         CleanJob(i + 1);                                        // zot if not there
                     } else {
                         break;                                                  // else OK
@@ -1489,7 +1525,7 @@ ENABLE_WARN
         } else {                                                                // forward
             for (; i < (int) systab->maxjob; i++) {                             // scan the list
                 if (systab->jobtab[i].pid != 0) {                               // found one
-                    if ((kill(systab->jobtab[i].pid, 0)) && (errno == ESRCH)) { // check the job, clean it out if it doesn't exist
+                    if ((kill(systab->jobtab[i].pid, 0) == -1) && (errno == ESRCH)) { // check job, clean it out if it doesn't exist
                         CleanJob(i + 1);                                        // zot if not there
                     } else {
                         break;                                                  // else OK
@@ -1510,7 +1546,7 @@ ENABLE_WARN
         vp = (mvar *) &tmp[512];                                                // some temp space
         s = UTIL_MvarFromCStr(subs[0], vp);                                     // convert to mvar
         if (s < 0) return s;                                                    // quit on error
-        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // cvt to locktab style
+        s = UTIL_mvartolock(vp, subs[0]->buf);                                  // convert to locktab style
         if (s < 0) return s;                                                    // quit on error
         subs[0]->len = s;                                                       // save the length
         return LCK_Order(subs[0], buf, dir);                                    // do it and exit

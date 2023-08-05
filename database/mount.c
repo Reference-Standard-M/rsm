@@ -45,10 +45,10 @@
 
 /*
  * Mount an environment:
- *     Database file
- *     Mount as volume 2 -> MAX_VOL - vol is passed as index (1 less)
- *     MiB of global buffers
- *     MiB of routine buffers
+ *   Database file
+ *   Mount as volume 2 -> MAX_VOL - vol is passed as index (1 less)
+ *   MiB of global buffers
+ *   MiB of routine buffers
  */
 short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
 {
@@ -61,7 +61,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     int             shar_mem_id;                                                // memory id
     //int             map_size;                                                   // size of database map (bytes)
     long long       volset_size;                                                // size of volset struct (bytes)
-    int             pagesize;                                                   // system pagesize (bytes)
+    long            pagesize;                                                   // system pagesize (bytes)
     struct shmid_ds sbuf;                                                       // for shmctl
     char            fullpathvol[MAXPATHLEN];                                    // full pathname of vol file
     gbd             *gptr;                                                      // a GBD pointer
@@ -119,7 +119,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     systab->vol[vol]->vollab = labelblock;                                      // and point to label blk
     //ptr = (u_char *) systab->vol[vol]->vollab + sizeof(vol_def);                // up to here
     //ptr2 = ptr;                                                                 // save
-    pagesize = getpagesize();                                                   // get sys pagesize (bytes)
+    pagesize = sysconf(_SC_PAGESIZE);                                           // get system pagesize (bytes)
     //ptr += (((sizeof(vol_def) / pagesize) + 1) * pagesize);                     // round up to next page boundary
     //avbl -= (ptr - ptr2);                                                       // and adjust size
     //n_gbd = avbl / systab->vol[vol]->vollab->block_size;                        // This many
@@ -163,16 +163,17 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     systab->addsize = avbl;                                                     // reset additional address size
 
     if (realpath(file, fullpathvol) != NULL) {                                  // get full path
-        if (strlen(fullpathvol) < VOL_FILENAME_MAX) {                           // if can fit in our struct
+        if (strlen(fullpathvol) <= VOL_FILENAME_MAX) {                          // if can fit in our struct
             strcpy(systab->vol[vol]->file_name, fullpathvol);                   // copy this full path into the vol_def structure
         } else {                                                                // end if path will fit - otherwise
-            i = VOL_FILENAME_MAX - strlen(fullpathvol);                         // copy as much as
+            i = strlen(fullpathvol) - VOL_FILENAME_MAX;                         // copy as much as
             strcpy(systab->vol[vol]->file_name, &fullpathvol[i]);               // is possible, thats the best we can do
         }                                                                       // end length testing
     } else {                                                                    // end realpath worked - or there was an error
+        i = errno;                                                              // save realpath error
         shmdt(systab);                                                          // detach the shared mem
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
-        return -(ERRMLAST + ERRZLAST + errno);                                  // if that failed exit with error
+        return -(ERRMLAST + ERRZLAST + i);                                      // if that failed exit with error
     }
 
     if (shmctl(shar_mem_id, IPC_STAT, &sbuf) == -1) return -(ERRMLAST + ERRZLAST + errno); // get status for later

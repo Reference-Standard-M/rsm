@@ -1,7 +1,7 @@
 #
 # Package:  Reference Standard M
 # File:     rsm/GNUmakefile
-# Summary:  Makefile for Linux, MacOS X, Solaris, and Raspberry Pi
+# Summary:  Makefile for Linux, macOS, Solaris, AIX, and Raspberry Pi
 #           See rsm/Makefile for FreeBSD, NetBSD, and OpenBSD
 #
 # David Wicksell <dlw@linux.com>
@@ -34,9 +34,22 @@ SRC     := $(wildcard */*.c)
 OBJ     := $(SRC:.c=.o)
 CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude -D_FILE_OFFSET_BITS=64
 LDFLAGS := -lcrypt
+PREFIX  := /usr/local
+GIT_SHA := $(shell git rev-parse --short=10 HEAD 2>/dev/null; true)
+
+ifdef GIT_SHA
+    CFLAGS  += -DGIT_SHA=$(GIT_SHA)
+endif
+
+ifdef dbver
+    CFLAGS  += -DRSM_DBVER=$(dbver)
+endif
 
 ifneq ($(OS),AIX)
     LDFLAGS += -lm
+    INSTALL := install -o root -g 0 -m 755 -s ${PROG} ${PREFIX}/bin
+else
+    INSTALL := install -O root -G 0 -M 755 -S -f ${PREFIX}/bin ${PROG}
 endif
 
 ifeq ($(OS),SunOS)
@@ -45,82 +58,60 @@ endif
 
 ifeq ($(OS),Darwin)
     CFLAGS  += -Wno-deprecated-declarations
-    LDFLAGS := -lm -framework CoreServices -framework DirectoryService -framework Security
+    LDFLAGS := -framework CoreServices -framework DirectoryService -framework Security -lm
 endif
 
-ifeq ($(MAKECMDGOALS),profile)
+ifeq ($(MAKECMDGOALS),debug)
     CONFIG  := -O0 -g3
-    CFLAGS  += -pg
-    LDFLAGS += -pg -lc
-else
-    ifeq ($(MAKECMDGOALS),debug)
-        CONFIG  := -O0 -g3
-    else
-        CONFIG  := -O3
-        CFLAGS  += -DNDEBUG
+
+    ifdef options
+        ifeq ($(options),profile)
+            CFLAGS  += -pg
+            LDFLAGS += -lc -pg
+        else
+            ifeq ($(options),sanitize)
+                CFLAGS  += -fsanitize=address,undefined
+                LDFLAGS += -fsanitize=address,undefined
+            endif
+        endif
     endif
-endif
-
-ifdef dbver
-    CFLAGS  += -DRSM_DBVER=$(dbver)
-endif
-
-ifdef path
-    EXECDIR := $(path)
 else
-    EXECDIR := /usr/local/bin
+    CONFIG  := -O3
+    CFLAGS  += -DNDEBUG
 endif
-
-%.o: %.c ${DEPS}
-	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
-
-${PROG}: ${OBJ}
-	${CC} -o ${PROG} $^ ${LDFLAGS}
 
 all: ${PROG}
 
 debug: ${PROG}
 
-profile: ${PROG}
+${PROG}: ${OBJ}
+	${CC} -o ${PROG} $^ ${LDFLAGS}
 
-install: ${PROG}
-
-	@if [ "$(USER)" != "root" ]; then \
-	    echo "You must install ${PROG} as root"; \
-	    exit 1; \
-	fi
-
-ifeq ($(OS),AIX)
-	@if [ -d ${EXECDIR} ]; then \
-	    echo install -O root -G 0 -M 755 -S -f ${EXECDIR} ${PROG}; \
-	    install -O root -G 0 -M 755 -S -f ${EXECDIR} ${PROG}; \
-	else \
-	    echo "${EXECDIR} does not exist"; \
-	    exit 1; \
-	fi
-else
-	@if [ -d ${EXECDIR} ]; then \
-	    echo install -o root -g 0 -m 755 -s ${PROG} ${EXECDIR}; \
-	    install -o root -g 0 -m 755 -s ${PROG} ${EXECDIR}; \
-	else \
-	    echo "${EXECDIR} does not exist"; \
-	    exit 1; \
-	fi
-endif
-
-uninstall:
-
-	@if [ "$(USER)" != "root" ]; then \
-	    echo "You must uninstall ${PROG} as root"; \
-	    exit 1; \
-	fi
-
-	@if [ -f ${EXECDIR}/${PROG} -a -x ${EXECDIR}/${PROG} ]; then \
-	    echo ${RM} ${EXECDIR}/${PROG}; \
-	    ${RM} ${EXECDIR}/${PROG}; \
-	fi
+%.o: %.c ${DEPS}
+	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
 
 clean:
 	${RM} ${OBJ} ${PROG} $(wildcard *core)
 
-.PHONY: all debug profile install uninstall clean
+install: ${PROG}
+	@if [ "$(USER)" != "root" ]; then \
+	    echo "You must install ${PROG} as root"; \
+	    exit 1; \
+	elif [ -d ${PREFIX}/bin ]; then \
+	    echo ${INSTALL}; \
+	    ${INSTALL}; \
+	else \
+	    echo "${PREFIX}/bin does not exist"; \
+	    exit 1; \
+	fi
+
+uninstall:
+	@if [ "$(USER)" != "root" ]; then \
+	    echo "You must uninstall ${PROG} as root"; \
+	    exit 1; \
+	elif [ -f ${PREFIX}/bin/${PROG} -a -x ${PREFIX}/bin/${PROG} ]; then \
+	    echo ${RM} ${PREFIX}/bin/${PROG}; \
+	    ${RM} ${PREFIX}/bin/${PROG}; \
+	fi
+
+.PHONY: all debug clean install uninstall

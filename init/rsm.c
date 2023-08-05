@@ -58,7 +58,7 @@ int main(int argc, char **argv)                                                 
     char *cmd = NULL;                                                           // startup command
     char *dbfile = getenv("RSM_DBFILE");                                        // pass volume in environment
     char file[VOL_FILENAME_MAX];
-    char version[20];                                                           // for the version string (-V)
+    char version[40];                                                           // for the version string (-V)
 
     if ((argc < 2) && (dbfile == NULL)) help();                                 // they need help
 

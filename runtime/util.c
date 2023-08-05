@@ -60,7 +60,7 @@ int cstringtoi(cstring *str)                                                    
     }                                                                           // end convert loop
 
     if ((systab->historic & HISTORIC_EOK) && (i < (str->len - 1)) && (str->buf[i] == 'E')) {
-        int exp = 0;                                                            // an exponent
+        long exp = 0;                                                           // an exponent
         int expsgn = 1;                                                         // and the sign
 
         i++;                                                                    // point past the 'E'
@@ -75,13 +75,18 @@ int cstringtoi(cstring *str)                                                    
         for (; i < str->len; i++) {                                             // scan remainder
             if ((str->buf[i] < '0') || (str->buf[i] > '9')) break;              // quit when done
             exp = (exp * 10) + ((int) str->buf[i] - '0');                       // add to exponent
+
+            if (exp > INT_MAX) {                                                // check for possible overflow or underflow
+                if (minus) return INT_MIN;
+                return INT_MAX;
+            }
         }
 
         if (exp) {                                                              // if there was an exponent
             long j = 10;                                                        // for E calc
 
             while (exp > 1) {                                                   // for each
-                j *= 10;                                                     // multiply
+                j *= 10;                                                        // multiply
                 exp--;                                                          // and count it
 
                 if (j > INT_MAX) {                                              // check for possible overflow or underflow
@@ -264,6 +269,9 @@ int short_version(u_char *ret_buffer, int i)
     i += sprintf((char *) &ret_buffer[i], "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     if (VERSION_PRE) i += sprintf((char *) &ret_buffer[i], "-pre.%d", VERSION_PRE);
     if (VERSION_TEST) i += sprintf((char *) &ret_buffer[i], " T%d", VERSION_TEST);
+#ifdef GIT_SHA
+    i += sprintf((char *) &ret_buffer[i], " (%s)", RSM_STRING(GIT_SHA));        // Git short SHA1 commit hash
+#endif
     return i;
 }
 
@@ -286,26 +294,29 @@ int rsm_version(u_char *ret_buffer)                                             
     j = 0;                                                                      // clear src ptr
     while ((ret_buffer[i++] = uts.machine[j++])) continue;                      // copy hardware
     ret_buffer[i - 1] = ' ';                                                    // and a space over the null
-    i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__, __TIME__);
+    i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__, __TIME__); // Build information
     return i;                                                                   // and return count
 }
 
-#if defined(_AIX) || defined(__sun__) || defined(__CYGWIN__)
-time_t current_time(__attribute__((unused)) short local)                        // get current time without local offset
-{
-    return time(NULL);                                                          // get secs from 1 Jan 1970 UTC
-}
-#else
 time_t current_time(short local)                                                // get current time with local offset
 {
-    time_t sec = time(NULL);                                                    // get secs from 1 Jan 1970 UTC
+    time_t sec;
+
+    sec = time(NULL);                                                           // get secs from 1 Jan 1970 UTC
 
     if (local) {
-        struct tm *buf = localtime(&sec);                                       // struct for localtime() [UTC]
+        struct tm *buf;                                                         // struct for localtime() [UTC]
 
+        tzset();                                                                // pick up $TZ overrides
+        buf = localtime(&sec);                                                  // return broken-down time
+#if defined(_AIX) || defined(__sun__) || defined(__CYGWIN__)
+        buf->tm_sec -= timezone;                                                // adjust to local
+        if (daylight && buf->tm_isdst) buf->tm_hour += 1;                       // adjust for daylight-savings time
+        sec = mktime(buf);                                                      // return seconds from broken-down time
+#else
         sec += buf->tm_gmtoff;                                                  // adjust to local
+#endif
     }
 
     return sec;
 }
-#endif

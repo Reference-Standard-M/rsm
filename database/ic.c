@@ -51,7 +51,7 @@ extern int dbfd;                                                                
 
 /*
  * Function: ic_bits
- * Descript: Check/set bits in rlnk and dlnk
+ * Summary:  Check/set bits in rlnk and dlnk
  * Input(s): Block number to check
  *           Flag: 1 = chk RL, 2 = chk DL, 3 = check both
  *           Block that points at this block (if any)
@@ -99,7 +99,7 @@ void ic_bits(u_int block, int flag, u_int points_at)                            
 
 /*
  * Function: ic_block
- * Descript: Check supplied block
+ * Summary:  Check supplied block
  * Input(s): Block number to check
  *           Block that points at this block (if any)
  *           Key from down pointer (if any)
@@ -348,7 +348,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 
 /*
  * Function: ic_full
- * Descript: Do full integrity check on volnum (updates icerr)
+ * Summary:  Do full integrity check on volnum (updates icerr)
  * Input(s): None
  * Return:   None
  */
@@ -423,7 +423,7 @@ void ic_full(void)                                                              
 
 /*
  * Function: ic_map
- * Descript: Check map block
+ * Summary:  Check map block
  * Input(s): Flag, -1 = Check only, -2 = Check and fix, -3 as -2 + track upto (daemons)
  * Return:   None
  */
@@ -510,7 +510,7 @@ void ic_map(int flag)                                                           
 
 /*
  * Function: DB_ic
- * Descript: Do integrity check on vol according to flag
+ * Summary:  Do integrity check on vol according to flag
  * Input(s): Volume number
  *           Check flag
  * Return:   Number of errors found

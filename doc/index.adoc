@@ -24,7 +24,7 @@ Front-Cover texts, and with no Back-Cover Texts.
 === Index
 
 * link:../README.adoc[README]
-* link:../CHANGELOG.adoc[CHANGELOG]
+* link:../CHANGELOG.adoc[Changelog]
 * link:language.adoc[Language Guide]
 * link:database.adoc[Database Management Guide]
 * link:upgrade.adoc[Database Upgrade Instructions]

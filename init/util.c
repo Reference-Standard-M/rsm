@@ -30,19 +30,22 @@
 #include <string.h>
 #include <errno.h>                                                              // error stuff
 #include <signal.h>
+#include <time.h>
 #include <fcntl.h>                                                              // file stuff
 #include <unistd.h>                                                             // for getopt
 #include <math.h>                                                               // math prototypes
 #include "rsm.h"                                                                // standard includes
+#include "compile.h"                                                            // for rbd*
 #include "proto.h"                                                              // function prototypes
 
 // *** Give help if they entered -h or need help ***
 void help(void)                                                                 // give some help
 {
-    char version[100];                                                          // a string
+    char version[120];                                                          // a string
 
     rsm_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
+    printf("Copyright (c) 2020-2023 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
     printf("Show information:\n");
     printf("  rsm -V\t\t\tOutput short version string\n");
@@ -56,7 +59,7 @@ void help(void)                                                                 
     printf("     [-e <environment-name>]\tName of manager UCI (1-%d alpha characters)\n", VAR_LEN);
     printf("     [<database-file>]\t\tName of database file\n\n");
     printf("Initialize and start environment:\n");
-    printf("  rsm -j <max-jobs>\t\tMaximum jobs allowed in environment (1-%d jobs)\n", MAX_JOBS);
+    printf("  rsm -j <max-jobs>\t\tSize of job table in environment (1-%d jobs)\n", MAX_JOBS);
     printf("     [-g <global-buffers>]\tSize of global buffers (1-%d MiB)\n", MAX_GLOBAL_BUFFERS);
     printf("     [-r <routine-buffers>]\tSize of routine buffers (1-%d MiB)\n", MAX_ROUTINE_BUFFERS);
     printf("     [<database-file>]\t\tName of database file\n\n");
@@ -78,24 +81,25 @@ void info(char *file)                                                           
     int   i = 0;                                                                // an int
     int   j = 0;                                                                // another int
     u_int cnt = 0;                                                              // current job count
-    char  version[100];                                                         // a string
     char  pidlen;                                                               // calculate length of daemon PID
     char  margin = 24;                                                          // calculate margin for daemon PID list
+    char  version[120];                                                         // a string
 
     rsm_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
+    printf("Copyright (c) 2020-2023 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n");
     printf("Database Version: %d\tCompiler Version: %d\n\n", DB_VER, COMP_VER);
-    printf("Database and Environment Configuration Information:\n\n");
+    printf("Database Volume and Environment Configuration Information:\n\n");
 
     if (file == NULL) {
         fprintf(stderr, "Please pass database file path or set RSM_DBFILE.\n");
         exit(EXIT_FAILURE);
     }
 
-    i = UTIL_Share(file);                                                       // attach to shared mem
+    i = UTIL_Share(file);                                                       // attach to shared memory
 
-    if ((i != 0) || (systab->vol[0] == NULL)) {                                 // if that failed
+    if ((i != 0) || (systab == NULL) || (systab->vol[0] == NULL)) {             // if that failed
         if (i != 0) {
             fprintf(stderr, "Cannot connect to RSM environment - %s\n", strerror(errno));
             exit(i);
@@ -105,36 +109,42 @@ void info(char *file)                                                           
         exit(EXIT_FAILURE);
     }
 
-    printf("Job Table Size:\t\t%u\tSlot%s\n", systab->maxjob, (systab->maxjob == 1) ? "" : "s");
+    printf("Job Table Size:\t\t%-12uSlot%s\n", systab->maxjob, (systab->maxjob == 1) ? "" : "s");
 
     for (u_int k = 0; k < systab->maxjob; k++) {
         if (systab->jobtab[k].pid) cnt++;                                       // count active jobs
     }
 
-    printf("Current Job Count:\t%u\tJob%s\n", cnt, (cnt == 1) ? "" : "s");
-    printf("Lock Table Size:\t%d\tKiB\n", systab->locksize / 1024);
+    printf("Current Job Count:\t%-12uJob%s\n", cnt, (cnt == 1) ? "" : "s");
+    printf("Lock Table Size:\t%-12dKiB\n", systab->locksize / 1024);
+    printf("Free Lock Space:\t%-12dBytes\n", (systab->lockfree == NULL) ? 0 : systab->lockfree->size);
     printf("Semaphore Array ID:\t%d\n", systab->sem_id);
 
     for (i = 0; i < MAX_VOL; i++) {
+        time_t time;
+
         if (systab->vol[i] == NULL) continue;
+        time = systab->vol[i]->vollab->creation_time;
         printf("\n*** Volume %d ***\n", i + 1);
         printf("DB File Path:\t\t%s\n", systab->vol[i]->file_name);
         printf("DB Volume Name:\t\t%s \n", systab->vol[i]->vollab->volnam.var_cu);
         printf("DB Manager UCI Name:\t%s \n", systab->vol[i]->vollab->uci[0].name.var_cu);
+        printf("DB Creation Time:\t%s \n", strtok(asctime(gmtime(&time)), "\n"));
 
         printf("DB Journal File Path:\t%s [%s]\n",
                ((systab->vol[i]->vollab->journal_file[0] != '\0') ? systab->vol[i]->vollab->journal_file : "--"),
                (systab->vol[i]->vollab->journal_available ? "ON" : "OFF"));
 
-        printf("DB Volume Size:\t\t%u\tBlocks\n", systab->vol[i]->vollab->max_block);
-        printf("DB Map Block Size:\t%u\tKiB\n", systab->vol[i]->vollab->header_bytes / 1024);
-        printf("DB Block Size:\t\t%u\tKiB\n", systab->vol[i]->vollab->block_size / 1024);
+        printf("DB HDR/Map Block Size:\t%-12uKiB\n", systab->vol[i]->vollab->header_bytes / 1024);
+        printf("DB Block Size:\t\t%-12uKiB\n", systab->vol[i]->vollab->block_size / 1024);
+        printf("DB Volume Size:\t\t%-12uBlocks\n", systab->vol[i]->vollab->max_block);
+        printf("DB Volume Free:\t\t%-12dBlocks\n", DB_Free(i + 1));
 
-        printf("Global Buffers:\t\t%d\tMiB (%u Buffers)\n",
-               (int) ((systab->vol[i]->zero_block - systab->vol[i]->global_buf) / 1048576),
-               systab->vol[i]->num_gbd);
+        printf("Global Buffers:\t\t%-12dMiB (%u Buffers)\n",
+               (int) ((systab->vol[i]->zero_block - systab->vol[i]->global_buf) / MBYTE), systab->vol[i]->num_gbd);
 
-        printf("Routine Buffer Space:\t%d\tMiB\n", (int) ((systab->vol[i]->rbd_end - systab->vol[i]->rbd_head) / 1048576));
+        printf("Routine Buffer Space:\t%-12uMiB\n", (u_int) ((systab->vol[i]->rbd_end - systab->vol[i]->rbd_head) / MBYTE));
+        printf("Free Routine Space:\t%-12uBytes\n", ((rbd *) systab->vol[i]->rbd_hash[RBD_HASH])->chunk_size);
         printf("Shared Memory ID:\t%d\n", systab->vol[i]->shm_id);
         printf("Daemon Process IDs:\t");
 
@@ -147,13 +157,13 @@ void info(char *file)                                                           
 #endif
 
             if ((margin + pidlen) > 80) {
-                margin = pidlen + 25;
+                margin = pidlen + 26;
                 printf("\n\t\t\t");
             } else {
-                margin += (pidlen + 1);
+                margin += (pidlen + 2);
             }
 
-            printf("%d ", systab->vol[i]->wd_tab[j].pid);
+            printf("%d  ", systab->vol[i]->wd_tab[j].pid);
         }
 
         putchar('\n');
@@ -171,20 +181,23 @@ void shutdown(char *file)                                                       
     int             j = 0;                                                      // another int
     int             no_daemons;                                                 // for daemon info
     int             user;                                                       // for user number
-    int             pid;                                                        // for PID number
+    char            version[120];                                               // a string
     struct shmid_ds sbuf;                                                       // for shmctl (shutdown)
 #ifdef __APPLE__
     void            *semvals = NULL;
 #else
-    semun_t         semvals;                                                    // dummy for semctl IPC_RMID
+    semun_t         semvals = {.val = 0};                                       // dummy for semctl IPC_RMID
 #endif
 
+    rsm_version((u_char *) version);                                            // get version into version[]
+    printf("%s\n", version);                                                    // print version string
+
     if (file == NULL) {
-        fprintf(stderr, "Please pass database file path or set RSM_DBFILE.\n");
+        fprintf(stderr, "Please pass database file path or set RSM_DBFILE\n");
         exit(EXIT_FAILURE);
     }
 
-    i = UTIL_Share(file);                                                       // attach to shared mem
+    i = UTIL_Share(file);                                                       // attach to shared memory
 
     if (i != 0) {                                                               // quit on error
         fprintf(stderr, "RSM environment is not initialized - %s\n", strerror(errno));
@@ -193,6 +206,13 @@ void shutdown(char *file)                                                       
 
     if (systab->vol[0] == NULL) {
         fprintf(stderr, "Error occurred in process - Environment does not match runtime image version\n");
+        exit(EXIT_FAILURE);
+    }
+
+    user = (int) getuid();                                                      // get user number
+
+    if ((user != systab->start_user) && (user != 0)) {                          // if this user did not start it and is not root
+        fprintf(stderr, "User does not have permission to shut down RSM\n");
         exit(EXIT_FAILURE);
     }
 
@@ -209,16 +229,12 @@ void shutdown(char *file)                                                       
         }
     }
 
-    user = (int) getuid();                                                      // get user number
-
-    if ((user != systab->start_user) && (user != 0)) {                          // if this user started it or this user is root
-        fprintf(stderr, "User does not have permission to shut down RSM.\n");
-        exit(EXIT_FAILURE);
-    }
+    printf("Shutting down RSM environment at 0x%lx.\n", (u_long) systab);
+    systab->start_user = -1;                                                    // Say 'shutting down'
+    printf("Sending the daemons the signal to sync dirty queues.\n");
 
     for (i = (MAX_VOL - 1); i >= 0; i--) {
         no_daemons = TRUE;                                                      // assume no daemons
-
         if (systab->vol[i] == NULL) continue;
         systab->vol[i]->writelock = -(MAX_JOBS + 1);                            // write lock the database (system job)
 
@@ -226,7 +242,7 @@ void shutdown(char *file)                                                       
             sleep(1);
 
             for (j = 0; j < systab->vol[i]->num_of_daemons; j++) {              // each one
-                if (kill(systab->vol[i]->wd_tab[j].pid, 0) == 0) {              // if one exists
+                if (!kill(systab->vol[i]->wd_tab[j].pid, 0)) {                  // if one exists
                     no_daemons = FALSE;
                     break;
                 }
@@ -236,33 +252,36 @@ void shutdown(char *file)                                                       
         }
 
         systab->vol[i]->writelock = MAX_JOBS + 1;                               // release system write lock on database
+        printf("Marking the shared memory segment for destruction [shmid: %d].\n", systab->vol[i]->shm_id);
+
+        if (shmctl(systab->vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {            // remove the share
+            fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+        }
     }
 
-    // NOTE: move in to previous loop at bottom if new shares are created per volume
-    if (shmctl(systab->vol[0]->shm_id, IPC_RMID, &sbuf) == -1) {                // remove the share
-        fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
-    }
-
-    systab->start_user = -1;                                                    // Say 'shutting down'
-
-    pid = (int) getpid();                                                       // get current PID
+    printf("Sending the shutdown signal to all running RSM jobs.\n");
 
     for (u_int k = 0; k < systab->maxjob; k++) {                                // for each job
         int cnt = systab->jobtab[k].pid;                                        // get PID
 
-        if ((cnt != pid) && cnt) {
-            if (!kill(cnt, SIGTERM)) {                                          // kill this one
-                systab->jobtab[k].trap = 1U << SIGTERM;                         // say go away
-                systab->jobtab[k].attention = 1;                                // look at it
+        if (cnt) {
+            if (kill(cnt, SIGTERM) == -1) {                                     // kill this one
+                systab->jobtab[k].trap = 1U << SIGTERM;                         // or say go away
+                systab->jobtab[k].attention = 1;                                // and look at it
             }
         }
     }
+
+    printf("Turning off journaling and dismounting database volumes.\n");
+    printf("Sending the signal to the daemons to remove the semaphore set [semid: %d].\n", systab->sem_id);
 
     for (i = (MAX_VOL - 1); i >= 0; i--) {
         if (systab->vol[i] == NULL) continue;
         DB_Dismount(i + 1);                                                     // dismount all volumes
 
         if ((i == 0) && no_daemons) {
+            printf("Removing the semaphore set more forcefully [semid: %d].\n", systab->sem_id);
+
             if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {           // remove the semaphores
                 fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
             }

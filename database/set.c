@@ -100,7 +100,7 @@
 
 /*
  * Function: Set_data
- * Descript: Set the supplied data to location pointed to by db_var
+ * Summary:  Set the supplied data to location pointed to by db_var
  * Input(s): Pointer to the data to set
  * Return:   String length -> Ok, negative M error
  */

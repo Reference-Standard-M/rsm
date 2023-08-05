@@ -375,7 +375,7 @@ int ST_Set(mvar *var, cstring *data)                                            
     if (var->volset) {                                                          // if volset defined
         fwd = ST_LocateIdx(var->volset - 1);                                    // locate var by volset
     } else {                                                                    // if no volset or volset zero
-        fwd = ST_Create(var->name);                                             // attempt to create new ST ent
+        fwd = ST_Create(var->name);                                             // attempt to create new symbol table entry
     }
 
     if (fwd < 0) return fwd;                                                    // error if none free
@@ -842,7 +842,7 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
 }                                                                               // end ST_GetAdd
 
 // 0 to ST_MAX - 1 (i.e., ((ST_HASH + 1) * 3))
-short ST_Dump(void)                                                             // dump entire ST to $I
+short ST_Dump(void)                                                             // dump entire symbol table to $IO
 {
     int       i;                                                                // generic counter
     int       j;                                                                // generic counter
@@ -851,7 +851,7 @@ short ST_Dump(void)                                                             
     u_char    dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                 // variable name gets dumped
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST
+    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
         if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
         if (symtab[i].varnam.var_cu[0] == '$') continue;                        // dont spit out $ vars
         VAR_COPY(partab.src_var.name, symtab[i].varnam);                        // init var name
@@ -970,7 +970,7 @@ short ST_DumpV(mvar *global)
     gs = global->slen;                                                          // save original sub length
     memcpy(gks, global->key, global->slen);                                     // save original key
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST
+    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
         if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
         if (symtab[i].varnam.var_cu[0] == '$') continue;                        // no $ vars
         if (var_empty(symtab[i].varnam)) continue;                              // ensure something there
@@ -1037,7 +1037,7 @@ short ST_KillAll(int count, var_u *keep)
     partab.src_var.slen = 0;                                                    // init subscript length
     partab.src_var.volset = 0;                                                  // init volume set
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in ST
+    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
         if ((symtab[i].varnam.var_cu[0] == '$') || (symtab[i].varnam.var_cu[0] == '\0')) continue; // dont touch $ vars
         if (symtab[i].data == ST_DATA_NULL) continue;                           // ditto if it's undefined
 

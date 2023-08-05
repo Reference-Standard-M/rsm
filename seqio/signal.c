@@ -106,12 +106,12 @@ int setSignals(void)
     action.sa_flags = SA_RESTART;
     if (sigaction(SIGQUIT, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_flags = 0;
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
+    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
     if (sigaction(SIGILL, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = signalHandler;
     if (sigaction(SIGTRAP, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGABRT, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
+    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
     if (sigaction(SIGEMT, &action, NULL) == -1) return getError(SYS, errno);
@@ -130,14 +130,14 @@ int setSignals(void)
     if (sigaction(SIGALRM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGTERM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGURG, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
+    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
     if (sigaction(SIGTSTP, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGCONT, &action, NULL) == -1) return getError(SYS, errno);
 
     /* Setting this to SIG_IGN should stop zombies
     action.sa_handler = SIG_IGN;
     if (sigaction(SIGCHLD, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_DFL;                                                // let Unix do this one
+    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
     */
 
     if (sigaction(SIGTTIN, &action, NULL) == -1) return getError(SYS, errno);

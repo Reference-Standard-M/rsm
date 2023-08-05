@@ -12,12 +12,56 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.79.0 -- 2023 Aug 4
+
+* Add support for IPv6 to socket devices (client and server)
+* Add support for UDP to socket devices (client and connectionless server)
+* Add support for IPv6 and UDP to the `$&%HOST` XCall
+* Add `$TEST` support for timeouts to decremental locks (they always succeed)
+* Add local timezone adjustment to `$HOROLOG` on Solaris, AIX, and Cygwin
+* Increase max jobs from 512 to 1024
+* Increase size of lock table from 16 KiB to 32 KiB per job
+* Increase max decimal precision from 64 to 128 digits
+* Add git commit short version hash to the RSM version string if available
+* Add new error [`Z78`] for when lock counts hit their limit to fix rollover bug
+* Improve overflow and underflow checks in M canonical string copy function
+* Improve overflow and underflow checks in string to int conversion function
+* Improve reliability of environment shutdown logic
+* Improve efficiency of `JOB` parent exit logic
+* Fix bug with realpath logic when storing the volume name in the environment
+* Add extra space at the end of the memory page to the lock table
+* Improve the display of the `$&DEBUG("RBD")` and `$&DEBUG("LTD")` XCalls
+* Add RSM version to the database create and environment start/stop functions
+* Add size of shared memory share to the environment start function
+* Add free lock space to the environment info menu
+* Add database creation time to the volume output in the environment info menu
+* Add volume free blocks to the volume section of the environment info menu
+* Add free routine space to the volume section of the environment info menu
+* Add more informational messages to the environment shutdown function
+* Improve informational messages in all the database and environment functions
+* Fix potential segfault in environment info menu logic and improve display
+* Add web interface to the MCL [`WWW^%M`] for use with the RSM web server
+* Improve the routine restore and save utilities [`^%RR` `^%RS`]
+* Improve the display of the `SHOW LOCKS` MCL command
+* Change constants in the math library to support new decimal precision (128)
+* Add `options=` flag to the Make configurations to support gprof and asan/ubsan
+* Remove profile rule for gprof support from the Make configuration files
+* Change the `path=` option from the Make configuration files to `PREFIX=`
+* Make lots of minor improvements to the Make configuration files
+* Add web server document [`web.adoc`]
+* Make minor improvements to the `README.adoc` file
+* Fix minor linter warnings
+
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
+
 === v1.78.2 -- 2023 Jul 8
 
 * Improve stability and portability of shared memory usage
   - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/3
 * Fix minor compiler warnings
-* Make minor improvements to the README file
+* Make minor improvements to the `README.adoc` file
 
 === v1.78.1 -- 2023 Jul 7
 
@@ -38,7 +82,7 @@ link:doc/index.adoc[Index]
 * Add support to `MERGE` a whole routine out of `^$ROUTINE`, for local changes
 * Add `$DATA` support to the first subscript of the `^$DEVICE` system variable
 * Add `WRITE` support for the contents of the debugger handler code
-* Add current job count to the environment info command
+* Add current job count to the environment info menu
 * Add support for additional file attributes to the `$&%FILE` XCall
 * Make `$INCREMENT` fully atomic (add a new SEM_ATOMIC semaphore)
 * Fix bug preventing `SET` with standard (vertical bar) extended references
@@ -50,7 +94,7 @@ link:doc/index.adoc[Index]
 * Add date filtering to the journal lister routine [`^JOURNLST`]
 * Increase translation table entries from 8 to 64
 * Increase jobs per daemon from 10 to 16
-* Decrease maximum daemons per volume from 20 to 16
+* Decrease max daemons per volume from 20 to 16
 * Improve name of daemon log files (add `rsm-` as a prepended namespace)
 
 This version makes a change to some of the structures in the shared memory
@@ -97,7 +141,7 @@ version, before installing.
 * Make minor code, comment, and formatting changes throughout the code base
 * Add Bash completion script to the Docker configuration file [`Dockerfile`]
 * Add profile rule to Make configurations for gprof support
-* Update the README file, conformance clause, and language guide
+* Update the `README.adoc` file, conformance clause, and language guide
 * Fix parsing bugs in the Bash completion script
 * Add comments to various configuration scripts, providing usage examples
 * Fix various MDC error code bugs and inconsistencies
@@ -200,7 +244,7 @@ version, before installing.
 * Increase incoming socket pending connection queue from 3 to 5
 * Improve escape processing in more contexts
 * Fix memory leaks in `$FNUMBER`
-* Add support for PNG files to the RSM web server
+* Add support for PNG files to the RSM web server [`^%WWW1`]
 * Add total count to the routine compile check in the MCL
 * Add status of the `QUIT` breakpoint code to the `^%SHOWBP` vendor utility
 * Improve error handling in multiple M vendor utilities
@@ -322,7 +366,7 @@ them.
 * Fix bug that left an open database file descriptor when starting the daemons
 * Fix bug that opens the database file a second time during a `JOB` command
 * Fix bug in the `$&PASCHK` XCall that closes the password file prematurely
-* Fix issues with some XCalls on MacOS X
+* Fix issues with some XCalls on macOS
 * Improve, and fix, some of the M language error messages
 * Rework some of the error macros
 * Add compiler warning suppression macros for array bounds false positives
@@ -429,8 +473,8 @@ version, before installing.
 
 * Add fix to support ISC Cache routine export format, supplied by Sam Habiel
 
-This version erroneously displays V1.73.0 instead of V1.73.1 when using `WRITE
-$SYSTEM` and `rsm -h`.
+This version erroneously displays V1.73.0 instead of V1.73.1 when using
+`WRITE $SYSTEM` and `rsm -h`.
 
 === v1.73.0 -- 2020 Dec 26
 

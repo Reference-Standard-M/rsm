@@ -70,8 +70,8 @@ void Dump_rbd(void)                                                             
     p = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;                 // get the start
     t = current_time(FALSE);
     printf("Dump of all Routine Buffer Descriptors on %s\r\n", ctime(&t));
-    printf("Free at %10p\r\n", systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]);
-    printf("       Address       Fwd_Link Chunk_Size Attach Last_Access VOL UCI Routine_Size Routine_Name\r\n");
+    printf("Free at %10p\r\n\r\n", systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]);
+    printf("       Address    Forward Link  Chunk Size  Attach  Last Access  VOL  UCI  Routine Size  Routine Name\r\n");
     tmp[VAR_LEN] = '\0';                                                        // null terminate temp
 
     while (TRUE) {                                                              // for all
@@ -82,7 +82,7 @@ void Dump_rbd(void)                                                             
             tmp[i] = p->rnam.var_cu[i];
         }
 
-        printf("%10p %14p %10u %6u %11lld %3d %3d %12d %s\r\n", p, p->fwd_link, p->chunk_size, p->attached,
+        printf("%14p %15p %11u %7u %12lld %4d %4d %13d  %s\r\n", p, p->fwd_link, p->chunk_size, p->attached,
                (long long) p->last_access, p->vol, p->uci, p->rou_size, tmp);
 
         p = (rbd *) ((u_char *) p + p->chunk_size);                             // point at next

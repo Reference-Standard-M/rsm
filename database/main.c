@@ -59,10 +59,10 @@ int     hash_start = 0;                                                         
 
 /*
  * Function: Copy2local
- * Descript: Copy passed in mvar to db_var, adjusting volset and UCI
+ * Summary:  Copy passed in mvar to db_var, adjusting volset and UCI
  *           The local copy of the mvar, db_var, is then used by all
- *           other database code. Only DB_QueryD uses the original.
- *           DB_Compress also updates the original so that it can be watched.
+ *           other database code. Only DB_QueryD uses the original
+ *           DB_Compress also updates the original so that it can be watched
  * Input(s): Pointer to mvar to copy from
  * Return:   0 -> Ok, negative M error
  *
@@ -113,7 +113,7 @@ short Copy2local(mvar *var)
 
 /*
  * Function: DB_Get
- * Descript: Locate and return data described in passed in mvar
+ * Summary:  Locate and return data described in passed in mvar
  * Input(s): Pointer to mvar to get
  *           Pointer to buffer for data
  * Return:   String length -> Ok, negative M error
@@ -154,7 +154,7 @@ int DB_Get(mvar *var, u_char *buf)                                              
 
 /*
  * Function: DB_Set
- * Descript: Set data passed to location described in mvar passed
+ * Summary:  Set data passed to location described in mvar passed
  * Input(s): Pointer to mvar to set
  *           Pointer to cstring containing data
  * Return:   String length -> Ok, negative M error
@@ -203,7 +203,7 @@ int DB_Set(mvar *var, cstring *data)                                            
 
 /*
  * Function: DB_Data
- * Descript: Return $DATA() for the passed in mvar
+ * Summary:  Return $DATA() for the passed in mvar
  * Input(s): Pointer to mvar to check
  *           Pointer to buffer for return result (0, 1, 10 or 11)
  * Return:   String length -> Ok, negative M error
@@ -266,7 +266,7 @@ short DB_Data(mvar *var, u_char *buf)                                           
 
 /*
  * Function: DB_Kill
- * Descript: Remove the sub-tree described by the passed in mvar
+ * Summary:  Remove the sub-tree described by the passed in mvar
  * Input(s): Pointer to mvar to remove
  * Return:   0 -> Ok, negative M error
  */
@@ -328,7 +328,7 @@ short DB_Kill(mvar *var)                                                        
 
 /*
  * Function: DB_Order
- * Descript: Return the next/prev subscript at the supplied level
+ * Summary:  Return the next/prev subscript at the supplied level
  * Input(s): Pointer to mvar to search from
  *           Pointer to buffer to hold result
  *           Direction, 1 = fwd, -1 = bck
@@ -409,7 +409,7 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
 
 /*
  * Function: DB_Query
- * Descript: Return the next/prev full key to the supplied one
+ * Summary:  Return the next/prev full key to the supplied one
  * Input(s): Pointer to mvar to search from
  *           Pointer to buffer to hold result
  *           Direction, 1 = fwd, -1 = bck
@@ -500,7 +500,7 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
 
 /*
  * Function: DB_QueryD
- * Descript: Return the next full key to the supplied one
+ * Summary:  Return the next full key to the supplied one
  * Input(s): Pointer to mvar to search from
  *           Pointer to buffer to hold result
  * Return:   Length of returned string or negative error number
@@ -563,16 +563,16 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
 
 /*
  * Function: DB_GetLen
- * Descript: Locate and return length of data described in passed in mvar
- *           If buf is not NULL, return the data there.
- *           The global module is always unlocked on an error.
+ * Summary:  Locate and return length of data described in passed in mvar
+ *           If buf is not NULL, return the data there
+ *           The global module is always unlocked on an error
  * Input(s): Pointer to mvar to get length of
  *           State to leave SEM_GLOBAL lock (1 -> leave locked, -1 -> unlock)
- *           A state of -1, JUST does an unlock and returns 0.
+ *           A state of -1, JUST does an unlock and returns 0
  *           Buffer for routine (if not NULL)
  * Return:   String length -> Ok, negative M error
  * Note:     There may be NO intervening calls to other DB modules
- *           when the GBD has been left locked.
+ *           when the GBD has been left locked
  */
 int DB_GetLen(mvar *var, int lock, u_char *buf)                                 // length of node
 {
@@ -613,7 +613,7 @@ int DB_GetLen(mvar *var, int lock, u_char *buf)                                 
 
 /*
  * Function: DB_Free
- * Descript: Return number of free blocks in volume set
+ * Summary:  Return number of free blocks in volume set
  * Input(s): Volume set number to examine
  * Return:   Number of free blocks
  */
@@ -636,7 +636,7 @@ int DB_Free(int vol)                                                            
 
 /*
  * Function: DB_Expand
- * Descript: Expand volume set
+ * Summary:  Expand volume set
  * Input(s): Internal volume set number to expand
  *           New size in blocks (checks have been done)
  * Return:   0 or error
@@ -690,7 +690,7 @@ short DB_Expand(int vol, u_int vsiz)                                            
 
 /*
  * Function: DB_Dismount
- * Descript: Dismount volume set
+ * Summary:  Dismount volume set
  * Input(s): Volume set number to dismount
  * Return:   0
  */
@@ -703,10 +703,10 @@ int DB_Dismount(int vol)                                                        
 
 /*
  * Function: DB_StopJournal
- * Descript: Stop journaling on a volume
+ * Summary:  Stop journaling on a volume
  * Input(s): Volume set number to stop
  *           Reason (currently JRN_STOP and JRN_ESTOP)
- * Return:   none
+ * Return:   None
  */
 void DB_StopJournal(int vol, u_char action)                                     // Stop journal
 {
@@ -726,9 +726,9 @@ void DB_StopJournal(int vol, u_char action)                                     
 
 /*
  * Function: DB_GetFlags
- * Descript: Get global flags
+ * Summary:  Get global flags
  * Input(s): Pointer to mvar -> ^$GLOBAL("name")
- * Return:   flags or negative M error
+ * Return:   Flags or negative M error
  */
 int DB_GetFlags(mvar *var)                                                      // Get flags
 {
@@ -757,12 +757,12 @@ int DB_GetFlags(mvar *var)                                                      
     return i;                                                                   // return the flags
 }
 
-/*-----------------------------------------------------------------------------
+/*
  * Function: DB_SetFlags
- * Descript: Set global flags
+ * Summary:  Set global flags
  * Input(s): Pointer to mvar -> ^$GLOBAL("name")
  *           Positive flags to set or negative flags to clear
- * Return:   new flags or negative M error
+ * Return:   New flags or negative M error
  */
 int DB_SetFlags(mvar *var, int flags)                                           // Set flags
 {
@@ -820,12 +820,12 @@ int DB_SetFlags(mvar *var, int flags)                                           
     return i;                                                                   // return current flags
 }
 
-/*-----------------------------------------------------------------------------
+/*
  * Function: DB_Compress
- * Descript: Compress a global on-line
+ * Summary:  Compress a global on-line
  * Input(s): Where to start in global (mvar) Must ---> partab.jobtab->last_ref
  *           Level to process 0 -> 15 (data level or more means data level)
- * Return:   actual level number processed or error number
+ * Return:   Actual level number processed or error number
  */
 short DB_Compress(mvar *var, int flags)                                         // Compress global
 {
@@ -910,7 +910,7 @@ short DB_Compress(mvar *var, int flags)                                         
         i = ((blk[level - 1]->mem->last_free * 2 + 1 - blk[level - 1]->mem->last_idx) * 2)
           + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2);
 
-        // if REALLY not enough space (btw: make this a param)
+        // if REALLY not enough space (NOTE: make this a param)
         if (i < 1024) {
             chunk = (cstring *) &iidx[idx[IDX_START]];                          // point at first in RL
             memcpy(&var->slen, &chunk->buf[1], chunk->buf[1] + 1);              // save the real key

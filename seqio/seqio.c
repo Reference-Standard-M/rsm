@@ -98,8 +98,8 @@
 #define TTYECHO     3                                                           // Echo bit
 #define DEL8        4                                                           // Delete key 8 bit
 #define DEL127      5                                                           // Delete key 127 bit
-//#define ?           6                                                           // Unused
-//#define ?           7                                                           // Unused
+#define IPV6        6                                                           // Socket IPv6 bit
+#define UDP         7                                                           // Socket UDP bit
 
 // Miscellaneous
 #define STDCHAN     0                                                           // stdin, stdout and stderr
@@ -362,9 +362,9 @@ int setOptionsBitMask(int options, int bit, int flag)
 
 /*
  * This function returns an integer which uniquely identifies the operation
- * "op->buf"; hence, "write", "read", "append", "io", "tcpip", "server", "pipe"
- * or "newpipe". Otherwise, it returns a negative integer to indicate the error
- * that has occurred.
+ * "op->buf"; hence, "read", "write", "append", "io", "tcpip[6]", "udpip[6]",
+ * "server[6]/tcpserver[6]", "udpserver[6]", "pipe", or "newpipe". Otherwise,
+ * it returns a negative integer to indicate the error that has occurred.
  */
 int getOperation(cstring *op)
 {
@@ -376,18 +376,27 @@ int getOperation(cstring *op)
     ptr = strchr(ptr, '=');
     if (ptr != NULL) *ptr = '\0';
 
+    proto_family = PF_INET;                                                     // PF_INET or PF_INET6
+    addr_family  = AF_INET;                                                     // AF_INET or AF_INET6
+    sock_type    = SOCK_STREAM;                                                 // SOCK_STREAM or SOCK_DGRAM
+    sock_proto   = IPPROTO_TCP;                                                 // IPPROTO_TCP or IPPROTO_UDP
+
     if (strlen(str) == 1) {
         char ch = tolower(op->buf[0]);                                          // Operation identifier
 
-        if (ch == 'w') {
-            return WRITE;
-        } else if (ch == 'r') {
+        if (ch == 'r') {
             return READ;
+        } else if (ch == 'w') {
+            return WRITE;
         } else if (ch == 'a') {
             return APPEND;
         } else if (ch == 'i') {
             return IO;
         } else if (ch == 't') {
+            return TCPIP;
+        } else if (ch == 'u') {
+            sock_type = SOCK_DGRAM;
+            sock_proto = IPPROTO_UDP;
             return TCPIP;
         } else if (ch == 's') {
             return SERVER;
@@ -396,18 +405,46 @@ int getOperation(cstring *op)
         } else if (ch == 'n') {
             return NEWPIPE;
         }
-    } else if (strlen(str) > 1) {
-        if (strcasecmp(str, "write") == 0) {
-            return WRITE;
-        } else if (strcasecmp(str, "read") == 0) {
+    } else {
+        if (strcasecmp(str, "read") == 0) {
             return READ;
+        } else if (strcasecmp(str, "write") == 0) {
+            return WRITE;
         } else if (strcasecmp(str, "append") == 0) {
             return APPEND;
         } else if (strcasecmp(str, "io") == 0) {
             return IO;
         } else if (strcasecmp(str, "tcpip") == 0) {
             return TCPIP;
-        } else if (strcasecmp(str, "server") == 0) {
+        } else if ((strcasecmp(str, "t6") == 0) || (strcasecmp(str, "tcpip6") == 0)) {
+            proto_family = PF_INET6;
+            addr_family = AF_INET6;
+            return TCPIP;
+        } else if (strcasecmp(str, "udpip") == 0) {
+            sock_type = SOCK_DGRAM;
+            sock_proto = IPPROTO_UDP;
+            return TCPIP;
+        } else if ((strcasecmp(str, "u6") == 0) || (strcasecmp(str, "udpip6") == 0)) {
+            proto_family = PF_INET6;
+            addr_family = AF_INET6;
+            sock_type = SOCK_DGRAM;
+            sock_proto = IPPROTO_UDP;
+            return TCPIP;
+        } else if ((strcasecmp(str, "server") == 0) || (strcasecmp(str, "tcpserver") == 0)) {
+            return SERVER;
+        } else if ((strcasecmp(str, "s6") == 0) || (strcasecmp(str, "server6") == 0) || (strcasecmp(str, "tcpserver6") == 0)) {
+            proto_family = PF_INET6;
+            addr_family = AF_INET6;
+            return SERVER;
+        } else if ((strcasecmp(str, "us") == 0) || (strcasecmp(str, "udpserver") == 0)) {
+            sock_type = SOCK_DGRAM;
+            sock_proto = IPPROTO_UDP;
+            return SERVER;
+        } else if ((strcasecmp(str, "us6") == 0) || (strcasecmp(str, "udpserver6") == 0)) {
+            proto_family = PF_INET6;
+            addr_family = AF_INET6;
+            sock_type = SOCK_DGRAM;
+            sock_proto = IPPROTO_UDP;
             return SERVER;
         } else if (strcasecmp(str, "pipe") == 0) {
             return PIPE;
@@ -540,6 +577,7 @@ int openSERVER(int chan, char *oper)
         c->mode = (u_char) NOFORK;
         if ((ret = initSERVER(chan, 0)) < 0) return ret;
     } else {
+        if (sock_type == SOCK_DGRAM) return getError(INT, ERRZ21);
         ptr++;
 
         if (*ptr == '\0') {
@@ -577,9 +615,6 @@ int acceptSERVER(int chan, int tout)
     servertab          *s;                                                      // Forked process table
     SQ_Chan            *c;                                                      // Server socket
     int                index;                                                   // Useful variable
-    int                len;                                                     // Useful variable
-    struct sockaddr_in sin;                                                     // Peer socket
-    //struct hostent     *host;                                                   // Peer host name
 
     // Acquire a pointer to the SQ_CHAN structure
     c = &partab.jobtab->seqio[chan];
@@ -601,12 +636,16 @@ int acceptSERVER(int chan, int tout)
         }
     }
 
-    // An accept is only required if:
-    //   s->cid == -1
-    if (s->cid == -1) {
+    // An accept is only required if s->cid == -1 and it's a TCP socket
+    // A recvfrom is only required if it's a UDP socket
+    if ((s->cid == -1) || (sock_type == SOCK_DGRAM)) {
         int ret;                                                                // Return value
 
-        s->cid = SQ_Tcpip_Accept(c->fid, tout);
+        if (sock_type == SOCK_DGRAM) {
+            s->cid = c->fid;
+        } else {
+            s->cid = SQ_Tcpip_Accept(c->fid, tout);
+        }
 
         if (s->cid < 0) {
             int error = s->cid;
@@ -615,21 +654,41 @@ int acceptSERVER(int chan, int tout)
             return error;
         }
 
-        len = sizeof(struct sockaddr_in);
-        ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
-        if (ret == -1) return getError(SYS, errno);
-        len = sizeof(sin.sin_addr);
-        snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+        if (addr_family == AF_INET6) {
+            struct sockaddr_in6 sin6;
+            int                 len6 = sizeof(sin6);
+            char                ipstr6[INET6_ADDRSTRLEN];
 
-        /*
-        host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, addr_family);
+            if (sock_type == SOCK_DGRAM) {
+                char buf[1];
 
-        if (host == NULL) {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+                ret = recvfrom(s->cid, buf, 1, MSG_PEEK, (struct sockaddr *) &sin6, (socklen_t *) &len6);
+                if (ret == -1) return getError(SYS, errno);
+            } else {
+                ret = getpeername(s->cid, (struct sockaddr *) &sin6, (socklen_t *) &len6);
+                if (ret == -1) return getError(SYS, errno);
+            }
+
+            snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u",
+                     inet_ntop(addr_family, &sin6.sin6_addr, ipstr6, INET6_ADDRSTRLEN), ntohs(sin6.sin6_port));
         } else {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
+            struct sockaddr_in sin;
+            int                len = sizeof(sin);
+            char               ipstr[INET_ADDRSTRLEN];
+
+            if (sock_type == SOCK_DGRAM) {
+                char buf[1];
+
+                ret = recvfrom(s->cid, buf, 1, MSG_PEEK, (struct sockaddr *) &sin, (socklen_t *) &len);
+                if (ret == -1) return getError(SYS, errno);
+            } else {
+                ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
+                if (ret == -1) return getError(SYS, errno);
+            }
+
+            snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u",
+                     inet_ntop(addr_family, &sin.sin_addr, ipstr, INET_ADDRSTRLEN), ntohs(sin.sin_port));
         }
-        */
     }
 
     // A fork/rfork is only required if:
@@ -697,7 +756,7 @@ int closeSERVERClient(int chan)
     c = &partab.jobtab->seqio[chan];
 
     // Determine socket to close and close it (if required)
-    if ((int) c->type == SQ_SOCK) {
+    if (((int) c->type == SQ_SOCK) && (sock_type == SOCK_STREAM)) {
         if ((int) c->mode == NOFORK) {
             if (c->s.cid > -1) {
                 close(c->s.cid);
@@ -949,9 +1008,9 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
 
     /*
      * Get peer's socket descriptor
-     * SERVER - Forking server socket
-     * NOFORK - Non-forking server socket
-     * FORKED - Forked server socket client
+     * SERVER - Forking TCP server socket
+     * NOFORK - Non-forking TCP server socket or UDP server socket
+     * FORKED - Forked TCP server client
      * TCPIP  - Client socket
      */
 
@@ -1001,7 +1060,7 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
             } else {
                 return -1;
             }
-        } else if (ret < 0) {                                                   // Check if an error has occurred
+        } else if ((ret < 0) || (sock_type == SOCK_DGRAM)) {                    // Check if an error has occurred, or it's using UDP
             return ret;
         } else if (ret == 0) {                                                  // EOF received
             c->dkey_len = 1;
@@ -1543,13 +1602,13 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
         }                                                                       // End ESCAPE Processing Options
 
         // Check if an input terminator has been received
-        if ((in_hist > -1) || (c->options & MASK[INTERM])) {
-            if ((in_hist == -1) && (c->in_term.iterm == CRLF)) {
+        if ((in_hist > OFF) || (c->options & MASK[INTERM])) {
+            if ((in_hist == OFF) && (c->in_term.iterm == CRLF)) {
                 if (curr == 13) {
-                    crflag = 1;
-                } else if ((curr == 10) && (crflag == 1)) {
                     if (in_hist == TRUE) in_hist = FALSE;
                     editing = FALSE;
+                    crflag = TRUE;
+                } else if ((curr == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
                     c->dkey[0] = (char) 13;
                     c->dkey[1] = (char) 10;
@@ -1813,30 +1872,39 @@ short SQ_Init(void)
     if (ret < 0) return (short) ret;
 
     if (typ == SQ_SOCK) {                                                       // from inetd/xinetd?
-        int                len;
-        struct sockaddr_in sin;
-        //struct hostent     *host;                                               // Peer host name
-        servertab          *s;                                                  // Forked process table
+        int                     len;
+        struct sockaddr_storage addr;
+        servertab               *s;                                             // Forked process table
 
         s = &partab.jobtab->seqio[STDCHAN].s;
         ret = openSERVER(STDCHAN, "SERVER");                                    // set it up
         if (ret < 0) return (short) ret;
         s->cid = STDCHAN;                                                       // already accepted
-        len = sizeof(struct sockaddr_in);
-        ret = getpeername(s->cid, (struct sockaddr *) &sin, (socklen_t *) &len);
+        len = sizeof(struct sockaddr_storage);
+        ret = getpeername(s->cid, (struct sockaddr *) &addr, (socklen_t *) &len);
         if (ret == -1) return (short) getError(SYS, errno);
-        len = sizeof(sin.sin_addr);
-        snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 
-        /*
-        host = gethostbyaddr(inet_ntoa(sin.sin_addr), len, addr_family);
+#ifdef _AIX
+        if (addr.__ss_family == AF_INET6) {
+#else
+        if (addr.ss_family == AF_INET6) {
+#endif
+            struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &addr;
+            char                ipstr6[INET6_ADDRSTRLEN];
+            const char          *ip;
 
-        if (host == NULL) {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-        } else {
-            snprintf(s->name, MAX_SEQ_NAME, "%s %u", host->h_name, ntohs(sin.sin_port));
+            ip = inet_ntop(AF_INET6, &sin6->sin6_addr, ipstr6, INET6_ADDRSTRLEN);
+            if (ip == NULL) return (short) getError(SYS, errno);
+            snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", ipstr6, ntohs(sin6->sin6_port));
+        } else {                                                                // AF_INET
+            struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
+            char               ipstr[INET_ADDRSTRLEN];
+            const char         *ip;
+
+            ip = inet_ntop(AF_INET, &sin->sin_addr, ipstr, INET_ADDRSTRLEN);
+            if (ip == NULL) return (short) getError(SYS, errno);
+            snprintf((char *) s->name, MAX_SEQ_NAME, "%s %u", ipstr, ntohs(sin->sin_port));
         }
-        */
 
         return 0;                                                               // done
     }
@@ -1882,6 +1950,8 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
     int     oid;                                                                // Object descriptor
     int     ret;                                                                // Return value
     int     i;                                                                  // a handy int
+    short   save_addr;                                                          // save addr_family
+    short   save_type;                                                          // save sock_type
 
     // Check for opening $PRINCIPAL. In RSM, this is a no-op (See close code as well).
     if (chan == STDCHAN) {
@@ -1988,11 +2058,20 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
         }
     }
 
+    save_addr = addr_family;                                                    // save addr_family, which is reset in initObject
+    save_type = sock_type;                                                      // save sock_type, which is reset in initObject
+
     // Set default channel attributes
     ret = initObject(chan, obj);
     if (ret < 0) return (short) ret;
     c->mode = (u_char) oper;
     c->fid = oid;
+
+    if (obj == SQ_SOCK) {
+        if (save_addr == AF_INET6) c->options = setOptionsBitMask(c->options, IPV6, SET);
+        if (save_type == SOCK_DGRAM) c->options = setOptionsBitMask(c->options, UDP, SET);
+    }
+
     i = snprintf((char *) c->name, MAX_SEQ_NAME, "%s", object->buf);
     if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
@@ -2138,6 +2217,23 @@ short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
     if (par & SQ_USE_DISCON) {
         ret = closeSERVERClient(chan);
         if (ret < 0) return (short) ret;
+    }
+
+    if (c->type == SQ_SOCK) {
+        proto_family = PF_INET;                                                 // PF_INET or PF_INET6
+        addr_family  = AF_INET;                                                 // AF_INET or AF_INET6
+        sock_type    = SOCK_STREAM;                                             // SOCK_STREAM or SOCK_DGRAM
+        sock_proto   = IPPROTO_TCP;                                             // IPPROTO_TCP or IPPROTO_UDP
+
+        if (c->options & MASK[IPV6]) {
+            proto_family = PF_INET6;
+            addr_family  = AF_INET6;
+        }
+
+        if (c->options & MASK[UDP]) {
+            sock_type = SOCK_DGRAM;
+            sock_proto = IPPROTO_UDP;
+        }
     }
 
     return 0;
@@ -2443,7 +2539,7 @@ short SQ_ReadStar(int *result, int timeout)
 
     // Read Star options
 #ifndef  __APPLE__
-    partab.jobtab->seqio[chan].options &= ~MASK[INTERM];                        // MacOS X doesn't like this!!!
+    partab.jobtab->seqio[chan].options &= ~MASK[INTERM];                        // macOS doesn't like this!!!
 #endif
     partab.jobtab->seqio[chan].options &= ~MASK[TTYECHO];
     partab.jobtab->seqio[chan].options &= ~MASK[DEL8];

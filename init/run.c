@@ -146,6 +146,8 @@ start:
         }
     }
 
+    if (systab->start_user == -1) goto exit;                                    // Shutting down, so no need to run
+
     if (systab->vol[0] == NULL) {
         fprintf(stderr, "Error occurred in process - Environment does not match runtime image version\n");
         ret = -1;
@@ -181,7 +183,7 @@ start:
         ret = systab->jobtab[j].pid;                                            // get PID
 
         if ((ret != pid) && ret) {                                              // if one there and not us
-            if (kill(ret, 0)) {                                                 // check the job
+            if (kill(ret, 0) == -1) {                                           // check the job
                 if (errno == ESRCH) {                                           // doesn't exist
                     CleanJob(j + 1);                                            // zot if not there
                     break;                                                      // have at least one
@@ -348,8 +350,9 @@ start:
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
         if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
-        if (s == OPHALT) goto exit;                                             // look after halt
-        if (s == JOBIT) goto jobit;                                             // look after JOB
+        if (s == OPHALT) goto exit;                                             // look after HALT
+        if (s == JOBIT) goto jobit;                                             // look after new JOB
+        if (start_type == TYPE_JOB) goto exit;                                  // look after current JOB
         partab.jobtab->io = 0;                                                  // force chan 0
         var = (mvar *) &strstk[0];                                              // space to setup a var
         VAR_CLEAR(var->name);
@@ -416,7 +419,7 @@ start:
 
         s = SQ_Read(sptr->buf, UNLIMITED, UNLIMITED);                           // get a string
         i = attention();                                                        // check signals
-        if (i == OPHALT) break;                                                 // exit on halt
+        if (i == OPHALT) break;                                                 // exit on HALT
         if (i == -(ERRZ51 + ERRMLAST)) controlc();                              // control c
 
         if (s < 0) {
@@ -480,8 +483,8 @@ start:
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
         if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
-        if (s == JOBIT) goto jobit;                                             // look after JOB
-        if (s == OPHALT) break;                                                 // exit on halt
+        if (s == JOBIT) goto jobit;                                             // look after new JOB
+        if (s == OPHALT) break;                                                 // exit on HALT
         partab.jobtab->io = 0;                                                  // force chan 0
 
         if (s == -(ERRZ51 + ERRMLAST)) {

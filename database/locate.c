@@ -40,18 +40,18 @@
 
 /*
  * Function: Locate
- * Descript: Locate passed in key in blk[level] updating extern vars
+ * Summary:  Locate passed in key in blk[level] updating extern vars
  *           Index, chunk, record and keybuf
  * Input(s): Pointer to key to find (key[0] -> length)
  * Return:   0 -> Ok, negative M error
  * Note:     On fail (-ERRM7), Index etc. points at the following record.
  *           External vars setup are:
- *             (cstring *)    chunk   points at the chunk in the block
- *             (u_short *)    idx     maps the block as an array
- *             (int *)        iidx    maps the block as an array
- *             (cstring *)    record  points at the data for the record
- *                                      (not aligned for ptr/GD)
- *             (u_char)       keybuf  the current full key
+ *             (cstring *)  chunk   points at the chunk in the block
+ *             (u_short *)  idx     maps the block as an array
+ *             (int *)      iidx    maps the block as an array
+ *             (cstring *)  record  points at the data for the record
+ *                                  (not aligned for ptr/GD)
+ *             (u_char)     keybuf  the current full key
  */
 short Locate(u_char *key)                                                       // find key
 {
@@ -76,12 +76,12 @@ short Locate(u_char *key)                                                       
 
 /*
  * Function: Locate_next
- * Descript: Locate next key in blk[level] updating extern vars
+ * Summary:  Locate next key in blk[level] updating extern vars
  *           Index, chunk, record and keybuf
- * Input(s): none (extern vars must be setup)
+ * Input(s): None (extern vars must be setup)
  * Return:   0 -> Ok, negative M error
  * Note:     Must be be called with a read lock
- *           External vars setup as for Locate() above.
+ *           External vars setup as for Locate() above
  */
 short Locate_next(void)                                                         // point at next key
 {

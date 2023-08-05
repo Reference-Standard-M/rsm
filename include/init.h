@@ -28,7 +28,7 @@
 #ifndef _RSM_INIT_H_                                                            // only do this once
 #define _RSM_INIT_H_
 
-#define MAX_GROUPS  32                                                          // max number of Unix groups
+#define MAX_GROUPS  32                                                          // max number of UNIX groups
 
 // Create a database file volume
 int INIT_Create_File(u_int blocks,                                              // number of blocks

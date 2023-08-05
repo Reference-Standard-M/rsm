@@ -43,7 +43,7 @@
 
 /*
  * Function: Insert
- * Descript: Insert the supplied key and data in blk[level]
+ * Summary:  Insert the supplied key and data in blk[level]
  * Input(s): Pointer the the key and data to insert
  * Return:   0 -> Ok, negative M error -(ERRZ62 + ERRMLAST)
  */
@@ -145,9 +145,9 @@ short Insert(u_char *key, cstring *data)                                        
 
 /*
  * Function: Queit
- * Descript: Queue the GBD at blk[level] for write - links already setup
- * Input(s): none
- * Return:   none
+ * Summary:  Queue the GBD at blk[level] for write - links already setup
+ * Input(s): None
+ * Return:   None
  * Note:     Must hold a write lock before calling this function
  */
 void Queit(void)                                                                // queue a GBD for write
@@ -176,9 +176,9 @@ void Queit(void)                                                                
 
 /*
  * Function: Garbit
- * Descript: Queue the block passed in for garbage collection
- * Input(s): block number
- * Return:   none
+ * Summary:  Queue the block passed in for garbage collection
+ * Input(s): Block number
+ * Return:   None
  * Note:     Must hold a write lock before calling this function
  */
 void Garbit(u_int blknum)                                                       // queue a blk for garb
@@ -201,9 +201,9 @@ void Garbit(u_int blknum)                                                       
 
 /*
  * Function: Free_block
- * Descript: Remove the specified block from the map
- * Input(s): block number
- * Return:   none
+ * Summary:  Remove the specified block from the map
+ * Input(s): Block number
+ * Return:   None
  * Note:     Must hold a write lock before calling this function
  */
 void Free_block(u_int blknum)                                                   // free blk in map
@@ -230,12 +230,12 @@ void Free_block(u_int blknum)                                                   
 
 /*
  * Function: Used_block
- * Descript: Add the specified block to the map
- * Input(s): block number
- * Return:   none
+ * Summary:  Add the specified block to the map
+ * Input(s): Block number
+ * Return:   None
  * Note:     Must hold a write lock before calling this function
  *           The caller must have ensured that, if there is a map
- *              scan in progress, this block is less than "upto".
+ *           scan in progress, this block is less than "upto"
  * This is only called from rsm/database/view.c
  */
 void Used_block(u_int blknum)                                                   // set blk in map
@@ -257,9 +257,9 @@ void Used_block(u_int blknum)                                                   
 
 /*
  * Function: Tidy_block
- * Descript: Tidy the current block
- * Input(s): none
- * Return:   none
+ * Summary:  Tidy the current block
+ * Input(s): None
+ * Return:   None
  * Note:     Must hold a write lock before calling this function
  *           This function omits records with dbc = NODE_UNDEFINED
  *           This function omits pointers with record = PTR_UNDEFINED
@@ -291,9 +291,9 @@ void Tidy_block(void)                                                           
 
 /*
  * Function: Copy_data
- * Descript: Copy data from "fptr" to blk[level]
- * Input(s): from GBD and index (or flag)
- * Return:   none
+ * Summary:  Copy data from "fptr" to blk[level]
+ * Input(s): From GBD and index (or flag)
+ * Return:   None
  * Note:     Must hold a write lock before calling this function
  *           All external variables describing blk[level] must be setup
  *           This function omits records with dbc = NODE_UNDEFINED
@@ -387,9 +387,9 @@ void Copy_data(gbd *fptr, int fidx)                                             
 
 /*
  * Function: Align_record
- * Descript: Ensure that record is on a four byte boundary
- * Input(s): none
- * Return:   none
+ * Summary:  Ensure that record is on a four byte boundary
+ * Input(s): None
+ * Return:   None
  * Note:     Must only be called for pointer/directory blocks
  */
 void Align_record(void)                                                         // align record (u_int)
@@ -403,10 +403,9 @@ void Align_record(void)                                                         
 
 /*
  * Function: Compress1
- * Descript: Compress one block union
- * Input(s): mvar * to the key to find
- *           the level to operate at
- * Return:   zero or error
+ * Summary:  Compress one block union
+ * Input(s): mvar * to the key to find the level to operate at
+ * Return:   Zero or error
  */
 short Compress1(void)
 {
@@ -487,7 +486,7 @@ short Compress1(void)
     i = ((blk[level + 1]->mem->last_free * 2 + 1 - blk[level + 1]->mem->last_idx) * 2)
       + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2);
 
-    if (i < 1024) {                                                             // if REALLY not enough space (make this a param)
+    if (i < 1024) {                                                             // if REALLY not enough space (NOTE: make a param)
         level++;
 
         while (level >= 0) {
@@ -557,9 +556,9 @@ short Compress1(void)
 
 /*
  * Function: ClearJournal
- * Descript: Create/clear the journal file
- * Input(s): internal volume number
- * Return:   none
+ * Summary:  Create/clear the journal file
+ * Input(s): Internal volume number
+ * Return:   None
  * Note:     Must be called with a write lock
  */
 void ClearJournal(int vol)                                                      // clear journal
@@ -607,12 +606,11 @@ void ClearJournal(int vol)                                                      
 
 /*
  * Function: DoJournal
- * Descript: Write a journal record
- * Input(s): jrnrec structure
- *           data pointer (set only)
- * Return:   none
- * Note:     Must be called with a write lock
- *           the date/time and size are filled in here
+ * Summary:  Write a journal record
+ * Input(s): Journal recors
+ *           Data pointer (set only)
+ * Return:   None
+ * Note:     Must be called with a write lock and the date/time and size are filled in here
  */
 void DoJournal(jrnrec *jj, cstring *data)                                       // Write journal
 {

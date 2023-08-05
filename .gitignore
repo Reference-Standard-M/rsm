@@ -1,6 +1,6 @@
-**/*.o
 rsm
-**/daemon*.log
+**/*.o
+log/rsm-*.log
 RSM_CRASH
 *core
 *.dat

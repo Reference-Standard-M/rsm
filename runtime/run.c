@@ -113,7 +113,7 @@ short run(int savasp, int savssp)                                               
                     memcpy(&partab.jobtab->dostk[STM1_FRAME], &partab.jobtab->dostk[partab.jobtab->cur_do], sizeof(do_frame));
                 }
 
-                if (s == -(ERRZ51 + ERRMLAST)) partab.jobtab->io = 0;           // if it's a Control-C then $IO = 0
+                if (s == -(ERRZ51 + ERRMLAST)) partab.jobtab->io = 0;           // if it's a <Control-C> then $IO = 0
                 partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;         // save pc
                 cptr = (cstring *) &strstk[ssp];                                // where we will put it
                 var = &partab.src_var;                                          // a spare mvar
@@ -2708,6 +2708,7 @@ short run(int savasp, int savssp)                                               
             } else if (opc == CMLCKP) {
                 s = LCK_Add(args, cptr, j);                                     // lock plus
             } else {
+                if (j > UNLIMITED) partab.jobtab->test = 1;                     // flag successful locking (always succeeds)
                 s = LCK_Sub(args, cptr);                                        // lock minus
             }
 

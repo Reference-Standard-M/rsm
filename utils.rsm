@@ -6,8 +6,8 @@
  read "Restore from file: ",file,! quit:file=""
  do INT(file,0) quit
 ;---
-INT(file,nosay) new %,a,r,zr,$etrap
- set zr="INT^%RR",nosay=$get(nosay),$etrap="do EX^%RR"
+INT(file,nosay) new %,a,r,zr,num,$etrap
+ set zr="INT^%RR",nosay=$get(nosay),num=0,$etrap="do EX^%RR"
  open 1:(file:"read") use 1 read a,r use $principal set a=$translate(a,$char(13)),r=$translate(r,$char(13))
  if nosay<2 write !,a,!,r,!
  if 'nosay read "Restore N> ",%,! if $extract($&e(%))'="Y" close 1 write "ABORTED",! quit
@@ -15,11 +15,12 @@ INT(file,nosay) new %,a,r,zr,$etrap
  . set r=$piece(r,"^") ; Needed to support ISC Cache routine export format
  . if nosay<2 use $principal write:$x>70 ! write r,?$x\10+1*10 use 1
  . kill a for %=1:1 read a(%) set a(%)=$translate(a(%),$char(13)) quit:a(%)=""  quit:$ascii($key)=255
- . merge ^$routine(r)=a
+ . merge ^$routine(r)=a set num=num+1
 ;---
 EX new ecode use $principal
- write:r'="" "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
- write:nosay<2 ! set ecode=$piece($ecode,",",2),$ecode="" use:r'="" 1 if r=""!(ecode="Z51") close 1 quit
+ if r'="" write "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2)),!!
+ else  write:nosay<2 !!,"Loaded "_num_" routines",!
+ set ecode=$piece($ecode,",",2),$ecode="" use:r'="" 1 if r=""!(ecode="Z51") close 1 quit
 
 %RS
 %RS ; Routine Save
@@ -29,8 +30,8 @@ EX new ecode use $principal
  read !,"Header Txt: ",head,! set:head="" head=rou
  do INT(rou,file,head) quit
 ;---
-INT(rou,file,head) new %,vol,uci,r,zr,ui,$etrap
- set zr="INT^%RS",$etrap="do EX^%RS"
+INT(rou,file,head) new %,vol,uci,r,zr,ui,num,$etrap
+ set zr="INT^%RS",num=0,$etrap="do EX^%RS"
  set head=$get(head,rou)
  set ui=$$UI^%U() kill ^UTILITY(ui) set rou=$$PAT^%U(rou)
  do INT^%RD(3,rou,^$job($job,"routine"),"","z","^UTILITY("_ui_")")
@@ -42,10 +43,11 @@ INT(rou,file,head) new %,vol,uci,r,zr,ui,$etrap
  set r="" for  set r=$order(^UTILITY(ui,r)) quit:r=""  do
  . use $principal write:$x>70 ! write r,?$x\10+1*10 use 1 write r,!
  . set %=0 for  set %=$order(^$routine(r,%)) quit:%=""  write ^$routine(r,%),!
- . write !
+ . set num=num+1 write !
 ;---
 EX new ecode write ! use $principal
- write:r'="" "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
+ if r'="" write "$ECODE=,"_$piece($ecode,",",2)_","_$&%errmsg($piece($ecode,",",2))
+ else  write !!,"Saved "_num_" routines"
  set ecode=$piece($ecode,",",2),$ecode="" use:r'="" 1 if r=""!(ecode="Z51") close 1 write ! quit
 
 %GR
@@ -190,7 +192,7 @@ UNKEY(c,t,x) if $extract(k,1,2)=$char(0,0) set k=$extract(k,3,999) quit """"""
  set ^%C("LIST")="do INT^%GL(ccl,sw)"
  set ^%C("LIST",1)="List global /D=data only, /L=max level, /M=max lines"
  set ^%C("OS")="set:ccl="""" ccl=""exec $SHELL"" write $&%spawn(ccl)"
- set ^%C("OS",1)="Execute OS (Unix) command - shell"
+ set ^%C("OS",1)="Execute OS (UNIX) command - shell"
  set ^%C("RDIRECTORY")="do INT^%RD($select(sw[""L"":1,sw[""U"":2,1:0),ccl)"
  set ^%C("RDIRECTORY",1)="Routine directory /FL (first line) or /FU (full) spec"
  set ^%C("ROUCHECK")="do RC^%RD(ccl)"
@@ -748,7 +750,10 @@ KEY if key=127 quit
  set key=$extract(key,3,4)+84 quit
 ;---
 WWW(req,data) ; Web interface
- quit "Not yet implemented"
+ new cmd,e
+ set cmd=$get(data("CMD")),e=$char(27)
+ if '$get(restrict,0),cmd'="" do INT quit ""
+ quit "Operation not implemented!"
 ;---
 ERROR new s,er use $principal
  if $estack<2 write:$ecode "ECODE="_$ecode,! set $ecode="" quit
@@ -856,8 +861,8 @@ INT(j,%,zr) set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or Job#"
  new vol set vol=^$job($job,"global_vol")
  ; Show LOCKS
  if $extract("LOCKS",1,$length(j))=j do  quit
- . write "Job Count Reference",! set j=""
- . for  set j=$order(^$lock(j)) quit:j=""  set %=^$lock(j) write $justify(+%,3),$justify($piece(%,",",2),6)," ",j,!
+ . write " Job  Count  Reference",! set j=""
+ . for  set j=$order(^$lock(j)) quit:j=""  set %=^$lock(j) write $justify(+%,4),$justify($piece(%,",",2),7),"  ",j,!
  ; Show SYSTEM
  if $extract("SYSTEM",1,$length(j))=j do  quit
  . write "$SYSTEM=",$system,!,"UCI# Name",!
@@ -865,7 +870,7 @@ INT(j,%,zr) set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or Job#"
  . for %=1:1:63 set j=^$system("vol",vol,"uci",%) if $length(j) write $justify(%,3),"  ",j,!
  . write "Max: ",^$job," jobs",!
  . write "Vol: ",^$system("vol",vol,"name")," in file ",^$system("vol",vol,"file"),!
- . write ^$system("vol",vol,"size")," x ",^$system("vol",vol,"block")/1024," KiB Blocks, "
+ . write ^$system("vol",vol,"size")," [",^$system("vol",vol,"block")/1024," KiB] Blocks, "
  . write ^$system("vol",vol,"free")," Free.",!
  . set j=^$system("vol",vol,"logrd"),%=^$system("vol",vol,"phyrd")
  . write "Database reads - Logical: ",j,"  Physical: ",%
@@ -1001,7 +1006,7 @@ BIGEND() ; Is machine big-endian?
  ; Open the server port - default to port 80 and 5 jobs
  set port=80,jobs=5 goto OPEN
 ;---
-START(port,jobs) ; Pass in port and max jobs to fork
+START(port,jobs,restrict) ; Pass in port and max jobs to fork, and optionally prevent the web interface with restrict
 OPEN ; Pass through from top using defaults
  new $etrap,mjn set $etrap="do %ET^%WWW",mjn=$job
  open 10:($get(port,80):"server="_$get(jobs,5))
@@ -2816,9 +2821,11 @@ DMSDEC ;
 ;---
 E new prec,e
  set prec=^$job($job,"precision")
- set e=2+$extract(.7182818284590452353602874713526624977572470936999595749669676277,1,prec+2)
+ set e=2.7182818284590452353602874713526624977572470936999595749669676277
+ set e=e_2407663035354759457138217852516642742746639193200305992181741359
+ set e=$extract(e,1,prec+3)
  if prec=0 quit 2
- if prec=64 quit e
+ if prec=128 quit e
  quit $extract(e,1,$length(e)-2)_($extract(e,$length(e)-1)+$select($extract(e,$length(e))>4:1,1:0))
 
 MATH3
@@ -3077,9 +3084,11 @@ MTXUNIT ;
 ;---
 PI new prec,pi
  set prec=^$job($job,"precision")
- set pi=3+$extract(.1415926535897932384626433832795028841971693993751058209749445923,1,prec+2)
+ set pi=3.141592653589793238462643383279502884197169399375105820974944592307
+ set pi=pi_81640628620899862803482534211706798214808651328230664709384460
+ set pi=$extract(pi,1,prec+3)
  if prec=0 quit 3
- if prec=64 quit pi
+ if prec=128 quit pi
  quit $extract(pi,1,$length(pi)-2)_($extract(pi,$length(pi)-1)+$select($extract(pi,$length(pi))>4:1,1:0))
 ;---
 PRODUCE ;

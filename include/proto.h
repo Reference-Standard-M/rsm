@@ -107,7 +107,7 @@ short   patmat(cstring *str, cstring *code);                                    
 short   attention(void);                                                        // process attention
 int     ForkIt(int cft);                                                        // Fork (copy file table)
 void    SchedYield(void);                                                       // do a sched_yield()
-void    DoInfo(void);                                                           // for Control-T
+void    DoInfo(void);                                                           // for <Control-T>
 
 // Runtime math (decimal ex FreeMUMPS)
 short runtime_add(char *a, char *b);                                            // add b to a

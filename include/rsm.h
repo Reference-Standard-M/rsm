@@ -41,12 +41,12 @@
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       78                                                  // Minor version number
-#define VERSION_PATCH       2                                                   // Patch version number
+#define VERSION_MINOR       79                                                  // Minor version number
+#define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
-#define MAX_JOBS            512                                                 // Maximum number of jobs
+#define MAX_JOBS            1024                                                // Maximum number of jobs
 #define DAEMONS             16                                                  // Jobs per daemon
 #define MIN_DAEMONS         2                                                   // Minimum of these
 #define MAX_DAEMONS         16                                                  // Maximum of these
@@ -54,14 +54,14 @@
 #define MAX_ROUTINE_BUFFERS 4095                                                // Maximum routine buffers in MiB
 
 #ifdef  __APPLE__
-#   define PRVGRP           80                                                  // admin in MacOS X
+#   define PRVGRP           80                                                  // admin in macOS
 #else
 #   define PRVGRP           0                                                   // Priv group FreeBSD and Linux
 #endif                                                                          // Darwin
 
-#define MAX_INT_DIGITS      10                                                  // can be an int at 10 - not currently used
+//#define MAX_INT_DIGITS      10                                                  // can be an int at 10 - not currently used
 #define DEFAULT_PREC        18                                                  // default number of decimal places
-#define MAX_PREC            64                                                  // max number of decimal places
+#define MAX_PREC            128                                                 // max number of decimal places
 #define MAX_NUM_BYTES       256                                                 // max size of a number
 
 #define MAX_STR_LEN         65534                                               // max size of a string (65535 VAR/NODE_UNDEFINED)
@@ -119,10 +119,10 @@
 #define SQ_USE_DEL8         512                                                 // use backspace as delete
 #define SQ_USE_DEL127       1024                                                // use delete as delete
 #define SQ_USE_DELBOTH      2048                                                // use both as delete
-#define SQ_CONTROLC         4096                                                // enable Control-C trapping
-#define SQ_NOCONTROLC       8192                                                // no Control-C trap, ignore it
-#define SQ_CONTROLT         16384                                               // enable Control-T status
-#define SQ_NOCONTROLT       32768                                               // disable Control-T status
+#define SQ_CONTROLC         4096                                                // enable <Control-C> trapping
+#define SQ_NOCONTROLC       8192                                                // no <Control-C> trap, ignore it
+#define SQ_CONTROLT         16384                                               // enable <Control-T> status
+#define SQ_NOCONTROLT       32768                                               // disable <Control-T> status
 
 #if defined(__APPLE__) && defined(__LP64__)
 #   if defined(__arm64__)
@@ -130,6 +130,8 @@
 #   else
 #       define SHMAT_SEED   (void *) 0x200000000
 #   endif
+#elif defined(__APPLE__)
+#       define SHMAT_SEED   (void *) 0x4000000
 #elif defined(__arm__) || defined(__aarch64__)
 #   define SHMAT_SEED       (void *) 0x1000000
 #else
@@ -162,7 +164,7 @@
 #define GL_JOURNAL          1                                                   // Journal global flag
 #define GL_TOP_DEFINED      2                                                   // Top node of global defined
 
-#define LOCKTAB_SIZE        16384                                               // 16 KiB per job
+#define LOCKTAB_SIZE        32768                                               // 32 KiB per job
 #define UCI_IS_LOCALVAR     255                                                 // for struct mvar
 #define VAR_UNDEFINED       (MAX_STR_LEN + 1)                                   // undefined variable (also NODE_UNDEFINED)
 
@@ -186,17 +188,17 @@
 
 // Signals we do something with (see jobtab->trap). (add as required)
 #define SIG_HUP             1                                                   // SIGHUP (ERR Z66)
-#define SIG_CC              (1U << 2)                                           // Control-C signal (SIGINT)
+#define SIG_CC              (1U << 2)                                           // <Control-C> signal (SIGINT)
 #define SIG_QUIT            (1U << 3)                                           // SIGQUIT (HALT)
 #define SIG_TERM            (1U << 15)                                          // SIGTERM (HALT)
 #define SIG_STOP            (1U << 17)                                          // SIGSTOP (HALT)
 #define SIG_WS              (1U << 28)                                          // window size changes (ignore)
-#define SIG_CT              (1U << 29)                                          // Control-T signal (SIGINFO)
+#define SIG_CT              (1U << 29)                                          // <Control-T> signal (SIGINFO)
 #define SIG_U1              (1U << 30)                                          // user signal 1 (ERR Z67)
 #define SIG_U2              (1U << 31)                                          // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define VOL_FILENAME_MAX    256                                                 // max chars in stored filename
+#define VOL_FILENAME_MAX    255                                                 // max chars in stored filename
 #define JNL_FILENAME_MAX    226                                                 // max chars in journal filename
 
 // systab->historic bit flag meanings
@@ -234,7 +236,7 @@ typedef union semun {
 typedef union semun semun_t;
 #endif
 
-typedef unsigned long long u_int64;                                             // Unix unsigned quadword
+typedef unsigned long long u_int64;                                             // UNIX unsigned quadword
 
 typedef union __attribute__ ((__packed__)) VAR_U {                              // get at this three ways
     u_int64 var_q;                                                              // variable name (quadword) for casting
@@ -344,8 +346,8 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF {
     u_int        garbQ[NUM_GARB];                                               // garbage queue (for daemons)
     int          garbQw;                                                        // write ptr for garbage queue
     int          garbQr;                                                        // read ptr for garbage queue
-    off_t        jrn_next;                                                      // next free offset in jrn file
-    char         file_name[VOL_FILENAME_MAX];                                   // absolute pathname of volfile
+    off_t        jrn_next;                                                      // next free offset in journal file
+    char         file_name[VOL_FILENAME_MAX + 1];                               // absolute pathname of volume file
     db_stat      stats;                                                         // database statistics
 } vol_def;                                                                      // end of volume def
                                                                                 // sizeof(vol_def) = 58108
@@ -386,7 +388,7 @@ typedef struct __attribute__ ((__packed__)) SERVERTAB {
     forktab *forked;
 } servertab;
 
-typedef union IN_TERM {
+typedef union __attribute__ ((__packed__)) IN_TERM {
     u_int64 iterm;                                                              // input terminator bit mask
     u_int64 interm[2];                                                          // input terminator bit mask array
 } IN_Term;
@@ -540,11 +542,8 @@ static inline u_int var_equal(var_u var1, var_u var2)
 
 static inline u_int var_empty(var_u var)
 {
-    if (var.var_q == 0) {
-        return TRUE;
-    } else {
-        return FALSE;
-    }
+    if (var.var_q == 0) return TRUE;
+    return FALSE;
 }
 
 #endif                                                                          // !_RSM_RSM_H_

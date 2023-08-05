@@ -51,9 +51,9 @@ void ic_map(int flag);                                                          
 
 /*
  * Function: daemon_check
- * Descript: Ensure all daemons are currently running
- * Input(s): none
- * Return:   none
+ * Summary:  Ensure all daemons are currently running
+ * Input(s): None
+ * Return:   None
  */
 void daemon_check(void)                                                         // ensure all running
 {
@@ -76,9 +76,9 @@ void daemon_check(void)                                                         
 
 /*
  * Function: do_write
- * Descript: Write out dirty GBDs
- * Input(s): none
- * Return:   none
+ * Summary:  Write out dirty GBDs
+ * Input(s): None
+ * Return:   None
  */
 void do_write(void)                                                             // write GBDs
 {
@@ -143,9 +143,9 @@ void do_write(void)                                                             
 
 /*
  * Function: do_free
- * Descript: Free a block in the map and GBDs (if required)
- * Input(s): block number to free
- * Return:   none
+ * Summary:  Free a block in the map and GBDs (if required)
+ * Input(s): Block number to free
+ * Return:   None
  */
 void do_free(u_int gb)                                                          // free from map et al
 {
@@ -180,11 +180,9 @@ void do_free(u_int gb)                                                          
 
 /*
  * Function: do_zot
- * Descript: Zot block(s)
- *           At this stage:     there is NO recovery.
- *                              there is no integrity check.
- * Input(s): block number to zot
- * Return:   negative error number or type byte of block zotted.
+ * Summary:  Zot block(s) - at this stage there is NO recovery and there is no integrity check
+ * Input(s): Block number to zot
+ * Return:   Negative error number or type byte of block zotted
  */
 int do_zot(u_int gb)                                                            // zot block
 {
@@ -313,11 +311,10 @@ zotit:
 
 /*
  * Function: do_garb
- * Descript: Garbage collect some block(s)
- *           At this stage:     there is NO recovery.
- *                              there is no integrity check.
- * Input(s): none
- * Return:   none
+ * Summary:  Garbage collect some block(s)
+ *           At this stage there is NO recovery and there is no integrity check
+ * Input(s): None
+ * Return:   None
  */
 void do_garb(void)                                                              // garbage collect
 {
@@ -337,22 +334,22 @@ void do_garb(void)                                                              
 
 /*
  * Function: do_dismount
- * Descript: Dismount current volnum
- * Input(s): none
- * Return:   none
+ * Summary:  Dismount current volnum
+ * Input(s): None
+ * Return:   None
  */
 void do_dismount(void)                                                          // dismount volnum
 {
     int     ret;                                                                // for function returns
     int     cnt;                                                                // and another
     int     pid;                                                                // for jobs
+    time_t  t;                                                                  // for ctime()
     struct  shmid_ds sbuf;                                                      // for shmctl
 #ifdef __APPLE__
     void    *semvals = NULL;
 #else
-    semun_t semvals;                                                            // dummy for semctl IPC_RMID
+    semun_t semvals = {.val = 0};                                               // dummy for semctl IPC_RMID
 #endif
-    time_t  t;                                                                  // for ctime()
 
     ret = shmctl(systab->vol[volnum - 1]->shm_id, IPC_RMID, &sbuf);             // remove share
     if (ret == -1) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
@@ -362,9 +359,9 @@ void do_dismount(void)                                                          
             pid = systab->jobtab[i].pid;                                        // get pid
 
             if (pid) {                                                          // if pid != 0
-                if (kill(pid, SIGTERM)) {                                       // kill this one
-                    systab->jobtab[i].trap = 1U << SIGTERM;                     // say go away
-                    systab->jobtab[i].attention = 1;                            // look at it
+                if (kill(pid, SIGTERM) == -1) {                                 // kill this one
+                    systab->jobtab[i].trap = 1U << SIGTERM;                     // or say go away
+                    systab->jobtab[i].attention = 1;                            // and look at it
                 }
             }
         }
@@ -380,10 +377,10 @@ void do_dismount(void)                                                          
         }                                                                       // end GBD has blk
     }                                                                           // end blk search
 
-    cnt = 1;
+    cnt = TRUE;
 
-    while (cnt) {                                                               // while theres pids
-        cnt = 0;                                                                // reset pid counter
+    while (cnt) {                                                               // while there are pids
+        cnt = FALSE;                                                            // reset pid counter
         SemOp(SEM_WD, WRITE);                                                   // lock daemon table
 
         for (int j = 1; j < systab->vol[volnum - 1]->num_of_daemons; j++) {     // search
@@ -392,10 +389,10 @@ void do_dismount(void)                                                          
                     if (errno == ESRCH) {                                       // if no such
                         systab->vol[volnum - 1]->wd_tab[j].pid = 0;             // clear it
                     } else {
-                        cnt = 1;                                                // remember still there
+                        cnt = TRUE;                                             // remember still there
                     }
                 } else {
-                    cnt = 1;
+                    cnt = TRUE;
                 }
             }
         }
@@ -428,9 +425,9 @@ void do_dismount(void)                                                          
 
 /*
  * Function: do_daemon
- * Descript: do daemon type things
- * Input(s): none
- * Return:   none
+ * Summary:  Do daemon type things
+ * Input(s): None
+ * Return:   None
  */
 void do_daemon(void)                                                            // do something
 {
@@ -542,8 +539,8 @@ start:
 
 /*
  * Function: DB_Daemon
- * Descript: Start daemon for passed in slot and vol#
- * Input(s): slot# and Vol#
+ * Summary:  Start daemon for passed in slot and volume numbers
+ * Input(s): Slot# and Vol#
  * Return:   0 -> Ok, any non-zero = error
  */
 int DB_Daemon(int slot, int vol)                                                // start a daemon

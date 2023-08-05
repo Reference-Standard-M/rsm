@@ -39,7 +39,7 @@
 /*
  * Below is the maximum depth that the database code will search down to.
  *
- * NOTE: With a minimum block size of 4 KiB a depth of 12 allows for
+ * NOTE: With a block size of 4 KiB a depth of 12 allows for
  *       potentially about 8.649e+012 data blocks available.
  */
 #define MAXTREEDEPTH    12                                                      // max level down
@@ -73,7 +73,7 @@ typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK {                  
 typedef struct __attribute__ ((__packed__)) GBD {                               // global buf desciptor
     u_int           block;                                                      // block number
     struct GBD      *next;                                                      // next entry in list
-    struct DB_BLOCK *mem;                                                       // memory address of blk
+    struct DB_BLOCK *mem;                                                       // memory address of block
     struct GBD      *dirty;                                                     // to write -> next
     time_t          last_accessed;                                              // last time used
 } gbd;                                                                          // end GBD struct

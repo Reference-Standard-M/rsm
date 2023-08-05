@@ -38,8 +38,8 @@
 
 /*
  * Function: Kill_data
- * Descript: Remove the sub-tree described by db_var
- * Input(s): none
+ * Summary:  Remove the sub-tree described by db_var
+ * Input(s): None
  * Return:   0 -> Ok, negative M error
  */
 short Kill_data(void)                                                           // remove tree
