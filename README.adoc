@@ -8,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.78.2 - 2023 Jul 8*
+*Version 1.79.0 - 2023 Aug 4*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -49,7 +49,7 @@ RSM was originally named MUMPS V1 (MV1), and was created by Raymond Douglas
 Newman. When I took over maintenance and development of MV1, I changed its name
 to better reflect its use as a reference implementation for the MDC.
 
-See the link:CHANGELOG.adoc[CHANGELOG] for more information on the development
+See the link:CHANGELOG.adoc[Changelog] for more information on the development
 of Reference Standard M. This software uses link:https://semver.org/[semantic
 versioning].
 
@@ -59,20 +59,20 @@ The RSM link:doc/index.adoc[documentation] is a work-in-progress.
 
 === Installation
 
-RSM builds and runs on most Unix, and Unix-derived platforms, running 32-bit and
+RSM builds and runs on most UNIX, and UNIX-derived platforms, running 32-bit and
 64-bit processors, in little-endian and big-endian mode. The platforms that have
 been tested, or known to build and run RSM, are:
 
 * Linux (Ubuntu, Debian, Red Hat, OpenSUSE, and Slackware) on i386 and x86_64
-* AIX on ppc32be
 * FreeBSD on amd64
 * NetBSD on amd64
 * OpenBSD on amd64
-* MacOS X/macOS 10.4 and newer on 32/64-bit Intel (Clang or GCC)
+* macOS 10.4 and newer on ILP32 and LP64 Intel (Clang or GCC)
 * macOS 11.0 and newer on 64-bit M1 ARMv8 (Clang or GCC)
 * Solaris on i86pc
-* Raspberry Pi on armv6l and armv7l running Raspbian
+* AIX on ppc32be
 * Windows XP, 7, and 10, under Cygwin and/or Windows Subsystem for Linux 1 and 2
+* Raspberry Pi on armv6l and armv7l running Raspbian
 * Mobian (Mobile Debian Linux) on aarch64
 
 WARNING: RSM will not run on SPARC hardware, due to memory alignment
@@ -114,16 +114,18 @@ $ gmake -j
 
 The resulting `rsm` executable will be optimized for your system.
 
-Install the `rsm` executable in a system location [/usr/local/bin]:
+Install the `rsm` executable in the default bin directory [/usr/local/bin]:
 
 [source,bash]
 ----
 $ sudo make install
 ----
-or
+
+Install the `rsm` executable in a different bin directory [/usr/bin]:
+
 [source,bash]
 ----
-$ sudo make install path=<path-to-system-location>
+$ sudo make install PREFIX=/usr
 ----
 
 Clean up the build environment after installation:
@@ -133,16 +135,18 @@ Clean up the build environment after installation:
 $ make clean
 ----
 
-Uninstall the `rsm` executable from a system location [/usr/local/bin]:
+Uninstall the `rsm` executable from the default bin directory [/usr/local/bin]:
 
 [source,bash]
 ----
 $ sudo make uninstall
 ----
-or
+
+Uninstall the `rsm` executable from a different bin directory [/usr/bin]:
+
 [source,bash]
 ----
-$ sudo make uninstall path=<path-to-system-location>
+$ sudo make uninstall PREFIX=/usr
 ----
 
 === Usage
@@ -193,9 +197,9 @@ Initialize and start the environment:
 [source,bash]
 ----
 # Optional arguments in square brackets
-#  -j <max-jobs>          Maximum attached jobs      (1-512 jobs)
-# [-g <global-buffers>]   Size of global buffers     (1-131072 MiB)
-# [-r <routine-buffers>]  Size of routine buffers    (1-4095 MiB)
+#  -j <max-jobs>          Size of job table in environment  (1-1024 jobs)
+# [-g <global-buffers>]   Size of global buffers            (1-131072 MiB)
+# [-r <routine-buffers>]  Size of routine buffers           (1-4095 MiB)
 # [<database-file>]       Name of the database file
 
 $ rsm -j 12 tst.dat
@@ -207,7 +211,7 @@ $ export RSM_DBFILE="/home/user/rsm/tst.dat"
 $ rsm -j 12
 ----
 
-On MacOS X, you might need to increase the accessible shared memory before
+On macOS, you might need to increase the accessible shared memory before
 starting the environment, if the previous command failed. If so, as root or
 using `sudo`, run the following commands, adjusted based on your system
 resources:
@@ -243,12 +247,12 @@ $ export RSM_DBFILE="/home/user/rsm/tst.dat"
 $ rsm -i
 ----
 
-Load the M utilities:
+Load the M utilities (using the bootstrap method):
 
 [source,bash]
 ----
 # Optional arguments in square brackets
-# -x <M-command(s)>        String of M commands
+# -x <M-command(s)>        String of M commands to execute
 # [-e <environment-name>]  Name of initial UCI environment
 # [<database-file>]        Name of the database file
 
@@ -285,7 +289,7 @@ Run an M routine in indirect mode:
 ----
 # Start the M Command Language shell
 # Optional arguments in square brackets
-# -x <M-command(s)>        String of M commands
+# -x <M-command(s)>        String of M commands to execute
 # [-e <environment-name>]  Name of initial UCI environment
 # [-R]                     Starts in restricted mode
 # [<database-file>]        Name of the database file

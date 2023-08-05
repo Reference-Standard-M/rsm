@@ -40,7 +40,7 @@
 
 /*
  * Function: DB_ViewGet
- * Descript: return GBD address of specified block, null on err
+ * Summary:  Return GBD address of specified block, null on error
  * Input(s): Vol# and Block# to get
  * Return:   Address of GBD or null on error
  */
@@ -63,9 +63,9 @@ gbd *DB_ViewGet(u_int vol, u_int block)                                         
 
 /*
  * Function: DB_ViewPut
- * Descript: Queue a block for write
+ * Summary:  Queue a block for write
  * Input(s): Vol# and GBD ptr of block
- * Return:   none
+ * Return:   None
  */
 void DB_ViewPut(u_int vol, gbd *ptr)                                            // queue block for write
 {
@@ -98,9 +98,9 @@ void DB_ViewPut(u_int vol, gbd *ptr)                                            
 
 /*
  * Function: DB_ViewRel
- * Descript: Release specified GBD
+ * Summary:  Release specified GBD
  * Input(s): Vol# and GBD ptr of block
- * Return:   none
+ * Return:   None
  */
 void DB_ViewRel(u_int vol, gbd *ptr)                                            // release block, GBD
 {

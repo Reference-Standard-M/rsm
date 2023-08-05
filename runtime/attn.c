@@ -50,7 +50,7 @@ short attention(void)                                                           
 {
     short s = 0;                                                                // return value
 
-    if (partab.jobtab->trap & SIG_CC) {                                         // Control-C
+    if (partab.jobtab->trap & SIG_CC) {                                         // <Control-C>
         partab.jobtab->trap = partab.jobtab->trap & ~SIG_CC;                    // clear it
         partab.jobtab->async_error = -(ERRZ51 + ERRMLAST);                      // store the error
     }
@@ -100,7 +100,7 @@ short attention(void)                                                           
     return s;                                                                   // return whatever
 }
 
-// DoInfo() - look after a Control-T
+// DoInfo() - look after a <Control-T>
 void DoInfo(void)
 {
     int    i;                                                                   // a handy int
@@ -142,8 +142,8 @@ void DoInfo(void)
  *           Failure 0 (zot)
  *
  *     cft = 0 JOB
- *           1 FORK
- *          -1 Just do a fork()/rfork() for the daemons, no file table
+ *           1 FORK ($&%FORK or TCP FORK)
+ *          -1 Daemons (do not copy file table)
  */
 int ForkIt(int cft)                                                             // Copy File Table True/False
 {
@@ -156,7 +156,7 @@ int ForkIt(int cft)                                                             
         ret = systab->jobtab[k].pid;                                            // get pid
 
         if (ret) {                                                              // if one there
-            if (kill(ret, 0)) {                                                 // check the job
+            if (kill(ret, 0) == -1) {                                           // check the job
                 if (errno == ESRCH) {                                           // doesn't exist
                     CleanJob(k + 1);                                            // zot if not there
                     break;                                                      // have at least one
@@ -195,14 +195,14 @@ int ForkIt(int cft)                                                             
 
 #ifdef __FreeBSD__                                                              // for FreeBSD
     i = rfork(ret);                                                             // create new process
-#else                                                                           // Linux, MacOS X et al
+#else                                                                           // Linux, macOS, et al.
     signal(SIGCHLD, SIG_IGN);                                                   // try this
     i = fork();
 #endif
 
     if (!i) {                                                                   // child
         failed_tty = -1;                                                        // don't restore term settings on exit
-        setSignal(SIGINT, IGNORE);                                              // disable Control-C
+        setSignal(SIGINT, IGNORE);                                              // disable <Control-C>
     }
 
     if (cft == -1) {                                                            // daemons
@@ -239,6 +239,7 @@ int ForkIt(int cft)                                                             
 
     if (i > 9999) {                                                             // if that didn't work
         for (i = 0; ; i++) {                                                    // try the long way
+            if (systab->start_user == -1) return ret;                           // if parent gone and shutting down (JIC)
             if (getpid() == partab.jobtab->pid) break;                          // done yet? if yes - exit
             if (i > 120) panic("ForkIt: Child job never got setup");            // two minutes is enough
             sleep(1);                                                           // wait for a second

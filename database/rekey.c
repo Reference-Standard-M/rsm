@@ -40,8 +40,8 @@
 
 /*
  * Function: Set_key
- * Descript: Set the supplied block number to location pointed to by db_var
- * Input(s): Block number to set, level to work on.
+ * Summary:  Set the supplied block number to location pointed to by db_var
+ * Input(s): Block number to set, level to work on
  *           Re_key (below) has refreshed blk[] and db_var
  * Return:   0 -> Ok, negative M error
  */
@@ -342,8 +342,8 @@ fix_keys:
 
 /*
  * Function: Add_rekey
- * Descript: Set the supplied block number and level into rekey table
- * Input(s): Block number to set, level it is currently at.
+ * Summary:  Set the supplied block number and level into rekey table
+ * Input(s): Block number to set, level it is currently at
  * Return:   0
  */
 short Add_rekey(u_int block, int level)                                         // add to re-key table
@@ -364,8 +364,8 @@ short Add_rekey(u_int block, int level)                                         
 
 /*
  * Function: Re_key
- * Descript: Re key all blocks in the re-key table
- * Input(s): none
+ * Summary:  Re-key all blocks in the re-key table
+ * Input(s): None
  * Return:   0 or negative M error
  */
 short Re_key(void)                                                              // re-key blocks
@@ -409,9 +409,9 @@ short Re_key(void)                                                              
 
 /*
  * Function: Un_key
- * Descript: Un key current blk[level]
- * Input(s): none
- * Return:   none
+ * Summary:  Un-key current blk[level]
+ * Input(s): None
+ * Return:   None
  */
 void Un_key(void)
 {

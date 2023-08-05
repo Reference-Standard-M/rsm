@@ -40,7 +40,7 @@
 
 /*
  * Function: DB_UCISet
- * Descript: Create UCI
+ * Summary:  Create UCI
  * Input(s): Vol#
  *           UCI#
  *           UCI Name
@@ -115,7 +115,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
 
 /*
  * Function: DB_UCIKill
- * Descript: Remove UCI
+ * Summary:  Remove UCI
  * Input(s): Vol#
  *           UCI#
  * Return:   0 -> Ok, negative M error

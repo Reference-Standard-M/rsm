@@ -42,14 +42,14 @@
 #include "proto.h"                                                              // standard includes
 #include "database.h"                                                           // database includes
 
-/*********************************************************\
-* Initialize an environment - switches are:               *
-*      database file name           (1 to VAR_LEN)    Req *
-*   -j max number of jobs           (1 to 512)        Req *
-*   -g global buffers in MiB        (0 to 131072)     Opt *
-*   -r routine buffers in MiB       (0 to 4095)       Opt *
-*   -a additional buffers in MiB    (1 to VAR_LEN)    Opt *
-\*********************************************************/
+/***********************************************************************\
+* Initialize an environment - switches are:                             *
+*     database file name           (1 to VAR_LEN)                   Req *
+*  -j max number of jobs           (1 to MAX_JOBS)                  Req *
+*  -g global buffers in MiB        (0 to MAX_GLOBAL_BUFFERS)        Opt *
+*  -r routine buffers in MiB       (0 to MAX_ROUTINE_BUFFERS)       Opt *
+*  -a additional buffers in MiB    (1 to MAX_ADDITIONAL_BUFFERS)    Opt *
+\***********************************************************************/
 int INIT_Start(char  *file,                                                     // database
                u_int jobs,                                                      // number of jobs
                u_int gmb,                                                       // MiB of global buffers
@@ -61,21 +61,26 @@ int INIT_Start(char  *file,                                                     
     int             i;                                                          // useful int
     u_int           n_gbd;                                                      // number of GBD
     long long       addoff;                                                     // offset for add buff
-    key_t           shar_mem_key;                                               // memory "key"
+    key_t           shar_mem_key;                                               // memory key
     int             shar_mem_id;                                                // memory id
     int             sem_id;                                                     // semaphore id
     u_short         sem_val[SEM_MAX];                                           // to init them
-    semun_t         semvals;                                                    // for a ptr to sem_val
+    semun_t         semvals;                                                    // for a pointer to sem_val
     long long       share_size;                                                 // size of share (bytes)
     int             locksize;                                                   // size of locktab
+    int             size;                                                       // used to calculate real locksize
     long            sjlt_size;                                                  // size of systab + jobtab + locktab
     long long       volset_size;                                                // size of volset struct (bytes)
-    int             pagesize;                                                   // system pagesize (bytes)
+    long            pagesize;                                                   // system pagesize (bytes)
     struct shmid_ds sbuf;                                                       // for shmctl
     char            fullpathvol[MAXPATHLEN];                                    // full pathname of vol file
     gbd             *gptr;                                                      // a GBD pointer
     u_char          *ptr;                                                       // and a byte one
     label_block     *labelblock;                                                // label block pointer
+    char            version[120];                                               // a string
+
+    rsm_version((u_char *) version);                                            // get version into version[]
+    printf("%s\n", version);                                                    // print version string
 
     if ((jobs < 1) || (jobs > MAX_JOBS)) {                                      // check number of jobs
         fprintf(stderr, "Invalid number of jobs %u - must be 1 to %d\n", jobs, MAX_JOBS);
@@ -92,7 +97,7 @@ int INIT_Start(char  *file,                                                     
         return EINVAL;                                                          // return an error
     }                                                                           // end routine buffers check
 
-    pagesize = getpagesize();                                                   // get system pagesize (bytes)
+    pagesize = sysconf(_SC_PAGESIZE);                                           // get system pagesize (bytes)
     if (gmb == 0) gmb = jobs / 2;                                               // default global buffers
     if (gmb < 1) gmb = 1;                                                       // but at least 1 MiB
     if (rmb == 0) rmb = jobs / 8;                                               // pick a default
@@ -149,42 +154,44 @@ int INIT_Start(char  *file,                                                     
         return -1;
     }
 
-    n_gbd = ((long) gmb * MBYTE) / hbuf[3];                                     // number of GBD
+    n_gbd = ((long long) gmb * MBYTE) / hbuf[3];                                // number of GBD
 
     while (n_gbd < MIN_GBD) {                                                   // if not enough
         gmb++;                                                                  // increase it
-        n_gbd = ((long) gmb * MBYTE) / hbuf[3];                                 // number of GBD
+        n_gbd = ((long long) gmb * MBYTE) / hbuf[3];                            // number of GBD
     }
 
-    printf("Creating share for %u job%s with %u MiB routine space,\n", jobs, ((jobs > 1) ? "s" : ""), rmb);
-    printf("%u MiB (%u) global buffers, %d KiB label/map space,\n", gmb, n_gbd, hbuf[2] / 1024);
-    printf("and %d KiB for the lock table.\n", locksize / 1024);
-    //if (addmb > 0) printf("With %u MiB of additional buffers.\n", addmb);
     for (i = 0; i < SEM_MAX; sem_val[i++] = jobs) continue;                     // setup for sem init
     semvals.array = sem_val;
 
     sjlt_size = sizeof(systab_struct)                                           // size of Systab
-              + ((sizeof(u_int) * (jobs - 1)) * MAX_VOL)                        // adj for last_blk_used[MAX_VOL]
+              + ((sizeof(u_int) * (jobs - 1)) * MAX_VOL)                        // adjust for last_blk_used[MAX_VOL]
               + (sizeof(jobtab) * jobs)                                         // size of JOBTAB
               + locksize;                                                       // size of LOCKTAB
 
+    size = sjlt_size;                                                           // used to calculate real locksize
     sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize;                  // round up
+    locksize += sjlt_size - size;                                               // calculate real locksize
 
     volset_size = sizeof(vol_def)                                               // size of VOL_DEF (one for now)
                 + hbuf[2]                                                       // size of head and map block
                 + (n_gbd * sizeof(gbd))                                         // the GBD
-                + ((long) gmb * MBYTE)                                          // MiB of global buffers
+                + ((long long) gmb * MBYTE)                                     // MiB of global buffers
                 + hbuf[3]                                                       // size of block (zero block)
                 + ((long) rmb * MBYTE);                                         // MiB of routine buffers
 
     volset_size = ((volset_size - 1) / pagesize + 1) * pagesize;                // round up
     share_size = sjlt_size + volset_size;                                       // shared memory size
     addoff = share_size;                                                        // where add buff starts
-    share_size += (long) addmb * MBYTE;                                         // and the additional
-    shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create share mem (0660)
+    share_size += (long long) addmb * MBYTE;                                    // and the additional
+    printf("Creating share for %u job%s with %u MiB routine space,\n", jobs, ((jobs > 1) ? "s" : ""), rmb);
+    printf("%u MiB (%u) global buffers, %d KiB label/map space,\n", gmb, n_gbd, hbuf[2] / 1024);
+    //if (addmb > 0) printf("%u MiB of additional buffers for supplemental volumes,\n", addmb);
+    printf("%d KiB for the lock table, with a total share size of %lld MiB.\n", locksize / 1024, share_size / MBYTE);
+    shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create share memory (0660)
 
     if (shar_mem_id == -1) {                                                    // die on error
-        fprintf(stderr, "Unable to create shared memory section - %s\n", strerror(errno)); // give an error
+        fprintf(stderr, "Unable to create shared memory segment - %s\n", strerror(errno)); // give an error
 
         if (errno == EINVAL) {
 #ifdef __APPLE__
@@ -225,13 +232,13 @@ int INIT_Start(char  *file,                                                     
     systab = shmat(shar_mem_id, SHMAT_SEED, 0);                                 // map it
 
     if (systab == (void *) -1) {                                                // die on error
-        fprintf(stderr, "Unable to attach to systab correctly - %s\n", strerror(errno)); // give error
+        fprintf(stderr, "Unable to attach to the environment correctly - %s\n", strerror(errno)); // give error
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
         return errno;                                                           // exit with error
     }
 
-    printf("Systab attached at 0x%lx [semid: %d  shmid: %d]\n", (u_long) systab, sem_id, shar_mem_id);
+    printf("Environment attached at 0x%lx [semid: %d  shmid: %d]\n", (u_long) systab, sem_id, shar_mem_id);
     memset(systab, 0, share_size);                                              // zot the lot
     systab->address = systab;                                                   // store the address for ron
     systab->jobtab = (jobtab *) &systab->last_blk_used[jobs * MAX_VOL];         // setup jobtab pointer
@@ -239,7 +246,7 @@ int INIT_Start(char  *file,                                                     
     systab->start_user = (int) getuid();                                        // remember who started this
     systab->precision = DEFAULT_PREC;                                           // decimal precision
     systab->historic = (HISTORIC_EOK | HISTORIC_OFFOK | HISTORIC_DNOK);         // default "historic" features to on
-    systab->lockstart = (void *) ((char *) systab->jobtab + (sizeof(jobtab) * jobs)); //locktab
+    systab->lockstart = (void *) ((char *) systab->jobtab + (sizeof(jobtab) * jobs)); // locktab
     systab->locksize = locksize;                                                // the size
     systab->lockhead = NULL;                                                    // no locks currently
     systab->lockfree = (locktab *) systab->lockstart;                           // free space
@@ -247,7 +254,7 @@ int INIT_Start(char  *file,                                                     
     systab->lockfree->size = locksize;                                          // the whole space
     systab->lockfree->job = -1;                                                 // means free
     systab->addoff = addoff;                                                    // Add buffer offset
-    systab->addsize = ((long) addmb * MBYTE);                                   // and size in bytes
+    systab->addsize = ((long long) addmb * MBYTE);                              // and size in bytes
     systab->vol[0] = (vol_def *) ((char *) systab + sjlt_size);                 // jump to start of volume set memory
     systab->vol[0]->vollab = (label_block *) ((char *) systab->vol[0] + sizeof(vol_def)); // and point to label blk
     systab->vol[0]->map = (void *) ((char *) systab->vol[0]->vollab + sizeof(label_block)); // and point to map
@@ -255,7 +262,7 @@ int INIT_Start(char  *file,                                                     
     systab->vol[0]->gbd_head = (gbd *) ((char *) systab->vol[0]->vollab + hbuf[2]); // GBDs
     systab->vol[0]->num_gbd = n_gbd;                                            // number of GBDs
     systab->vol[0]->global_buf = (void *) &systab->vol[0]->gbd_head[n_gbd];     // global buffers
-    systab->vol[0]->zero_block = (void *) &(((u_char *) systab->vol[0]->global_buf)[(long) gmb * MBYTE]); // pointer to zero blk
+    systab->vol[0]->zero_block = (void *) &(((u_char *) systab->vol[0]->global_buf)[(long long) gmb * MBYTE]); // point to zero blk
     systab->vol[0]->rbd_head = (void *) ((char *) systab->vol[0]->zero_block + hbuf[3]); // RBDs
     systab->vol[0]->rbd_end = (void *) ((char *) systab + share_size - systab->addsize); // end of share
     systab->vol[0]->shm_id = shar_mem_id;                                       // set up share id
@@ -263,17 +270,18 @@ int INIT_Start(char  *file,                                                     
     systab->vol[0]->map_dirty_flag = 0;                                         // clear dirty map flag
 
     if (realpath(file, fullpathvol) != NULL) {                                  // get full path
-        if (strlen(fullpathvol) < VOL_FILENAME_MAX) {                           // if can fit in our struct
+        if (strlen(fullpathvol) <= VOL_FILENAME_MAX) {                          // if can fit in our struct
             strcpy(systab->vol[0]->file_name, fullpathvol);                     // copy path into the vol_def structure
         } else {                                                                // end if path will fit, otherwise
-            i = VOL_FILENAME_MAX - strlen(fullpathvol);                         // copy as much as
+            i = strlen(fullpathvol) - VOL_FILENAME_MAX;                         // copy as much as
             strcpy(systab->vol[0]->file_name, &fullpathvol[i]);                 // is possible, that's the best we can do
         }                                                                       // end length testing
     } else {                                                                    // end realpath worked, otherwise it was an error
-        shmdt(systab);                                                          // detach the shared mem
+        i = errno;                                                              // save realpath error
+        shmdt(systab);                                                          // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
-        return errno;                                                           // exit with error
+        return i;                                                               // exit with error
     }
 
     if (shmctl(shar_mem_id, IPC_STAT, &sbuf) == -1) return errno;               // get status for later
@@ -282,7 +290,7 @@ int INIT_Start(char  *file,                                                     
 
     if (i < hbuf[2]) {                                                          // in case of error
         fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // what was returned
-        shmdt(systab);                                                          // detach the shared mem
+        shmdt(systab);                                                          // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
         return errno;                                                           // exit with error
@@ -310,7 +318,7 @@ int INIT_Start(char  *file,                                                     
 
         if (i != 0) {                                                           // in case of error
             fprintf(stderr, "*** Died on error - %s ***\n\n", strerror(i));     // what was returned
-            shmdt(systab);                                                      // detach the shared mem
+            shmdt(systab);                                                      // detach the shared memory
             return errno;                                                       // exit with error
         }
     }                                                                           // all daemons started
@@ -319,7 +327,7 @@ int INIT_Start(char  *file,                                                     
         printf("WARNING: Single user, journaling not started.\n");
     } else if (systab->vol[0]->vollab->journal_requested && systab->vol[0]->vollab->journal_file[0]) {
         struct stat sb;                                                         // File attributes
-        off_t       jptr;                                                       // file ptr
+        off_t       jptr;                                                       // file pointer
         jrnrec      jj;                                                         // to write with
         int         jfd;                                                        // file descriptor
 
@@ -420,7 +428,7 @@ int INIT_Start(char  *file,                                                     
 
     systab->vol[0]->gbd_hash[GBD_HASH] = gptr;                                  // head of free list
     Routine_Init(0);                                                            // and the routine junk
-    shmdt(systab);                                                              // detach the shared mem
+    shmdt(systab);                                                              // detach the shared memory
     close(dbfd);                                                                // close the database
     printf("RSM environment initialized.\n");                                   // say something
     return 0;                                                                   // indicate success

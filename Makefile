@@ -2,7 +2,7 @@
 # Package:  Reference Standard M
 # File:     rsm/Makefile
 # Summary:  Makefile for FreeBSD, NetBSD, and OpenBSD
-#           See rsm/GNUmakefile for Linux, MacOS X, Solaris, and Raspberry Pi
+#           See rsm/GNUmakefile for Linux, macOS, Solaris, AIX, and Raspberry Pi
 #
 # David Wicksell <dlw@linux.com>
 # Copyright © 2020-2023 Fourth Watch Software LC
@@ -34,72 +34,70 @@ SRC     != ls */*.c
 OBJ     := $(SRC:.c=.o)
 CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude
 LDFLAGS := -lm -lcrypt
+PREFIX  := /usr/local
+GIT_SHA != git rev-parse --short=10 HEAD 2>/dev/null; true
 
-.if ($(OS) == OpenBSD)
-    LDFLAGS := -lm
-.endif
-
-.ifmake profile
-    CONFIG  := -O0 -g3
-    CFLAGS  += -pg
-    LDFLAGS += -pg -lc
-.elifmake debug
-    CONFIG  := -O0 -g3
-.else
-    CONFIG  := -O3
-    CFLAGS  += -DNDEBUG
+.ifdef $(GIT_SHA)
+    CFLAGS  += -DGIT_SHA=$(GIT_SHA)
 .endif
 
 .ifdef dbver
     CFLAGS  += -DRSM_DBVER=$(dbver)
 .endif
 
-.ifdef path
-    EXECDIR := $(path)
-.else
-    EXECDIR := /usr/local/bin
+.if ($(OS) == OpenBSD)
+    LDFLAGS := -lm
 .endif
 
-.c.o: ${DEPS}
-	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
+.ifmake debug
+    CONFIG  := -O0 -g3
 
-${PROG}: ${OBJ}
-	${CC} -o ${PROG} ${OBJ} ${LDFLAGS}
+.   ifdef options
+.       if ($(options) == profile)
+            CFLAGS  += -pg
+            LDFLAGS += -lc -pg
+.       elif ($(options) == sanitize)
+            CFLAGS  += -fsanitize=address,undefined
+            LDFLAGS += -fsanitize=address,undefined
+.       endif
+.   endif
+.else
+    CONFIG  := -O3
+    CFLAGS  += -DNDEBUG
+.endif
 
 all: ${PROG}
 
 debug: ${PROG}
 
-profile: ${PROG}
+${PROG}: ${OBJ}
+	${CC} -o ${PROG} ${OBJ} ${LDFLAGS}
 
-install: ${PROG}
-
-	@if [ "$${USER}" != "root" ]; then \
-	    echo "You must install ${PROG} as root"; \
-	    exit 1; \
-	fi
-
-	@if [ -d ${EXECDIR} ]; then \
-	    echo install -o root -g 0 -m 755 -s ${PROG} ${EXECDIR}; \
-	    install -o root -g 0 -m 755 -s ${PROG} ${EXECDIR}; \
-	else \
-	    echo "${EXECDIR} does not exist"; \
-	    exit 1; \
-	fi
-
-uninstall:
-
-	@if [ "$${USER}" != "root" ]; then \
-	    echo "You must uninstall ${PROG} as root"; \
-	    exit 1; \
-	fi
-
-	@if [ -f ${EXECDIR}/${PROG} -a -x ${EXECDIR}/${PROG} ]; then \
-	    echo ${RM} ${EXECDIR}/${PROG}; \
-	    ${RM} ${EXECDIR}/${PROG}; \
-	fi
+.c.o: ${DEPS}
+	${CC} ${CONFIG} ${CFLAGS} -o $@ -c $<
 
 clean:
 	${RM} ${OBJ} ${PROG} $(wildcard ${PROG}.core)
 
-.PHONY: all debug profile install uninstall clean
+install: ${PROG}
+	@if [ "$${USER}" != "root" ]; then \
+	    echo "You must install ${PROG} as root"; \
+	    exit 1; \
+	elif [ -d ${PREFIX}/bin ]; then \
+	    echo install -o root -g 0 -m 755 -s ${PROG} ${PREFIX}/bin; \
+	    install -o root -g 0 -m 755 -s ${PROG} ${PREFIX}/bin; \
+	else \
+	    echo "${PREFIX}/bin does not exist"; \
+	    exit 1; \
+	fi
+
+uninstall:
+	@if [ "$${USER}" != "root" ]; then \
+	    echo "You must uninstall ${PROG} as root"; \
+	    exit 1; \
+	elif [ -f ${PREFIX}/bin/${PROG} -a -x ${PREFIX}/bin/${PROG} ]; then \
+	    echo ${RM} ${PREFIX}/bin/${PROG}; \
+	    ${RM} ${PREFIX}/bin/${PROG}; \
+	fi
+
+.PHONY: all debug clean install uninstall

@@ -29,13 +29,14 @@
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy/memcmp
 #include <sys/types.h>                                                          // for u_char def
+#include <limits.h>                                                             // for SHRT_MAX
+#include <unistd.h>                                                             // for sleep
+#include <sys/ipc.h>                                                            // semaphore stuff
+#include <sys/sem.h>                                                            // semaphore stuff
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // errors
 #include "compile.h"                                                            // for RBD definition
-#include <unistd.h>                                                             // for sleep
-#include <sys/ipc.h>                                                            // semaphore stuff
-#include <sys/sem.h>                                                            // semaphore stuff
 
 // Used by failed
 typedef struct LCK_ADD {
@@ -127,7 +128,7 @@ short UTIL_String_Lock(locktab *var, u_char *str)
         str[p++] = var->name.var_cu[i];                                         // copy a byte
     }
 
-    slen = var->byte_count - sizeof(var_u) - (2 * sizeof(u_char));              // subs len
+    slen = var->byte_count - sizeof(var_u) - (2 * sizeof(u_char));              // subs length
 
     if (slen != 0) {                                                            // if there are subscripts
         u_char save = var->name.var_cu[VAR_LEN - 1];                            // save that value
@@ -271,7 +272,7 @@ locktab *LCK_Insert(int size)                                                   
         free_curr = free_curr->fwd_link;                                        // check next one
     }                                                                           // end while
 
-    if ((ptr == NULL) || (ret == (systab->locksize + 1))) {                     // if neither has chgd
+    if ((ptr == NULL) || (ret == (systab->locksize + 1))) {                     // if neither has changed
         return NULL;                                                            // no space available
     } else {                                                                    // and try again if both changed
         // the 64 on the next line will be # defined shortly
@@ -466,6 +467,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
     locktab *plptr;                                                             // previous locktab
     locktab *nlptr;                                                             // new locktab
     int     i;                                                                  // handy int
+    int     ret;                                                                // for function returns
     int     reqd;                                                               // space required for lock
     lck_add ctx, *pctx;
 
@@ -519,9 +521,9 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         removedone++;                                           // increment removal counter
                     }                                                           // end while when no more to do
 
-                    if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                    if ((ret = failed(pctx))) return ret;
                 } else {
-                    nlptr->job = ((partab.jobtab - systab->jobtab) + 1);        // init job number
+                    nlptr->job = partab.jobtab - systab->jobtab + 1;            // init job number
                     nlptr->lock_count = 1;                                      // init lock count
                     nlptr->byte_count = current->len;                           // init data length
                     memcpy(&nlptr->vol, current->buf, current->len);            // copy in data
@@ -557,6 +559,11 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         if (pctx->lptr != NULL) {                               // if pctx->lptr defined
                             if (memcmp(current->buf, &pctx->lptr->vol, i) == 0) { // if data matches
                                 if (pctx->lptr->byte_count == current->len) {   // if exact length match
+                                    if ((pctx->lptr->lock_count + 1) > SHRT_MAX) {
+                                        SemOp(SEM_LOCK, systab->maxjob);        // unlock SEM_LOCK
+                                        return -(ERRZ78 + ERRMLAST);
+                                    }
+
                                     pctx->lptr->lock_count++;                   // increment the lock count
                                     pctx->lptr = NULL;                          // NULLIFY the ptr, finished
                                 } else {                                        // gone past it
@@ -577,7 +584,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                             removedone++;                       // increment removal counter
                                         }                                       // end while when no more to do
 
-                                        if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                                        if ((ret = failed(pctx))) return ret;
                                     } else {
                                         nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // job#
                                         nlptr->lock_count = 1;                  // init lock count
@@ -612,7 +619,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                         removedone++;                           // increment removal counter
                                     }                                           // end while when no more to do
 
-                                    if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                                    if ((ret = failed(pctx))) return ret;
                                 } else {
                                     nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job
                                     nlptr->lock_count = 1;                      // init lock count
@@ -641,7 +648,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                     removedone++;                               // increment removal counter
                                 }                                               // end while when no more to do
 
-                                if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                                if ((ret = failed(pctx))) return ret;
                             } else {
                                 nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // job no.
                                 nlptr->lock_count = 1;                          // init lock count
@@ -667,7 +674,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                             removedone++;                                       // increment removal counter
                         }                                                       // end while when no more to do
 
-                        if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                        if ((ret = failed(pctx))) return ret;
                     }                                                           // end else we dont own it
                 } else {                                                        // end if exists in super/sub - doesn't exist
                     if ((pctx->lptr != NULL) && (memcmp(current->buf, &pctx->lptr->vol, i) < 0)) {
@@ -688,7 +695,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                 removedone++;                                   // increment removal counter
                             }                                                   // end while when no more to do
 
-                            if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                            if ((ret = failed(pctx))) return ret;
                         } else {
                             nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job no.
                             nlptr->lock_count = 1;                              // init lock count
@@ -722,7 +729,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                     removedone++;                               // increment removal counter
                                 }                                               // end while when no more to do
 
-                                if (failed(pctx)) return -(ERRZ51 + ERRMLAST);
+                                if ((ret = failed(pctx))) return ret;
                             } else {
                                 nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job
                                 nlptr->lock_count = 1;                          // init lock count
@@ -743,7 +750,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
             }                                                                   // end while pctx->lptr not null
 
             if (pctx->tryagain == 0) {
-                size = sizeof(u_short) + current->len;                          // calc len of entry
+                size = sizeof(u_short) + current->len;                          // calculate length of entry
                 if (size & 1) size += 1;                                        // pad to even boundary
                 pos += size;                                                    // find next start pos
                 pctx->done++;                                                   // number done + 1
@@ -751,7 +758,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
         }                                                                       // end while more to do
     }                                                                           // end while try again
 
-    pctx->x = SemOp(SEM_LOCK, systab->maxjob);                                  // unlock SEM_LOCK
+    SemOp(SEM_LOCK, systab->maxjob);                                            // unlock SEM_LOCK
     return 0;                                                                   // finished OK
 }                                                                               // end function LCK_Add()
 
@@ -820,7 +827,7 @@ short LCK_Sub(int count, cstring *list)                                         
             }
         }                                                                       // end while more locktabs
 
-        size = sizeof(u_short) + current->len;                                  // calc length of entry
+        size = sizeof(u_short) + current->len;                                  // calculate length of entry
         if (size & 1) size += 1;                                                // pad to even boundary
         pos += size;                                                            // find next start pos
         done++;                                                                 // number done + 1
@@ -840,10 +847,10 @@ void Dump_lt(void)
     x = SemOp(SEM_LOCK, -systab->maxjob);                                       // write lock SEM_LOCK
     if (x < 0) return;                                                          // return the error
     lptr = (locktab *) systab->lockstart;
-    printf("Dump of Lockspace starting at %p\r\n\r\n", lptr);
+    printf("Dump of Lock Space starting at %p\r\n\r\n", lptr);
     printf("Lock Head starts at %p\r\n", systab->lockhead);
-    printf("Lock Free starts at %p\r\n", systab->lockfree);
-    printf("      Lock_Ptr       Fwd_Link    Size    Job Lock_Cnt Byte_Cnt  VOL  UCI  Var(Key)\r\n");
+    printf("Lock Free starts at %p\r\n\r\n", systab->lockfree);
+    printf("  Lock Pointer    Forward Link      Size   Job  Lock Cnt  Byte Cnt  VOL  UCI  Variable(Key)\r\n");
 
     while (lptr != NULL) {
         keystr[0] = '\0';
@@ -856,10 +863,10 @@ void Dump_lt(void)
         }
 
         if (lptr->job == -1) {                                                  // only display full stats for real locks
-            printf("%10p %14p %7d %6d %8d %8d %4d %4d  %.32s%s\r\n",
+            printf("%14p %15p %9d %5d %9d %9d %4d %4d  %.32s%s\r\n",
                    lptr, lptr->fwd_link, lptr->size, lptr->job, 0, 0, 0, 0, "", "");
         } else {
-            printf("%10p %14p %7d %6d %8d %8d %4d %4d  %.32s%s\r\n",
+            printf("%14p %15p %9d %5d %9d %9d %4d %4d  %.32s%s\r\n",
                    lptr, lptr->fwd_link, lptr->size, lptr->job, lptr->lock_count,
                    lptr->byte_count, lptr->vol, lptr->uci, lptr->name.var_cu, keystr);
         }

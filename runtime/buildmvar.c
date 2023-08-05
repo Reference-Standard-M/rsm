@@ -70,8 +70,9 @@ short getuci(cstring *uci, int vol)                                             
     vol--;                                                                      // make internal reference
 
     for (i = 0; i < UCIS; i++) {                                                // scan the UCIs
-        if (memcmp(uci->buf, &systab->vol[vol]->vollab->uci[i].name.var_cu[0], s) == 0)
-        return (short) (i + 1);
+        if (memcmp(uci->buf, &systab->vol[vol]->vollab->uci[i].name.var_cu[0], s) == 0) {
+            return (short) (i + 1);
+        }
     }
 
     return -ERRM26;                                                             // complain - no such

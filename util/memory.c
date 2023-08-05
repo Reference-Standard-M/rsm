@@ -28,6 +28,7 @@
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memmove
+#include <limits.h>                                                             // for INT_MAX
 #include <sys/types.h>                                                          // for u_char def
 #include <ctype.h>                                                              // for isdigit
 #include "rsm.h"                                                                // standard includes
@@ -61,8 +62,8 @@ short ncopy(u_char **src, u_char *dst)                                          
     int    i = 0;                                                               // a useful int
     int    k = 0;                                                               // and another
     int    dp = 0;                                                              // decimal place flag
-    int    minus = 0;                                                           // minus flag
-    int    exp = 0;                                                             // exponent
+    int    minus = FALSE;                                                       // minus flag
+    long   exp = 0;                                                             // exponent
     int    expsgn = 1;                                                          // exponent sign
 
     // if dst is at or after strstk and before the end of strstk and this will overflow strstk
@@ -114,6 +115,7 @@ short ncopy(u_char **src, u_char *dst)                                          
                 c = *p++;                                                       // get next
                 if (isdigit(c) == 0) break;                                     // if not a digit break
                 exp = (exp * 10) + (c - '0');                                   // add to exponent
+                if (exp > INT_MAX) return -ERRM92;                              // if too big then error
             }
 
             break;                                                              // done
@@ -156,7 +158,7 @@ short ncopy(u_char **src, u_char *dst)                                          
 
         if ((exp + i) > MAX_NUM_BYTES) return -ERRM92;                          // if too big then error
 
-        while (exp) {                                                           // while still need zeroes
+        while (exp > 0) {                                                       // while still need zeroes
             dst[i++] = '0';                                                     // copy a zero
             exp--;                                                              // count it
         }
@@ -181,7 +183,7 @@ short ncopy(u_char **src, u_char *dst)                                          
 
     if ((exp + i) > MAX_NUM_BYTES) return -ERRM92;                              // if too big error
     memmove(&dst[minus + exp + 1], &dst[minus + 1], i);                         // move right exp places
-    for (k = minus + 1; k <= (minus + exp); dst[k++] = '0');                    // zero fill
+    for (k = minus + 1; k <= (minus + exp); dst[k++] = '0') continue;           // zero fill
     i += exp;                                                                   // add to the length
 
 exit:

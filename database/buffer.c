@@ -36,16 +36,16 @@
 #include <sys/ipc.h>                                                            // for semaphores
 #include <sys/sem.h>                                                            // for semaphores
 #include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
+#include "database.h"                                                           // database prototypes
 #include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // error strings
 
 /* typedef struct GBD {                                                         // global buf desciptor
- *     int    block;                                                            // block number
- *     struct GBD *next;                                                        // next entry in list
- *     struct DB_BLOCK *mem;                                                    // memory addr of block
- *     struct GBD *dirty;                                                       // to write -> next
- *     time_t last_accessed;                                                    // last time used
+ *     u_int           block;                                                   // block number
+ *     struct GBD      *next;                                                   // next entry in list
+ *     struct DB_BLOCK *mem;                                                    // memory address of block
+ *     struct GBD      *dirty;                                                  // to write -> next
+ *     time_t          last_accessed;                                           // last time used
  * } gbd;                                                                       // end GBD struct
  *
  * This is a table of the meanings for the following arrangements of member contents:
@@ -56,25 +56,25 @@
  * GBD is on freelist       0        NULL           0  (or should be)
  *
  * GBD is being read       SET       NULL           0
- *   in from disk.
+ *     in from disk
  *
- * GBD been garbaged,      SET       SET            0
- *   but is on a dirty list.
+ * GBD is being garbaged,  SET       SET            0
+ *     but is on dirty list
  *
  * Note: if dirty pointer is less than (gbd *) 3 then this dirty pointer has
- * been set by a function to reserve this GBD.
+ * been set by a function to reserve this GBD
  *
- * Note also that every GBD should always have its "mem" member set, not NULL.
+ * Note: also that every GBD should always have its "mem" member set, not NULL
  *
  * SEM_GBD is used for reading/writing GBDs and the hash table
  */
 
 /*
  * Function: Get_block
- * Descript: Get specified block into blk[level] - get GBD first
+ * Summary:  Get specified block into blk[level] - get GBD first
  *           The GBD found is returned in blk[level]
- *           ->dirty is set to (gbd *) 1 if (writing)
- *           ->last_accessed is set to the current time
+ *           dirty is set to (gbd *) 1 if (writing)
+ *           last_accessed is set to the current time
  *           The block pointers idx & iidx are setup, Index is set to IDX_START
  * Input(s): Block number to get
  * Return:   0 -> Ok, negative M error
@@ -163,13 +163,13 @@ exit:
 
 /*
  * Function: New_block
- * Descript: Get new block into blk[level] - get GBD first
+ * Summary:  Get new block into blk[level] - get GBD first
  *           The GBD found is returned in blk[level]
- *           ->dirty is set to (gbd *) -1
- *           ->last_accessed is set to the current time
+ *           dirty is set to (gbd *) -1
+ *           last_accessed is set to the current time
  *           The entire block is zeroed
  *           The block pointers idx & iidx are setup, Index is set to IDX_START
- * Input(s): none
+ * Input(s): None
  * Return:   0 -> Ok, negative M error
  * Note:     curr_lock MUST be WRITE when calling this function
  */
@@ -216,10 +216,10 @@ short New_block(void)                                                           
 
 /*
  * Function: Get_GBDs
- * Descript: Ensure there are n available GBDs
- * Input(s): number of GBDs required
- * Return:   none
- * Note:     No lock is held when calling this function.
+ * Summary:  Ensure there are greqd available GBDs
+ * Input(s): Number of GBDs required
+ * Return:   None
+ * Note:     No lock is held when calling this function
  *           When it completes, it returns with a write lock held.
  */
 void Get_GBDs(int greqd)                                                        // get n free GBDs
@@ -296,12 +296,12 @@ start:
 
 /*
  * Function: Get_GBD
- * Descript: Get a GBD into blk[level]
- *           ->block, next, dirty and last_accessed are cleared
+ * Summary:  Get a GBD into blk[level]
+ *           block, next, dirty and last_accessed are cleared
  *           The block pointers idx & iidx are setup
  *           The block is NOT zeroed
- * Input(s): none
- * Return:   none
+ * Input(s): None
+ * Return:   None
  * Note:     curr_lock MUST be WRITE when calling this function
  */
 void Get_GBD(void)                                                              // get a GBD
@@ -391,9 +391,9 @@ exit:
 
 /*
  * Function: Free_GBD
- * Descript: Free specified GBD (if ->block non-zero, remove from hash table)
+ * Summary:  Free specified GBD - if block is non-zero, remove it from the hash table
  * Input(s): GBD pointer
- * Return:   none
+ * Return:   None
  * Note:     curr_lock MUST be WRITE when calling this function
  */
 void Free_GBD(gbd *free)                                                        // Free a GBD

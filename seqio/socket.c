@@ -42,6 +42,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -74,7 +75,7 @@ int SQ_Socket_Create(int nonblock)
     sid = socket(proto_family, sock_type, sock_proto);
     if (sid == -1) return getError(SYS, errno);
 
-    if (nonblock) {
+    if (nonblock && (sock_type == SOCK_STREAM)) {
         int flag = fcntl(sid, F_GETFL, 0);
         int ret;
 
@@ -102,18 +103,30 @@ int SQ_Socket_Create(int nonblock)
  */
 int SQ_Socket_Bind(int sid, u_short port)
 {
-    int                ret;
-    int                opt;
-    int                soid;
-    struct sockaddr_in sin;
+    int ret;
+    int opt;
+    int soid;
 
     opt = 1;
     soid = setsockopt(sid, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     if (soid == -1) return getError(SYS, errno);
-    sin.sin_family = addr_family;
-    sin.sin_port = htons(port);
-    sin.sin_addr.s_addr = INADDR_ANY;
-    ret = bind(sid, (struct sockaddr *) &sin, sizeof(sin));
+
+    if (addr_family == AF_INET6) {
+        struct sockaddr_in6 sin6;
+
+        sin6.sin6_family = addr_family;
+        sin6.sin6_port = htons(port);
+        sin6.sin6_addr = in6addr_any;
+        ret = bind(sid, (struct sockaddr *) &sin6, sizeof(sin6));
+    } else {
+        struct sockaddr_in sin;
+
+        sin.sin_family = addr_family;
+        sin.sin_port = htons(port);
+        sin.sin_addr.s_addr = INADDR_ANY;
+        ret = bind(sid, (struct sockaddr *) &sin, sizeof(sin));
+    }
+
     if (ret == -1) return getError(SYS, errno);
     return 0;
 }
@@ -127,6 +140,7 @@ int SQ_Socket_Listen(int sid)
 {
     int ret;
 
+    if (sock_type == SOCK_DGRAM) return 0;                                      // No listen for connectionless UDP
     ret = listen(sid, BACKLOG);
     if (ret == -1) return getError(SYS, errno);
     return 0;
@@ -140,14 +154,25 @@ int SQ_Socket_Listen(int sid)
  */
 int SQ_Socket_Accept(int sid, int tout)
 {
-    int                ret;
-    int                len;
-    struct sockaddr_in addr;
+    int ret;
+    int len;
 
+    if (sock_type == SOCK_DGRAM) return 0;                                      // No accept for connectionless UDP
     ret = seqioSelect(sid, FDRD, tout);
     if (ret < 0) return ret;
-    len = sizeof(struct sockaddr_in);
-    ret = accept(sid, (struct sockaddr *) &addr, (socklen_t *) &len);
+
+    if (addr_family == AF_INET6) {
+        struct sockaddr_in6 addr6;
+
+        len = sizeof(struct sockaddr_in6);
+        ret = accept(sid, (struct sockaddr *) &addr6, (socklen_t *) &len);
+    } else {
+        struct sockaddr_in addr;
+
+        len = sizeof(struct sockaddr_in);
+        ret = accept(sid, (struct sockaddr *) &addr, (socklen_t *) &len);
+    }
+
     if (ret == -1) return getError(SYS, errno);
     return ret;
 }
@@ -160,16 +185,25 @@ int SQ_Socket_Accept(int sid, int tout)
  */
 int SQ_Socket_Connect(int sid, char *addr, u_short port)
 {
-    int                ret;
-    struct in_addr     inaddr;
-    struct sockaddr_in sin;
+    int ret;
 
-    sin.sin_family = addr_family;
-    sin.sin_port = htons(port);
-    ret = inet_pton(addr_family, addr, &inaddr);
-    if (ret == 0) return getError(INT, ERRZ48);
-    sin.sin_addr.s_addr = inaddr.s_addr;
-    ret = connect(sid, (struct sockaddr *) &sin, sizeof(sin));
+    if (addr_family == AF_INET6) {
+        struct sockaddr_in6 sin6;
+
+        sin6.sin6_family = addr_family;
+        sin6.sin6_port = htons(port);
+        ret = inet_pton(addr_family, addr, &sin6.sin6_addr);
+        if (ret == 0) return getError(INT, ERRZ48);
+        ret = connect(sid, (struct sockaddr *) &sin6, sizeof(sin6));
+    } else {
+        struct sockaddr_in sin;
+
+        sin.sin_family = addr_family;
+        sin.sin_port = htons(port);
+        ret = inet_pton(addr_family, addr, &sin.sin_addr);
+        if (ret == 0) return getError(INT, ERRZ48);
+        ret = connect(sid, (struct sockaddr *) &sin, sizeof(sin));
+    }
 
     if (ret == -1) {
         if (errno == EINPROGRESS) {
@@ -193,9 +227,43 @@ int SQ_Socket_Connect(int sid, char *addr, u_short port)
  */
 int SQ_Socket_Write(int sid, u_char *writebuf, int nbytes)
 {
-    int ret;
+    int     ret;
+    SQ_Chan *c = &partab.jobtab->seqio[partab.jobtab->io];
 
-    ret = send(sid, writebuf, nbytes, 0);
+    if ((sock_type == SOCK_DGRAM) && (c->mode == NOFORK)) {
+        char    *addrptr;
+        char    *portptr;
+        u_short port;
+        char    xxxx[100];
+        char    *addr = (char *) c->s.name;
+
+        strcpy(xxxx, addr);
+        portptr = strpbrk(xxxx, " ");
+        *portptr = '\0';
+        addrptr = xxxx;
+        portptr++;
+        port = atoi(portptr);
+
+        if (addr_family == AF_INET6) {
+            struct sockaddr_in6 sin6;
+
+            sin6.sin6_family = addr_family;
+            sin6.sin6_port = htons(port);
+            ret = inet_pton(addr_family, addrptr, &sin6.sin6_addr);
+            if (ret == 0) return getError(INT, ERRZ48);
+            ret = sendto(sid, writebuf, nbytes, 0, (struct sockaddr *) &sin6, sizeof(sin6));
+        } else {
+            struct sockaddr_in sin;
+
+            sin.sin_family = addr_family;
+            sin.sin_port = htons(port);
+            ret = inet_pton(addr_family, addrptr, &sin.sin_addr);
+            if (ret == 0) return getError(INT, ERRZ48);
+            ret = sendto(sid, writebuf, nbytes, 0, (struct sockaddr *) &sin, sizeof(sin));
+        }
+    } else {
+        ret = send(sid, writebuf, nbytes, 0);
+    }
 
     if (ret == -1) {
         if (errno == EPIPE) {
@@ -213,13 +281,26 @@ int SQ_Socket_Write(int sid, u_char *writebuf, int nbytes)
 int SQ_Socket_Read(int sid, u_char *readbuf, int tout)
 {
     int ret;
+    int len;
 
     if (tout != 0) {
         ret = seqioSelect(sid, FDRD, tout);
         if (ret < 0) return ret;
     }
 
-    ret = recv(sid, readbuf, 1, 0);
+    if (sock_type == SOCK_DGRAM) {
+        if (addr_family == AF_INET6) {
+            struct sockaddr_in6 sin6;
+
+            ret = recvfrom(sid, readbuf, MAX_STR_LEN, 0, (struct sockaddr *) &sin6, (socklen_t *) &len);
+        } else {
+            struct sockaddr_in sin;
+
+            ret = recvfrom(sid, readbuf, MAX_STR_LEN, 0, (struct sockaddr *) &sin, (socklen_t *) &len);
+        }
+    } else {
+        ret = recv(sid, readbuf, 1, 0);
+    }
 
     if (ret == -1) {
         if (errno == EAGAIN) {

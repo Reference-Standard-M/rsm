@@ -1,5 +1,5 @@
-:toc: macro
-:toclevels: 2
+:source-highlighter: highlight.js
+:highlightjs-languages: cos, http, html
 
 [role="left"]
 image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
@@ -10,18 +10,111 @@ link:index.adoc[Index]
 
 '''
 
-[discrete]
-== Reference Standard M Web Server
+== Reference Standard M Web Server Utility
 
 David Wicksell <dlw@linux.com> +
 Copyright © 2020-2023 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
-toc::[]
+=== Summary
 
-== Under Construction
+The RSM web server is distributed as part of the vendor utilities. There are
+three routines that implement the web server, which uses the HTTP protocol:
 
-'''
+* `^%WWW`  -> Main server loop
+* `^%WWW1` -> Server subroutines
+* `^%WWWU` -> Server utilities
+
+To start the web server, as root, run `job ^%WWW` or `do ^%WWW`, which listens
+on port 80, and allows 5 simultaneous client requests by passing them to child
+jobs for processing and to return responses to the client. You can also start
+the web server as a regular user, by passing a non-privileged port (one between
+1024 and 65535), via `job START^%WWW(<port>,<jobs>,<restricted>)`, or
+`do START^%WWW(<port>,<jobs>,<restricted>)`, or as root, by passing any port.
+Passing a second argument with a positive number will change how many
+simultaneous client requests the web server can support. Keep in mind that each
+client request will consume a job in the RSM job table, while it's running.
+Passing a true truth-value as the third argument, turns on restricted mode,
+which prevents use of the web interface to the MCL shell described below.
+
+All documents accessible by the server are stored in the `^%D` global, with the
+following format:
+
+[source,cos]
+----
+^%D(<index>,0)=<name>
+^%D(<index>,<version>,<line>)=<data>
+^%D(<name>)=<index>
+----
+
+When requesting a resource from the web server, the supported file extensions
+are interpreted as follows:
+
+[%autowidth]
+.Web Server Resources
+|===
+| File extension     | Description
+
+| `js` or `JS`       | A JavaScript source file
+| `css` or `CSS`     | A CSS style sheet
+| `jpg` or `JPG`     | A JPEG image
+| `png` or `PNG`     | A PNG image
+| `gif` or `GIF`     | A GIF image
+| `class` or `CLASS` | A Java class
+| Anything else      | An HTML document
+|===
+
+Documents may be created and edited using `^%DED` or the `MCL` commands
+`DCHANGE` and `DSCAN`. A directory of current documents may be obtained using
+`^%DD` or the `MCL` command `DDIRECT`. Also `%WWWU` may be used as a front end
+to the data in `^%D`, providing the following interface:
+
+----
+1. Edit a document
+2. List documents
+3. Delete a document
+4. Import a document
+----
+
+The web server expects HTTP commands like:
+
+[source,http]
+----
+GET /filename.html HTTP/1.1
+GET /?$$extrinsic&field=data HTTP/1.1
+----
+
+To get a trace dump of incoming data, `set ^WWW=1` - the trace is saved in
+`^WWW(<number>)=<data>`.
+
+To log connections `set ^WWWLOG=1`.
+
+For the filename case, the default name is `index.html`. Any directory specified
+is ignored (e.g., /dir/file -> file).
+
+For the extrinsic case, two arguments are passed by-reference. The first is an
+array of the data exactly as received from the client (browser). The second is
+an array of the form `(<field>)=<data>` where the `%nn` values have been
+resolved.
+
+If the return value is not null, it is displayed as an error message.
+
+If the value of the top node of the first argument is not null, it is treated as
+a document to retrieve.
+
+The extrinsic may write data directly to the browser as the socket channel [10]
+is current when the extrinsic is accessed. There is no need for the extrinsic to
+return in this case, it may just halt.
+
+There is an extrinsic interface to the MCL, which could be added to a document:
+
+[source,html]
+----
+<a href="?$$WWW^%25M&CMD=SHOW%20SYSTEM">Click here for SHOW SYSTEM</a>
+----
+
+This will give some system info - note the 25 after the % is required as % is
+used as an escape character by HTTP.
 
 [role="right"]
 link:index.adoc[Index]

@@ -146,7 +146,7 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstri
                     ((i == SEM_WD) ? "SEM_WD" :
                     ((i == SEM_ATOMIC) ? "SEM_ATOMIC" : "?")))))));
 
-            fprintf(stderr, "\t= %d \t(last pid %d)\r\n", val, sempid);
+            fprintf(stderr, "\t= %d \t(last PID %d)\r\n", val, sempid);
         }
 
         fprintf(stderr, "(maxjobs = %u)\r\n", systab->maxjob);
@@ -929,7 +929,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
      */
     if (err == eDSNoErr) {
         if (nodeCount > 1) {
-            fprintf(stderr, "GetSearchNodePathList: nodeCount = %u, weird.\r\n", nodeCount);
+            fprintf(stderr, "GetSearchNodePathList: nodeCount = %u, weird.\r\n", (u_int) nodeCount);
         }
 
         err = dsGetDirNodeName(dirRef, buf, 1, searchNodePathListPtr);
@@ -1659,8 +1659,9 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
 *
 * Arguments:
 *     Name  - Name of host to resolve.
-*             "IP" return IP
-*         or  "NAME" return name of current host
+*             "IP" or "IP6" return TCP/IP in IPv4 or IPv6 format
+*         or  "UIP" or "UIP6" return UDP/IP in IPv4 or IPv6 format
+*         or  "NAME" or "NAME6" return name of host in IPv4 or IPv6 format
 *
 * Returns:
 *     Fail    -  < 0
@@ -1669,85 +1670,96 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
 */
 short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
 {
-    struct hostent *h;                                                          // Host's attributes
-    int            i;
-    short          s;
-    u_char         a[8];
+    int  i;
+    char host[1024];
+    char service[20];
 
-    if (strcasecmp((char *) arg2->buf, "ip") == 0) {
-        /* Acquire host's attributes
-        struct hostent {
-            char *h_name;                                                       // official name of host
-            char **h_aliases;                                                   // alias list
-            int  h_addrtype;                                                    // host address type
-            int  h_length;                                                      // length of address
-            char **h_addr_list;                                                 // list of addr from name server
-        };
+    if ((strcasecmp((char *) arg2->buf, "ip") == 0) || (strcasecmp((char *) arg2->buf, "ip6") == 0) ||
+     (strcasecmp((char *) arg2->buf, "uip") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+        struct addrinfo info;                                                   // info for address match
+        struct addrinfo *addr;                                                  // list of addresses returned
 
-#define h_addr h_addr_list[0]                                                   // address, for backward compatibility
-        */
+        if (name->len == 0) return 0;                                           // have to have a hostname
+        memset(&info, 0, sizeof(info));                                         // zero out structure
 
-        h = gethostbyname((char *) name->buf);
+        if ((strcasecmp((char *) arg2->buf, "ip6") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+            info.ai_family = AF_INET6;                                          // IPv6
+        } else {
+            info.ai_family = AF_INET;                                           // IPv4
+        }
 
-        if (h == NULL) {                                                        // gethostname() failed
-            ret_buffer[0] = '\0';
+        if ((strcasecmp((char *) arg2->buf, "uip") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+            info.ai_socktype = SOCK_DGRAM;                                      // only datagram sockets
+            info.ai_protocol = IPPROTO_UDP;                                     // only UDP protocol
+        } else {
+            info.ai_socktype = SOCK_STREAM;                                     // only stream sockets
+            info.ai_protocol = IPPROTO_TCP;                                     // only TCP protocol
+        }
 
-            if (h_errno == HOST_NOT_FOUND) {
-                return -(ERRZ71 + ERRMLAST);
+        i = getaddrinfo((char *) name->buf, NULL, &info, &addr);
+
+        if (i == 0) {
+            if ((strcasecmp((char *) arg2->buf, "ip6") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+                char ipstr6[INET6_ADDRSTRLEN];
+
+                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
+                         &((struct sockaddr_in6 *) addr->ai_addr)->sin6_addr, ipstr6, INET6_ADDRSTRLEN));
             } else {
-                return -(ERRZ72 + ERRMLAST);
+                char ipstr[INET_ADDRSTRLEN];
+
+                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
+                         &((struct sockaddr_in *) addr->ai_addr)->sin_addr, ipstr, INET_ADDRSTRLEN));
             }
+
+            freeaddrinfo(addr);                                                 // free addrinfo allocated in getaddrinfo()
+        } else {
+            strcpy(ret_buffer, gai_strerror(i));
         }
 
-        s = 0;                                                                  // clear char count
+        return (short) strlen(ret_buffer);
+    } else if (strcasecmp((char *) arg2->buf, "name") == 0) {
+        struct sockaddr_in sin;
 
-        for (i = 0; i < 4; i++) {                                               // for each byte
-            s += uitocstring((u_char *) &ret_buffer[s], (u_char) h->h_addr_list[0][i]);
-            ret_buffer[s++] = '.';                                              // and a dot
-        }
-
-        s--;                                                                    // ignore last dot
-        ret_buffer[s] = '\0';                                                   // null terminate
-        return s;
-    }                                                                           // end of "IP"
-
-    if (strcasecmp((char *) arg2->buf, "name") == 0) {
         if (name->len == 0) {
             i = gethostname(ret_buffer, 1023);                                  // get it
-            if (i < 0) return -(ERRMLAST + ERRZLAST + errno);                   // die on error
+            if (i == -1) return -(ERRMLAST + ERRZLAST + errno);                 // die on error
             ret_buffer[1023] = '\0';                                            // JIC
             return (short) strlen(ret_buffer);
         }
 
-        s = 0;
-        i = 0;
-        a[0] = 0;
+        sin.sin_family = AF_INET;
+        i = inet_pton(AF_INET, (char *) name->buf, &sin.sin_addr);
+        if (i == 0) return -(ERRZ48 + ERRMLAST);                                // die on error
+        i = getnameinfo((struct sockaddr *) &sin, sizeof(sin), host, sizeof(host), service, sizeof(service), 0);
 
-        while (TRUE) {
-            if (i >= name->len) break;
-
-            if (name->buf[i] == '.') {
-                s++;
-                a[s] = 0;
-                i++;
-            } else {
-                a[s] = a[s] * 10 + name->buf[i++] - '0';
-            }
+        if (i == 0) {
+            strcpy(ret_buffer, host);
+        } else {
+            strcpy(ret_buffer, gai_strerror(i));
         }
 
-        h = gethostbyaddr((const char *) a, 4, AF_INET);
+        return (short) strlen(ret_buffer);
+    } else if (strcasecmp((char *) arg2->buf, "name6") == 0) {
+        struct sockaddr_in6 sin6;
 
-        if (h == NULL) {                                                        // gethostname() failed
-            ret_buffer[0] = '\0';
-
-            if (h_errno == HOST_NOT_FOUND) {
-                return -(ERRZ71 + ERRMLAST);
-            } else {
-                return -(ERRZ72 + ERRMLAST);
-            }
+        if (name->len == 0) {
+            i = gethostname(ret_buffer, 1023);                                  // get it
+            if (i == -1) return -(ERRMLAST + ERRZLAST + errno);                 // die on error
+            ret_buffer[1023] = '\0';                                            // JIC
+            return (short) strlen(ret_buffer);
         }
 
-        strcpy(ret_buffer, h->h_name);
+        sin6.sin6_family = AF_INET6;
+        i = inet_pton(AF_INET6, (char *) name->buf, &sin6.sin6_addr);
+        if (i == 0) return -(ERRZ48 + ERRMLAST);                                // die on error
+        i = getnameinfo((struct sockaddr *) &sin6, sizeof(sin6), host, sizeof(host), service, sizeof(service), 0);
+
+        if (i == 0) {
+            strcpy(ret_buffer, host);
+        } else {
+            strcpy(ret_buffer, gai_strerror(i));
+        }
+
         return (short) strlen(ret_buffer);
     }
 

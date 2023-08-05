@@ -72,7 +72,7 @@ __rsm_option()
         ;;
 
     -j)
-        [[ -z ${rsm_current} ]] && COMPREPLY=("$(compgen -W 'max-jobs(1-512_jobs)')")
+        [[ -z ${rsm_current} ]] && COMPREPLY=("$(compgen -W 'max-jobs(1-1024_jobs)')")
         return
         ;;
 

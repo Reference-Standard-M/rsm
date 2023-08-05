@@ -707,11 +707,10 @@ List of `_channel_:(_device_:__mode__)[:__timeout__[:__namespace__]]`.
 ==== Usage
 
 Obtain ownership of a device or file. The _channel_ is from 1 to 63 inclusive
-(channel 0 is the principal device, and is always open). The _param1_ is the
-device or file that is being opened. The _param2_ describes how to open the
-device or file in that channel. One and only one second parameter must be
-supplied. It may be supplied in full or abbreviated form, and is
-case-insensitive.
+(channel 0 is the principal device, and is always open). The _device_ is the
+device or file that is being opened. The _mode_ describes how to open the device
+or file in that channel. One and only one second parameter must be supplied. It
+may be supplied in full or abbreviated form, and is case-insensitive.
 
 [%autowidth]
 .O[PEN] Parameters
@@ -719,10 +718,11 @@ case-insensitive.
 | First Parameter    | Second Parameter
 
 | _/directory/file_  | `"R[EAD]"`\|`"W[RITE]"`\|`"A[PPEND]"`\|`"I[O]"`
+| _host.domain port_ | `"T[CPIP][6]"`\|`"U[DPIP][6]"`
+| _port_             | `"S[ERVER][6][=_int_]"`\|`"TCPSERVER[6][=_int_]"`
+| _port_             | `"US[6]"`\|`"UDPSERVER[6]"`
+| _/directory/pipe_  | `"P[IPE]"`\|`"N[EWPIPE]"`
 | _/dev/device_      | `"R[EAD]"`\|`"W[RITE]"`\|`"I[O]"`
-| _host.domain port_ | `"T[CPIP]"`
-| _port_             | `"S[ERVER][=_int_]"`
-| _pipename_         | `"P[IPE]"`\|`"N[EWPIPE]"`
 |===
 
 IMPORTANT: If you open a file in `IO` mode (read-write), it will set the file
@@ -898,12 +898,12 @@ Valid parameters (passed as strings) by file/socket/pipe/device class type are:
 |===
 | Parameter                      | Valid Class Types | Description
 
-| `DELETE=NONE|BACK|DELETE|BOTH` | Device            | Setup key(s) for DELETE
-| `DISCONNECT`                   | TCP Server        | Disconnect the client
+| `DELETE=NONE|BACK|DELETE|BOTH` | Character Device  | Setup key(s) for DELETE
+| `DISCONNECT`                   | TCP Socket Server | Disconnect the client
 | `[NO]CONTROLC`                 | Principal Device  | Control-C processing
 | `[NO]CONTROLT`                 | Principal Device  | Control-T processing
-| `[NO]ECHO`                     | Device            | Echo processing
-| `[NO]ESCAPE`                   | Device            | Escape processing
+| `[NO]ECHO`                     | Character Device  | Echo processing
+| `[NO]ESCAPE`                   | Character Device  | Escape processing
 | `OUTPUT=$CHAR(_n_[,...])`      | All               | Output `!` sequence (6)
 | `TERMINATOR=$CHAR(_n_[,...])`  | All               | Input/read terminators
 |===
@@ -1748,7 +1748,7 @@ If piece one is `0`, returns a description of the channel device in piece three
 the type number indicates:
 
 1. Disk file
-2. Socket device (TCP)
+2. Socket device (TCP or UDP)
 3. Named pipe (FIFO)
 4. Character device (terminal, printer, etc.)
 
@@ -1764,6 +1764,7 @@ Mostly complies, except it may not be set.
 [source,cos]
 ----
 write $device ; -> "0,2,127.0.0.1 80"
+write $device ; -> "0,2,::1 8080"
 ----
 
 === $EC[ODE]
@@ -1831,9 +1832,6 @@ The current datetime.
 
 The number of days since 31 Dec 1840, a comma, the number of seconds since
 midnight.
-
-NOTE: On Solaris and Cygwin, `$horolog` is in UTC as these implementations don't
-have a local time offset
 
 ==== Standard
 
@@ -2139,7 +2137,7 @@ write ^$character("m","output","m") ; -> "" - empty string for no transformation
 ==== Format
 
 `^$DEVICE(_channel_[,"$X"|"$Y"|"CHARACTER"|"FD"])` +
-`^$DEVICE(_channel_[,"MODE"|"NAME"|"NAMESPACE"|"TYPE"])` +
+`^$DEVICE(_channel_[,"MODE"|"NAME"|"NAMESPACE"|"REMOTE"|"TYPE"])` +
 `^$DEVICE(_channel_[,"OPTIONS","DELETE"|"ECHO"|"ESCAPE"|"OUTPUT"|"TERMINATOR"])`
 
 ==== Usage
@@ -2162,13 +2160,14 @@ The following second level (and higher) subscripts are also provided:
 | `"CHARACTER"`            | Always returns "M"
 | `"FD"`                   | Operating system file descriptor
 | `"MODE"`                 | Current I/O mode of the device
-| `"NAME"`                 | Operating system device/file name
+| `"NAME"`                 | Device/file/pipe name or local port
 | `"NAMESPACE"`            | Mnemonic namespace routine name
 | `"OPTIONS","DELETE"`     | Which keys are delete characters
 | `"OPTIONS","ECHO"`       | Whether input keys are echoed
 | `"OPTIONS","ESCAPE"`     | Whether escape processing is on
 | `"OPTIONS","OUTPUT"`     | The output sequence when using `write !`
 | `"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
+| `"REMOTE"`               | Remote host and port
 | `"TYPE"`                 | Type of device or file
 |===
 

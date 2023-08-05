@@ -40,19 +40,17 @@
 
 /*
  * Function: Get_data
- * Descript: Locate and return data described in db_var
+ * Summary:  Locate and return data described in db_var
  * Input(s): Direction (flag), negative means backwards, 0 forward
- *           > 0 means stop at this level.
+ *           > 0 means stop at this level
  * Return:   String length -> Ok, negative M error
- *           extern variables defined in rsm/database/main.c are also setup
- *              level   -> pointer to current level in blk[]
- *              blk[]   -> from 0 to level (how we got here)
- *                         unless blk[0] == NULL (for lastused)
+ *           Extern variables defined in rsm/database/main.c are also setup
+ *             level -> pointer to current level in blk[]
+ *             blk[] -> from 0 to level (how we got here)
+ *                      unless blk[0] == NULL (for lastused)
  *
- *           This calls Locate() which sets up chunk, record, idx,
- *              iidx, keybuf Index.
- *
- * NOTE: lastused block is NOT used if dir != 0 or journaling is on and writing
+ *           This calls Locate() which sets up chunk, record, idx, iidx, keybuf, Index
+ * NOTE:     lastused block is NOT used if dir != 0 or journaling is on and writing
  */
 int Get_data(int dir)                                                           // locate a record
 {

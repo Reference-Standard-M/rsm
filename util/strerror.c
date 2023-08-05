@@ -181,6 +181,7 @@ static struct {
     {(ERRZ75 + ERRMLAST), "Too many arguments (max " RSM_STRING(MAX_NUM_ARGS) ")"},
     {(ERRZ76 + ERRMLAST), "Invalid global name"},
     {(ERRZ77 + ERRMLAST), "RSM is in restricted mode"},
+    {(ERRZ78 + ERRMLAST), "Lock count exceeds implementation's limit"},
     {0,                   NULL}
 };                                                                              // merrtab[]
 
@@ -209,11 +210,11 @@ u_short UTIL_strerror(int err, u_char *buf)                                     
 void panic(char *msg)                                                           // print msg and exit
 {
     FILE   *a;                                                                  // for freopen
-    char   tmp[1024];                                                           // some string space
+    char   tmp[512];                                                            // some string space
     time_t t;                                                                   // for time
 
     fprintf(stderr, "\r\nFATAL RSM ERROR occurred!!\r\n%s\r\n", msg);           // print
-    if (errno) fprintf(stderr, "errno = %d - %s\n\r", errno, strerror(errno));
+    if (errno) fprintf(stderr, "errno = %d - %s\r\n", errno, strerror(errno));
     fflush(stderr);
     a = freopen("RSM_CRASH", "a", stderr);                                      // redirect stderr
 
@@ -222,7 +223,7 @@ void panic(char *msg)                                                           
         fprintf(stderr, "RSM CRASH OCCURRED on %s", ctime(&t));                 // output the time
         rsm_version((u_char *) tmp);
         fprintf(stderr, "%s", tmp);
-        fprintf(stderr, "\nFATAL RSM ERROR occurred - pid %d!!\n%s\n", getpid(), msg); // print
+        fprintf(stderr, "\nFATAL RSM ERROR occurred - PID %d!!\n%s\n", getpid(), msg); // print
         if (errno) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
         if (partab.jobtab != NULL) {                                            // if not a daemon
