@@ -1349,7 +1349,7 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     }
 
     if (cptr->len) memmove(&vptr->buf[i1], cptr->buf, cptr->len);               // can't use mcopy() here
-    vptr->len -= (i2 - i1 + 1) + cptr->len;
+    vptr->len = vptr->len - (i2 - i1 + 1) + cptr->len;                          // don't reduce to -=
     if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);                  // set it back and return
     return DB_Set(var, vptr);                                                   // set it back and return
 }

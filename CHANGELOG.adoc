@@ -12,6 +12,10 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.79.1 -- 2023 Aug 5
+
+* Fix regression in `SET $PIECE`
+
 === v1.79.0 -- 2023 Aug 4
 
 * Add support for IPv6 to socket devices (client and server)
