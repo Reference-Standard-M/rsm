@@ -42,7 +42,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       79                                                  // Minor version number
-#define VERSION_PATCH       0                                                   // Patch version number
+#define VERSION_PATCH       1                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -256,7 +256,6 @@ typedef struct __attribute__ ((__packed__)) MVAR {                              
     u_char slen;                                                                // subs (key) length
     u_char key[MAX_KEY_SIZE + 1];                                               // the subs (key) - allow for 0
 } mvar;                                                                         // end M subs var
-                                                                                // sizeof(mvar) = 259 + VAR_LEN
 
 // Common memory structures
 struct GBD;                                                                     // defined in rsm/include/database.h
@@ -297,8 +296,6 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK {
     char    journal_file[JNL_FILENAME_MAX + 1];                                 // journal file name
     uci_tab uci[UCIS];                                                          // current UCIs (256 + VAR_LEN - (VAR_LEN % 32)!!)
 } label_block;                                                                  // define the label block
-                                                                                // sizeof(label_block) = 256 + VAR_LEN +
-                                                                                //   ((VAR_LEN + 4) * 64) - (VAR_LEN % 32)
 
 #define MAX_MAP_SIZE ((u_int) (MAX_DATABASE_BLKS / 8 + sizeof(label_block)) / 1024 + 1) // Max size of label/map block
 
@@ -350,7 +347,6 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF {
     char         file_name[VOL_FILENAME_MAX + 1];                               // absolute pathname of volume file
     db_stat      stats;                                                         // database statistics
 } vol_def;                                                                      // end of volume def
-                                                                                // sizeof(vol_def) = 58108
 
 typedef struct __attribute__ ((__packed__)) DO_FRAME {
     u_char  *routine;                                                           // addr of rou (or X src)
@@ -373,7 +369,6 @@ typedef struct __attribute__ ((__packed__)) DO_FRAME {
     long    ssp;                                                                // entry ssp
     long    isp;                                                                // entry indirect pointer
 } do_frame;                                                                     // do frame
-                                                                                // sizeof(do_frame) = 88 + VAR_LEN
 
 // Sequential IO specific
 typedef struct __attribute__ ((__packed__)) FORKTAB {
@@ -441,7 +436,6 @@ typedef struct __attribute__ ((__packed__)) JOBTAB {
     SQ_Chan    seqio[MAX_SEQ_IO];                                               // sequential IO stuff
     struct GBD *view[MAX_VOL];                                                  // locked view buffers
 } jobtab;                                                                       // define jobtab
-                                                                                // sizeof(jobtab) = 50133 + (161 * VAR_LEN)
 
 typedef struct __attribute__ ((__packed__)) LOCKTAB {                           // internal lock tables
     struct LOCKTAB *fwd_link;                                                   // point at next one
@@ -468,25 +462,23 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     void    *address;
     jobtab  *jobtab;                                                            // address of jobtab
     u_int   maxjob;                                                             // maximum jobs permitted
-    int     sem_id;                                                             // GBD semaphore id
-    int     historic;                                                           // Enn, tag+off, $NEXT etc.
+    int     sem_id;                                                             // GBD semaphore ID
+    int     historic;                                                           // E notation, tag+off, $NEXT etc.
     int     precision;                                                          // decimal precision
     int     max_tt;                                                             // max TRANTAB used
     trantab tt[MAX_TRANTAB];                                                    // translation tables
-    int     start_user;                                                         // he's priv too
+    int     start_user;                                                         // UNIX user who started the environment
     void    *lockstart;                                                         // head of lock table
     int     locksize;                                                           // how many bytes
     locktab *lockhead;                                                          // head of used locks
     locktab *lockfree;                                                          // head of lock free space
     u_long  addoff;                                                             // off from systab to add buff
     u_long  addsize;                                                            // add buff size
-    vol_def *vol[MAX_VOL];                                                      // array of vol ptrs
+    vol_def *vol[MAX_VOL];                                                      // array of volume pointers
     u_int   last_blk_used[MAX_VOL];                                             // actually setup for real jobs for all volumes
 } systab_struct;                                                                // end of systab
-                                                                                // Followed by jobtab
-                                                                                // sizeof(systab_struct) = 136 + (16 * VAR_LEN)
 
-extern systab_struct *systab;                                                   // make its ptr external
+extern systab_struct *systab;                                                   // make its pointer external
 
 // Process memory structures
 
@@ -506,7 +498,6 @@ typedef struct __attribute__ ((__packed__)) PARTAB {                            
     int     *ln;                                                                // line num for $&%ROUCHK()
     mvar    src_var;                                                            // temp space for src mvar
 } partab_struct;                                                                // end of partab type
-                                                                                // sizeof(partab) = 339 + VAR_LEN
 
 extern partab_struct partab;                                                    // globalize partab
 extern u_char        *addstk[];                                                 // address stack

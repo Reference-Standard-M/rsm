@@ -15,8 +15,8 @@ https://gitlab.com/Reference-Standard-M/rsm
 
 === Summary
 
-Reference Standard M Version 1.79.0 conforms to ANSI/MDC X11.1-1995 (ISO/IEC
-11756:1999) with the following exceptions (there may be more):
+Reference Standard M Version 1.79.1 conforms to ANSI/MDC X11.1-1995
+(ISO/IEC 11756:1999) with the following exceptions (there may be more):
 
 * Supports up to 32 uniquely distinguished characters in names, rather than 8
 * Supports lower case alphabetic characters in names, not just upper case

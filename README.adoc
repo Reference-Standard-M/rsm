@@ -8,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.79.0 - 2023 Aug 4*
+*Version 1.79.1 - 2023 Aug 5*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -372,7 +372,8 @@ You can change a few build parameters, by passing them as follows:
 # bsize=<bsize>    The size of a database block in KiB  - defaults to 16
 # blocks=<blocks>  The number of blocks in the database - defaults to 16384
 
-$ docker build -t rsm --build-arg journal=on \
+$ docker build -t rsm \
+      --build-arg journal=on \
       --build-arg bsize=32 \
       --build-arg blocks=32768 .
 ----
