@@ -12,6 +12,66 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.80.0 -- 2024 Jan 9
+
+* Add performance optimization to the lock table search algorithm
+* Add support for line labels to the `BREAK` command argument
+* Add ability to disable and re-enable debugging with `BREAK 0` and `BREAK 1`
+* Improve output of `$STACK()` nodes to include more error info
+* Change output of `$STACK(_stack_,"PLACE")` for `XECUTE` to `@` (per standard)
+* Make many improvements to the behavior of the interactive debugger
+* Add option to the `$&DEBUG` XCall to show global buffers [`$&DEBUG("GBD")`]
+* Improve the display of the `$&DEBUG("RBD")` and `$&DEBUG("LTD")` XCalls
+* Improve output of the `$&%ZWRITE` XCall to safely encode control characters
+* Expand use of the symbol table performance optimization
+* Remove errors when using a `GOTO` with an error trap [`$ETRAP`]
+* Change some errors so that they use different error codes
+* Add free global buffers to the environment info menu
+* Fix bug calculating free lock space in the environment info menu
+* Fix bug calculating free routine space in the environment info menu
+* Fix potential segfault in environment info menu logic and improve display
+* Add global directory key support to the integrity checker [`$&%IC`]
+* Add new errors to the integrity checker to flag incorrectly marked map blocks
+* Add terminal read type-ahead option to the `USE` command [`TYPEAHEAD`]
+* Improve syntax parsing of the `READ` and `WRITE` commands
+* Fix `OPEN` syntax when used on the principal device
+* Prevent editing when TTY echo is turned off for M input [`READ`]
+* Improve handling of pasted lines and the last line in direct mode
+* Improve escape and tab handling
+* Improve precision of `$X` in terminal devices
+* Improve output of `WRITE !` in terminal devices
+* Turn echo on by default when using `READ *`
+* Fix bug setting `$ECODE` to a variable
+* Fix bug setting `$ECODE` with surrounding commas
+* Improve error handling when setting `$ECODE`
+* Improve handling of options in `$FNUMBER`
+* Fix `$DATA` bugs with the `^$GLOBAL` and `^$ROUTINE` system variables
+* Fix pattern match bug
+* Improve runtime error handling in several places
+* Simplify runtime I/O handling in direct and debug modes
+* Add full journal path resolution support to match full database path support
+* Make various improvements to the environment management code
+* Improve logging and messaging of daemons and init/shutdown functions
+* Improve the shutdown procedure and remove the write lock when killing `^$JOB`
+* Add `BP` command to the MCL to show the current breakpoints and handlers
+* Add `RECOMP` command to the MCL to recompile all routines in the current UCI
+* Remove the `^%SHOWBP` routine, and move its functionality to `BP^%DEBUG`
+* Improve the `^%DEBUG` routine with better I/O, namespacing, and output
+* Improve the `^%TYP` routine so that it fully uses the screen dimensions
+* Add map block check to the integrity checker routine [`^IC`]
+* Add multi-volume support to the shutdown routine [`^SSD`]
+* Add UCI support to the block repair tool [`^FIX`]
+* Fix global name search bug in the block repair tool [`^FIX`]
+* Fix bugs in the RSM error display utility menu/exit functionality [`^%ETDISP`]
+* Improve the output of the global efficiency checker [`^%GE`]
+* Improve user interface handling in the MCL vendor utility routine [`^%M`]
+* Fix ANSI escape handling bugs in the MCL, including backspace and insert bugs
+* Fix display bug in the `^%U` vendor utility routine
+* Fix minor bugs and improve scoping in multiple M vendor routines
+* Remove `SHUTDOWN` command from the MCL
+* Fix build errors when building with `dbver=1`
+* Update the conformance clause and language guide
+
 === v1.79.1 -- 2023 Aug 5
 
 * Fix regression in `SET $PIECE`
@@ -432,7 +492,7 @@ routines.
 * Coalesce all daemon_*.log files in to one daemon.log file
 * Improve log message format, adding more detailed information
 * Fix symbol table bug preventing symbol table full error [`Z56`]
-* Fix DBC overflow integrity test [`$&%IC` XCall] bug
+* Fix DBC overflow integrity test [`$&%IC`] bug
 * Fix stack smashing bug in math module
 * Improve accuracy of fractional powers in math module
 * Add and improve error messages in math module
@@ -518,7 +578,7 @@ This version erroneously displays V1.73.0 instead of V1.73.1 when using
 * Fix `JOB` bug when passing one or more arguments with a timeout
 * Fix `$DATA` bug with the `^$GLOBAL` system variable top node
 * Fix device timeout bug
-* Fix integrity checker [`$&%IC` XCall] to work with global directory blocks
+* Fix integrity checker [`$&%IC`] to work with global directory blocks
 * Improve the fix for the `WRITE` form feed command [`WRITE #`]
 * Change `$STORAGE` to return remaining symbol table slots, rather than 1024
 * Add use of ASCII 127 as an input terminator
@@ -545,7 +605,7 @@ This version erroneously displays V1.73.0 instead of V1.73.1 when using
 * Add support to the vendor routines for manager UCIs not named '`MGR`'
 * Modify vendor utility routines to use `^$SYSTEM("NAME_LENGTH")`
 * Add support for long output to vendor utility routine [`^%U`]
-* Add `Shutdown` command to the MCL to shut down an environment
+* Add `SHUTDOWN` command to the MCL to shut down an environment
 * Add UCI name to the `List` functionality in the database `^FIX` utility
 * Add max jobs option to the vendor-supplied M web server [`^%WWW` `^%WWW1`]
 * Add `KVALUE` M polyfill to the `^MATH` utility dispatch routine

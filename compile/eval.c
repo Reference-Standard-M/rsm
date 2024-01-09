@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -59,8 +59,8 @@ void comperror(short err)                                                       
     *comp_ptr++ = OPNOP;                                                        // in case of IF etc.
     *comp_ptr++ = OPNOP;                                                        // in case of IF etc.
     if (!partab.checkonly) goto scan;                                           // done
-    if (partab.checkonly == *partab.ln) return;                                 // done this one once
-    partab.checkonly = *partab.ln;                                              // record done
+    if (partab.checkonly == partab.ln) return;                                  // done this one once
+    partab.checkonly = partab.ln;                                               // record done
     line = *partab.lp;                                                          // get the line address
     src = *partab.sp;                                                           // and the current source
     s = SQ_Write(line);                                                         // write the line
@@ -81,7 +81,7 @@ DISABLE_WARN(-Warray-bounds)
     us = UTIL_strerror(err, &line->buf[2]);                                     // get the error
     line->len = us + 2;                                                         // the length
     memcpy(&line->buf[line->len], " - At line ", 11);                           // front bit
-    us = itocstring(&line->buf[line->len + 11], *partab.ln);                    // format line number
+    us = itocstring(&line->buf[line->len + 11], partab.ln);                     // format line number
     line->len += us + 11;                                                       // the length
 ENABLE_WARN
     s = SQ_Write(line);                                                         // write the line

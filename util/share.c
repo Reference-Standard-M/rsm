@@ -4,7 +4,7 @@
  * Summary:  module RSM share - shared memory
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -124,7 +124,7 @@ short SemOp(int sem_num, int numb)                                              
             if (partab.jobtab == NULL) panic("SemOp: Error in write daemon");   // from a daemon, yes - die
         }
 
-        if (partab.jobtab->trap) return -(ERRZ51 + ERRMLAST);                   // and we got a <Ctrl><C> then return an error
+        if (partab.jobtab->trap) return -(ERRZ51 + ERRMLAST);                   // and we got a <Control-C> then return an error
     }
 
     if (systab->start_user == -1) exit(EXIT_SUCCESS);                           // If shutting down then just quit

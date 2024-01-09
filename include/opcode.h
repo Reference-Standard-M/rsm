@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - internal opcodes (and only real opcodes)
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -112,7 +112,7 @@
 
 #define VARD     80                                                             // $D[EVICE]
 #define VAREC    81                                                             // $EC[ODE]
-#define VARES    82                                                             // $ES[TACK],
+#define VARES    82                                                             // $ES[TACK]
 #define VARET    83                                                             // $ET[RAP]
 #define VARH     84                                                             // $H[OROLOG]
 #define VARI     85                                                             // $I[O]

@@ -13,7 +13,7 @@ link:index.adoc[Index]
 == Reference Standard M
 
 David Wicksell <dlw@linux.com> +
-Copyright © 2020-2023 Fourth Watch Software LC +
+Copyright © 2020-2024 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 '''
@@ -44,7 +44,7 @@ in both the old and new databases, in order to run the export and import
 routines. See the link:../README.adoc[README] file for more information.
 
 Build RSM for database version 1, and then start the old database environment in
-single user mode:
+single-user mode:
 
 [source,bash]
 ----
@@ -104,7 +104,7 @@ RSM [MGR]> kill ^$job
 ----
 
 Compile RSM without the `dbver` flag, using the latest build, with database
-version 2. Create a new database and start the new environment in single user
+version 2. Create a new database and start the new environment in single-user
 mode. For this example, we'll assume the new database volume will be named
 `TST`. See the link:../README.adoc[README] file for more information about
 creating a new RSM database and environment:

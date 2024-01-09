@@ -4,7 +4,7 @@
  * Summary:  module init - startup (main) code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -63,22 +63,21 @@ u_short hist_curr = 0;                                                          
 short   in_hist = FALSE;                                                        // are we in the history buffer
 u_short prompt_len = 8;                                                         // length of the current direct mode prompt
 
-void ser(int s)                                                                 // display errors
+static void ser(int s)                                                          // display errors
 {
     cstring *cptr;                                                              // cstring ptr
     u_char  junk[100];
 
-    if (s == -(ERRZ27 + ERRMLAST)) panic("Chanel zero has gone away");          // if totally confused then die
-    if (s == -(ERRMLAST + ERRZLAST + EIO)) panic("Input/output error");         // $&%FORK errors (maybe others?) - TODO: improve
-    if (s == -(ERRMLAST + ERRZLAST + EBADF)) panic("Bad file descriptor");      // Socket errors (maybe others?) - TODO: improve
+    if (s == -(ERRZ27 + ERRMLAST)) panic("Channel zero has gone away");         // if RSM is totally confused then die
     cptr = (cstring *) junk;                                                    // some space
     if (s < 0) s = -s;                                                          // make error positive
     UTIL_strerror(s, &cptr->buf[0]);                                            // get the text
+    if (s > (ERRMLAST + ERRZLAST)) panic((char *) &cptr->buf[0]);               // if OS is totally confused then die
     fprintf(stderr, "\r\nERROR occurred %d\r\n%s\r\n", s, &cptr->buf[0]);       // print it
     return;                                                                     // and return
 }
 
-void controlc(void)                                                             // say ^C
+static void controlc(void)                                                      // say ^C
 {
     cstring *sptr;                                                              // string ptr
     u_char  junk[10];
@@ -101,26 +100,26 @@ ENABLE_WARN
 * Attach to an environment - switches are:            *
 *      database file name   (1 to VAR_LEN)        Req *
 *   -e environment (UCI)    (1 to VAR_LEN)        Opt *
-*   -x Xecute command       (1 to MAX_STR_LEN)    Opt *
+*   -x xecute command       (1 to MAX_STR_LEN)    Opt *
 \*****************************************************/
 int INIT_Run(char *file,                                                        // database file
              char *env,                                                         // environment (UCI)
              char *cmd)                                                         // command
 {
     int     i;                                                                  // an int
+    int     s;                                                                  // for functions
+    int     pid;                                                                // job number
     int     dbfd = 0;                                                           // database file descriptor
     int     ret = 0;                                                            // return value
     int     env_num = 1;                                                        // startup environment number
+    int     ssp = 0;                                                            // string stack pointer
+    int     asp = 0;                                                            // address stack pointer
     var_u   tmp;                                                                // temp descriptor
-    uci_tab *uci_ptr;                                                           // for UCI search
     u_char  *volnam;                                                            // for volume name
-    int     pid;                                                                // job number
-    int     ssp = 0;                                                            // string stack ptr
-    int     asp = 0;                                                            // address stack ptr
     mvar    *var;                                                               // a variable pointer
+    uci_tab *uci_ptr;                                                           // for UCI search
     cstring *cptr = NULL;                                                       // a handy pointer
-    cstring *sptr = NULL;                                                       // cstring ptr
-    int     s;                                                                  // for functions
+    cstring *sptr = NULL;                                                       // cstring pointer
     u_char  start_type = TYPE_RUN;                                              // how we started
     gid_t   gidset[MAX_GROUPS];                                                 // for getgroups()
 
@@ -138,7 +137,7 @@ start:
             return errno;
         }
 
-        i = UTIL_Share(file);                                                   // attach to shared mem
+        i = UTIL_Share(file);                                                   // attach to shared memory
 
         if (i != 0) {                                                           // quit on error
             fprintf(stderr, "RSM environment is not initialized.\n");
@@ -146,7 +145,7 @@ start:
         }
     }
 
-    if (systab->start_user == -1) goto exit;                                    // Shutting down, so no need to run
+    if (systab->start_user == -1) goto exit;                                    // shutting down, so no need to run
 
     if (systab->vol[0] == NULL) {
         fprintf(stderr, "Error occurred in process - Environment does not match runtime image version\n");
@@ -156,7 +155,7 @@ start:
 
     if (env != NULL) {                                                          // passed in UCI ?
         env_num = 0;                                                            // clear UCI number
-        uci_ptr = &systab->vol[0]->vollab->uci[0];                              // get ptr to UCI table
+        uci_ptr = &systab->vol[0]->vollab->uci[0];                              // get pointer to UCI table
         VAR_CLEAR(tmp);                                                         // zero entire name
 
         for (i = 0; i < VAR_LEN; i++) {                                         // copy in name
@@ -260,7 +259,7 @@ start:
         systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * i)] = 0; // clear last global block
     }
 
-    partab.debug = 0;                                                           // clear debug flag
+    partab.debug = BREAK_OFF;                                                   // clear debug flag
     partab.strstk_start = &strstk[0];                                           // address of strstk
     partab.strstk_last =  &strstk[MAX_SSTK];                                    // and the last char
     partab.varlst = NULL;                                                       // used by compiler
@@ -340,16 +339,15 @@ start:
         partab.jobtab->dostk[0].estack = 0;                                     // estack offset
         partab.jobtab->dostk[0].level = 0;                                      // where we started
         partab.jobtab->dostk[0].flags = 0;                                      // no flags
-        partab.jobtab->dostk[0].savasp = asp;                                   // address stack ptr
+        partab.jobtab->dostk[0].savasp = asp;                                   // address stack pointer
         partab.jobtab->dostk[0].savssp = ssp;                                   // string stack
-        partab.jobtab->dostk[0].asp = asp;                                      // address stack ptr
+        partab.jobtab->dostk[0].asp = asp;                                      // address stack pointer
         partab.jobtab->dostk[0].ssp = ssp;                                      // string stack
         partab.jobtab->attention = 0;
         partab.jobtab->trap = 0;
         partab.jobtab->async_error = 0;
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
-        if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
         if (s == OPHALT) goto exit;                                             // look after HALT
         if (s == JOBIT) goto jobit;                                             // look after new JOB
         if (start_type == TYPE_JOB) goto exit;                                  // look after current JOB
@@ -376,7 +374,7 @@ start:
 
             if (cptr->buf[0] != 'U') {
                 cptr->len = 4;                                                  // max error size
-                cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);       // cvt to str
+                cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);       // convert to error string
                 s = SQ_Write(cptr);                                             // write the error
                 if (s < 0) ser(s);                                              // check for error
                 s = SQ_WriteFormat(SQ_LF);                                      // new line
@@ -390,37 +388,35 @@ start:
     }
 
     while (TRUE) {                                                              // forever
-        if (in_hist == FALSE) {
-            sptr = (cstring *) &strstk[0];                                      // front of string stack
-            asp = 0;                                                            // zot address stack
-            ssp = 0;                                                            // and the string stack
-            partab.jobtab->io = 0;                                              // force chan 0
+        sptr = (cstring *) &strstk[0];                                          // front of string stack
+        asp = 0;                                                                // zot address stack
+        ssp = 0;                                                                // and the string stack
+        partab.jobtab->io = 0;                                                  // force chan 0
 
-            if (strcmp((char *) partab.jobtab->seqio[0].name, "Not a tty") != 0) { // stdin is not a file or heredoc (pipe), etc.
-                volnam = systab->vol[partab.jobtab->vol - 1]->vollab->volnam.var_cu; // get current volume name
-                uci_ptr = &systab->vol[partab.jobtab->vol - 1]->vollab->uci[partab.jobtab->uci - 1]; // get ptr to UCI
-                sptr->len = strlen((char *) volnam) + strlen((char *) uci_ptr->name.var_cu) + 9; // find the length
-                prompt_len = sptr->len;                                         // update the prompt length for direct mode editing
+        if (strcmp((char *) partab.jobtab->seqio[0].name, "Not a tty") != 0) {  // stdin is not a file or heredoc (pipe), etc.
+            volnam = systab->vol[partab.jobtab->vol - 1]->vollab->volnam.var_cu; // get current volume name
+            uci_ptr = &systab->vol[partab.jobtab->vol - 1]->vollab->uci[partab.jobtab->uci - 1]; // get ptr to UCI
+            sptr->len = strlen((char *) volnam) + strlen((char *) uci_ptr->name.var_cu) + 9; // find the length
+            prompt_len = sptr->len;                                             // update the prompt length for direct mode editing
 
-                if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s,%s]> ", uci_ptr->name.var_cu, volnam) < 0) {
-                    return errno;                                               // copy in the prompt
-                }
+            // copy in the prompt
+            if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s,%s]> ", uci_ptr->name.var_cu, volnam) < 0) {
+                return errno;
+            }
 
-
-                if (partab.jobtab->seqio[0].dx) {                               // if not at left margin
-                    s = SQ_WriteFormat(SQ_LF);                                  // new line
-                    if (s < 0) ser(s);                                          // check for error
-                }
-
-                s = SQ_Write(sptr);                                             // write the prompt
+            if (partab.jobtab->seqio[0].dx) {                                   // if not at left margin
+                s = SQ_WriteFormat(SQ_LF);                                      // new line
                 if (s < 0) ser(s);                                              // check for error
             }
+
+            s = SQ_Write(sptr);                                                 // write the prompt
+            if (s < 0) ser(s);                                                  // check for error
         }
 
         s = SQ_Read(sptr->buf, UNLIMITED, UNLIMITED);                           // get a string
         i = attention();                                                        // check signals
         if (i == OPHALT) break;                                                 // exit on HALT
-        if (i == -(ERRZ51 + ERRMLAST)) controlc();                              // control c
+        if (i == -(ERRZ51 + ERRMLAST)) controlc();                              // <Control-C>
 
         if (s < 0) {
             ser(s);                                                             // complain on error
@@ -473,22 +469,22 @@ start:
         partab.jobtab->dostk[0].estack = 0;                                     // estack offset
         partab.jobtab->dostk[0].level = 0;                                      // where we started
         partab.jobtab->dostk[0].flags = 0;                                      // no flags
-        partab.jobtab->dostk[0].savasp = asp;                                   // address stack ptr
+        partab.jobtab->dostk[0].savasp = asp;                                   // address stack pointer
         partab.jobtab->dostk[0].savssp = ssp;                                   // string stack
-        partab.jobtab->dostk[0].asp = asp;                                      // address stack ptr
+        partab.jobtab->dostk[0].asp = asp;                                      // address stack pointer
         partab.jobtab->dostk[0].ssp = ssp;                                      // string stack
         partab.jobtab->attention = 0;
         partab.jobtab->trap = 0;
         partab.jobtab->async_error = 0;
         isp = 0;                                                                // clear indirect pointer
         s = run(asp, ssp);
-        if (partab.debug > 0) partab.debug = -1;                                // reset debug flag
+        if (partab.debug > BREAK_OFF) partab.debug = BREAK_OFF;                 // reset debug flag
         if (s == JOBIT) goto jobit;                                             // look after new JOB
         if (s == OPHALT) break;                                                 // exit on HALT
         partab.jobtab->io = 0;                                                  // force chan 0
 
         if (s == -(ERRZ51 + ERRMLAST)) {
-            controlc();                                                         // control c
+            controlc();                                                         // <Control-C>
         } else if (s < 0) {
             ser(s);
         }
@@ -514,7 +510,7 @@ start:
 
         if (cptr->buf[0] != 'U') {
             cptr->len = 4;                                                      // max error size
-            cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);           // cvt to str
+            cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);           // convert to error string
             s = SQ_Write(cptr);                                                 // write the error
             if (s < 0) ser(s);                                                  // check for error
             s = SQ_WriteFormat(SQ_LF);                                          // new line
@@ -524,7 +520,7 @@ start:
 
 exit:                                                                           // general exit code
     if (partab.jobtab != NULL) CleanJob(0);                                     // if we have a jobtab then remove all locks etc.
-    shmdt(systab);                                                              // detach the shared mem
+    shmdt(systab);                                                              // detach the shared memory
 
     for (i = 0; i < MAX_VOL; i++) {
         if (partab.vol_fds[i]) close(partab.vol_fds[i]);                        // close the databases

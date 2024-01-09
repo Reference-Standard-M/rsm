@@ -4,7 +4,7 @@
  * Summary:  module database - lock utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,6 +28,7 @@
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy/memcmp
+#include <time.h>                                                               // for ctime
 #include <sys/types.h>                                                          // for u_char def
 #include <limits.h>                                                             // for SHRT_MAX
 #include <unistd.h>                                                             // for sleep
@@ -37,6 +38,8 @@
 #include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // errors
 #include "compile.h"                                                            // for RBD definition
+
+locktab *luptr = NULL;                                                          // last used lock pointer
 
 // Used by failed
 typedef struct LCK_ADD {
@@ -222,7 +225,7 @@ short LCK_Combine(locktab *ptr)
 short LCK_Free(locktab *ptr)
 {
     locktab *currptr;
-    locktab *prevptr = NULL;                                                    // handy ptr
+    locktab *prevptr = NULL;                                                    // handy pointer
 
     if (ptr == NULL) panic("Null pointer passed to LCK_Free()");                // die
     currptr = systab->lockfree;                                                 // start here
@@ -234,7 +237,7 @@ short LCK_Free(locktab *ptr)
     }
 
     while ((currptr != NULL) && (ptr > currptr)) {                              // while more to look at
-        prevptr = currptr;                                                      // save current to prev
+        prevptr = currptr;                                                      // save current to previous
         currptr = currptr->fwd_link;                                            // move on
     }
 
@@ -243,16 +246,17 @@ short LCK_Free(locktab *ptr)
     return LCK_Combine(prevptr);                                                // see if we can combine the 2
 }
 
-// returns ptr to free space
+// returns pointer to free space
 locktab *LCK_Insert(int size)                                                   // go through share section for chunk of size
 {
-    locktab *free_curr = NULL;                                                  // locktab traverse ptr
-    locktab *free_prev = NULL;                                                  // prev locktab ptr
-    locktab *ptr = NULL;                                                        // pointer to free spc
-    locktab *p = NULL;                                                          // handy ptr
-    locktab *prevptr = NULL;                                                    // another handy ptr
-    int     ret = systab->locksize + 1;                                         // size comparator
+    locktab *free_curr = NULL;                                                  // locktab traverse pointer
+    locktab *free_prev = NULL;                                                  // previous locktab pointer
+    locktab *ptr = NULL;                                                        // pointer to free space
+    locktab *p = NULL;                                                          // handy pointer
+    locktab *prevptr = NULL;                                                    // another handy pointer
+    int     ret;
 
+    ret = systab->locksize + 1;                                                 // size comparator
     free_curr = systab->lockfree;                                               // start here
 
     while (free_curr != NULL) {                                                 // while more locktabs
@@ -262,7 +266,7 @@ locktab *LCK_Insert(int size)                                                   
             ret = free_curr->size;                                              // than last space, use
         }                                                                       // this one instead
 
-        free_prev = free_curr;                                                  // save prev ptr
+        free_prev = free_curr;                                                  // save previous pointer
         free_curr = free_curr->fwd_link;                                        // check next one
     }                                                                           // end while
 
@@ -299,20 +303,29 @@ locktab *LCK_Insert(int size)                                                   
     return NULL;                                                                // finished NO SPACE
 }                                                                               // end LCK_Insert
 
-short LCK_Order(cstring *ent, u_char *buf, int dir)                             // get next/prev entry
+short LCK_Order(const cstring *ent, u_char *buf, int dir)                       // get next/prev entry
 {
     locktab *lptr;                                                              // locktab entry we are doing
     locktab *plptr;                                                             // previous locktab entry
     short   s;                                                                  // for functions
     short   x;                                                                  // for SEM's
+    int     i;                                                                  // for entry lengths
 
     x = SemOp(SEM_LOCK, -1);                                                    // read lock SEM_LOCK
     if (x < 0) return x;                                                        // return error
     lptr = systab->lockhead;                                                    // get the list head
     plptr = NULL;                                                               // init previous ptr
 
+    if ((lptr != NULL) && (luptr != NULL)) {
+        i = ent->len;                                                           // get the length of this one
+        if (luptr->byte_count < i) i = luptr->byte_count;                       // find shortest length
+
+        // start search at last used lock pointer, rather than at the beginning (luptr after ent)
+        if (memcmp(ent->buf, &luptr->vol, i) > 0) lptr = luptr;
+    }
+
     while (lptr != NULL) {                                                      // while more locktabs
-        int i = ent->len;                                                       // length of entry
+        i = ent->len;                                                           // length of entry
 
         if (i > lptr->byte_count) i = lptr->byte_count;                         // but if locktab is less
         i = memcmp(ent->buf, &lptr->vol, i);                                    // compare them
@@ -333,6 +346,7 @@ short LCK_Order(cstring *ent, u_char *buf, int dir)                             
         lptr = lptr->fwd_link;                                                  // get the next one
     }                                                                           // end while more locktabs
 
+    luptr = plptr;                                                              // add last used pointer
     if ((dir < 0) && (lptr == NULL)) lptr = plptr;                              // adjust for last on ,-1)
     buf[0] = '\0';                                                              // null terminate
     s = 0;                                                                      // return value
@@ -341,9 +355,10 @@ short LCK_Order(cstring *ent, u_char *buf, int dir)                             
     return s;                                                                   // and return
 }
 
-short LCK_Get(cstring *ent, u_char *buf)                                        // get job#,lock_count
+short LCK_Get(const cstring *ent, u_char *buf)                                  // get job#,lock_count
 {
     locktab *lptr;                                                              // locktab entry we are doing
+    locktab *plptr;                                                             // previous locktab entry
     int     i;                                                                  // a handy int
     short   s = 0;                                                              // return value
     short   x;                                                                  // for SEM's
@@ -353,23 +368,36 @@ short LCK_Get(cstring *ent, u_char *buf)                                        
     if (x < 0) return x;                                                        // return the error
     lptr = systab->lockhead;                                                    // init current locktab pointer
     i = ent->len;                                                               // get length of supplied entry
+    plptr = NULL;                                                               // init previous pointer
+
+    if ((lptr != NULL) && (luptr != NULL)) {
+        int j;                                                                  // shortest lock size for comparison
+
+        j = i;                                                                  // start with length of supplied entry
+        if (luptr->byte_count < j) j = luptr->byte_count;                       // find shortest length
+
+        // start search at last used lock pointer, rather than at the beginning (luptr after ent)
+        if (memcmp(ent->buf, &luptr->vol, j) > 0) lptr = luptr;
+    }
 
     while (lptr != NULL) {                                                      // while more lock tabs
         if ((i == lptr->byte_count) && (memcmp(ent->buf, &lptr->vol, i) == 0)) { // if bytes counts match, is there a match ?
-            s = itocstring(buf, lptr->job);                                     // convert job to str
+            s = itocstring(buf, lptr->job);                                     // convert job to string
             buf[s++] = ',';                                                     // copy in comma
             s += itocstring(&buf[s], lptr->lock_count);                         // convert count to str
             break;                                                              // found it
         }                                                                       // end if exact match
 
+        plptr = lptr;                                                           // remember that one
         lptr = lptr->fwd_link;                                                  // get next
     }                                                                           // end while more lock tabs
 
+    luptr = plptr;                                                              // add last used pointer
     SemOp(SEM_LOCK, 1);                                                         // release SEM_LOCK
     return s;                                                                   // return the count
 }                                                                               // end function LCK_Get()
 
-short LCK_Kill(cstring *ent)                                                    // remove an entry
+short LCK_Kill(const cstring *ent)                                              // remove an entry
 {
     locktab *lptr;                                                              // locktab entry we are doing
     locktab *plptr;                                                             // previous locktab entry
@@ -423,7 +451,7 @@ void LCK_Remove(int job)                                                        
                 plptr = NULL;                                                   // prev ptr still NULL
             }                                                                   // end if removing top node
 
-            if ((plptr != NULL) && (lptr != NULL)) {                            // if both ptrs defined
+            if ((plptr != NULL) && (lptr != NULL)) {                            // if both pointers defined
                 plptr->fwd_link = lptr->fwd_link;                               // bypass it
                 lptr->job = -1;                                                 // flag it as free
                 LCK_Free(lptr);                                                 // add to the free list
@@ -517,6 +545,14 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                     systab->lockhead = nlptr;                                   // link it in sorted order
                 }
             }                                                                   // end if first lock
+
+            if ((pctx->lptr != NULL) && (luptr != NULL)) {
+                i = current->len;                                               // get the length of this one
+                if (luptr->byte_count < i) i = luptr->byte_count;               // find shortest length
+
+                // start search at last used lock pointer, rather than at the beginning (luptr after current)
+                if (memcmp(current->buf, &luptr->vol, i) > 0) pctx->lptr = luptr;
+            }
 
             while (pctx->lptr != NULL) {                                        // while more locktabs to see
                 i = current->len;                                               // get the length of this one
@@ -613,7 +649,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                     memcpy(&nlptr->vol, current->buf, current->len); // copy data
                                     plptr->fwd_link = nlptr;                    // link it in
                                     nlptr->fwd_link = pctx->lptr;               // link it in
-                                    pctx->lptr = NULL;                          // NULLIFY ptr, finished entry
+                                    pctx->lptr = NULL;                          // NULLIFY pointer, finished entry
                                 }
                             }                                                   // end else memcmp no longer 0
                         } else {                                                // end if pctx->lptr defined
@@ -735,6 +771,8 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                 }                                                               // end else not already in
             }                                                                   // end while pctx->lptr not null
 
+            luptr = plptr;                                                      // add last used pointer
+
             if (pctx->tryagain == 0) {
                 size = sizeof(u_short) + current->len;                          // calculate length of entry
                 if (size & 1) size += 1;                                        // pad to even boundary
@@ -823,19 +861,32 @@ short LCK_Sub(int count, cstring *list)                                         
     return 0;                                                                   // finished OK
 }                                                                               // end function LCK_Sub()
 
-void Dump_lt(void)
+// The following are internal only (first called from $&DEBUG())
+void Dump_ltd(void)
 {
     locktab *lptr;                                                              // locktab pointer
+    locktab *used;                                                              // loop through lock used space
+    int     size = 0;                                                           // actual size of used lock space
     short   x;
     u_char  keystr[MAX_KEY_SIZE + 5];
     u_char  workstr[MAX_KEY_SIZE + 5];
+    time_t  t;                                                                  // for time
 
     x = SemOp(SEM_LOCK, -systab->maxjob);                                       // write lock SEM_LOCK
     if (x < 0) return;                                                          // return the error
     lptr = (locktab *) systab->lockstart;
-    printf("Dump of Lock Space starting at %p\r\n\r\n", lptr);
+    t = current_time(FALSE);
+    printf("Dump of all Lock Table Descriptors on %s\r\n", ctime(&t));
     printf("Lock Head starts at %p\r\n", systab->lockhead);
-    printf("Lock Free starts at %p\r\n\r\n", systab->lockfree);
+    printf("Lock Free starts at %p\r\n", systab->lockfree);
+    used = systab->lockhead;
+
+    while (used != NULL) {
+        size += used->size;
+        used = used->fwd_link;
+    }
+
+    printf("Using %d of %d bytes of Lock Table Space\r\n\r\n", size, systab->locksize);
     printf("  Lock Pointer    Forward Link      Size   Job  Lock Cnt  Byte Cnt  VOL  UCI  Variable(Key)\r\n");
 
     while (lptr != NULL) {

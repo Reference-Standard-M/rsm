@@ -16,7 +16,7 @@ link:index.adoc[Index]
 == Reference Standard M Language Guide
 
 David Wicksell <dlw@linux.com> +
-Copyright © 2020-2023 Fourth Watch Software LC +
+Copyright © 2020-2024 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 toc::[]
@@ -183,9 +183,9 @@ The break specifier may be one of the following:
 | `BREAK`                       | Break here (in routine code or direct mode)
 |===
 
-Where _breakref_ is `[+_linenum_]^_routine_` and _code_ is valid M code that
-will be executed when the _breakref_ is hit, or every time a `QUIT __n__` is
-entered.
+Where _breakref_ is `_label_[+_offset_]^_routine_` or `[+_linenum_]^_routine_`
+and _code_ is valid M code that will be executed when the _breakref_ is hit, or
+every time a `QUIT __n__` is entered.
 
 While stepping through code in the debugger, an argumentless `QUIT` will stop
 the stepping, and execute the rest of the code until another breakpoint is
@@ -193,18 +193,22 @@ encountered. To turn off debugging completely, clear all the breakpoints in the
 current routine. A `QUIT` may be followed by a positive integer to execute that
 many commands (not lines) before breaking again.
 
+NOTE: When using `QUIT` with a step command number, `BREAK` in routines, as
+well as any breakpoints encountered during stepping, will be ignored
+
 The `$ZBP` array (case-sensitive), stores all the currently active breakpoints.
-Its format is `$ZBP(_routine_,_linenumber_)`. You can `$ORDER` or `$QUERY`
-through it to list current breakpoints, or you can use `WRITE` to dump the
-contents of breakpoints or `QUIT` handler code, if set. There is also an
-included vendor routine called `^%SHOWBP`, found in `utils.rsm`, which will list
-all current breakpoints and handlers.
+Its format is `$ZBP(_routine_,_linenum_)`. You can `$ORDER` or `$QUERY` through
+it to list current breakpoints, or you can use `WRITE` to dump the contents of
+breakpoints or `QUIT` handler code, if set. There is also an included vendor API
+called `BP^%DEBUG`, found in `utils.rsm`, which will list all current
+breakpoints and handlers.
 
 WARNING: Code entered in the debugger must be 255 characters or less
 
 ==== Standard
 
-Complies, as the standard does not specify arguments or signals.
+Complies, as the standard does not specify arguments or signals. This feature
+may be disabled with `break 0`, and re-enabled with `break 1`, within a job.
 
 ==== Examples
 
@@ -274,7 +278,7 @@ Valid truth-value expression -- also valid on each argument.
 ==== Arguments
 
 Zero or more `_entryref_[(_argumentlist_)][:__postcondition__]` where _entryref_
-is of the form `_tag_[^_routine_]` or `^_routine_`.
+is of the form `_label_[^_routine_]` or `^_routine_`.
 
 ==== Usage
 
@@ -289,7 +293,7 @@ implicitly, while the form with arguments does not.
 ==== Standard
 
 Complies exactly. The standard allows for an _entryref_ of the form
-`_tag_+_offset_[^_routine_]`, which is enabled by default. As this is a
+`_label_+_offset_[^_routine_]`, which is enabled by default. As this is a
 potential security risk, it may not be desirable to leave it on. This feature
 may be turned off with `set ^$system("offok")=0` as a privileged user.
 
@@ -301,7 +305,7 @@ do  ; Do the following block of code
 . write "First line in the block",!
 . write "Second line in the block",!
 
-do tag,ext^routine,tag2(arg1) ; Various subroutine calls
+do label,ext^routine,label2(arg1) ; Various subroutine calls
 ----
 
 === E[LSE]
@@ -390,7 +394,7 @@ Valid truth-value expression -- also valid on each argument.
 ==== Arguments
 
 One or more `_entryref_[:__postcondition__]` where _entryref_ is of the form
-`_tag_[^_routine_]` or `^_routine_`.
+`_label_[^_routine_]` or `^_routine_`.
 
 ==== Usage
 
@@ -403,7 +407,7 @@ lines of a lower (numerically less) level, otherwise error `M45` occurs.
 ==== Standard
 
 Complies exactly. The standard allows for an _entryref_ of the form
-`_tag_+_offset_[^_routine_]`, which is enabled by default. As this is a
+`_label_+_offset_[^_routine_]`, which is enabled by default. As this is a
 potential security risk, it may not be desirable to leave it on. This feature
 may be turned off with `set ^$system("offok")=0` as a privileged user.
 
@@ -501,7 +505,7 @@ Complies exactly.
 
 [source,cos]
 ----
-if a=b,c=d goto tag ; Dispatch to tag when a=b and c=d
+if a=b,c=d goto label ; Dispatch to label when a=b and c=d
 ----
 
 === J[OB]
@@ -516,7 +520,7 @@ Valid truth-value expression.
 ==== Arguments
 
 List of `_entryref_[(_argumentlist_)][::__timeout__]` where _entryref_ is of the
-form `_tag_^[_routine_]` or `^_routine_`.
+form `_label_^[_routine_]` or `^_routine_`.
 
 ==== Usage
 
@@ -904,6 +908,7 @@ Valid parameters (passed as strings) by file/socket/pipe/device class type are:
 | `[NO]CONTROLT`                 | Principal Device  | Control-T processing
 | `[NO]ECHO`                     | Character Device  | Echo processing
 | `[NO]ESCAPE`                   | Character Device  | Escape processing
+| `[NO]TYPEAHEAD`                | Character Device  | Type-ahead processing
 | `OUTPUT=$CHAR(_n_[,...])`      | All               | Output `!` sequence (6)
 | `TERMINATOR=$CHAR(_n_[,...])`  | All               | Input/read terminators
 |===
@@ -1660,8 +1665,8 @@ Returns a line of code from a routine.
 ==== Format
 
 `$TEXT(_entryref_)` +
-Where _entryref_ is `_tag_[^_routine_]` or `+_offset_[^_routine_]` and
-`_routine_` defaults to the current routine.
+Where _entryref_ is `_label_[+_offset_][^_routine_]`, `+_linenum_[^_routine_]`,
+or `^_routine_` and `_routine_` defaults to the current routine.
 
 ==== Returns
 
@@ -1757,7 +1762,7 @@ representing the device error in piece three.
 
 ==== Standard
 
-Mostly complies, except it may not be set.
+Mostly complies, except it may not be `SET`.
 
 ==== Examples
 
@@ -1811,7 +1816,7 @@ The error trap.
 
 ==== Returns
 
-The M code to execute in the event of an error. May be ``NEW``ed and set.
+The M code to execute in the event of an error. It may be ``NEW``ed and `SET`.
 
 ==== Standard
 
@@ -1889,7 +1894,7 @@ The read terminator sequence.
 ==== Returns
 
 Control sequence which terminated the last read from the current device. May be
-set. End-of-file (EOF) is indicated by a `$KEY` value of `$CHAR(255)`.
+`SET`. End-of-file (EOF) is indicated by a `$KEY` value of `$CHAR(255)`.
 
 ==== Standard
 
@@ -2047,8 +2052,8 @@ The horizontal cursor position.
 
 ==== Returns
 
-Approximate horizontal position of the cursor on the current device, it can be
-set.
+Approximate horizontal position of the cursor on the current device. It may be
+`SET`.
 
 ==== Standard
 
@@ -2067,8 +2072,8 @@ The vertical cursor position.
 
 ==== Returns
 
-Approximate vertical position of the cursor on the current device; it can be
-set.
+Approximate vertical position of the cursor on the current device. It may be
+`SET`.
 
 ==== Standard
 
@@ -2136,9 +2141,7 @@ write ^$character("m","output","m") ; -> "" - empty string for no transformation
 
 ==== Format
 
-`^$DEVICE(_channel_[,"$X"|"$Y"|"CHARACTER"|"FD"])` +
-`^$DEVICE(_channel_[,"MODE"|"NAME"|"NAMESPACE"|"REMOTE"|"TYPE"])` +
-`^$DEVICE(_channel_[,"OPTIONS","DELETE"|"ECHO"|"ESCAPE"|"OUTPUT"|"TERMINATOR"])`
+`^$DEVICE(_channel_,_parameter1_[,_parameter2_])`
 
 ==== Usage
 
@@ -2167,6 +2170,7 @@ The following second level (and higher) subscripts are also provided:
 | `"OPTIONS","ESCAPE"`     | Whether escape processing is on
 | `"OPTIONS","OUTPUT"`     | The output sequence when using `write !`
 | `"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
+| `"OPTIONS","TYPEAHEAD"`  | Whether read type-ahead processing is on
 | `"REMOTE"`               | Remote host and port
 | `"TYPE"`                 | Type of device or file
 |===
@@ -2255,8 +2259,7 @@ set gvn="" for  set gvn=$order(^$global(gvn)) quit:gvn=""  write gvn,!
 
 ==== Format
 
-`^$JOB`
-`^$JOB(_jobnum_[,_opt_...])`
+`^$JOB[(_jobnum_,_parameter1_[,_parameter2_[,_parameter3_]])]`
 
 ==== Usage
 
@@ -2357,7 +2360,7 @@ set L="" for  set L=$order(^$lock(L)) quit:L=""  write ^$lock(L),?10,L,!
 
 ==== Format
 
-`^$ROUTINE(_routine_,0|_linenum_)`
+`^$ROUTINE(_routine_,0|_linenum_|"CHARACTER")`
 
 ==== Usage
 
@@ -2393,7 +2396,7 @@ merge ^$routine("routine")=utility($job,"routine")       ; recompile routine
 
 ==== Format
 
-`^$SYSTEM(_opt1_[,_opt2_...])`
+`^$SYSTEM(_parameter1_[,_parameter2_[,_parameter3_[,_parameter4_]]])`
 
 ==== Usage
 
@@ -2428,7 +2431,7 @@ Provides system specific data (e.g., database statistics).
 | `"VOL",_vol_,"FREE"`              | Free blocks in volume       | No
 | `"VOL",_vol_,"HEADER"`            | Header block size (volume)  | No
 | `"VOL",_vol_,"JOURNAL_AVAILABLE"` | Current journal status      | No
-| `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume)  | Single user
+| `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume)  | Single-user
 | `"VOL",_vol_,"JOURNAL_REQUESTED"` | Enable/Disable journaling   | Privilege
 | `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume)  | 0 truncates
 | `"VOL",_vol_,"LASTOK"`            | Search last successes       | No
@@ -2437,8 +2440,8 @@ Provides system specific data (e.g., database statistics).
 | `"VOL",_vol_,"LOGWT"`             | Logical block writes        | No
 | `"VOL",_vol_,"PHYRD"`             | Physical block reads        | No
 | `"VOL",_vol_,"PHYWT"`             | Physical block writes       | No
-| `"VOL",_vol_,"NAME"`              | Name of volume              | Single user
-| `"VOL",_vol_,"SIZE"`              | Size of volume in blocks    | Single user
+| `"VOL",_vol_,"NAME"`              | Name of volume              | Single-user
+| `"VOL",_vol_,"SIZE"`              | Size of volume in blocks    | Single-user
 | `"VOL",_vol_,"UCI",_uci_`         | Environment (UCI) name      | Create UCI
 | `"VOL",_vol_,"WRITELOCK"`         | Write lock status (volume)  | Yes (0 or 1)
 |===

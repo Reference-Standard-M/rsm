@@ -4,7 +4,7 @@
  * Summary:  module database - get database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -175,7 +175,7 @@ int Get_data(int dir)                                                           
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // point at the dbc
         Align_record();                                                         // if not aligned
         if (level == dir) return s;                                             // stop here? if so - return result
-        block = *(u_int *) record;                                                // get block#
+        block = *(u_int *) record;                                              // get block#
         level++;                                                                // where it goes
         s = Get_block(block);                                                   // get the block
         if (s < 0) return s;                                                    // error? then give up

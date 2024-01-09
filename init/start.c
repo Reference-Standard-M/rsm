@@ -4,7 +4,7 @@
  * Summary:  module init - startup code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -214,7 +214,7 @@ int INIT_Start(char  *file,                                                     
 
     sem_id = semget(shar_mem_key, SEM_MAX, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create semaphores (0660)
 
-    if (sem_id < 0) {
+    if (sem_id == -1) {
         fprintf(stderr, "Unable to create semaphore set - %s\n", strerror(errno)); // give an error
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         return errno;                                                           // and return with error
@@ -245,7 +245,7 @@ int INIT_Start(char  *file,                                                     
     systab->maxjob = jobs;                                                      // save max jobs
     systab->start_user = (int) getuid();                                        // remember who started this
     systab->precision = DEFAULT_PREC;                                           // decimal precision
-    systab->historic = (HISTORIC_EOK | HISTORIC_OFFOK | HISTORIC_DNOK);         // default "historic" features to on
+    systab->historic = HISTORIC_EOK | HISTORIC_OFFOK | HISTORIC_DNOK;           // default "historic" features to on
     systab->lockstart = (void *) ((char *) systab->jobtab + (sizeof(jobtab) * jobs)); // locktab
     systab->locksize = locksize;                                                // the size
     systab->lockhead = NULL;                                                    // no locks currently
@@ -265,8 +265,8 @@ int INIT_Start(char  *file,                                                     
     systab->vol[0]->zero_block = (void *) &(((u_char *) systab->vol[0]->global_buf)[(long long) gmb * MBYTE]); // point to zero blk
     systab->vol[0]->rbd_head = (void *) ((char *) systab->vol[0]->zero_block + hbuf[3]); // RBDs
     systab->vol[0]->rbd_end = (void *) ((char *) systab + share_size - systab->addsize); // end of share
-    systab->vol[0]->shm_id = shar_mem_id;                                       // set up share id
-    systab->sem_id = sem_id;                                                    // set up semaphore id
+    systab->vol[0]->shm_id = shar_mem_id;                                       // set up share ID
+    systab->sem_id = sem_id;                                                    // set up semaphore ID
     systab->vol[0]->map_dirty_flag = 0;                                         // clear dirty map flag
 
     if (realpath(file, fullpathvol) != NULL) {                                  // get full path
@@ -278,6 +278,7 @@ int INIT_Start(char  *file,                                                     
         }                                                                       // end length testing
     } else {                                                                    // end realpath worked, otherwise it was an error
         i = errno;                                                              // save realpath error
+        fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // what was returned
         shmdt(systab);                                                          // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
@@ -289,11 +290,12 @@ int INIT_Start(char  *file,                                                     
     i = read(dbfd, systab->vol[0]->vollab, hbuf[2]);                            // read label & map block
 
     if (i < hbuf[2]) {                                                          // in case of error
+        i = errno;                                                              // save read error
         fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // what was returned
         shmdt(systab);                                                          // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
-        return errno;                                                           // exit with error
+        return i;                                                               // exit with error
     }
 
     if (systab->vol[0]->vollab->clean == 0) {                                   // if not a clean dismount
@@ -323,8 +325,8 @@ int INIT_Start(char  *file,                                                     
         }
     }                                                                           // all daemons started
 
-    if (systab->maxjob == 1) {                                                  // if in single user mode
-        printf("WARNING: Single user, journaling not started.\n");
+    if (systab->maxjob == 1) {                                                  // if in single-user mode
+        printf("WARNING: Single-user, journaling not started.\n");
     } else if (systab->vol[0]->vollab->journal_requested && systab->vol[0]->vollab->journal_file[0]) {
         struct stat sb;                                                         // File attributes
         off_t       jptr;                                                       // file pointer

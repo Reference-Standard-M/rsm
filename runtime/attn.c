@@ -4,7 +4,7 @@
  * Summary:  module runtime - look after attention conditions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -51,7 +51,7 @@ short attention(void)                                                           
     short s = 0;                                                                // return value
 
     if (partab.jobtab->trap & SIG_CC) {                                         // <Control-C>
-        partab.jobtab->trap = partab.jobtab->trap & ~SIG_CC;                    // clear it
+        partab.jobtab->trap &= ~SIG_CC;                                         // clear it
         partab.jobtab->async_error = -(ERRZ51 + ERRMLAST);                      // store the error
     }
 
@@ -63,17 +63,17 @@ short attention(void)                                                           
     */
 
     if (partab.jobtab->trap & SIG_HUP) {                                        // SIGHUP
-        partab.jobtab->trap = partab.jobtab->trap & ~SIG_HUP;                   // clear it
+        partab.jobtab->trap &= ~SIG_HUP;                                        // clear it
         partab.jobtab->async_error = -(ERRZ66 + ERRMLAST);                      // store the error
     }
 
     if (partab.jobtab->trap & SIG_U1) {                                         // user defined signal 1
-        partab.jobtab->trap = partab.jobtab->trap & ~SIG_U1;                    // clear it
+        partab.jobtab->trap &= ~SIG_U1;                                         // clear it
         partab.jobtab->async_error = -(ERRZ67 + ERRMLAST);                      // store the error
     }
 
     if (partab.jobtab->trap & SIG_U2) {                                         // user defined signal 2
-        partab.jobtab->trap = partab.jobtab->trap & ~SIG_U2;                    // clear it
+        partab.jobtab->trap &= ~SIG_U2;                                         // clear it
         partab.jobtab->async_error = -(ERRZ68 + ERRMLAST);                      // store the error
     }
 
@@ -89,7 +89,7 @@ short attention(void)                                                           
     s = partab.jobtab->async_error;                                             // do we have an error
     partab.jobtab->async_error = 0;                                             // clear it
 
-    if ((s == 0) && (partab.debug > 0)) {                                       // check the debug junk
+    if ((s == 0) && (partab.debug > BREAK_OFF)) {                               // check the debug junk
         if (partab.debug <= (int) partab.jobtab->commands) {                    // there yet?
             s = BREAK_NOW;                                                      // time to break again
         } else {

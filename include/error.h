@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - error definitions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -157,7 +157,7 @@
 // More implementation specific errors
 #define ERRZ49      49                                                          // Job table is full
 #define ERRZ50      50                                                          // Invalid argument to $STACK()
-#define ERRZ51      51                                                          // Interrupt - Control C Received
+#define ERRZ51      51                                                          // Interrupt - Control-C Received
 #define ERRZ52      52                                                          // Insufficient space to load routine
 #define ERRZ53      53                                                          // Too many tags (max 256)
 #define ERRZ54      54                                                          // Too many lines in routine (max 65534)

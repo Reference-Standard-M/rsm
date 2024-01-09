@@ -4,7 +4,7 @@
  * Summary:  module init - create a database file
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -63,7 +63,7 @@ int INIT_Create_File(u_int blocks,                                              
     u_short     us;                                                             // for mgrblk index entry
     int         ret;                                                            // for return values
     int         fid;                                                            // file handle
-    DB_Block    *mgrblk;                                                        // manager block ptr
+    DB_Block    *mgrblk;                                                        // manager block pointer
     label_block *labelblock;                                                    // database label block header
     cstring     *hunk;
     char        version[120];                                                   // a string

@@ -4,7 +4,7 @@
  * Summary:  module database - database functions, kill
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -49,12 +49,12 @@ short Kill_data(void)                                                           
     u_int   j;                                                                  // a handy unsigned int
     gbd     *rblk[MAXTREEDEPTH];                                                // right side tree
     gbd     *leftblk;                                                           // save left side tree
-    gbd     *ptr;                                                               // spare ptr
+    gbd     *ptr;                                                               // spare pointer
     int     rlevel;                                                             // level in rblk[]
     u_int   blknum;                                                             // for block numbers
     u_char  tmp[VAR_LEN + 4];                                                   // spare string
     int     top;                                                                // top in complex kill
-    u_char  *p;                                                                 // a handy ptr
+    u_char  *p;                                                                 // a handy pointer
     cstring *c;                                                                 // and another
     u_int   *ui;                                                                // and another
 
@@ -158,7 +158,7 @@ cont:
     if (rlevel != level) panic("Kill_data: left level not equal to right level"); // check this, if not correct, die
 
     for (level = 0; level < rlevel; level++) {                                  // scan the levels
-        if (blk[level + 1] != rblk[level + 1]) break;                           // check following lvl and end loop
+        if (blk[level + 1] != rblk[level + 1]) break;                           // check following level and end loop
     }
 
     if (level == rlevel) {                                                      // all in 1 data block
@@ -228,12 +228,12 @@ cont:
 
             record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                // point at the dbc
 
-            if (level != rlevel) {                                              // if a pointer blk
+            if (level != rlevel) {                                              // if a pointer block
                 Align_record();                                                 // align the pointer
-                j = *(u_int *) record;                                          // get blk#
+                j = *(u_int *) record;                                          // get block#
                 if (j != rblk[level + 1]->block) Garbit(j);                     // if not right edge then garbage it
                 *(u_int *) record = PTR_UNDEFINED;                              // mark as junk
-            } else {                                                            // its a data blk
+            } else {                                                            // it's a data block
                 record->len = NODE_UNDEFINED;                                   // mark as junk
             }
 
@@ -262,9 +262,9 @@ cont:
 
             record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                // point at the dbc
 
-            if (level != rlevel) {                                              // if a pointer blk
+            if (level != rlevel) {                                              // if a pointer block
                 Align_record();                                                 // align the pointer
-                j = *(u_int *) record;                                          // get blk#
+                j = *(u_int *) record;                                          // get block#
 
                 if (rblk[level + 1] != NULL) {                                  // if there is level up
                     if (j != rblk[level + 1]->block) Garbit(j);                 // if not right edge then garbage it
@@ -283,7 +283,7 @@ cont:
 
         if (blk[level]->mem->flags & BLOCK_DIRTY) Tidy_block();                 // if we changed it then tidy it
 
-        if ((level < rlevel) && (rblk[level + 1] != NULL)) {                    // if in a ptr blk AND is lower level
+        if ((level < rlevel) && (rblk[level + 1] != NULL)) {                    // if in a pointer block AND is lower level
             idx = (u_short *) rblk[level + 1]->mem;                             // point at the block
             iidx = (int *) rblk[level + 1]->mem;                                // point at the block
             chunk = (cstring *) &iidx[idx[IDX_START]];                          // point at first chunk
@@ -305,7 +305,7 @@ ENABLE_WARN
                     return (short) s;                                           // error!
                 }
             }
-        }                                                                       // end of insert ptr
+        }                                                                       // end of insert pointer
 
         if ((((u_long) ((leftblk->mem->last_free * 2 + 1 - leftblk->mem->last_idx) * 2)
           + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2))
@@ -348,8 +348,8 @@ ENABLE_WARN
             } else if (s < 0) {
                 return (short) s;                                               // error!
             }
-        }                                                                       // end of insert ptr
-    }                                                                           // end ptr level
+        }                                                                       // end of insert pointer
+    }                                                                           // end pointer level
 
     level = MAXTREEDEPTH - 1;                                                   // a useful level
     blk[level] = NULL;                                                          // clear this
@@ -371,7 +371,7 @@ ENABLE_WARN
             if (rblk[i]->dirty == (gbd *) 1) {                                  // reserved?
                 if (blk[level] == NULL) {                                       // if list not started
                     rblk[i]->dirty = rblk[i];                                   // point at self
-                } else {                                                        // end start of list // just add it in
+                } else {                                                        // end start of list - just add it in
                     rblk[i]->dirty = blk[level];                                // point at previous
                 }
 

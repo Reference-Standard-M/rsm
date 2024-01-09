@@ -4,7 +4,7 @@
  * Summary:  module symbol - symbol table utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -29,6 +29,7 @@
 #include <stdlib.h>                                                             // these two
 #include <sys/types.h>                                                          // for u_char def
 #include <string.h>                                                             // for string ops
+#include <ctype.h>
 #include "rsm.h"                                                                // standard includes
 #include "symbol.h"                                                             // our definitions
 #include "error.h"                                                              // errors
@@ -247,9 +248,9 @@ short ST_Kill(mvar *var)                                                        
                 if ((check != ST_DEPEND_NULL) && (memcmp(check->bytes, var->key, var->slen) == 0)) { // valid remove
                     ST_RemDp(data, checkprev, check, var);                      // get rid of it
                 }                                                               // end if valid remove found
-            }                                                                   // end if dep exists
 
-            data->last_key = checkprev;                                         // add last used key
+                data->last_key = checkprev;                                     // add last used key
+            }                                                                   // end if dep exists
         }                                                                       // end else killing a dep blk
 
         if ((data->deplnk == ST_DEPEND_NULL) && (data->attach <= 1) && (data->dbc == VAR_UNDEFINED)) { // none attached
@@ -492,11 +493,11 @@ ENABLE_WARN
                     newPtrDp->deplnk = ST_DEPEND_NULL;                          // link in
                     prevPtr->deplnk = newPtrDp;                                 // link in
                 }                                                               // end add to end of list
+
+                symtab[fwd].data->last_key = prevPtr;                           // add last used key
             } else {                                                            // end if elements exist - no elements curr exist
                 symtab[fwd].data->deplnk = newPtrDp;                            // add as first element ever
             }                                                                   // end else no elements existed
-
-            symtab[fwd].data->last_key = prevPtr;                               // add last used key
         }                                                                       // end else-slen not zero
     }                                                                           // end else-data block not null
 
@@ -518,6 +519,7 @@ short ST_Data(mvar *var, u_char *buf)                                           
 {
     int       ptr1;                                                             // position in symtab
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active pointer
+    ST_depend *prevPtr = ST_DEPEND_NULL;                                        // pointer to previous element
 
     if (var->volset) {                                                          // if by index
         ptr1 = ST_LocateIdx(var->volset - 1);                                   // get it this way
@@ -551,11 +553,14 @@ short ST_Data(mvar *var, u_char *buf)                                           
         }
 
         while ((depPtr != ST_DEPEND_NULL) && (memcmp(depPtr->bytes, var->key, i) < 0)) { // while not yet found or past
+            prevPtr = depPtr;                                                   // save previous
             depPtr = depPtr->deplnk;                                            // go to next
             if (depPtr == ST_DEPEND_NULL) break;                                // have we run out
             i = var->slen;                                                      // get the length again
             if (depPtr->keylen < i) i = depPtr->keylen;                         // adjust length if needed
         }                                                                       // end while
+
+        symtab[ptr1].data->last_key = prevPtr;                                  // add last used key
 
         if (depPtr == ST_DEPEND_NULL) {                                         // if we ran out of deps
             memcpy(buf, "0\0", 2);
@@ -568,11 +573,14 @@ short ST_Data(mvar *var, u_char *buf)                                           
         while (((depPtr != ST_DEPEND_NULL) && (memcmp(depPtr->bytes, var->key, i) == 0) && // while more deps and matches ok for i
           (depPtr->keylen < var->slen)) || ((depPtr != ST_DEPEND_NULL) &&       // an exact match and var slen still longer
           (memcmp(depPtr->bytes, var->key, i) < 0))) {                          // while more deps and
+            prevPtr = depPtr;                                                   // save previous
             depPtr = depPtr->deplnk;                                            // go to next
             if (depPtr == ST_DEPEND_NULL) break;                                // have we run out
             i = var->slen;                                                      // get the length again
             if (depPtr->keylen < i) i = depPtr->keylen;                         // adjust length if needed
         }                                                                       // end while
+
+        symtab[ptr1].data->last_key = prevPtr;                                  // add last used key again
 
         if (depPtr == ST_DEPEND_NULL) {                                         // if we ran out
             memcpy(buf, "0\0", 2);
@@ -581,7 +589,9 @@ short ST_Data(mvar *var, u_char *buf)                                           
 
         if ((depPtr != ST_DEPEND_NULL) && (memcmp(depPtr->bytes, var->key, i) == 0)) { // if matches ok for i
             if (depPtr->keylen == var->slen) {                                  // exact match
+                prevPtr = depPtr;                                               // save previous
                 depPtr = depPtr->deplnk;                                        // go to next
+                symtab[ptr1].data->last_key = prevPtr;                          // add last used key again
 
                 if (depPtr == ST_DEPEND_NULL) {                                 // have we run out
                     memcpy(buf, "1\0", 2);
@@ -681,6 +691,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
         current = current->deplnk;                                              // go to next dependent pointer
     }                                                                           // end while-compare keys
 
+    symtab[ptr1].data->last_key = prev;                                         // add last used key
+
     if (current == ST_DEPEND_NULL) {                                            // nothing past our key
         if (dir == 1) return 0;
     }                                                                           // output same, return length
@@ -723,8 +735,6 @@ short ST_Order(mvar *var, u_char *buf, int dir)
         if ((index >= current->keylen) && (i < pieces)) return 0;               // hit end of key & !found then return null
     }                                                                           // end for-pieces to level required
 
-    symtab[ptr1].data->last_key = prev;                                         // add last used key
-
     // Now have ASCII key in desired position number, put the ASCII value of that key in *buf and return the length of it
     return (short) mcopy((u_char *) keysub, buf, ret);
 }                                                                               // end function - ST_Order
@@ -739,7 +749,6 @@ short ST_Query(mvar *var, u_char *buf, int dir)
     ST_depend *current = ST_DEPEND_NULL;                                        // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
     ST_depend *lastkey = ST_DEPEND_NULL;                                        // pointer to last used key
-    short     askeylen = 0;                                                     // length of *askey
     mvar      outputVar = *var;                                                 // copy of supplied mvar
 
     if (var->volset) {                                                          // if by index
@@ -766,6 +775,8 @@ short ST_Query(mvar *var, u_char *buf, int dir)
         current = current->deplnk;                                              // go to next dependent pointer
     }                                                                           // end while-compare keys
 
+    symtab[ptr1].data->last_key = prev;                                         // add last used key
+
     if (var->slen > 0) {                                                        // looking in dependents
         if (dir == -1) {                                                        // reverse order
             if (prev != ST_DEPEND_NULL) current = prev;                         // only if previous ptr defined, go back one
@@ -786,15 +797,14 @@ short ST_Query(mvar *var, u_char *buf, int dir)
         outputVar.slen = 0;                                                     // flag is as such
     }                                                                           // end if back to a data block
 
-    symtab[ptr1].data->last_key = prev;                                         // add last used key
-    askeylen = UTIL_String_Mvar(&outputVar, buf, MAX_NUM_SUBS);                 // convert mvar
-    return askeylen;                                                            // return length of key
+    return UTIL_String_Mvar(&outputVar, buf, MAX_NUM_SUBS);                     // convert mvar and return length of key
 }                                                                               // end ST_Query
 
 int ST_GetAdd(mvar *var, cstring **add)                                         // get local data address
 {
     int       ptr1;                                                             // position in symtab
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active pointer
+    ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
     int       i;                                                                // generic counter
 
     if (var->volset) {                                                          // if by index
@@ -822,6 +832,7 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
                 i = UTIL_Key_KeyCmp(var->key, depPtr->bytes, var->slen, depPtr->keylen);
                 if (i == K2_GREATER) return -ERRM6;                             // error if we passed it (var before depPtr)
                 if (i == KEQUAL) break;                                         // found it (var equal depPtr)
+                prev = depPtr;                                                  // save previous pointer
                 depPtr = depPtr->deplnk;                                        // get next
             }                                                                   // end while - compare keys
 
@@ -829,6 +840,7 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
             i = (int) depPtr->keylen;                                           // get key length
             if (i & 1) i++;                                                     // ensure even
             *add = (cstring *) &depPtr->bytes[i];                               // send data addr as cstring
+            symtab[ptr1].data->last_key = prev;                                 // add last used key
             return (*add)->len;                                                 // and return the length
         } else {                                                                // data block
             *add = (cstring *) &symtab[ptr1].data->dbc;                         // setup the address
@@ -840,67 +852,6 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
 
     return -ERRM6;                                                              // return if failed
 }                                                                               // end ST_GetAdd
-
-// 0 to ST_MAX - 1 (i.e., ((ST_HASH + 1) * 3))
-short ST_Dump(void)                                                             // dump entire symbol table to $IO
-{
-    int       i;                                                                // generic counter
-    int       j;                                                                // generic counter
-    int       s;                                                                // for functions
-    cstring   *cdata;                                                           // variable data gets dumped
-    u_char    dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                 // variable name gets dumped
-    ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
-
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
-        if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
-        if (symtab[i].varnam.var_cu[0] == '$') continue;                        // dont spit out $ vars
-        VAR_COPY(partab.src_var.name, symtab[i].varnam);                        // init var name
-        partab.src_var.uci = UCI_IS_LOCALVAR;                                   // init UCI as LOCAL
-        partab.src_var.slen = 0;                                                // init subscript length
-        partab.src_var.volset = 0;                                              // init volume set
-        cdata = (cstring *) &dump[0];                                           // make it a cstring
-
-        if (symtab[i].data->dbc != VAR_UNDEFINED) {                             // valid dbc
-            cdata->len = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS); // get var name and dump data block
-DISABLE_WARN(-Warray-bounds)
-            cdata->buf[cdata->len++] = '=';                                     // tack on equal sign
-ENABLE_WARN
-            s = SQ_Write(cdata);                                                // dump var name =
-            if (s < 0) return (short) s;                                        // die on error
-            s = SQ_Write((cstring *) &symtab[i].data->dbc);                     // dump data block
-            if (s < 0) return (short) s;                                        // die on error
-            s = SQ_WriteFormat(SQ_LF);                                          // line feed
-            if (s < 0) return (short) s;                                        // die on error
-        }                                                                       // end if valid dbc
-
-        cdata = NULL;                                                           // nullify the cstring
-        depPtr = symtab[i].data->deplnk;                                        // get first dependent
-
-        while (depPtr != ST_DEPEND_NULL) {                                      // while dependents exist
-            VAR_COPY(partab.src_var.name, symtab[i].varnam);                    // init var name
-            partab.src_var.uci = UCI_IS_LOCALVAR;                               // init UCI as LOCAL
-            partab.src_var.slen = depPtr->keylen;                               // init subscript length
-            partab.src_var.volset = 0;                                          // init volume set
-            memcpy(partab.src_var.key, depPtr->bytes, depPtr->keylen);          // init key
-            cdata = (cstring *) &dump[0];                                       // get into a cstring
-DISABLE_WARN(-Warray-bounds)
-            cdata->len = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS); // get var name and dump dependent block
-            cdata->buf[cdata->len++] = '=';                                     // tack on an equal sign
-ENABLE_WARN
-            s = SQ_Write(cdata);                                                // dump var name =
-            if (s < 0) return (short) s;                                        // die on error
-            j = (int) depPtr->keylen;                                           // find key length
-            if ((j & 1) != 0) j++;                                              // up it to next even boudary
-            s = SQ_Write((cstring *) &depPtr->bytes[j]);                        // write out the data
-            if (s < 0) return (short) s;                                        // return if error occurred
-            s = SQ_WriteFormat(SQ_LF);                                          // write a line feed
-            if (s < 0) return (short) s;                                        // die on error
-            depPtr = depPtr->deplnk;                                            // get next if any
-        }                                                                       // end while dependents exist
-    }                                                                           // end for all symtab entries
-
-    return 0;                                                                   // finished successfully
-}                                                                               // end function ST_Dump
 
 // Return next key in supplied mvar and data at buf
 int ST_QueryD(mvar *var, u_char *buf)                                           // get next key and data
@@ -938,6 +889,7 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
 
     // while more deps exist and keys match exactly - (var equal current)
     if ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(var->key, current->bytes, var->slen, current->keylen) == 0)) {
+        prev = current;                                                         // set prev pointer
         current = current->deplnk;                                              // go to next
     }                                                                           // end if keys equal
 
@@ -950,82 +902,6 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
     symtab[ptr1].data->last_key = prev;                                         // add last used key
     return mcopy(cdata->buf, buf, cdata->len);                                  // get data into buf
 }                                                                               // end ST_QueryD
-
-// copy all variables in as subscripts to specified global
-short ST_DumpV(mvar *global)
-{
-    int       i;                                                                // generic counter
-    int       j;                                                                // generic counter
-    short     s;                                                                // for functions
-    int       t;                                                                // for functions
-    short     gs;                                                               // global slen save value
-    u_char    gks[255];
-    cstring   *cdata;                                                           // variable data gets dumped
-    u_char    dump[1024];                                                       // variable name gets dumped
-    ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
-
-    cdata = (cstring *) dump;                                                   // make it a cstring
-    partab.src_var.uci = UCI_IS_LOCALVAR;                                       // init UCI as LOCAL
-    partab.src_var.volset = 0;                                                  // init volume set
-    gs = global->slen;                                                          // save original sub length
-    memcpy(gks, global->key, global->slen);                                     // save original key
-
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
-        if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
-        if (symtab[i].varnam.var_cu[0] == '$') continue;                        // no $ vars
-        if (var_empty(symtab[i].varnam)) continue;                              // ensure something there
-        VAR_COPY(partab.src_var.name, symtab[i].varnam);                        // init var name
-        partab.src_var.slen = 0;                                                // init subscript length
-
-        if (symtab[i].data->dbc != VAR_UNDEFINED) {                             // if data exists
-            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
-            if (s < 0) return s;                                                // if error, quit
-DISABLE_WARN(-Warray-bounds)
-            cdata->len = s;
-ENABLE_WARN
-            memcpy(global->key, gks, gs);                                       // restore initial key
-            global->slen = gs;                                                  // restore initial length
-            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
-
-            // set rest of global key and len
-            t = DB_Set(global, (cstring *) &symtab[i].data->dbc);               // try to set it
-
-            // block overhead - header (20 or 44) + index (2) + chunk (2) + CCC (1) + UCC (1) + key (~34) + DBC (2) + alignment (~4)
-            if (t == -ERRM75) {                                                 // if string too long
-                j = symtab[i].data->dbc;                                        // save this
-                symtab[i].data->dbc = 934;                                      // that should work (1024 - 90 overhead)
-                //symtab[i].data->dbc = systab->vol[global->volset - 1]->vollab->block_size - 90; // that should work
-                t = DB_Set(global, (cstring *) &symtab[i].data->dbc);           // try again
-                symtab[i].data->dbc = j;                                        // restore this
-            }
-        }                                                                       // end if data exists
-
-        depPtr = symtab[i].data->deplnk;                                        // get first dependent
-
-        while (depPtr != ST_DEPEND_NULL) {                                      // while dependents exist
-            partab.src_var.slen = depPtr->keylen;                               // init subscript length
-            memcpy(partab.src_var.key, depPtr->bytes, depPtr->keylen);          // init key
-            cdata = (cstring *) &dump[0];                                       // get it into a cstring
-            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
-            if (s < 0) return s;                                                // if error, quit
-DISABLE_WARN(-Warray-bounds)
-            cdata->len = s;
-ENABLE_WARN
-            j = (int) depPtr->keylen;                                           // find key length
-            if ((j & 1) != 0) j++;                                              // up it to next even boudary
-            memcpy(global->key, gks, gs);                                       // restore initial key
-            global->slen = gs;                                                  // restore initial length
-            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
-
-            // set up global key
-            t = DB_Set(global, (cstring *) &depPtr->bytes[j]);                  // try to set it
-            if (t < 0) return (short) t;
-            depPtr = depPtr->deplnk;                                            // get next if any
-        }                                                                       // end while dependents exist
-    }                                                                           // end for all symtab entries
-
-    return 0;                                                                   // finished successfully
-}                                                                               // end function DumpV
 
 // kill all local variables except those whose names appear in var_u *keep
 short ST_KillAll(int count, var_u *keep)
@@ -1162,3 +1038,428 @@ short ST_SymKill(short pos)
     if (symtab[pos].usage < 1) ST_Free(symtab[pos].varnam);                     // any NEWs etc.? if no - dong it
     return 0;                                                                   // and exit
 }
+
+// 0 to ST_MAX - 1 (i.e., ((ST_HASH + 1) * 3))
+short ST_Dump(void)                                                             // dump entire symbol table to $IO
+{
+    int       i;                                                                // generic counter
+    int       j;                                                                // generic counter
+    int       s;                                                                // for functions
+    int       escape;
+    int       string;
+    int       dot;
+    cstring   *cdata;                                                           // variable data gets dumped
+    cstring   *ckey;                                                            // variable key data gets dumped
+    u_char    dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                 // variable name gets dumped
+    u_char    dumpk[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                // variable key name gets dumped
+    ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
+
+    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
+        if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
+        if (symtab[i].varnam.var_cu[0] == '$') continue;                        // dont spit out $ vars
+        VAR_COPY(partab.src_var.name, symtab[i].varnam);                        // init var name
+        partab.src_var.uci = UCI_IS_LOCALVAR;                                   // init UCI as LOCAL
+        partab.src_var.slen = 0;                                                // init subscript length
+        partab.src_var.volset = 0;                                              // init volume set
+        cdata = (cstring *) &dump[0];                                           // make it a cstring
+        escape = FALSE;
+        string = FALSE;
+        dot = 0;
+
+        if (symtab[i].data->dbc != VAR_UNDEFINED) {                             // valid dbc
+            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);    // get var name and dump data block
+            if (s < 0) return (short) s;                                        // die on error
+            cdata->len = s;
+DISABLE_WARN(-Warray-bounds)
+            cdata->buf[cdata->len++] = '=';                                     // tack on equal sign
+ENABLE_WARN
+            s = SQ_Write(cdata);                                                // dump var name =
+            if (s < 0) return (short) s;                                        // die on error
+
+            for (int k = 0; k < symtab[i].data->dbc; k++) {
+                if (symtab[i].data->data[k] == '.') {
+                    dot++;
+
+                    if ((dot > 1) || (k == (symtab[i].data->dbc - 1))) {
+                        string = TRUE;
+                        break;
+                    }
+                } else if ((symtab[i].data->dbc > 1) && (k == 0) && (symtab[i].data->data[k] == '0')) {
+                    string = TRUE;
+                    break;
+                } else if ((symtab[i].data->dbc > 1) && dot &&
+                  (k == (symtab[i].data->dbc - 1)) && (symtab[i].data->data[k] == '0')) {
+                    string = TRUE;
+                    break;
+                } else if ((k == 0) && (symtab[i].data->data[k] == '-')) {
+                    if (symtab[i].data->data[k + 1] != '0') continue;
+                    string = TRUE;
+                    break;
+                } else if (!isdigit(symtab[i].data->data[k])) {
+                    string = TRUE;
+                    break;
+                }
+            }
+
+            for (int k = 0; k < symtab[i].data->dbc; k++) {
+                if (!isprint(symtab[i].data->data[k])) {
+                    if (escape) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, ",");
+                    } else if (k == 0) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 3;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "$C(");
+                    } else {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 5;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "\"_$C(");
+                    }
+
+                    s = SQ_Write(cdata);                                        // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+DISABLE_WARN(-Warray-bounds)
+                    cdata->len = itocstring(cdata->buf, symtab[i].data->data[k]);
+ENABLE_WARN
+                    s = SQ_Write(cdata);                                        // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+
+                    if (k == (symtab[i].data->dbc - 1)) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, ")");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+
+                    escape = TRUE;
+                } else {
+                    if (escape) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 3;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, ")_\"");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    } else if ((string && (k == 0)) || (symtab[i].data->data[k] == '"')) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "\"");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+
+                    s = SQ_WriteStar(symtab[i].data->data[k]);                  // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+                    escape = FALSE;
+
+                    if (string && (k == (symtab[i].data->dbc - 1))) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "\"");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+                }
+            }
+
+            if (!symtab[i].data->dbc) {
+DISABLE_WARN(-Warray-bounds)
+                cdata->len = 2;
+ENABLE_WARN
+                strcpy((char *) cdata->buf, "\"\"");
+                s = SQ_Write(cdata);                                            // dump data character
+                if (s < 0) return (short) s;                                    // die on error
+            }
+
+            s = SQ_WriteFormat(SQ_LF);                                          // line feed
+            if (s < 0) return (short) s;                                        // die on error
+        }                                                                       // end if valid dbc
+
+        cdata = NULL;                                                           // nullify the cstring
+        ckey = NULL;                                                            // nullify the cstring
+        depPtr = symtab[i].data->deplnk;                                        // get first dependent
+
+        while (depPtr != ST_DEPEND_NULL) {                                      // while dependents exist
+            int     paren = 0;
+            u_short datalen;
+
+            escape = FALSE;
+            string = FALSE;
+            dot = 0;
+            VAR_COPY(partab.src_var.name, symtab[i].varnam);                    // init var name
+            partab.src_var.uci = UCI_IS_LOCALVAR;                               // init UCI as LOCAL
+            partab.src_var.slen = depPtr->keylen;                               // init subscript length
+            partab.src_var.volset = 0;                                          // init volume set
+            memcpy(partab.src_var.key, depPtr->bytes, depPtr->keylen);          // init key
+            cdata = (cstring *) &dump[0];                                       // get into a cstring
+            ckey = (cstring *) &dumpk[0];                                       // get into a cstring
+            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);    // get var name and dump dependent block
+            if (s < 0) return (short) s;                                        // die on error
+            cdata->len = s;
+DISABLE_WARN(-Warray-bounds)
+            cdata->buf[cdata->len++] = '=';                                     // tack on an equal sign
+
+            for (int k = 0; k < cdata->len; k++) {
+                if (cdata->buf[k] == '(') paren = k;
+ENABLE_WARN
+
+DISABLE_WARN(-Warray-bounds)
+                if (!isprint(cdata->buf[k])) {
+                    if (escape) {
+                        ckey->len = 1;
+ENABLE_WARN
+                        strcpy((char *) ckey->buf, ",");
+                    } else {
+                        if (k == (paren + 2)) {
+DISABLE_WARN(-Warray-bounds)
+                            ckey->len = 3;
+ENABLE_WARN
+                            strcpy((char *) ckey->buf, "$C(");
+                        } else {
+DISABLE_WARN(-Warray-bounds)
+                            ckey->len = 5;
+ENABLE_WARN
+                            strcpy((char *) ckey->buf, "\"_$C(");
+                        }
+                    }
+
+                    s = SQ_Write(ckey);                                         // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+DISABLE_WARN(-Warray-bounds)
+                    ckey->len = itocstring(ckey->buf, cdata->buf[k]);
+ENABLE_WARN
+                    s = SQ_Write(ckey);                                         // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+                    escape = TRUE;
+                } else {
+                    if (escape) {
+DISABLE_WARN(-Warray-bounds)
+                        if (k == (cdata->len - 3)) {
+                            ckey->len = 1;
+ENABLE_WARN
+                            strcpy((char *) ckey->buf, ")");
+                        } else {
+DISABLE_WARN(-Warray-bounds)
+                            ckey->len = 3;
+ENABLE_WARN
+                            strcpy((char *) ckey->buf, ")_\"");
+                        }
+
+                        s = SQ_Write(ckey);                                     // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+
+DISABLE_WARN(-Warray-bounds)
+                    if (((k == (paren + 1)) && (!isprint(cdata->buf[k + 1]))) ||
+                      ((k == (cdata->len - 3)) && (!isprint(cdata->buf[k - 1])))) {
+ENABLE_WARN
+                        escape = FALSE;
+                        continue;
+                    }
+
+DISABLE_WARN(-Warray-bounds)
+                    s = SQ_WriteStar(cdata->buf[k]);                            // dump data character
+ENABLE_WARN
+                    if (s < 0) return (short) s;                                // die on error
+                    escape = FALSE;
+                }
+            }
+
+            j = (int) depPtr->keylen;                                           // find key length
+            if ((j & 1) != 0) j++;                                              // up it to next even boudary
+            memcpy(&datalen, &depPtr->bytes[j], sizeof(u_short));               // find data length
+
+            for (int k = j + 2; k < datalen + j + 2; k++) {
+                if (depPtr->bytes[k] == '.') {
+                    dot++;
+
+                    if ((dot > 1) || (k == (datalen + j + 1))) {
+                        string = TRUE;
+                        break;
+                    }
+                } else if ((datalen > 1) && (k == (j + 2)) && (depPtr->bytes[k] == '0')) {
+                    string = TRUE;
+                    break;
+                } else if ((datalen > 1) && dot && (k == (datalen + j + 1)) && (depPtr->bytes[k] == '0')) {
+                    string = TRUE;
+                    break;
+                } else if ((k == (j + 2)) && (depPtr->bytes[k] == '-')) {
+                    if (depPtr->bytes[k + 1] != '0') continue;
+                    string = TRUE;
+                    break;
+                } else if (!isdigit(depPtr->bytes[k])) {
+                    string = TRUE;
+                    break;
+                }
+            }
+
+            for (int k = j + 2; k < datalen + j + 2; k++) {
+                if (!isprint(depPtr->bytes[k])) {
+                    if (escape) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, ",");
+                    } else if (k == (j + 2)) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 3;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "$C(");
+                    } else {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 5;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "\"_$C(");
+                    }
+
+                    s = SQ_Write(cdata);                                        // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+DISABLE_WARN(-Warray-bounds)
+                    cdata->len = itocstring(cdata->buf, depPtr->bytes[k]);
+ENABLE_WARN
+                    s = SQ_Write(cdata);                                        // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+
+                    if (k == (datalen + j + 1)) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, ")");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+
+                    escape = TRUE;
+                } else {
+                    if (escape) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 3;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, ")_\"");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    } else if ((string && (k == (j + 2))) || (depPtr->bytes[k] == '"')) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "\"");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+
+                    s = SQ_WriteStar(depPtr->bytes[k]);                         // dump data character
+                    if (s < 0) return (short) s;                                // die on error
+                    escape = FALSE;
+
+                    if (string && (k == (datalen + j + 1))) {
+DISABLE_WARN(-Warray-bounds)
+                        cdata->len = 1;
+ENABLE_WARN
+                        strcpy((char *) cdata->buf, "\"");
+                        s = SQ_Write(cdata);                                    // dump data character
+                        if (s < 0) return (short) s;                            // die on error
+                    }
+                }
+            }
+
+            if (!datalen) {
+DISABLE_WARN(-Warray-bounds)
+                cdata->len = 2;
+ENABLE_WARN
+                strcpy((char *) cdata->buf, "\"\"");
+                s = SQ_Write(cdata);                                            // dump data character
+                if (s < 0) return (short) s;                                    // die on error
+            }
+
+            s = SQ_WriteFormat(SQ_LF);                                          // write a line feed
+            if (s < 0) return (short) s;                                        // die on error
+            depPtr = depPtr->deplnk;                                            // get next if any
+        }                                                                       // end while dependents exist
+    }                                                                           // end for all symtab entries
+
+    return 0;                                                                   // finished successfully
+}                                                                               // end function ST_Dump
+
+// copy all variables in as subscripts to specified global
+short ST_DumpV(mvar *global)
+{
+    int       i;                                                                // generic counter
+    int       j;                                                                // generic counter
+    short     s;                                                                // for functions
+    int       t;                                                                // for functions
+    short     gs;                                                               // global slen save value
+    u_char    gks[255];
+    cstring   *cdata;                                                           // variable data gets dumped
+    u_char    dump[1024];                                                       // variable name gets dumped
+    ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
+
+    cdata = (cstring *) dump;                                                   // make it a cstring
+    partab.src_var.uci = UCI_IS_LOCALVAR;                                       // init UCI as LOCAL
+    partab.src_var.volset = 0;                                                  // init volume set
+    gs = global->slen;                                                          // save original sub length
+    memcpy(gks, global->key, global->slen);                                     // save original key
+
+    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
+        if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
+        if (symtab[i].varnam.var_cu[0] == '$') continue;                        // no $ vars
+        if (var_empty(symtab[i].varnam)) continue;                              // ensure something there
+        VAR_COPY(partab.src_var.name, symtab[i].varnam);                        // init var name
+        partab.src_var.slen = 0;                                                // init subscript length
+
+        if (symtab[i].data->dbc != VAR_UNDEFINED) {                             // if data exists
+            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
+            if (s < 0) return s;                                                // if error, quit
+DISABLE_WARN(-Warray-bounds)
+            cdata->len = s;
+ENABLE_WARN
+            memcpy(global->key, gks, gs);                                       // restore initial key
+            global->slen = gs;                                                  // restore initial length
+            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
+
+            // set rest of global key and len
+            t = DB_Set(global, (cstring *) &symtab[i].data->dbc);               // try to set it
+
+            // block overhead - header (20 or 44) + index (2) + chunk (2) + CCC (1) + UCC (1) + key (~34) + DBC (2) + alignment (~4)
+            if (t == -ERRM75) {                                                 // if string too long
+                j = symtab[i].data->dbc;                                        // save this
+                symtab[i].data->dbc = 934;                                      // that should work (1024 - 90 overhead)
+                //symtab[i].data->dbc = systab->vol[global->volset - 1]->vollab->block_size - 90; // that should work
+                t = DB_Set(global, (cstring *) &symtab[i].data->dbc);           // try again
+                symtab[i].data->dbc = j;                                        // restore this
+            }
+        }                                                                       // end if data exists
+
+        depPtr = symtab[i].data->deplnk;                                        // get first dependent
+
+        while (depPtr != ST_DEPEND_NULL) {                                      // while dependents exist
+            partab.src_var.slen = depPtr->keylen;                               // init subscript length
+            memcpy(partab.src_var.key, depPtr->bytes, depPtr->keylen);          // init key
+            cdata = (cstring *) &dump[0];                                       // get it into a cstring
+            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
+            if (s < 0) return s;                                                // if error, quit
+DISABLE_WARN(-Warray-bounds)
+            cdata->len = s;
+ENABLE_WARN
+            j = (int) depPtr->keylen;                                           // find key length
+            if ((j & 1) != 0) j++;                                              // up it to next even boudary
+            memcpy(global->key, gks, gs);                                       // restore initial key
+            global->slen = gs;                                                  // restore initial length
+            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
+
+            // set up global key
+            t = DB_Set(global, (cstring *) &depPtr->bytes[j]);                  // try to set it
+            if (t < 0) return (short) t;
+            depPtr = depPtr->deplnk;                                            // get next if any
+        }                                                                       // end while dependents exist
+    }                                                                           // end for all symtab entries
+
+    return 0;                                                                   // finished successfully
+}                                                                               // end function DumpV

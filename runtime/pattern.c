@@ -4,7 +4,7 @@
  * Summary:  module runtime - pattern match
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -12,7 +12,7 @@
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * Originally based on FreeMUMPS
- * Copyright (c) 1998
+ * Copyright (c) 1998 MUG Deutschland
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -165,30 +165,26 @@ ENABLE_WARN
 // Evaluates a ? b
 short pattern(cstring *a, cstring *b)
 {
-    short   levels;                                                             // depth of stack
-    int     patx;                                                               // match stack pointer
-    short   notpatclass;                                                        // pattern class negation
-    short   ptrpcd[PATDEPTH];
-    short   position[PATDEPTH];
-    short   mincnt[PATDEPTH] = {0};                                             // minimum number of matches
-    short   maxcnt[PATDEPTH] = {0};                                             // maximum number of matches
-    short   actcnt[PATDEPTH];                                                   // actual count of matches
-    short   Pflag;
-    short   Pchar;                                                              // status in alternation
-    short   altc;                                                               // alternation counter
-    short   altcnt[PATDEPTH];                                                   // gr.pat.alternation counters
-    u_char  gpmin[PATDEPTH][PATDEPTH][255];                                     // grpd pattern min length's
-    short   gp_position[PATDEPTH][PATDEPTH];                                    // grpd patt.pos.of substr
-    u_char  *ptrtom;                                                            // pointer to match code
-    u_char  patcode;
-    int     ch;
-    int     i;
-    int     x;
-    int     y;
-
-    notpatclass = FALSE;                                                        // pattern class negation
-    patx = 0;
-    x = 0;
+    short  levels;                                                              // depth of stack
+    int    patx = 0;                                                            // match stack pointer
+    short  notpatclass = FALSE;                                                 // pattern class negation
+    short  ptrpcd[PATDEPTH];
+    short  position[PATDEPTH];
+    short  mincnt[PATDEPTH] = {0};                                              // minimum number of matches
+    short  maxcnt[PATDEPTH] = {0};                                              // maximum number of matches
+    short  actcnt[PATDEPTH];                                                    // actual count of matches
+    short  Pflag = FALSE;
+    short  Pchar = EOL;                                                         // status in alternation
+    short  altc;                                                                // alternation counter
+    short  altcnt[PATDEPTH];                                                    // gr.pat.alternation counters
+    u_char gpmin[PATDEPTH][PATDEPTH][255];                                      // grpd pattern min length's
+    short  gp_position[PATDEPTH][PATDEPTH];                                     // grpd patt.pos.of substr
+    u_char *ptrtom;                                                             // pointer to match code
+    u_char patcode;
+    int    ch;
+    int    i;
+    int    x = 0;
+    int    y;
 
     while (x < (b->len - 1)) {                                                  // get minimum repeat count
         mincnt[patx] = 0;                                                       // default to 0
@@ -279,7 +275,7 @@ short pattern(cstring *a, cstring *b)
 
     mincnt[levels] = maxcnt[levels] = 1;                                        // sentinel, does never match
     actcnt[levels] = 0;
-    ptrpcd[levels] = x;                                                         // (*b==EOL)
+    ptrpcd[levels] = x;                                                         // (b->buf[x] == EOL)
     patx = 0;
     y = 0;
 
@@ -297,7 +293,7 @@ short pattern(cstring *a, cstring *b)
                     if (b->buf[ptrpcd[patx - 1]] == '(') return 0;
                 }
 
-                if (b->buf[ptrpcd[patx]] == '"') return 0;
+                return 0;
             }
 
             for (;;) {
@@ -305,7 +301,7 @@ short pattern(cstring *a, cstring *b)
                 ch = a->buf[y];
 
                 for (;;) {
-                    patcode = (*ptrtom++);                                      // first char
+                    patcode = *ptrtom++;                                        // first char
                     if ((notpatclass = (patcode == '\''))) patcode = *ptrtom++; // is it a negation, if yes -> next char
 
                     switch (patcode) {                                          // we live in an ASCII/ISO world !!
@@ -354,7 +350,6 @@ short pattern(cstring *a, cstring *b)
                         break;
 
                     case 'e':                                                   // any char and
-                        //if (!notpatclass)                                       // not negation
                         if ((ch > 0) != notpatclass) goto match;                // not negation
                         break;
 
@@ -381,11 +376,6 @@ short pattern(cstring *a, cstring *b)
                             while (b->buf[x++] != DELIM) y++;                   // while patx not at DELIM, move along
                             goto match0;                                        // it's ok
                         }                                                       // end if a negation
-
-                        /*
-                        if (a->buf[y + i - 1] == EOL) {                         // we have reached EOL - NOTE: why is it empty???
-                        }                                                       // end if reached EOL
-                        */
 
                         goto nomatch;                                           // bad luck, not match
 

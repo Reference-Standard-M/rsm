@@ -4,7 +4,7 @@
  * Summary:  module runtime - build an mvar
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -37,7 +37,7 @@
 #include "opcode.h"                                                             // the op codes
 #include "compile.h"                                                            // RBD structure
 
-short getvol(cstring *vol)                                                      // get vol number for volume name
+short getvol(const cstring *vol)                                                // get vol number for volume name
 {
     int     i;                                                                  // a handy int
     u_short s;                                                                  // for cstring length
@@ -59,7 +59,7 @@ short getvol(cstring *vol)                                                      
     return -ERRM26;                                                             // complain - no such
 }
 
-short getuci(cstring *uci, int vol)                                             // get UCI number
+short getuci(const cstring *uci, int vol)                                       // get UCI number
 {
     int     i;                                                                  // for loops
     u_short s;                                                                  // for cstring length

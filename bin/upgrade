@@ -5,7 +5,7 @@
 # Summary:  Upgrade an RSM or MV1 database from version 1 to 2
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020-2023 Fourth Watch Software LC
+# Copyright © 2020-2024 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -46,7 +46,7 @@ echo -e "${log}Reference Standard M Database Upgrade Utility${def}\n"
 echo -e "Upgrades an RSM or MUMPS V1 (MV1) database from version 1 to 2\n"
 echo -e "${err}WARNING:${def} This script is experimental.\n"
 echo "David Wicksell <dlw@linux.com>"
-echo "Copyright (c) 2020-2023 Fourth Watch Software LC"
+echo "Copyright (c) 2020-2024 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 
 [[ $1 == "-h" ]] && echo -e "\n${log}Usage:${def}\t$0 [<database file to upgrade>]\n\t$0 -h" && exit 0
@@ -94,7 +94,7 @@ echo -e "\n${log}Backing up the ${dbfile} database as ${dbbkup}...${def}"
 
 cp -a "${dbfile}" "${dbbkup}"
 
-echo -e "\n${log}Starting the ${dbfile} environment in single user mode...${def}"
+echo -e "\n${log}Starting the ${dbfile} environment in single-user mode...${def}"
 
 "${repo}"/rsm -j 1 "${dbfile}"
 
@@ -186,7 +186,7 @@ echo -e "\n${log}Creating the new ${dbfile} database with the same configuration
 
 "${repo}"/rsm -v "${volume}" -b "${blksize}" -s "${blocks}" -m "${hdrsize}" "${dbfile}"
 
-echo -e "\n${log}Starting the new ${dbfile} environment in single user mode...${def}"
+echo -e "\n${log}Starting the new ${dbfile} environment in single-user mode...${def}"
 
 "${repo}"/rsm -j 1 "${dbfile}"
 
