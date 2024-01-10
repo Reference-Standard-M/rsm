@@ -23,7 +23,7 @@ docker-build:
     - docker:dind
   script:
     - docker build -t rsm .
-    - docker run -d --name rsm rsm
+    - docker run -itd --name rsm rsm
     - sleep 5
     - docker exec rsm rsm -i
     - docker stop rsm
