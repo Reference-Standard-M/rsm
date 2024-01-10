@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - prototypes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -57,31 +57,26 @@ void   DB_ViewRel(u_int vol, struct GBD *ptr);                                  
 // Sequential IO
 short SQ_Init(void);                                                            // init chan 0 etc.
 
-short SQ_Open(int     chan,                                                     // open on this channel
-              cstring *object,                                                  // this file/device
-              cstring *op,                                                      // in this mode
-              int     tout);                                                    // timeout (-1 = unlimited)
+// open on this channel, this file/device, in this mode, timeout (-1 = unlimited)
+short SQ_Open(int chan, cstring *object, cstring *op, int tout);
 
-short SQ_Use(int     chan,                                                      // set chan as current $IO
-             cstring *interm,                                                   // input terminators or NULL
-             cstring *outerm,                                                   // output terminators or NULL
-             int     par);                                                      // parameters see rsm/include/rsm.h
+// set chan as current $IO, input terminators or NULL, output terminators or NULL, parameters see rsm/include/rsm.h
+short SQ_Use(int chan, cstring *interm, const cstring *outerm, int par);
 
 short SQ_Close(int chan);                                                       // close channel
 int   SQ_Write(cstring *buf);                                                   // write to current $IO
 short SQ_WriteStar(u_char c);                                                   // output one character
 short SQ_WriteFormat(int count);                                                // write format chars
 
-int   SQ_Read(u_char *buf,                                                      // read from current $IO to buf
-              int    tout,                                                      // timeout (-1 = unlimited)
-              int    maxbyt);                                                   // maximum bytes (-1 = unlimited)
+// read from current $IO to buf, timeout (-1 = unlimited), maximum bytes (-1 = unlimited)
+int   SQ_Read(u_char *buf, int tout, int maxbyt);
 
-short SQ_ReadStar(int *result,                                                  // read one character
-                  int timeout);                                                 // timeout (-1 = unlimited)
+// read one character, timeout (-1 = unlimited)
+short SQ_ReadStar(int *result, int timeout);
 
 short SQ_Flush(void);                                                           // flush input on $IO
 int   SQ_Device(u_char *buf);                                                   // return attributes
-short SQ_Force(cstring *device, cstring *msg);                                  // force data to a device
+short SQ_Force(const cstring *device, const cstring *msg);                      // force data to a device
 
 // Compiler
 int   Compile_Routine(mvar *rou, mvar *src, u_char *stack);                     // whole routine
@@ -99,10 +94,10 @@ int     short_version(u_char *ret_buffer, int i);                               
 int     rsm_version(u_char *ret_buffer);                                        // return version string
 int     Set_Error(int err, cstring *user, cstring *space);                      // Set $ECODE
 time_t  current_time(short local);                                              // get current time with/without local offset
-short   run(int asp, int ssp);                                                  // run compiled code
+int     run(int asp, int ssp);                                                  // run compiled code
 short   buildmvar(mvar *var, int nul_ok, int asp);                              // build an mvar
-short   getvol(cstring *vol);                                                   // get vol number for vol
-short   getuci(cstring *uci, int vol);                                          // get uci number
+short   getvol(const cstring *vol);                                             // get vol number for vol
+short   getuci(const cstring *uci, int vol);                                    // get uci number
 short   patmat(cstring *str, cstring *code);                                    // pattern match
 short   attention(void);                                                        // process attention
 int     ForkIt(int cft);                                                        // Fork (copy file table)
@@ -143,7 +138,7 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir);
 int   Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim);
 int   Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1);
 int   Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2);
-//short Dquery1(u_char *ret_buffer, mvar *var);
+short Dquery1(u_char *ret_buffer, mvar *var);
 short Dquery2(u_char *ret_buffer, mvar *var, int dir);
 short Drandom(u_char *ret_buffer, int seed);
 int   Dreverse(u_char *ret_buffer, cstring *expr);
@@ -190,7 +185,7 @@ short ST_SymSet(short syment, cstring *data);                                   
 short ST_SymKill(short syment);                                                 // kill var using syment
 short ST_New(int count, var_u *list);                                           // new a list of vars
 short ST_NewAll(int count, var_u *list);                                        // new all other than listed
-short ST_ConData(mvar *var, u_char *data);                                      // connect reference to data
+short ST_ConData(const mvar *var, u_char *data);                                // connect reference to data
 
 // SSVN
 short SS_Norm(mvar *var);                                                       // "normalize" SSVN
@@ -218,10 +213,11 @@ void       CleanJob(int job);                                                   
 void       panic(char *msg);                                                    // die on error
 void       Routine_Init(int vol);                                               // proto for routine setup
 struct RBD *Routine_Attach(var_u routine);                                      // attach to routine
-void       Routine_Detach(struct RBD *pointer);                                 // Detach from routine
+void       Routine_Detach(struct RBD *pointer);                                 // detach from routine
 void       Routine_Delete(var_u routine, int uci);                              // mark mapped routine deleted
-void       Dump_rbd(void);                                                      // dump descriptors
-void       Dump_lt(void);                                                       // dump used/free lockspace
+void       Dump_gbd(void);                                                      // dump global descriptors
+void       Dump_rbd(void);                                                      // dump routine descriptors
+void       Dump_ltd(void);                                                      // dump lock descriptors
 
 // Lock string conversion utility
 short UTIL_String_Lock(locktab *var, u_char  *str);                             // convert lock entry to full environment string
@@ -229,34 +225,34 @@ short UTIL_mvartolock(mvar *var, u_char *buf);                                  
 
 // Share and semaphore stuff
 int   UTIL_Share(char *dbf);                                                    // attach share and semaphores
-short SemOp(int sem_num, int numb);                                             // Add/Remove semaphore
-short LCK_Order(cstring *ent, u_char *buf, int dir);
-short LCK_Get(cstring *ent, u_char *buf);
-short LCK_Kill(cstring *ent);
+short SemOp(int sem_num, int numb);                                             // add/remove semaphore
+short LCK_Order(const cstring *ent, u_char *buf, int dir);
+short LCK_Get(const cstring *ent, u_char *buf);
+short LCK_Kill(const cstring *ent);
 void  LCK_Remove(int job);
 short LCK_Old(int count, cstring *list, int to);
 short LCK_Add(int count, cstring *list, int to);
 short LCK_Sub(int count, cstring *list);
 
 // XCalls
-short Xcall_host(char *ret_buffer, cstring *name, cstring *dum2);
-short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
-short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *dummy);
-short Xcall_wait(char *ret_buffer, cstring *arg1, cstring *arg2);
+short Xcall_debug(char *ret_buffer, cstring *arg, cstring *dummy);
 short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy);
 short Xcall_errmsg(char *ret_buffer, cstring *err, cstring *dummy);
-short Xcall_opcom(char *ret_buffer, cstring *msg, cstring *device);
+short Xcall_opcom(char *ret_buffer, cstring *msg, const cstring *device);
 short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig);
-short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *dummy);
-short Xcall_version(char *ret_buffer, cstring *name, cstring *dummy);
+short Xcall_spawn(char *ret_buffer, cstring *cmd, const cstring *type);
+short Xcall_version(char *ret_buffer, cstring *dummy1, cstring *dummy2);
 short Xcall_zwrite(char *ret_buffer, cstring *tmp, cstring *dummy);
 short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask);
-short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd);
+short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd);
 int   Xcall_v(char *ret_buffer, cstring *lin, cstring *col);
-int   Xcall_x(char *ret_buffer, cstring *str, cstring *dummy);
+int   Xcall_x(char *ret_buffer, cstring *str, const cstring *flag);
 short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy);
-int   Xcall_getenv(char *ret_buffer, cstring *env, cstring *dummy);
+int   Xcall_getenv(char *ret_buffer, const cstring *env, cstring *dummy);
 short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value);
-short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2);
+short Xcall_fork(char *ret_buffer, cstring *dummy1, cstring *dummy2);
+short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
+short Xcall_host(char *ret_buffer, cstring *name, cstring *arg);
+short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2);
 
 #endif                                                                          // !_RSM_PROTO_H_

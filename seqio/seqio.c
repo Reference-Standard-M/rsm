@@ -4,7 +4,7 @@
  * Summary:  module IO - main sequential IO functionality
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -92,14 +92,17 @@
 #define ERRSIZE     100                                                         // Maximum error buffer size
 
 // SQ_Chan.options bit mask
-#define INTERM      0                                                           // Input terminator(s) bit
-#define OUTERM      1                                                           // Output terminator bit
-#define ESC         2                                                           // Escape sequence bit
-#define TTYECHO     3                                                           // Echo bit
-#define DEL8        4                                                           // Delete key 8 bit
-#define DEL127      5                                                           // Delete key 127 bit
-#define IPV6        6                                                           // Socket IPv6 bit
-#define UDP         7                                                           // Socket UDP bit
+#define INTERM      0                                                           // Input terminator(s) bit (ALL)
+#define OUTERM      1                                                           // Output terminator bit (ALL)
+
+#define ESC         2                                                           // Escape sequence bit (SQ_TERM)
+#define TTYECHO     3                                                           // Echo bit (SQ_TERM)
+#define DEL8        4                                                           // Delete key 8 bit (SQ_TERM)
+#define DEL127      5                                                           // Delete key 127 bit (SQ_TERM)
+#define TYPEAHEAD   6                                                           // Type-ahead bit (SQ_TERM)
+
+#define IPV6        2                                                           // Socket IPv6 bit (SQ_SOCK)
+#define UDP         3                                                           // Socket UDP bit (SQ_SOCK)
 
 // Miscellaneous
 #define STDCHAN     0                                                           // stdin, stdout and stderr
@@ -165,7 +168,7 @@ int checkNbytes(int nbytes)
  * If any of the forementioned statements are true, this function returns a
  * negative integer value to indicate the error. Otherwise, a 0 is returned.
  */
-int checkCstring(cstring *cstr)
+int checkCstring(const cstring *cstr)
 {
     int ret;
 
@@ -517,6 +520,34 @@ int signalCaught(SQ_Chan *c)
     }
 }
 
+/*
+ * This function tries to find out the current row and column of the
+ * terminal device, returning a 0 on success, or errno on failure.
+ */
+/*
+static int cursor_position(int oid, int *x, int *y)
+{
+    char cpr[12] = {'\0'};                                                      // For cursor position report
+    char *cptr = cpr;                                                           // Cursor position report character pointer
+    int  cprs = sizeof(cpr);
+    int  i = 0;
+    int  j = 0;
+    int  ret;
+
+    if ((ret = SQ_Flush()) < 0) return ret;                                     // Flush type-ahead input
+    if (write(oid, (u_char *) "\033[6n", 4) == -1) return getError(SYS, errno); // Report cursor position
+
+    do {                                                                        // Read the current position report
+        if (read(oid, cptr++, 1) == -1) return getError(SYS, errno);
+        if (*(cptr - 1) == '\033') i = j;
+        if (++j >= cprs) break;
+    } while (strchr(cpr, 'R') == NULL);
+
+    if (sscanf(&cpr[i], "\033[%d;%dR", x, y) == EOF) return getError(SYS, errno);
+    return 0;
+}
+*/
+
 // SERVER SOCKET SPECIFIC
 
 /*
@@ -618,9 +649,9 @@ int openSERVER(int chan, char *oper)
  */
 int acceptSERVER(int chan, int tout)
 {
-    servertab          *s;                                                      // Forked process table
-    SQ_Chan            *c;                                                      // Server socket
-    int                index;                                                   // Useful variable
+    servertab *s;                                                               // Forked process table
+    SQ_Chan   *c;                                                               // Server socket
+    int       index;                                                            // Useful variable
 
     // Acquire a pointer to the SQ_CHAN structure
     c = &partab.jobtab->seqio[chan];
@@ -848,7 +879,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
     c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
 
     if (chan == STDCHAN) {                                                      // Get appropriate channel descriptor
-        oid = 1;
+        oid = STDOUT_FILENO;
     } else if ((int) c->type == SQ_SOCK) {
         if ((int) c->mode == TCPIP) {
             oid = c->fid;
@@ -939,12 +970,10 @@ int objectWrite(int chan, char *writebuf, int nbytes)
 int readFILE(int chan, u_char *buf, int maxbyt)
 {
     SQ_Chan *c;                                                                 // Current channel
-    int     bytesread;                                                          // Bytes read
-    int     crflag;                                                             // CR received
+    int     bytesread = 0;                                                      // Bytes read
+    int     crflag = FALSE;                                                     // CR received
 
     c = &partab.jobtab->seqio[chan];                                            // Acquire a pointer to current channel
-    bytesread = 0;                                                              // Initialize bytes read
-    crflag = FALSE;                                                             // Initialize CR flag
 
     for (;;) {                                                                  // Read in bytes
         int ret;                                                                // Return value
@@ -1005,9 +1034,9 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
 {
     SQ_Chan *c;                                                                 // Useful variable
     int     oid;                                                                // Object descriptor
-    int     bytesread;                                                          // Bytes read
+    int     bytesread = 0;                                                      // Bytes read
+    int     crflag = FALSE;                                                     // CR received
     int     ret;                                                                // Return value
-    int     crflag;                                                             // CR received
 
     // Aquire a pointer to the appropriate channel structure
     c = &partab.jobtab->seqio[chan];
@@ -1051,9 +1080,6 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
             return oid;
         }
     }
-
-    bytesread = 0;                                                              // Initialize bytes read
-    crflag = FALSE;                                                             // Initialize crflag
 
     for (;;) {                                                                  // Read in bytes
         if (bytesread >= maxbyt) {                                              // Check for bytes read
@@ -1121,8 +1147,8 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
 {
     SQ_Chan *c;                                                                 // Current channel
     int     oid;                                                                // Object descriptor
-    int     bytesread;                                                          // Bytes read
-    int     crflag;                                                             // CR received
+    int     bytesread = 0;                                                      // Bytes read
+    int     crflag = FALSE;                                                     // CR received
     int     tmp;                                                                // Return value
 
     // Acquire a pointer to the current channel
@@ -1133,9 +1159,6 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
     } else {
         oid = c->fid;
     }
-
-    bytesread = 0;                                                              // Initialize bytes read
-    crflag = FALSE;                                                             // Initialize CR flag
 
     for (;;) {                                                                  // Read in bytes
         int ret;                                                                // Return value
@@ -1204,27 +1227,25 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 {
     SQ_Chan        *c;                                                          // Current channel
     int            oid;                                                         // Object descriptor
-    int            bytesread;                                                   // Bytes read
     int            ret;                                                         // Return value
-    int            crflag;                                                      // CR received
+    int            bytesread = 0;                                               // Bytes read
+    int            crflag = FALSE;                                              // CR received
     int            i;
     int            len;
-    char           value;                                                       // Useful variable
+    char           val;                                                         // Useful variable
     u_char         curr;                                                        // Current character
     cstring        writebuf;                                                    // Bytes to echo
     struct winsize w;                                                           // For ioctl
-    char           cpr[12];                                                     // For cursor position report
-    int            j;                                                           // Current cursor row
     static char    editing = FALSE;                                             // In editing mode
     u_short        start;                                                       // The starting column of the input buffer
 
     // Aquire a pointer to the appropriate channel structure
     c = &partab.jobtab->seqio[chan];
 
-    if (in_hist > OFF) {
-        start = prompt_len;                                                     // Input for direct and debug modes
+    if (in_hist == OFF) {
+        start = c->dx;                                                          // Input for M [READ]
     } else {
-        start = c->dx;                                                          // Input for M input [read]
+        start = prompt_len;                                                     // Input for direct and debug modes
     }
 
     // Initialize local variables
@@ -1235,14 +1256,20 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
     }
 
     // Get the current terminal device screen dimensions
-    ret = ioctl(oid, TIOCGWINSZ, &w);
-    if (ret == -1) return getError(SYS, errno);
-    if (w.ws_col == 0) ret = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);              // If oid isn't a terminal device, use stdout
-    if (ret == -1) return getError(SYS, errno);
-    if (!isatty(STDOUT_FILENO) || (w.ws_col == 0)) w.ws_col = 80;               // If stdout is redirected, default to 80 columns
+    if (ioctl(oid, TIOCGWINSZ, &w) == -1) return getError(SYS, errno);
 
-    bytesread = 0;
-    crflag = FALSE;
+    if (w.ws_col == 0) {                                                        // If oid stdin is [likely] redirected, use stdout
+        if ((oid == STDCHAN) && isatty(STDOUT_FILENO)) {                        // If oid is principal and stdout is a TTY
+            if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) return getError(SYS, errno); // Use stdout to get terminal dimensions
+            if (w.ws_col == 0) w.ws_col = 80;                                   // Give up and set default column width
+        } else {
+            w.ws_col = 80;                                                      // Give up and set default column width
+        }
+    }
+
+    if ((in_hist == OFF) && !(c->options & MASK[TYPEAHEAD])) {                  // Flush type-ahead input [read]
+        if ((ret = SQ_Flush()) < 0) return ret;
+    }
 
     // Read in bytes
     for (;;) {
@@ -1252,10 +1279,11 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
             return bytesread;
         }
 
-        if (c->dx == (start + bytesread)) editing = FALSE;
+        if (editing && (c->dx == (start + bytesread))) editing = FALSE;         // No longer editing if cursor is at buffer end
 
         // Read in one byte
         ret = SQ_Device_Read(oid, &curr, tout);
+        buf[bytesread] = curr;
 
         if (ret < 0) {
             c->dkey_len = 0;
@@ -1270,96 +1298,83 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     partab.jobtab->test = 0;
                 }
 
-                buf[bytesread] = curr;
                 return bytesread;
-            } else {
-                return ret;
             }
+
+            return ret;
         } else if (ret == 0) {                                                  // EOF received
             c->dkey_len = 1;
             c->dkey[0] = (char) 255;
             c->dkey[1] = '\0';
-            buf[bytesread] = curr;
             return bytesread;
         }
 
         // Check for Ctrl-H (ASCII 8 BS) or Backspace key (ASCII 127 DEL) for Backspace
-        if ((curr == 8) || (curr == 127)) {
-            if ((in_hist > -1) || ((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
-                if ((bytesread > 0) && (c->dx > start)) {
-                    if (!(c->dx % w.ws_col)) {                                  // Cursor has hit the beginning of the line
-                        // Move cursor to the beginning of the previous line
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('[');
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('F');
-                        if (ret < 0) return ret;
+        if (((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
+            if (bytesread <= 0) continue;
 
-                        // Move cursor to the end of the line
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('[');
-                        if (ret < 0) return ret;
-                        writebuf.len = uitocstring(writebuf.buf, w.ws_col);
-                        ret = SQ_Write(&writebuf);
-                        if (ret < 0) return ret;
-                        c->dx -= ret;
-                        ret = SQ_WriteStar('G');
-                        if (ret < 0) return ret;
-                    } else {
-                        ret = SQ_WriteStar((char) 8);                           // Backspace (ASCII)
-                        if (ret < 0) return ret;
-                    }
-
-                    // Delete current character
-                    ret = SQ_WriteStar((char) 27);
+            if (in_hist == OFF) {
+                if (c->options & MASK[TTYECHO]) {
+                    ret = SQ_Device_Write(oid, (u_char *) "\b \b", 3);          // Backspace, rubout, then backspace
                     if (ret < 0) return ret;
-                    ret = SQ_WriteStar('[');
-                    if (ret < 0) return ret;
-                    ret = SQ_WriteStar('P');
-                    if (ret < 0) return ret;
-
-                    if (editing && ((start + bytesread) > w.ws_col)) {          // Input buffer is longer than a single line
-                        // Erase from current position to the end of the display
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('[');
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('J');
-                        if (ret < 0) return ret;
-
-                        // Save cursor position (DEC private)
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('7');
-                        if (ret < 0) return ret;
-
-                        // Write from the current position in the buffer to the end of the buffer
-                        ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx);
-                        if (ret < 0) return ret;
-
-                        // Restore cursor position (DEC private)
-                        ret = SQ_WriteStar((char) 27);
-                        if (ret < 0) return ret;
-                        ret = SQ_WriteStar('8');
-                        if (ret < 0) return ret;
-                    }
-
-                    bytesread--;
                     c->dx--;
+                }
+            } else {
+                if (c->dx <= start) continue;
 
-                    if (editing) {
-                        for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
-                    }
+                if (!(c->dx % w.ws_col)) {                                      // Cursor has hit the beginning of the line
+                    // Move cursor to the beginning of the previous line
+                    ret = SQ_Device_Write(oid, (u_char *) "\033[F", 3);
+                    if (ret < 0) return ret;
+
+                    // Move cursor to the end of the line
+                    ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
+                    if (ret < 0) return ret;
+                    writebuf.len = uitocstring(writebuf.buf, w.ws_col);
+                    ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
+                    if (ret < 0) return ret;
+                    ret = SQ_Device_Write(oid, (u_char *) "G", 1);
+                    if (ret < 0) return ret;
+                } else {
+                    ret = SQ_Device_Write(oid, (u_char *) "\b", 1);             // Backspace (ASCII)
+                    if (ret < 0) return ret;
                 }
 
-                continue;
+                // Delete current character
+                ret = SQ_Device_Write(oid, (u_char *) "\033[P", 3);
+                if (ret < 0) return ret;
+
+                if (editing && ((start + bytesread) > w.ws_col)) {              // Input buffer is longer than a single line
+                    // Erase from current position to the end of the display
+                    ret = SQ_Device_Write(oid, (u_char *) "\033[J", 3);
+                    if (ret < 0) return ret;
+
+                    // Save cursor position (DEC private)
+                    ret = SQ_Device_Write(oid, (u_char *) "\0337", 2);
+                    if (ret < 0) return ret;
+
+                    // Write from the current position in the buffer to the end of the buffer
+                    ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx);
+                    if (ret < 0) return ret;
+
+                    // Restore cursor position (DEC private)
+                    ret = SQ_Device_Write(oid, (u_char *) "\0338", 2);
+                    if (ret < 0) return ret;
+                }
+
+                c->dx--;
+
+                if (editing) {
+                    for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
+                }
             }
+
+            bytesread--;
+            continue;
         }
 
         // Check to see if an escape sequence is about to be received
-        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist > OFF))) {
+        if ((curr == 27) && ((c->options & MASK[ESC]) || (in_hist != OFF))) {
             c->dkey_len = 1;
             c->dkey[0] = (char) 27;
 
@@ -1370,7 +1385,6 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                 if (ret < 0) {
                     c->dkey_len = 0;
                     c->dkey[0] = '\0';
-                    buf[bytesread] = curr;
 
                     if (partab.jobtab->trap & MASK[SIGALRM]) {                  // Operation timed out
                         partab.jobtab->trap &= ~MASK[SIGALRM];
@@ -1389,248 +1403,164 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     c->dkey_len = 1;
                     c->dkey[0] = (char) 255;
                     c->dkey[1] = '\0';
-                    buf[bytesread] = curr;
                     return bytesread;
                 }
 
-                value = c->dkey[c->dkey_len];
+                val = c->dkey[c->dkey_len];
 
                 // Arrow keys and Delete key
-                if (value != 'O') {
-                    if (((value >= 'A') && (value <= 'Z')) || ((value >= 'a') && (value <= 'z')) || (value == '~')) {
-                        c->dkey_len++;
-                        c->dkey[c->dkey_len] = '\0';
+                if ((val != 'O') && (((val >= 'A') && (val <= 'Z')) || ((val >= 'a') && (val <= 'z')) || (val == '~'))) {
+                    c->dkey_len++;
+                    c->dkey[c->dkey_len] = '\0';
+                    if (in_hist == OFF) return bytesread;
 
-                        // Up or Down Arrow
-                        if ((in_hist > -1) && (c->dkey_len == 3) && ((value == 'A') || (value == 'B'))) {
-                            if (!in_hist) in_hist = TRUE;
+                    // Up or Down Arrow
+                    if ((c->dkey_len == 3) && ((val == 'A') || (val == 'B'))) {
+                        if (in_hist == FALSE) in_hist = TRUE;
 
-                            // Move to beginning of the line that starts the current command buffer
-                            if (c->dx >= w.ws_col) {
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                writebuf.len = uitocstring(writebuf.buf, c->dx / w.ws_col);
-                                ret = SQ_Write(&writebuf);
-                                if (ret < 0) return ret;
-                                c->dx -= ret;
-                                ret = SQ_WriteStar('F');
-                                if (ret < 0) return ret;
-                            }
+                        // Move to beginning of the line that starts the current command buffer
+                        if (c->dx >= w.ws_col) {
+                            ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
+                            if (ret < 0) return ret;
+                            writebuf.len = uitocstring(writebuf.buf, c->dx / w.ws_col);
+                            ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
+                            if (ret < 0) return ret;
+                            ret = SQ_Device_Write(oid, (u_char *) "F", 1);
+                            if (ret < 0) return ret;
+                        }
 
-                            // Move to the beginning of the input buffer that starts the current command buffer (after the prompt)
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            writebuf.len = uitocstring(writebuf.buf, start + 1);
-                            ret = SQ_Write(&writebuf);
-                            if (ret < 0) return ret;
-                            c->dx -= ret;
-                            ret = SQ_WriteStar('G');
-                            if (ret < 0) return ret;
+                        // Move to the beginning of the input buffer that starts the current command buffer (after the prompt)
+                        ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
+                        if (ret < 0) return ret;
+                        writebuf.len = uitocstring(writebuf.buf, start + 1);
+                        ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
+                        if (ret < 0) return ret;
+                        ret = SQ_Device_Write(oid, (u_char *) "G", 1);
+                        if (ret < 0) return ret;
 
-                            // Erase from the current position to the end of the display
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('J');
-                            if (ret < 0) return ret;
+                        // Erase from the current position to the end of the display
+                        ret = SQ_Device_Write(oid, (u_char *) "\033[J", 3);
+                        if (ret < 0) return ret;
 
-                            // Change the input buffer to the previous or next command in the history buffer
-                            if (value == 'A') {
-                                if (hist_curr == 0) {
-                                    hist_curr = ((history[MAX_HISTORY - 1][0] != '\0') ? (MAX_HISTORY - 1) : hist_next);
-                                } else {
-                                    hist_curr--;
-                                }
+                        // Change the input buffer to the previous or next command in the history buffer
+                        if (val == 'A') {
+                            if (hist_curr == 0) {
+                                hist_curr = ((history[MAX_HISTORY - 1][0] != '\0') ? (MAX_HISTORY - 1) : hist_next);
                             } else {
-                                if ((hist_curr < (MAX_HISTORY - 1) && (history[hist_curr][0] != '\0'))) {
-                                    hist_curr++;
-                                } else {
-                                    hist_curr = 0;
-                                }
+                                hist_curr--;
                             }
-
-                            len = strlen((char *) history[hist_curr]);
-                            c->dx = start + len;
-                            bytesread = len;
-                            ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
-                            if (ret < 0) return ret;
-                            sprintf((char *) buf, "%s", history[hist_curr]);
-
-                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
-                                j = 0;
-                                value = '\0';
-
-                                // Report cursor position (we want the current line)
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('6');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('n');
-                                if (ret < 0) return ret;
-
-                                while ((ret = read(oid, cpr, 1))) {             // Read the current position report
-                                    if (ret == -1) return getError(SYS, errno);
-
-                                    if (cpr[0] == 27) {
-                                        ret = read(oid, cpr, 12);
-                                        if (ret == -1) return getError(SYS, errno);
-                                        ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
-                                        if (ret == -1) return getError(SYS, errno);
-                                        if (value == 'R') break;
-                                        ret = read(oid, cpr, 12);
-                                        if (ret == -1) return getError(SYS, errno);
-                                        break;
-                                    }
-                                }
-
-                                if (j == w.ws_row) {                            // Cursor is on the last line
-                                    // Scroll display up one line
-                                    ret = SQ_WriteStar((char) 27);
-                                    if (ret < 0) return ret;
-                                    ret = SQ_WriteStar('[');
-                                    if (ret < 0) return ret;
-                                    ret = SQ_WriteStar('S');
-                                    if (ret < 0) return ret;
-                                }
-
-                                // Move cursor to the beginning of the next line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('E');
-                                if (ret < 0) return ret;
-                            }
-
-                            break;
-                        } else if ((maxbyt > 1) && (c->dkey_len == 3) && (value == 'C')) { // Right arrow
-                            if (!editing) editing = TRUE;
-                            if (c->dx >= (start + bytesread)) break;
-                            c->dx++;
-
-                            if (!(c->dx % w.ws_col)) {                          // Cursor has hit the end of the line
-                                // Move cursor to the beginning of the next line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('E');
-                                if (ret < 0) return ret;
-                                break;
-                            }
-
-                            // Move cursor forward one position
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('C');
-                            if (ret < 0) return ret;
-                            break;
-                        } else if ((maxbyt > 1) && (c->dkey_len == 3) && (value == 'D')) { // Left arrow
-                            if (!editing) editing = TRUE;
-                            if (c->dx <= start) break;
-                            c->dx--;
-
-                            if (!((c->dx + 1) % w.ws_col)) {                    // Cursor has hit the beginning of the line
-                                // Move cursor to the beginning of the previous line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('F');
-                                if (ret < 0) return ret;
-
-                                // Move cursor to the end of the current line
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                writebuf.len = uitocstring(writebuf.buf, w.ws_col);
-                                ret = SQ_Write(&writebuf);
-                                if (ret < 0) return ret;
-                                c->dx -= ret;
-                                ret = SQ_WriteStar('G');
-                                if (ret < 0) return ret;
-                                break;
-                            }
-
-                            // Move cursor back one position, stopping at column 1
-                            ret = SQ_WriteStar((char) 27);
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('[');
-                            if (ret < 0) return ret;
-                            ret = SQ_WriteStar('D');
-                            if (ret < 0) return ret;
-                            break;
-                        } else if ((maxbyt > 1) && (c->dkey_len == 4) && (c->dkey[2] == '3') && (value == '~')) { // Delete key
-                            if (!editing) editing = TRUE;
-                            if (c->dx >= (start + bytesread)) break;
-
-                            if ((start + bytesread) > w.ws_col) {               // Input buffer is longer than a single line
-                                // Erase from the current position to the end of the display
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('J');
-                                if (ret < 0) return ret;
-
-                                // Save cursor position (DEC private)
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('7');
-                                if (ret < 0) return ret;
-
-                                // Write from the current position in the buffer to the end of the buffer
-                                ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start + 1], start + bytesread - c->dx - 1);
-
-                                if (ret < 0) return ret;
-
-                                // Restore cursor position (DEC private)
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('8');
-                                if (ret < 0) return ret;
+                        } else {
+                            if ((hist_curr < (MAX_HISTORY - 1) && (history[hist_curr][0] != '\0'))) {
+                                hist_curr++;
                             } else {
-                                // Delete current character
-                                ret = SQ_WriteStar((char) 27);
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('[');
-                                if (ret < 0) return ret;
-                                ret = SQ_WriteStar('P');
-                                if (ret < 0) return ret;
+                                hist_curr = 0;
                             }
+                        }
 
-                            for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
-                            bytesread--;
+                        len = strlen((char *) history[hist_curr]);
+                        c->dx = start + len;
+                        bytesread = len;
+                        ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
+                        if (ret < 0) return ret;
+                        sprintf((char *) buf, "%s", history[hist_curr]);
+
+                        if (!(c->dx % w.ws_col)) {                              // Cursor has hit the end of the line
+                            // Move cursor to the beginning of the next line
+                            ret = SQ_Device_Write(oid, (u_char *) "\033E", 2);
+                            if (ret < 0) return ret;
+                        }
+
+                        break;
+                    } else if ((maxbyt > 1) && (c->dkey_len == 3) && (val == 'C')) { // Right arrow
+                        if (editing == FALSE) editing = TRUE;
+                        if (c->dx >= (start + bytesread)) break;
+                        c->dx++;
+
+                        if (!(c->dx % w.ws_col)) {                              // Cursor has hit the end of the line
+                            // Move cursor to the beginning of the next line
+                            ret = SQ_Device_Write(oid, (u_char *) "\033[E", 3);
+                            if (ret < 0) return ret;
                             break;
                         }
 
-                        buf[bytesread] = curr;
-                        return bytesread;
+                        // Move cursor forward one position
+                        ret = SQ_Device_Write(oid, (u_char *) "\033[C", 3);
+                        if (ret < 0) return ret;
+                        break;
+                    } else if ((maxbyt > 1) && (c->dkey_len == 3) && (val == 'D')) { // Left arrow
+                        if (editing == FALSE) editing = TRUE;
+                        if (c->dx <= start) break;
+                        c->dx--;
+
+                        if (!((c->dx + 1) % w.ws_col)) {                        // Cursor has hit the beginning of the line
+                            // Move cursor to the beginning of the previous line
+                            ret = SQ_Device_Write(oid, (u_char *) "\033[F", 3);
+                            if (ret < 0) return ret;
+
+                            // Move cursor to the end of the current line
+                            ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
+                            if (ret < 0) return ret;
+                            writebuf.len = uitocstring(writebuf.buf, w.ws_col);
+                            ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
+                            if (ret < 0) return ret;
+                            ret = SQ_Device_Write(oid, (u_char *) "G", 1);
+                            if (ret < 0) return ret;
+                            break;
+                        }
+
+                        // Move cursor back one position, stopping at column 1
+                        ret = SQ_Device_Write(oid, (u_char *) "\033[D", 3);
+                        if (ret < 0) return ret;
+                        break;
+                    } else if ((maxbyt > 1) && (c->dkey_len == 4) && (c->dkey[2] == '3') && (val == '~')) { // Delete key
+                        if (editing == FALSE) editing = TRUE;
+                        if (c->dx >= (start + bytesread)) break;
+
+                        if ((start + bytesread) > w.ws_col) {                   // Input buffer is longer than a single line
+                            // Erase from the current position to the end of the display
+                            ret = SQ_Device_Write(oid, (u_char *) "\033[J", 3);
+                            if (ret < 0) return ret;
+
+                            // Save cursor position (DEC private)
+                            ret = SQ_Device_Write(oid, (u_char *) "\0337", 2);
+                            if (ret < 0) return ret;
+
+                            // Write from the current position in the buffer to the end of the buffer
+                            ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start + 1], start + bytesread - c->dx - 1);
+                            if (ret < 0) return ret;
+
+                            // Restore cursor position (DEC private)
+                            ret = SQ_Device_Write(oid, (u_char *) "\0338", 2);
+                            if (ret < 0) return ret;
+                        } else {
+                            // Delete current character
+                            ret = SQ_Device_Write(oid, (u_char *) "\033[P", 3);
+                            if (ret < 0) return ret;
+                        }
+
+                        for (i = c->dx - start; i < bytesread; i++) buf[i] = buf[i + 1]; // Shift buffer to the left by one
+                        bytesread--;
+                        break;
                     }
+
+                    return bytesread;
                 }
 
                 c->dkey_len++;
+
+                if ((val == 27) || (val == 13)) {                               // End when a second escape or return key is hit
+                    c->dkey[c->dkey_len] = '\0';
+                    return bytesread;
+                }
             }
 
             if (editing || (in_hist == TRUE)) continue;
         }                                                                       // End ESCAPE Processing Options
 
         // Check if an input terminator has been received
-        if ((in_hist > OFF) || (c->options & MASK[INTERM])) {
+        if ((in_hist != OFF) || (c->options & MASK[INTERM])) {
             if ((in_hist == OFF) && (c->in_term.iterm == CRLF)) {
                 if (curr == 13) {
-                    if (in_hist == TRUE) in_hist = FALSE;
-                    editing = FALSE;
                     crflag = TRUE;
                 } else if ((curr == 10) && (crflag == TRUE)) {
                     c->dkey_len = 2;
@@ -1640,129 +1570,75 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     return bytesread - 1;
                 }
             } else if (curr < 128) {
-                if (((in_hist > -1) && (curr == 13)) || ((in_hist == -1) && (c->in_term.interm[curr / 64] & MASK[curr % 64]))) {
-                    buf[bytesread] = curr;
+                if ((in_hist != OFF) && (curr == 13)) {
                     if (in_hist == TRUE) in_hist = FALSE;
-                    editing = FALSE;
+                    if (editing) editing = FALSE;
                     c->dkey_len = 1;
-                    c->dkey[0] = buf[bytesread];
+                    c->dkey[0] = curr;
+                    c->dkey[1] = '\0';
+                    return bytesread;
+                } else if ((in_hist == OFF) && (c->in_term.interm[curr / 64] & MASK[curr % 64])) {
+                    c->dkey_len = 1;
+                    c->dkey[0] = curr;
                     c->dkey[1] = '\0';
                     return bytesread;
                 }
             }
         }
 
-        // Ignore non-printable characters (when not read * and escape processing is on)
-        if ((c->options & MASK[ESC]) && (maxbyt > 1) && ((curr < 32) || (curr > 126))) continue;
+        // Ignore non-printable characters when in direct and debug modes
+        if ((in_hist != OFF) && !isprint(curr)) continue;
 
         if (editing) {
             if ((start + bytesread) < w.ws_col) {                               // Input buffer is a single line
                 // Insert space and move the line to the right
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('@');
+                ret = SQ_Device_Write(oid, (u_char *) "\033[@", 3);
                 if (ret < 0) return ret;
             }
 
             for (i = bytesread - 1; i >= (c->dx - start); i--) buf[i + 1] = buf[i]; // Shift buffer to the right by one
             buf[c->dx - start] = curr;                                          // Add new character in the correct position
-        } else {
-            buf[bytesread] = curr;
         }
 
         // Echo last byte read
-        if ((c->options & MASK[TTYECHO]) || (in_hist > -1)) {
+        if ((in_hist != OFF) || (c->options & MASK[TTYECHO])) {
+            if (curr == '\t') curr = ' ';                                       // Convert tab to space
             writebuf.len = 1;
             sprintf((char *) writebuf.buf, "%c", curr);
             ret = SQ_Write(&writebuf);
             if (ret < 0) return ret;
         }
 
-        if (!((start + bytesread + 1) % w.ws_col)) {                            // End of input buffer has hit the edge of the line
-            j = 0;
-            value = '\0';
+        if (c->dx && (in_hist != OFF) && !(c->dx % w.ws_col)) {                 // Cursor has hit the end of the line
+            // Move cursor to the beginning of the next line
+            ret = SQ_Device_Write(oid, (u_char *) "\033E", 2);
+            if (ret < 0) return ret;
+        }
 
-            // Report cursor position (we want the current line)
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('[');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('6');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('n');
-            if (ret < 0) return ret;
+        if (editing) {
+            if ((start + bytesread + 1) >= w.ws_col) {                          // Input buffer is longer than one line
+                // Erase from current position to the end of the display
+                ret = SQ_Device_Write(oid, (u_char *) "\033[J", 3);
+                if (ret < 0) return ret;
 
-            while ((ret = read(oid, cpr, 1))) {                                 // Read the current position report
-                if (ret == -1) return getError(SYS, errno);
+                // Save cursor position (DEC private)
+                ret = SQ_Device_Write(oid, (u_char *) "\0337", 2);
+                if (ret < 0) return ret;
 
-                if (cpr[0] == 27) {
-                    ret = read(oid, cpr, 12);
-                    if (ret == -1) return getError(SYS, errno);
-                    ret = sscanf(cpr, "[%d;%*d%c", &j, &value);
-                    if (ret == -1) return getError(SYS, errno);
-                    if (value == 'R') break;
-                    ret = read(oid, cpr, 12);
-                    if (ret == -1) return getError(SYS, errno);
-                    break;
+                // Write from current position in the buffer to the end of the buffer
+                ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx + 1);
+                if (ret < 0) return ret;
+
+                // Restore cursor position (DEC private)
+                ret = SQ_Device_Write(oid, (u_char *) "\0338", 2);
+                if (ret < 0) return ret;
+
+                if (!((start + bytesread) % w.ws_col) && (c->dx % w.ws_col)) {  // Buffer hit the end of the line (cursor has not)
+                    // Move cursor up one line to restore the correct position
+                    ret = SQ_Device_Write(oid, (u_char *) "\033[A", 3);
+                    if (ret < 0) return ret;
                 }
             }
-
-            // End of input buffer is on the last line
-            if (((start + bytesread + 1 - c->dx) / w.ws_col + j) == w.ws_row) {
-                // Scroll display up one line
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('S');
-                if (ret < 0) return ret;
-
-                // Move cursor up one line
-                ret = SQ_WriteStar((char) 27);
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('[');
-                if (ret < 0) return ret;
-                ret = SQ_WriteStar('A');
-                if (ret < 0) return ret;
-            }
-        }
-
-        if (!(c->dx % w.ws_col)) {                                              // Cursor has hit the end of the line
-            // Move cursor to the beginning of the next line
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('[');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('E');
-            if (ret < 0) return ret;
-        }
-
-        if (editing && ((start + bytesread + 1) >= w.ws_col)) {                 // Input buffer is longer than one line
-            // Erase from current position to the end of the display
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('[');
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('J');
-            if (ret < 0) return ret;
-
-            // Save cursor position (DEC private)
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('7');
-            if (ret < 0) return ret;
-
-            // Write from current position in the buffer to the end of the buffer
-            ret = SQ_Device_Write(oid, (u_char *) &buf[c->dx - start], start + bytesread - c->dx + 1);
-            if (ret < 0) return ret;
-
-            // Restore cursor position (DEC private)
-            ret = SQ_WriteStar((char) 27);
-            if (ret < 0) return ret;
-            ret = SQ_WriteStar('8');
-            if (ret < 0) return ret;
         }
 
         bytesread++;                                                            // Increment number of bytes read
@@ -1832,7 +1708,7 @@ int initObject(int chan, int type)
             if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return getError(SYS, errno); // Set parameters
         }
 
-        par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_DEL127 | SQ_CONTROLC);
+        par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_TYPEAHEAD | SQ_USE_DEL127 | SQ_CONTROLC);
         snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
         snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 13);
         break;
@@ -2149,7 +2025,7 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout)
  * Upon success, this function will return 0. Otherwise, a negative integer
  * value is returned to indicate the error that has occurred.
  */
-short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
+short SQ_Use(int chan, cstring *interm, const cstring *outerm, int par)
 {
     SQ_Chan *c;                                                                 // Pointer to channel
     int     ret;                                                                // Return value
@@ -2214,61 +2090,78 @@ short SQ_Use(int chan, cstring *interm, cstring *outerm, int par)
     // Set bit OUTERM in channel's options
     c->options = setOptionsBitMask(c->options, OUTERM, flag);
 
-    // Set bit CONTROLC in channel's options
+    // Set bit CONTROLC/CONTROLT in channel's options
     if (!chan && (par & (SQ_CONTROLC | SQ_NOCONTROLC | SQ_CONTROLT | SQ_NOCONTROLT))) { // Chan zero only
         struct termios settings;                                                // man 3 termios
 
         if (tcgetattr(STDCHAN, &settings) == -1) return (short) getError(SYS, errno); // Get parameters
-        if (par & SQ_CONTROLC) settings.c_cc[VINTR] = '\003';                   // ^C
-        if (par & SQ_NOCONTROLC) settings.c_cc[VINTR] = _POSIX_VDISABLE;        // No ^C
-        if (par & SQ_CONTROLT) settings.c_cc[VQUIT] = '\024';                   // ^T
-        if (par & SQ_NOCONTROLT) settings.c_cc[VQUIT] = _POSIX_VDISABLE;        // No ^T
+
+        if (par & SQ_CONTROLC) {
+            settings.c_cc[VINTR] = '\003';                                      // ^C
+        } else if (par & SQ_NOCONTROLC) {
+            settings.c_cc[VINTR] = _POSIX_VDISABLE;                             // No ^C
+        }
+
+        if (par & SQ_CONTROLT) {
+            settings.c_cc[VQUIT] = '\024';                                      // ^T
+        } else if (par & SQ_NOCONTROLT) {
+            settings.c_cc[VQUIT] = _POSIX_VDISABLE;                             // No ^T
+        }
+
         if (tcsetattr(STDCHAN, TCSANOW, &settings) == -1) return (short) getError(SYS, errno); // Set parameters
     }
 
-    // Set bit ESC in channel's options
-    if (par & SQ_USE_ESCAPE) {
-        c->options = setOptionsBitMask(c->options, ESC, SET);
-    } else if (par & SQ_USE_NOESCAPE) {
-        c->options = setOptionsBitMask(c->options, ESC, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, ESC, LEAVE);
-    }
+    if (c->type == SQ_TERM) {
+        // Set bit ESC in channel's options
+        if (par & SQ_USE_ESCAPE) {
+            c->options = setOptionsBitMask(c->options, ESC, SET);
+        } else if (par & SQ_USE_NOESCAPE) {
+            c->options = setOptionsBitMask(c->options, ESC, UNSET);
+        } else {
+            c->options = setOptionsBitMask(c->options, ESC, LEAVE);
+        }
 
-    // Set bit TTYECHO in channel's options
-    if (par & SQ_USE_ECHO) {
-        c->options = setOptionsBitMask(c->options, TTYECHO, SET);
-    } else if (par & SQ_USE_NOECHO) {
-        c->options = setOptionsBitMask(c->options, TTYECHO, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, TTYECHO, LEAVE);
-    }
+        // Set bit TTYECHO in channel's options
+        if (par & SQ_USE_ECHO) {
+            c->options = setOptionsBitMask(c->options, TTYECHO, SET);
+        } else if (par & SQ_USE_NOECHO) {
+            c->options = setOptionsBitMask(c->options, TTYECHO, UNSET);
+        } else {
+            c->options = setOptionsBitMask(c->options, TTYECHO, LEAVE);
+        }
 
-    // Set bit DEL127 and bit DEL8 in channel's options
-    if (par & SQ_USE_DELBOTH) {
-        c->options = setOptionsBitMask(c->options, DEL127, SET);
-        c->options = setOptionsBitMask(c->options, DEL8, SET);
-    } else if (par & SQ_USE_DEL127) {
-        c->options = setOptionsBitMask(c->options, DEL127, SET);
-        c->options = setOptionsBitMask(c->options, DEL8, UNSET);
-    } else if (par & SQ_USE_DEL8) {
-        c->options = setOptionsBitMask(c->options, DEL127, UNSET);
-        c->options = setOptionsBitMask(c->options, DEL8, SET);
-    } else if (par & SQ_USE_DELNONE) {
-        c->options = setOptionsBitMask(c->options, DEL127, UNSET);
-        c->options = setOptionsBitMask(c->options, DEL8, UNSET);
-    } else {
-        c->options = setOptionsBitMask(c->options, DEL127, LEAVE);
-        c->options = setOptionsBitMask(c->options, DEL8, LEAVE);
-    }
+        // Set bit TYPEAHEAD in channel's options
+        if (par & SQ_USE_TYPEAHEAD) {
+            c->options = setOptionsBitMask(c->options, TYPEAHEAD, SET);
+        } else if (par & SQ_USE_NOTYPEAHEAD) {
+            c->options = setOptionsBitMask(c->options, TYPEAHEAD, UNSET);
+        } else {
+            c->options = setOptionsBitMask(c->options, TYPEAHEAD, LEAVE);
+        }
 
-    // Disconnect client from socket
-    if (par & SQ_USE_DISCON) {
-        ret = closeSERVERClient(chan);
-        if (ret < 0) return (short) ret;
-    }
+        // Set bit DEL127 and bit DEL8 in channel's options
+        if (par & SQ_USE_DELBOTH) {
+            c->options = setOptionsBitMask(c->options, DEL127, SET);
+            c->options = setOptionsBitMask(c->options, DEL8, SET);
+        } else if (par & SQ_USE_DEL127) {
+            c->options = setOptionsBitMask(c->options, DEL127, SET);
+            c->options = setOptionsBitMask(c->options, DEL8, UNSET);
+        } else if (par & SQ_USE_DEL8) {
+            c->options = setOptionsBitMask(c->options, DEL127, UNSET);
+            c->options = setOptionsBitMask(c->options, DEL8, SET);
+        } else if (par & SQ_USE_DELNONE) {
+            c->options = setOptionsBitMask(c->options, DEL127, UNSET);
+            c->options = setOptionsBitMask(c->options, DEL8, UNSET);
+        } else {
+            c->options = setOptionsBitMask(c->options, DEL127, LEAVE);
+            c->options = setOptionsBitMask(c->options, DEL8, LEAVE);
+        }
+    } else if (c->type == SQ_SOCK) {
+        // Disconnect client from socket
+        if (par & SQ_USE_DISCON) {
+            closeSERVERClient(chan);
+        }
 
-    if (c->type == SQ_SOCK) {
         proto_family = PF_INET;                                                 // PF_INET or PF_INET6
         addr_family  = AF_INET;                                                 // AF_INET or AF_INET6
         sock_type    = SOCK_STREAM;                                             // SOCK_STREAM or SOCK_DGRAM
@@ -2361,6 +2254,7 @@ int SQ_Write(cstring *writebuf)
 {
     int chan;                                                                   // Current IO channel
     int ret;                                                                    // Return value
+    int cnt = 0;                                                                // Printable count for $X
 
     ret = checkCstring(writebuf);
     if (ret < 0) return ret;
@@ -2370,7 +2264,16 @@ int SQ_Write(cstring *writebuf)
     if (writebuf->len == 0) return 0;
     ret = objectWrite(chan, (char *) writebuf->buf, writebuf->len);
     if (ret < 0) return ret;
-    partab.jobtab->seqio[chan].dx += ret;
+
+    for (int i = 0; i < writebuf->len; i++) {
+        if (writebuf->buf[i] == '\t') {
+            cnt += (8 - ((partab.jobtab->seqio[chan].dx + cnt) % 8));           // Increment $X by tab-over
+        } else if (isprint(writebuf->buf[i])) {
+            cnt++;                                                              // Increment $X by one
+        }
+    }
+
+    partab.jobtab->seqio[chan].dx += cnt;
     return ret;
 }
 
@@ -2383,11 +2286,21 @@ int SQ_Write(cstring *writebuf)
 short SQ_WriteStar(u_char c)
 {
     int chan;                                                                   // Current IO channel
+    int ret;                                                                    // Return value
 
     chan = (int) partab.jobtab->io;
     if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
     if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
-    return objectWrite(chan, (char *) &c, 1);
+    ret = objectWrite(chan, (char *) &c, 1);
+    if (ret < 0) return ret;
+
+    if (c == '\t') {
+        partab.jobtab->seqio[chan].dx += (8 - (partab.jobtab->seqio[chan].dx % 8)); // Increment $X by tab-over
+    } else if (isprint(c)) {
+        partab.jobtab->seqio[chan].dx++;                                        // Increment $X by one
+    }
+
+    return ret;
 }
 
 /*
@@ -2449,7 +2362,13 @@ short SQ_WriteFormat(int count)
         ret = 0;
 
         if (IOptr->options & MASK[OUTERM]) {
-            ret = objectWrite(chan, (char *) IOptr->out_term, IOptr->out_len);
+            // Output for M [WRITE !] or not a principal TTY
+            if ((in_hist == OFF) || (chan != STDCHAN) || !isatty((chan == STDCHAN) ? STDOUT_FILENO : chan)) {
+                ret = objectWrite(chan, (char *) IOptr->out_term, IOptr->out_len);
+            } else {                                                            // Output for direct and debug modes
+                ret = objectWrite(chan, "\r\n", 2);
+            }
+
             if (ret < 0) return ret;
         }
 
@@ -2611,7 +2530,6 @@ short SQ_ReadStar(int *result, int timeout)
 #ifndef  __APPLE__
     partab.jobtab->seqio[chan].options &= ~MASK[INTERM];                        // macOS doesn't like this!!!
 #endif
-    partab.jobtab->seqio[chan].options &= ~MASK[TTYECHO];
     partab.jobtab->seqio[chan].options &= ~MASK[DEL8];
     partab.jobtab->seqio[chan].options &= ~MASK[DEL127];
 
@@ -2769,12 +2687,12 @@ int SQ_Device(u_char *buf)
 // "device". Upon successful completion, this functions returns 0.
 // Otherwise, it returns a negative integer value to indicate the error that
 // has occurred.
-short SQ_Force(cstring *device, cstring *msg)
+short SQ_Force(const cstring *device, const cstring *msg)
 {
 #ifndef __APPLE__
-    FILE  *fd;                                                                  // Useful variable
+    FILE *fd;                                                                   // Useful variable
 #endif
-    int   ret;                                                                  // Useful variable
+    int  ret;                                                                   // Useful variable
 
     // Check parameters
     ret = checkCstring(device);

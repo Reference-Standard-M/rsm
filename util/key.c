@@ -4,7 +4,7 @@
  * Summary:  module database - key utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -290,6 +290,7 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
             str[p++] = '[';                                                     // open bracket
             str[p++] = '"';                                                     // a leading quote
             if (vol == 0) vol = partab.jobtab->vol;                             // if none, get default
+            if (systab->vol[vol - 1] == NULL) return -ERRM26;                   // volume doesn't exist
             up = systab->vol[vol - 1]->vollab->uci[var->uci - 1];               // UCI tab pointer
 
             for (i = 0; i < VAR_LEN; i++) {                                     // for each possible character

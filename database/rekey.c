@@ -4,7 +4,7 @@
  * Summary:  module database - database keying functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -52,14 +52,14 @@ short Set_key(u_int ptr_blk, int this_level)                                    
     u_char   tmp[8];                                                            // some space
     u_char   gtmp[VAR_LEN + 4];                                                 // to find glob
     u_int    i;                                                                 // a handy unsigned int
-    u_int    *ui;                                                               // an int ptr
-    cstring  *ptr;                                                              // spare ptr
+    u_int    *ui;                                                               // an int pointer
+    cstring  *ptr;                                                              // spare pointer
     int      rs;                                                                // required space
     int      ts;                                                                // trailing size
     int      rls;                                                               // RL space
-    u_int    trailings;                                                         // ptr to orig trail
-    gbd      *cblk[3];                                                          // current level blks
-    u_int    tgb;                                                               // top blk in GD
+    u_int    trailings;                                                         // pointer to original trail
+    gbd      *cblk[3];                                                          // current level blocks
+    u_int    tgb;                                                               // top block in GD
     DB_Block *btmp;                                                             // ditto
 
     ptr = (cstring *) tmp;                                                      // point at this
@@ -99,7 +99,7 @@ ENABLE_WARN
         chunk->len = 8;                                                         // used two words
         chunk->buf[0] = 0;                                                      // ccc
         chunk->buf[1] = 0;                                                      // ucc
-        record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record ptr
+        record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record pointer
         *((u_int *) record) = tgb;                                              // first entry
         t = Insert(&db_var.slen, ptr);                                          // insert this one
         if (t < 0) return (short) t;                                            // failed? then return error
@@ -107,7 +107,7 @@ ENABLE_WARN
         s = Locate(gtmp);                                                       // search for it
         if (s < 0) return s;                                                    // failed? then return error
         Align_record();                                                         // if not aligned
-        *((u_int *) record) = blk[1]->block;                                    // new top level blk
+        *((u_int *) record) = blk[1]->block;                                    // new top level block
         level = 1;
         blk[level]->dirty = blk[level];                                         // hook to self
 
@@ -120,7 +120,7 @@ ENABLE_WARN
         return 0;                                                               // end of level == 0
     }
 
-    t = Get_data(this_level);                                                   // get the key blk
+    t = Get_data(this_level);                                                   // get the key block
     if (t >= 0) return -(ERRZ61 + ERRMLAST);                                    // if found there is a database problem
     if (t != -ERRM7) return (short) t;                                          // any other error then give up
     if (blk[level]->block == ptr_blk) return -(ERRZ61 + ERRMLAST);              // database problem
@@ -163,7 +163,7 @@ ENABLE_WARN
         }
     }
 
-    rs = 4 + db_var.slen + 4;                                                   // required key + ptr space
+    rs = 4 + db_var.slen + 4;                                                   // required key + pointer space
     if (rs & 3) rs += (4 - (rs & 3));                                           // if required then round up
     rs += 4;                                                                    // allow for index
     cblk[0] = blk[level];                                                       // remember this
@@ -201,7 +201,7 @@ ENABLE_WARN
         blk[level]->mem = cblk[2]->mem;                                         // copy in this
         cblk[2]->mem = btmp;                                                    // end swap 'mem'
         Free_GBD(blk[level]);                                                   // give it back
-        blk[level] = cblk[0];                                                   // orig blk again
+        blk[level] = cblk[0];                                                   // original block again
         idx = (u_short *) blk[level]->mem;                                      // point at it
         iidx = (int *) blk[level]->mem;                                         // point at it
 
@@ -222,7 +222,7 @@ ENABLE_WARN
             return (short) t;                                                   // error!
         }
 
-        s = New_block();                                                        // new blk for insert
+        s = New_block();                                                        // new block for insert
         if (s < 0) panic("Set_key: Failed to get new block for insert");        // if failed
         blk[level]->mem->type = cblk[0]->mem->type;                             // copy type
         blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr;                   // copy RL
@@ -252,7 +252,7 @@ ENABLE_WARN
         cblk[2] = NULL;                                                         // flag not used
     }
 
-    s = New_block();                                                            // new blk for trail
+    s = New_block();                                                            // new block for trail
     if (s < 0) panic("Set_key: Failed to get new block for trailings");         // if failed
     blk[level]->mem->type = cblk[0]->mem->type;                                 // copy type
     blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr;                       // copy RL
@@ -265,7 +265,7 @@ ENABLE_WARN
 
     if (ts) {                                                                   // if any trailings
         Copy_data(cblk[0], trailings);                                          // copy trailings
-        blk[level] = cblk[0];                                                   // orig blk again
+        blk[level] = cblk[0];                                                   // original block again
         idx = (u_short *) blk[level]->mem;                                      // point at it
         iidx = (int *) blk[level]->mem;                                         // point at it
 
@@ -285,7 +285,7 @@ ENABLE_WARN
             return (short) t;                                                   // error!
         }
 
-        blk[level] = cblk[1];                                                   // new blk again
+        blk[level] = cblk[1];                                                   // new block again
         idx = (u_short *) blk[level]->mem;                                      // point at it
         iidx = (int *) blk[level]->mem;                                         // point at it
     }
@@ -303,7 +303,7 @@ ENABLE_WARN
 fix_keys:
     blk[level] = NULL;                                                          // clear this
 
-    for (int j = level - 1; j >= 0; j--) {                                      // scan ptr blks
+    for (int j = level - 1; j >= 0; j--) {                                      // scan pointer blocks
         if (blk[j]->dirty == (gbd *) 2) {                                       // if changed
             if (blk[level] == NULL) {                                           // list empty
                 blk[j]->dirty = blk[j];                                         // point at self
@@ -420,10 +420,10 @@ void Un_key(void)
     int     xxx_level;
     int     t;                                                                  // for returns
     u_char  cstr[8];                                                            // and another
-    cstring *xptr;                                                              // spare ptr
+    cstring *xptr;                                                              // spare pointer
     gbd     *save;                                                              // save a block
-    u_char  *uptr;                                                              // a handy ptr
-    u_char  *lptr;                                                              // a handy ptr
+    u_char  *uptr;                                                              // a handy pointer
+    u_char  *lptr;                                                              // a handy pointer
     u_int   blkno;                                                              // a block number
 
     this_level = level;                                                         // save for ron
@@ -462,7 +462,7 @@ void Un_key(void)
 
             if (level < (this_level - 1)) {                                     // if up > 1 level
                 if (blk[level + 1]->mem->last_idx > (IDX_START - 1)) {          // and if lower not mt
-                    u_int *xui;                                                 // an int ptr
+                    u_int *xui;                                                 // an int pointer
 
                     idx = (u_short *) blk[level + 1]->mem;                      // point at the block
                     iidx = (int *) blk[level + 1]->mem;                         // point at the block
@@ -490,7 +490,7 @@ ENABLE_WARN
                         if (s != -ERRM7) panic("Un_key: Key locate at 'level' didn't return -ERRM7"); // if not - die
 
                         if (Index > IDX_START) {                                // if not first node
-                            chunk = (cstring *) &iidx[idx[Index - 1]];          // point at prev
+                            chunk = (cstring *) &iidx[idx[Index - 1]];          // point at previous
                             record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at it
                             Align_record();                                     // align
                             blkno = *(u_int *) record;                          // get the number
@@ -508,7 +508,7 @@ ENABLE_WARN
                         if (s < 0) panic("Un_key: Get_block() failed in left block tree");
                         s = Locate(uptr);                                       // find key - must fail
                         if (s != -ERRM7) panic("Un_key: Key locate in left edge didn't return -ERRM7"); // if not - die
-                        chunk = (cstring *) &iidx[idx[Index - 1]];              // point at prev
+                        chunk = (cstring *) &iidx[idx[Index - 1]];              // point at previous
                         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];    // point at it
                         Align_record();                                         // align
                         blkno = *(u_int *) record;                              // get the number
@@ -518,13 +518,13 @@ ENABLE_WARN
                     }
 
                     xxx_level = MAXTREEDEPTH - 1;                               // use this one
-                    level++;                                                    // point at mt blk
+                    level++;                                                    // point at MT block
                     blk[xxx_level] = blk[level];                                // remember that there
                     s = Get_block(blkno);
                     if (s < 0) panic("Un_key: Get_block() failed for left block");
                     blk[level]->mem->right_ptr = blk[xxx_level]->mem->right_ptr;
                     if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = (gbd *) 2; // if we changed it then mark for write
-                    Garbit(blk[xxx_level]->block);                              // dump mt blk
+                    Garbit(blk[xxx_level]->block);                              // dump MT block
                     level = save_level;                                         // restore level
                 }                                                               // end empty block proc
             }

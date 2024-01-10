@@ -4,7 +4,7 @@
  * Summary:  module runtime - runtime variables
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -255,23 +255,23 @@ ENABLE_WARN
                 } else if (partab.jobtab->seqio[i].mode == 4) {
                     return mcopy((u_char *) "IO", buf, 2);
                 } else if (partab.jobtab->seqio[i].mode == 5) {                 // TCPIP
-                    if ((partab.jobtab->seqio[i].options & 64) && (partab.jobtab->seqio[i].options & 128)) { // IPV6 and UDP
+                    if ((partab.jobtab->seqio[i].options & 4) && (partab.jobtab->seqio[i].options & 8)) { // IPV6 and UDP
                         return mcopy((u_char *) "UDPIP6", buf, 6);
                     }
 
-                    if (partab.jobtab->seqio[i].options & 64) return mcopy((u_char *) "TCPIP6", buf, 6); // IPV6
-                    if (partab.jobtab->seqio[i].options & 128) return mcopy((u_char *) "UDPIP", buf, 5); // UDP
+                    if (partab.jobtab->seqio[i].options & 4) return mcopy((u_char *) "TCPIP6", buf, 6); // IPV6
+                    if (partab.jobtab->seqio[i].options & 8) return mcopy((u_char *) "UDPIP", buf, 5); // UDP
                     return mcopy((u_char *) "TCPIP", buf, 5);
                 } else if (partab.jobtab->seqio[i].mode == 6) {                 // SERVER
-                    if (partab.jobtab->seqio[i].options & 64) return mcopy((u_char *) "TCPSERVER6", buf, 10); // IPV6
+                    if (partab.jobtab->seqio[i].options & 4) return mcopy((u_char *) "TCPSERVER6", buf, 10); // IPV6
                     return mcopy((u_char *) "TCPSERVER", buf, 9);
                 } else if (partab.jobtab->seqio[i].mode == 7) {                 // NOFORK
-                    if ((partab.jobtab->seqio[i].options & 64) && (partab.jobtab->seqio[i].options & 128)) { // IPV6 and UDP
+                    if ((partab.jobtab->seqio[i].options & 4) && (partab.jobtab->seqio[i].options & 8)) { // IPV6 and UDP
                         return mcopy((u_char *) "UDPSERVER6", buf, 10);
                     }
 
-                    if (partab.jobtab->seqio[i].options & 64) return mcopy((u_char *) "NOFORK6", buf, 7); // IPV6
-                    if (partab.jobtab->seqio[i].options & 128) return mcopy((u_char *) "UDPSERVER", buf, 9); // UDP
+                    if (partab.jobtab->seqio[i].options & 4) return mcopy((u_char *) "NOFORK6", buf, 7); // IPV6
+                    if (partab.jobtab->seqio[i].options & 8) return mcopy((u_char *) "UDPSERVER", buf, 9); // UDP
                     return mcopy((u_char *) "NOFORK", buf, 6);
                 } else if (partab.jobtab->seqio[i].mode == 8) {
                     return mcopy((u_char *) "FORKED", buf, 6);
@@ -350,7 +350,7 @@ ENABLE_WARN
                 }
 
                 if (strncasecmp((char *) subs[2]->buf, "echo\0", 5) == 0) {
-                    if (partab.jobtab->seqio[i].options & 8) {                  // TTYECHO
+                    if ((partab.jobtab->seqio[i].type == 4) && (partab.jobtab->seqio[i].options & 8)) { // TTYECHO
                         return mcopy((u_char *) "1", buf, 1);
                     } else {
                         return mcopy((u_char *) "0", buf, 1);
@@ -358,7 +358,7 @@ ENABLE_WARN
                 }
 
                 if (strncasecmp((char *) subs[2]->buf, "escape\0", 7) == 0) {
-                    if (partab.jobtab->seqio[i].options & 4) {                  // ESC
+                    if ((partab.jobtab->seqio[i].type == 4) && (partab.jobtab->seqio[i].options & 4)) { // ESC
                         return mcopy((u_char *) "1", buf, 1);
                     } else {
                         return mcopy((u_char *) "0", buf, 1);
@@ -453,6 +453,14 @@ ENABLE_WARN
                         return 0;
                     }
                 }
+
+                if (strncasecmp((char *) subs[2]->buf, "typeahead\0", 10) == 0) {
+                    if (partab.jobtab->seqio[i].options & 64) {                 // TYPEAHEAD
+                        return mcopy((u_char *) "1", buf, 1);
+                    } else {
+                        return mcopy((u_char *) "0", buf, 1);
+                    }
+                }
             }
         }                                                                       // end 3 subs
 
@@ -540,8 +548,9 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "owner\0", 6) == 0) {
-                struct passwd *pp = getpwuid((uid_t) systab->jobtab[i].user);   // get password
+                const struct passwd *pp;
 
+                pp = getpwuid((uid_t) systab->jobtab[i].user);                  // get password
                 if (pp == NULL) return itocstring(buf, systab->jobtab[i].user); // on fail, return numb
                 strcpy((char *) buf, pp->pw_name);                              // copy it
                 return (int) strlen((char *) buf);                              // return len
@@ -684,9 +693,13 @@ ENABLE_WARN
             }
 
             s = UTIL_String_Mvar((mvar *) &systab->tt[i].to_global, buf, 0);
+            if (s < 0) return s;                                                // return error
             buf[s++] = '=';
-            s += UTIL_String_Mvar((mvar *) &systab->tt[i].from_global, &buf[s], 0);
-            return s;
+            cnt = s;
+            s = UTIL_String_Mvar((mvar *) &systab->tt[i].from_global, &buf[s], 0);
+            if (s < 0) return s;                                                // return error
+            cnt += s;
+            return cnt;
         }                                                                       // end trantab stuff
 
         if (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) {
@@ -937,7 +950,7 @@ ENABLE_WARN
 
         if (priv()) {                                                           // is it priveleged ?
             if (strncasecmp((char *) subs[1]->buf, "owner_id\0", 9) == 0) {
-                systab->jobtab[i].user = j;                                     // SHOULD HAVE SOME CHECKS HERE
+                systab->jobtab[i].user = j;                                     // NOTE: SHOULD HAVE SOME CHECKS HERE
                 return 0;                                                       // and quit
             }
 
@@ -1115,6 +1128,8 @@ ENABLE_WARN
                 return 0;
             }
 
+            if (systab->vol[i] == NULL) return -ERRM26;                         // not mounted
+
             if ((strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) && (systab->maxjob == 1)) {
                 if (data->len > JNL_FILENAME_MAX) return -ERRM56;               // too long
                 strcpy(systab->vol[i]->vollab->journal_file, (char *) data->buf);
@@ -1188,7 +1203,7 @@ short SS_Data(mvar *var, u_char *buf)                                           
     u_char  tmp[1024];                                                          // temp string space
     int     ptmp = 0;                                                           // pointer into this
     int     nsubs = 0;                                                          // count subscripts
-    mvar    *vp;                                                                // variable ptr
+    mvar    *vp;                                                                // variable pointer
     cstring *subs[4];                                                           // where to put them
 
     while (i < var->slen) {                                                     // for all subs
@@ -1264,13 +1279,13 @@ short SS_Kill(mvar *var)                                                        
     int             i = 0;                                                      // useful int
     int             j;                                                          // and another
     short           s;                                                          // for functions
-    int             no_daemons;                                                 // for daemon info
+    int             no_daemon = FALSE;                                          // for daemon info
     int             cnt;                                                        // count of bytes used
     var_u           rou;                                                        // for routine name
     u_char          tmp[1024];                                                  // temp string space
     int             ptmp = 0;                                                   // pointer into this
     int             nsubs = 0;                                                  // count subscripts
-    mvar            *vp;                                                        // variable ptr
+    mvar            *vp;                                                        // variable pointer
     cstring         *subs[4];                                                   // where to put them
     struct shmid_ds sbuf;                                                       // for shmctl (shutdown)
 #ifdef __APPLE__
@@ -1331,46 +1346,36 @@ ENABLE_WARN
         systab->start_user = -1;                                                // Say 'shutting down'
 
         for (i = (MAX_VOL - 1); i >= 0; i--) {
-            no_daemons = TRUE;                                                  // assume no daemons
             if (systab->vol[i] == NULL) continue;
-            systab->vol[i]->writelock = -(MAX_JOBS + 1);                        // write lock the database (system job)
 
-            while (systab->vol[i]->writelock < 0) {
-                sleep(1);
-
-                for (j = 0; j < systab->vol[i]->num_of_daemons; j++) {          // each one
-                    if (!kill(systab->vol[i]->wd_tab[j].pid, 0)) {              // if one exists
-                        no_daemons = FALSE;
-                        break;
-                    }
+            if (i == 0) {                                                       // only in volume 1
+                if (!kill(systab->vol[i]->wd_tab[0].pid, 0)) {                  // if the main one exists
+                    no_daemon = FALSE;
+                } else {
+                    no_daemon = TRUE;
                 }
-
-                if (no_daemons) break;                                          // if all the daemons have gone, don't wait forever
             }
 
-            systab->vol[i]->writelock = MAX_JOBS + 1;                           // release system write lock on database
-
-            if (shmctl(systab->vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {        // remove the share
+            if (shmctl(systab->vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {        // remove the shares
                 return -(ERRMLAST + ERRZLAST + errno);
             }
-        }
 
-        for (u_int k = 0; k < systab->maxjob; k++) {                            // for each job
-            cnt = systab->jobtab[k].pid;                                        // get pid
+            if (i == 0) {                                                       // only in volume 1
+                for (u_int k = 0; k < systab->maxjob; k++) {                    // for each job
+                    cnt = systab->jobtab[k].pid;                                // get pid
 
-            if (cnt && (cnt != partab.jobtab->pid)) {
-                if (kill(cnt, SIGTERM) == -1) {                                 // kill this one
-                    systab->jobtab[k].trap = 1U << SIGTERM;                     // or say go away
-                    systab->jobtab[k].attention = 1;                            // and look at it
+                    if (cnt && (cnt != partab.jobtab->pid)) {
+                        if (kill(cnt, SIGTERM) == -1) {                         // kill this one
+                            systab->jobtab[k].trap = 1U << SIGTERM;             // or say go away
+                            systab->jobtab[k].attention = 1;                    // and look at it
+                        }
+                    }
                 }
             }
-        }
 
-        for (i = (MAX_VOL - 1); i >= 0; i--) {
-            if (systab->vol[i] == NULL) continue;
-            DB_Dismount(i + 1);                                                 // dismount all volumes
+            DB_Dismount(i + 1);                                                 // dismount the volume
 
-            if ((i == 0) && no_daemons) {
+            if (no_daemon) {
                 if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {       // remove the semaphores
                     fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
                 }
@@ -1435,7 +1440,9 @@ ENABLE_WARN
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             if ((i < 1) || (i >= MAX_VOL)) return -ERRM26;                      // out of range (can't dismount vol 1 this way)
             if (systab->vol[i] == NULL) return -ERRM26;                         // not mounted
-            return DB_Dismount(i + 1);                                          // dismount supplemental vol
+            DB_Dismount(i + 1);                                                 // dismount supplemental volume
+            systab->vol[i] = NULL;                                              // remove mount pointer
+            return 0;
         }
 
         return -ERRM38;                                                         // junk
@@ -1453,7 +1460,7 @@ short SS_Order(mvar *var, u_char *buf, int dir)                                 
     u_char  tmp[1024];                                                          // temp string space
     int     ptmp = 0;                                                           // pointer into this
     int     nsubs = 0;                                                          // count subscripts
-    mvar    *vp;                                                                // variable ptr
+    mvar    *vp;                                                                // variable pointer
     cstring *subs[4];                                                           // where to put them
 
     while (i < var->slen) {                                                     // for all subs

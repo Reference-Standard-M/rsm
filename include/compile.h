@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - routine structures etc.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -64,10 +64,15 @@
 #define FOR_TYP_3       3                                                       // three args
 #define FOR_NESTED      16                                                      // we are not an outside for
 
-// Funny op code stuff
-#define BREAK_NOW       256                                                     // break (not really an opcode)
-#define JOBIT           512                                                     // JOB (ditto)
-#define BREAK_QN        16384                                                   // return a QUIT n
+// BREAK control
+#define BREAK_OFF       0                                                       // BREAK off but ready (default)
+#define BREAK_ON        -1                                                      // BREAK hit or set
+#define BREAK_DISABLE   -2                                                      // disable BREAK
+
+// Funny opcode stuff
+#define BREAK_NOW       256                                                     // BREAK at breakpoint (not really an opcode)
+#define JOBIT           512                                                     // JOB (not really an opcode)
+#define BREAK_QN        1073741824                                              // return a QUIT n (BREAK in n commands)
 
 // Variable types follow
 #define TYPMAXSUB       63                                                      // max subscripts
@@ -150,12 +155,6 @@ void  atom(void);                                                               
 void  comperror(short err);                                                     // compile error
 
 // Debug prototypes
-
-/*
-#ifdef __NetBSD__
-void  Debug_GBD(short e);
-#endif
-*/
 void  Debug_off(void);                                                          // turn off debugging
 short Debug_on(cstring *param);                                                 // turn on/modify debug
 short Debug(int savasp, int savssp, int dot);                                   // drop into debug

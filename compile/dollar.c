@@ -4,7 +4,7 @@
  * Summary:  module compile - evaluate functions, vars etc.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -100,7 +100,7 @@ void dodollar(void)                                                             
 
                 if ((*source_ptr == ',') || (*source_ptr == ')')) {             // if empty argument
                     *comp_ptr++ = VARUNDF;                                      // flag it
-                } else if ((*source_ptr == '.') && (isdigit(source_ptr[1]) == 0)) { // by reference and not .numeric?
+                } else if ((*source_ptr == '.') && (isdigit(source_ptr[1]) == 0)) { // by-reference and not .numeric?
                     source_ptr++;                                               // skip the dot
 
                     if (*source_ptr == '@') {                                   // if indirection
@@ -120,7 +120,7 @@ void dodollar(void)                                                             
                         *p = OPMVAR;                                            // get the mvar onto stack
                     }
 
-                    *comp_ptr++ = NEWBREF;                                      // flag 'by reference'
+                    *comp_ptr++ = NEWBREF;                                      // flag 'by-reference'
                 } else {                                                        // by value
                     eval();                                                     // leave the value on the stack
                 }

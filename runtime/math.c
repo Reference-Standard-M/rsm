@@ -4,7 +4,7 @@
  * Summary:  module runtime - decimal arithmetic
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -12,7 +12,7 @@
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * Originally based on FreeMUMPS
- * Copyright (c) 1998
+ * Copyright (c) 1998 MUG Deutschland
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as

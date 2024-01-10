@@ -4,7 +4,7 @@
  * Summary:  module RSM routine - routine functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -54,43 +54,6 @@ void Routine_Init(int vol)                                                      
     rou->vol = 0;                                                               // no vol
     rou->rou_size = 0;                                                          // no routine here
     return;                                                                     // done
-}
-
-// The following are internal only (first called from $&DEBUG())
-void Dump_rbd(void)                                                             // dump RBDs
-{
-    int    i;                                                                   // an int
-    short  s;                                                                   // for function returns
-    rbd    *p;                                                                  // a pointer
-    char   tmp[VAR_LEN + 2];                                                    // some space
-    time_t t;                                                                   // for time
-
-    s = SemOp(SEM_ROU, -systab->maxjob);                                        // write lock the RBDs
-    if (s < 0) return;                                                          // exit on error
-    p = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;                 // get the start
-    t = current_time(FALSE);
-    printf("Dump of all Routine Buffer Descriptors on %s\r\n", ctime(&t));
-    printf("Free at %10p\r\n\r\n", systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]);
-    printf("       Address    Forward Link  Chunk Size  Attach  Last Access  VOL  UCI  Routine Size  Routine Name\r\n");
-    tmp[VAR_LEN] = '\0';                                                        // null terminate temp
-
-    while (TRUE) {                                                              // for all
-        for (i = 0; i < VAR_LEN; i++) tmp[i] = ' ';                             // space fill tmp[]
-
-        for (i = 0; i < VAR_LEN; i++) {
-            if (p->rnam.var_cu[i] == 0) break;
-            tmp[i] = p->rnam.var_cu[i];
-        }
-
-        printf("%14p %15p %11u %7u %12lld %4d %4d %13d  %s\r\n", p, p->fwd_link, p->chunk_size, p->attached,
-               (long long) p->last_access, p->vol, p->uci, p->rou_size, tmp);
-
-        p = (rbd *) ((u_char *) p + p->chunk_size);                             // point at next
-        if (p >= (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_end) break;  // quit when done
-    }
-
-    SemOp(SEM_ROU, systab->maxjob);                                             // release lock
-    return;                                                                     // and exit
 }
 
 int Routine_Hash(var_u routine)                                                 // return hash code
@@ -320,7 +283,11 @@ rbd *Routine_Attach(var_u routine)                                              
     ptr = p;                                                                    // use it in ptr
     uci = partab.jobtab->ruci;                                                  // get current UCI
     vol = partab.jobtab->rvol;                                                  // and vol
-    if (routine.var_cu[0] == '%') uci = vol = 1;                                // check for a % routine
+
+    if (routine.var_cu[0] == '%') {                                             // check for a % routine
+        vol = 1;
+        uci = 1;
+    }
 
     while (ptr != NULL) {                                                       // while we have something
         if (var_equal(ptr->rnam, routine) && (ptr->uci == uci) && (ptr->vol == vol)) { // if this is the right one
@@ -456,4 +423,54 @@ void Routine_Delete(var_u routine, int uci)                                     
     }                                                                           // end while loop
 
     return;                                                                     // done
+}
+
+// The following are internal only (first called from $&DEBUG())
+void Dump_rbd(void)                                                             // dump RBDs
+{
+    int    i;                                                                   // an int
+    short  s;                                                                   // for function returns
+    rbd    *p;                                                                  // a pointer
+    rbd    *free;                                                               // loop through routine free space
+    u_int  free_size = 0;                                                       // actual size of free routine space
+    u_int  size = 0;                                                            // size of routine space
+    char   tmp[VAR_LEN + 1];                                                    // some space
+    time_t t;                                                                   // for time
+
+    s = SemOp(SEM_ROU, -systab->maxjob);                                        // write lock the RBDs
+    if (s < 0) return;                                                          // exit on error
+    p = (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_head;                 // get the start
+    t = current_time(FALSE);
+    printf("Dump of all Routine Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) t);
+    free = systab->vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH];
+    printf("Routine Buffer Space Free at %p\r\n", free);
+
+    while (free != NULL) {
+        free_size += free->chunk_size;
+        free = free->fwd_link;
+    }
+
+    size = (u_int) (systab->vol[partab.jobtab->rvol - 1]->rbd_end - systab->vol[partab.jobtab->rvol - 1]->rbd_head);
+    printf("Using %u of %u bytes of Routine Buffer Space\r\n\r\n", size - free_size, size);
+    printf("       Address    Forward Link  Chunk Size  Attach  Last Access  VOL  UCI  Routine Size  Routine Name\r\n");
+
+    while (TRUE) {                                                              // for all
+        for (i = 0; i < VAR_LEN; i++) tmp[i] = ' ';                             // space fill tmp[]
+
+        for (i = 0; i < VAR_LEN; i++) {
+            if (p->rnam.var_cu[i] == 0) break;
+            tmp[i] = p->rnam.var_cu[i];
+        }
+
+        tmp[i] = '\0';                                                          // null terminate name
+
+        printf("%14p %15p %11u %7u %12lld %4d %4d %13d  %s\r\n", p, p->fwd_link, p->chunk_size, p->attached,
+               (long long) p->last_access, p->vol, p->uci, p->rou_size, tmp);
+
+        p = (rbd *) ((u_char *) p + p->chunk_size);                             // point at next
+        if (p >= (rbd *) systab->vol[partab.jobtab->rvol - 1]->rbd_end) break;  // quit when done
+    }
+
+    SemOp(SEM_ROU, systab->maxjob);                                             // release lock
+    return;                                                                     // and exit
 }

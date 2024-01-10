@@ -4,7 +4,7 @@
  * Summary:  module RSM header file - standard includes
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -41,8 +41,8 @@
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       79                                                  // Minor version number
-#define VERSION_PATCH       1                                                   // Patch version number
+#define VERSION_MINOR       80                                                  // Minor version number
+#define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -92,8 +92,8 @@
 #define K2_LESSER           1                                                   // .. KeyCmp function
 #define K2_GREATER          -1                                                  // ***
 
-#define MAX_DO_FRAMES       128                                                 // maximum permitted do_frame
-#define STM1_FRAME          (MAX_DO_FRAMES - 1)                                 // where $STACK(-1) data goes
+#define MAX_DO_FRAMES       127                                                 // maximum permitted do_frame (0 - 126)
+#define STM1_FRAME          MAX_DO_FRAMES                                       // where $STACK(-1) data goes
 
 #define UNLIMITED           -1                                                  // unlimited timeout for sequential IO
 
@@ -113,8 +113,11 @@
 #define SQ_USE_ECHO         1                                                   // turn echo on
 #define SQ_USE_NOECHO       2                                                   // turn echo off
 #define SQ_USE_ESCAPE       4                                                   // turn escape on
-#define SQ_USE_NOESCAPE     16                                                  // turn escape off
-#define SQ_USE_DISCON       128                                                 // disconnect client from sock
+#define SQ_USE_NOESCAPE     8                                                   // turn escape off
+#define SQ_USE_TYPEAHEAD    16                                                  // turn type-ahead on
+#define SQ_USE_NOTYPEAHEAD  32                                                  // turn type-ahead off
+
+#define SQ_USE_DISCON       128                                                 // disconnect client from socket
 #define SQ_USE_DELNONE      256                                                 // no delete function
 #define SQ_USE_DEL8         512                                                 // use backspace as delete
 #define SQ_USE_DEL127       1024                                                // use delete as delete
@@ -202,9 +205,9 @@
 #define JNL_FILENAME_MAX    226                                                 // max chars in journal filename
 
 // systab->historic bit flag meanings
-#define HISTORIC_EOK        1                                                   // E syntax flag
+#define HISTORIC_EOK        1                                                   // E number syntax OK
 #define HISTORIC_OFFOK      2                                                   // GO/DO with offset OK
-#define HISTORIC_DNOK       4                                                   // $NEXT OK rsm/runtime/ssvn.c
+#define HISTORIC_DNOK       4                                                   // $NEXT OK
 
 /*
  * Semaphore defines
@@ -263,7 +266,7 @@ struct RBD;                                                                     
 
 typedef struct __attribute__ ((__packed__)) UCI_TAB {
     var_u name;                                                                 // UCI name
-    u_int global;                                                               // ptr to global directory
+    u_int global;                                                               // pointer to global directory
 } uci_tab;                                                                      // define the UCI table
 
 typedef union __attribute__ ((__packed__)) DATA_UNION {                         // diff types of msg data
@@ -319,7 +322,7 @@ typedef struct __attribute__ ((__packed__)) DB_STAT {
 } db_stat;                                                                      // database statistics
 
 typedef struct __attribute__ ((__packed__)) VOL_DEF {
-    label_block  *vollab;                                                       // ptr to volset label block
+    label_block  *vollab;                                                       // pointer to volset label block
     void         *map;                                                          // start of map area
     void         *first_free;                                                   // first word with free bits
     struct GBD   *gbd_hash[GBD_HASH + 1];                                       // GBD hash table
@@ -329,29 +332,29 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF {
     void         *zero_block;                                                   // empty block in memory
     struct RBD   *rbd_hash[RBD_HASH + 1];                                       // head of routine buffer desc
     void         *rbd_head;                                                     // head of routine buffer desc
-    void         *rbd_end;                                                      // first addr past routine area
+    void         *rbd_end;                                                      // first address past routine area
     int          num_of_daemons;                                                // number of daemons
     wdtab_struct wd_tab[MAX_DAEMONS];                                           // write daemon info table
     int          dismount_flag;                                                 // flag to indicate dismounting
     int          map_dirty_flag;                                                // set if map is dirty
     int          writelock;                                                     // RSM write lock
     u_int        upto;                                                          // validating map up-to block
-    int          shm_id;                                                        // GBD share mem id
+    int          shm_id;                                                        // GBD share memory ID
     struct GBD   *dirtyQ[NUM_DIRTY];                                            // dirty queue (for daemons)
-    int          dirtyQw;                                                       // write ptr for dirty queue
-    int          dirtyQr;                                                       // read ptr for dirty queue
+    int          dirtyQw;                                                       // write pointer for dirty queue
+    int          dirtyQr;                                                       // read pointer for dirty queue
     u_int        garbQ[NUM_GARB];                                               // garbage queue (for daemons)
-    int          garbQw;                                                        // write ptr for garbage queue
-    int          garbQr;                                                        // read ptr for garbage queue
+    int          garbQw;                                                        // write pointer for garbage queue
+    int          garbQr;                                                        // read pointer for garbage queue
     off_t        jrn_next;                                                      // next free offset in journal file
     char         file_name[VOL_FILENAME_MAX + 1];                               // absolute pathname of volume file
     db_stat      stats;                                                         // database statistics
 } vol_def;                                                                      // end of volume def
 
 typedef struct __attribute__ ((__packed__)) DO_FRAME {
-    u_char  *routine;                                                           // addr of rou (or X src)
+    u_char  *routine;                                                           // address of routine (or xecute source)
     u_char  *pc;                                                                // current RSM pc
-    short   *symbol;                                                            // process space sym ptrs
+    short   *symbol;                                                            // process space symbol table pointers
     u_char  *newtab;                                                            // process space new table
     u_char  *endlin;                                                            // address of current ENDLIN
     var_u   rounam;                                                             // routine name
@@ -409,7 +412,7 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN {
 
 typedef struct __attribute__ ((__packed__)) JOBTAB {
     int        pid;                                                             // OS PID (0 if unused)
-    int        cur_do;                                                          // current do frame addr
+    int        cur_do;                                                          // current do frame address
     u_int      commands;                                                        // commands executed
     u_int      grefs;                                                           // global references
     u_int      last_block_flags;                                                // journal etc. of last DB block
@@ -432,7 +435,7 @@ typedef struct __attribute__ ((__packed__)) JOBTAB {
     mvar       last_ref;                                                        // $REFERENCE
     short      start_len;                                                       // length start data
     u_char     start_dh[14];                                                    // store start time here
-    do_frame   dostk[MAX_DO_FRAMES];                                            // the do stack
+    do_frame   dostk[MAX_DO_FRAMES + 1];                                        // the do stack (0 - 126 and STM1_FRAME)
     SQ_Chan    seqio[MAX_SEQ_IO];                                               // sequential IO stuff
     struct GBD *view[MAX_VOL];                                                  // locked view buffers
 } jobtab;                                                                       // define jobtab
@@ -463,7 +466,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     jobtab  *jobtab;                                                            // address of jobtab
     u_int   maxjob;                                                             // maximum jobs permitted
     int     sem_id;                                                             // GBD semaphore ID
-    int     historic;                                                           // E notation, tag+off, $NEXT etc.
+    int     historic;                                                           // E notation, tag+off, $NEXT, etc.
     int     precision;                                                          // decimal precision
     int     max_tt;                                                             // max TRANTAB used
     trantab tt[MAX_TRANTAB];                                                    // translation tables
@@ -493,10 +496,11 @@ typedef struct __attribute__ ((__packed__)) PARTAB {                            
     var_u   *varlst;                                                            // var list for compiler
     int     checkonly;                                                          // used by compiler
     u_int   errors;                                                             // used by compiler
-    u_char  **sp;                                                               // source ptr for compile
+    u_char  **sp;                                                               // source pointer for compile
     cstring **lp;                                                               // start of the line (ditto)
-    int     *ln;                                                                // line num for $&%ROUCHK()
-    mvar    src_var;                                                            // temp space for src mvar
+    int     ln;                                                                 // line num for $&%ROUCHK()
+    mvar    src_var;                                                            // temp space for source mvar
+    u_char  src_ln[MAX_STR_LEN + 1];                                            // temp space for source line
 } partab_struct;                                                                // end of partab type
 
 extern partab_struct partab;                                                    // globalize partab

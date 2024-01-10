@@ -4,7 +4,7 @@
  * Summary:  module database - database functions, integrity check
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -120,6 +120,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
     u_int   *iix;                                                               // a map
     u_char  k1[MAX_KEY_SIZE + 5];                                               // for keys
     u_char  k2[MAX_KEY_SIZE + 5];                                               // for keys
+    var_u   kglobal;                                                            // for globals in a global directory
     cstring *c;                                                                 // for chunk
     cstring *r;                                                                 // for record
     u_char  *eob;                                                               // end of block
@@ -198,14 +199,18 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 
         for (int Lidx = IDX_START; Lidx <= Llast; Lidx++) {
             level = Llevel;                                                     // restore this
-            if (!level && (Lidx == IDX_START)) continue;                        // ignore entry for $GLOBAL in GD
             blk[level] = Lgbd;                                                  // and this
             idx = (u_short *) blk[level]->mem;                                  // point at the block
             iidx = (int *) blk[level]->mem;                                     // point at the block
             chunk = (cstring *) &iidx[idx[Lidx]];                               // point at the chunk
 
-            if (!level) {                                                       // a GD
+            if (!level) {                                                       // a global directory
                 k[0] = '\0';                                                    // empty key
+                memcpy(&k1[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // update the global directory entry key
+                k1[0] = chunk->buf[0] + chunk->buf[1];                          // and the size (with extra 128 for string)
+                if (Lidx == IDX_START) continue;                                // ignore entry for $GLOBAL in global directory
+                VAR_CLEAR(kglobal);                                             // clear it
+                memcpy(kglobal.var_cu, &k1[2], k1[0] - 1);                      // set the global directory entry global
             } else {                                                            // pointer
                 memcpy(&k[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);   // update the key
                 k[0] = chunk->buf[0] + chunk->buf[1];                           // and the size
@@ -256,8 +261,8 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
 
             if (level > 1) {                                                    // from a pointer
                 brl = ic_block(b1, block, k, blk[level - 1]->mem->global);      // check block
-            } else {                                                            // from GD
-                brl = ic_block(b1, block, k, (var_u) 0ULL);                     // check the block (DO BETTER LATER)
+            } else {                                                            // from global directory
+                brl = ic_block(b1, block, k, kglobal);                          // check the block
             }
         }                                                                       // end block scan
     }                                                                           // end if (!isdata)
@@ -439,6 +444,7 @@ void ic_map(int flag)                                                           
     gbd    *ptr;                                                                // a handy pointer
     int    status;                                                              // block status
     u_char type_byte;                                                           // for read
+    u_char emsg[6];                                                             // for errors
 
     lock = (flag == -1) ? READ : WRITE;                                         // what we need
     c = (u_char *) systab->vol[volnum - 1]->map;                                // point at it
@@ -487,6 +493,15 @@ void ic_map(int flag)                                                           
             if ((*c & (1U << off)) && status) continue;                         // used and OK so go for next (in for)
             if (((*c & (1U << off)) == 0) && !status) continue;                 // free and OK so go for next (in for)
             icerr++;                                                            // count error
+
+            if (flag != -3) {                                                   // don't write messages in daemons for now
+                memcpy(emsg, "used\0", 5);                                      // incorrectly marked used in map block
+                if (status) memcpy(emsg, "free\0", 5);                          // incorrectly marked free in map block
+                outc->len = sprintf((char *) &outc->buf[0], "%10u incorrectly marked %s in map block", block, emsg); // error msg
+                SQ_Write(outc);                                                 // output it
+                SQ_WriteFormat(SQ_LF);                                          // and a !
+            }
+
             if (flag == -1) continue;                                           // check only then continue
 
             if (status) {                                                       // used
@@ -544,7 +559,7 @@ int DB_ic(int vol, int block)                                                   
         for (uci = 0; uci < UCIS; uci++) {                                      // scan UCI table
             b1 = systab->vol[volnum - 1]->vollab->uci[uci].global;              // get GD
 
-            if (b1 == block) {                                                  // if block is GD
+            if (b1 == block) {                                                  // if block is global directory
                 level = 0;
                 break;
             }

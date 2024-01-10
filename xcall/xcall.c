@@ -4,7 +4,7 @@
  * Summary:  module xcall - supplied external calls
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -79,7 +79,7 @@
 #define DISCARD_TRAILING 0x80                                                   // 'T'
 #define PRESERVE_QUOTED  0x100                                                  // 'Q'
 
-static u_long crcTable[256];                                                    // used by Buffcrc
+static u_long crcTable[256];                                                    // used by CRC functions
 
 void crcgen(void)                                                               // build the crcTable
 {
@@ -127,59 +127,61 @@ void crcgen(void)                                                               
 // FUNCTION DEFINITIONS
 
 // $&DEBUG() - Dump info on console
-short Xcall_debug(char *ret_buffer, cstring *arg1, __attribute__((unused)) cstring *dummy)
+short Xcall_debug(char *ret_buffer, cstring *arg, __attribute__((unused)) cstring *dummy)
 {
-    if (strcasecmp((char *) arg1->buf, "rbd") == 0) {                           // Routine Buffer Descriptors
-        Dump_rbd();                                                             // do it
-    } else if (strcasecmp((char *) arg1->buf, "ltd") == 0) {                    // Lock Table Descriptors
-        Dump_lt();
-    } else if (strcasecmp((char *) arg1->buf, "sems") == 0) {                   // Semaphores
+    if (strcasecmp((char *) arg->buf, "gbd") == 0) {                            // Global Buffer Descriptors
+        Dump_gbd();
+    } else if (strcasecmp((char *) arg->buf, "rbd") == 0) {                     // Routine Buffer Descriptors
+        Dump_rbd();
+    } else if (strcasecmp((char *) arg->buf, "ltd") == 0) {                     // Lock Table Descriptors
+        Dump_ltd();
+    } else if (strcasecmp((char *) arg->buf, "sems") == 0) {                    // Semaphores
         for (int i = 0; i < SEM_MAX; i++) {
             int val = semctl(systab->sem_id, i, GETVAL, 0);
             int sempid = semctl(systab->sem_id, i, GETPID, 0);
 
-            fprintf(stderr, "%d) %s", i,
-                    ((i == SEM_SYS) ? "SEM_SYS" :
-                    ((i == SEM_ROU) ? "SEM_ROU" :
-                    ((i == SEM_LOCK) ?  "SEM_LOCK" :
-                    ((i == SEM_GLOBAL) ? "SEM_GLOBAL" :
-                    ((i == SEM_WD) ? "SEM_WD" :
-                    ((i == SEM_ATOMIC) ? "SEM_ATOMIC" : "?")))))));
+            printf("%d) %s", i,
+                   ((i == SEM_SYS) ? "SEM_SYS" :
+                   ((i == SEM_ROU) ? "SEM_ROU" :
+                   ((i == SEM_LOCK) ?  "SEM_LOCK" :
+                   ((i == SEM_GLOBAL) ? "SEM_GLOBAL" :
+                   ((i == SEM_WD) ? "SEM_WD" :
+                   ((i == SEM_ATOMIC) ? "SEM_ATOMIC" : "?")))))));
 
-            fprintf(stderr, "\t= %d \t(last PID %d)\r\n", val, sempid);
+            printf("\t= %d \t(last PID %d)\r\n", val, sempid);
         }
 
-        fprintf(stderr, "(maxjobs = %u)\r\n", systab->maxjob);
-    } else if (strcasecmp((char *) arg1->buf, "struct") == 0) {                 // sanity check structs
-        fprintf(stderr, "FOR_STACK size %zu\r\n", sizeof(struct FOR_STACK));
-        fprintf(stderr, "TAGS size %zu\r\n", sizeof(struct TAGS));
-        fprintf(stderr, "RBD size %zu\r\n", sizeof(struct RBD));
-        fprintf(stderr, "DB_BLOCK size %zu\r\n", sizeof(struct DB_BLOCK));
-        fprintf(stderr, "GBD size %zu\r\n", sizeof(struct GBD));
-        fprintf(stderr, "JRNREC size %zu\r\n", sizeof(struct JRNREC));
-        fprintf(stderr, "CSTRING size %zu\r\n", sizeof(struct CSTRING));
-        fprintf(stderr, "MVAR size %zu\r\n", sizeof(struct MVAR));
-        fprintf(stderr, "UCI_TAB size %zu\r\n", sizeof(struct UCI_TAB));
-        fprintf(stderr, "WD_TAB size %zu\r\n", sizeof(struct WD_TAB));
-        fprintf(stderr, "LABEL_BLOCK size %zu\r\n", sizeof(struct LABEL_BLOCK));
-        fprintf(stderr, "DB_STAT size %zu\r\n", sizeof(struct DB_STAT));
-        fprintf(stderr, "VOL_DEF size %zu\r\n", sizeof(struct VOL_DEF));
-        fprintf(stderr, "DO_FRAME size %zu\r\n", sizeof(struct DO_FRAME));
-        fprintf(stderr, "FORKTAB size %zu\r\n", sizeof(struct FORKTAB));
-        fprintf(stderr, "SERVERTAB size %zu\r\n", sizeof(struct SERVERTAB));
-        fprintf(stderr, "SQ_CHAN size %zu\r\n", sizeof(struct SQ_CHAN));
-        fprintf(stderr, "JOBTAB size %zu\r\n", sizeof(struct JOBTAB));
-        fprintf(stderr, "LOCKTAB size %zu\r\n", sizeof(struct LOCKTAB));
-        fprintf(stderr, "TRANTAB size %zu\r\n", sizeof(struct TRANTAB));
-        fprintf(stderr, "SYSTAB size %zu\r\n", sizeof(struct SYSTAB));
-        fprintf(stderr, "PARTAB size %zu\r\n", sizeof(struct PARTAB));
-        //fprintf(stderr, "NEW_STACK size %zu\r\n", sizeof(struct NEW_STACK));
-        fprintf(stderr, "ST_DEPEND size %zu\r\n", sizeof(struct ST_DEPEND));
-        fprintf(stderr, "ST_DATA size %zu\r\n", sizeof(struct ST_DATA));
-        fprintf(stderr, "SYMTAB size %zu\r\n", sizeof(struct SYMTAB));
-        fprintf(stderr, "ST_LOCDATA size %zu\r\n", sizeof(struct ST_LOCDATA));
-        fprintf(stderr, "ST_NEWTAB size %zu\r\n", sizeof(struct ST_NEWTAB));
-        fprintf(stderr, "KEY_STRUCT size %zu\r\n", sizeof(struct KEY_STRUCT));
+        printf("(maxjobs = %u)\r\n", systab->maxjob);
+    } else if (strcasecmp((char *) arg->buf, "struct") == 0) {                  // sanity check structs
+        printf("FOR_STACK size %zu\r\n", sizeof(struct FOR_STACK));
+        printf("TAGS size %zu\r\n", sizeof(struct TAGS));
+        printf("RBD size %zu\r\n", sizeof(struct RBD));
+        printf("DB_BLOCK size %zu\r\n", sizeof(struct DB_BLOCK));
+        printf("GBD size %zu\r\n", sizeof(struct GBD));
+        printf("JRNREC size %zu\r\n", sizeof(struct JRNREC));
+        printf("CSTRING size %zu\r\n", sizeof(struct CSTRING));
+        printf("MVAR size %zu\r\n", sizeof(struct MVAR));
+        printf("UCI_TAB size %zu\r\n", sizeof(struct UCI_TAB));
+        printf("WD_TAB size %zu\r\n", sizeof(struct WD_TAB));
+        printf("LABEL_BLOCK size %zu\r\n", sizeof(struct LABEL_BLOCK));
+        printf("DB_STAT size %zu\r\n", sizeof(struct DB_STAT));
+        printf("VOL_DEF size %zu\r\n", sizeof(struct VOL_DEF));
+        printf("DO_FRAME size %zu\r\n", sizeof(struct DO_FRAME));
+        printf("FORKTAB size %zu\r\n", sizeof(struct FORKTAB));
+        printf("SERVERTAB size %zu\r\n", sizeof(struct SERVERTAB));
+        printf("SQ_CHAN size %zu\r\n", sizeof(struct SQ_CHAN));
+        printf("JOBTAB size %zu\r\n", sizeof(struct JOBTAB));
+        printf("LOCKTAB size %zu\r\n", sizeof(struct LOCKTAB));
+        printf("TRANTAB size %zu\r\n", sizeof(struct TRANTAB));
+        printf("SYSTAB size %zu\r\n", sizeof(struct SYSTAB));
+        printf("PARTAB size %zu\r\n", sizeof(struct PARTAB));
+        //printf("NEW_STACK size %zu\r\n", sizeof(struct NEW_STACK));
+        printf("ST_DEPEND size %zu\r\n", sizeof(struct ST_DEPEND));
+        printf("ST_DATA size %zu\r\n", sizeof(struct ST_DATA));
+        printf("SYMTAB size %zu\r\n", sizeof(struct SYMTAB));
+        printf("ST_LOCDATA size %zu\r\n", sizeof(struct ST_LOCDATA));
+        printf("ST_NEWTAB size %zu\r\n", sizeof(struct ST_NEWTAB));
+        printf("KEY_STRUCT size %zu\r\n", sizeof(struct KEY_STRUCT));
     } else {
         return -(ERRZ18 + ERRMLAST);                                            // no such
     }
@@ -389,7 +391,7 @@ short Xcall_errmsg(char *ret_buffer, cstring *err, __attribute__((unused)) cstri
 }
 
 // $&%OPCOM - Message control
-short Xcall_opcom(char *ret_buffer, cstring *msg, cstring *device)
+short Xcall_opcom(char *ret_buffer, cstring *msg, const cstring *device)
 {
     ret_buffer[0] = '\0';                                                       // null terminate nothing
 
@@ -424,27 +426,15 @@ short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
 }
 
 // $&%SPAWN - Create subprocess
-short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
+short Xcall_spawn(char *ret_buffer, cstring *cmd, const cstring *type)
 {
-    int    ret;
-    int    tmp;
-    FILE   *fp = NULL;
-    struct termios term, save;
+    int ret;
 
     if (restricted) return -(ERRZ77 + ERRMLAST);                                // -R was passed when job started
-    tmp = tcgetattr(STDIN_FILENO, &term);
-    if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
-    tmp = tcgetattr(STDIN_FILENO, &save);                                       // Store current settings
-    if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
 
-    if ((type->len == 1) && (type->buf[0] == '1')) {
-        int echk;
-        int err;
-
-        // Change to sane settings for pipe read mode
-        term.c_oflag |= ONLCR;
-        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &term);
-        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+    if (type->len) {
+        FILE *fp = NULL;
+        int  echk, err;
 
         // Do command
         fp = popen((char *) cmd->buf, "r");
@@ -462,10 +452,6 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         // Close pipe
         pclose(fp);
 
-        // Restore original settings
-        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
-        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
-
         // Return error if necessary
         if (echk != 0) {
             return -(ERRMLAST + ERRZLAST + err);
@@ -473,12 +459,16 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
             return (short) ret;
         }
     } else {
+        struct termios term, save;
+
+        if (tcgetattr(STDIN_FILENO, &term) == -1) return -(ERRMLAST + ERRZLAST + errno);
+        if (tcgetattr(STDIN_FILENO, &save) == -1) return -(ERRMLAST + ERRZLAST + errno); // Store current settings
+
         // Change to sane settings for shell out
         term.c_iflag |= ICRNL;
         term.c_oflag |= ONLCR;
         term.c_lflag |= (ICANON | ECHO);
-        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &term);
-        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &term)  == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // ret_buffer unused
         ret_buffer[0] = '\0';
@@ -490,8 +480,7 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, cstring *type)
         if ((ret == -1) && (errno == ECHILD)) ret = 0;
 
         // Restore original settings
-        tmp = tcsetattr(STDIN_FILENO, TCSANOW, &save);
-        if (tmp == -1) return -(ERRMLAST + ERRZLAST + errno);
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &save) == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // Return 0 or error
         if (ret == -1) {
@@ -1341,7 +1330,7 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
 }
 
 // $&PASCHK - Check user/password
-short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
+short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 {
     char       *username;
     char       *password;
@@ -1379,9 +1368,9 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
 
 // $&PASCHK - Check user/password
 #ifndef __CYGWIN__
-short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
+short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 #else
-short Xcall_paschk(char *ret_buffer, cstring *user, __attribute__((unused)) cstring *pwd)
+short Xcall_paschk(char *ret_buffer, const cstring *user, __attribute__((unused)) cstring *pwd)
 #endif
 {
     FILE *fd;                                                                   // secure user database
@@ -1468,7 +1457,7 @@ int Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
 }
 
 // $&X - Checksum a string of characters (normal)
-int Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
+int Xcall_x(char *ret_buffer, cstring *str, const cstring *flag)
 {
     u_long crc;
     u_long ulldx;
@@ -1527,7 +1516,7 @@ short Xcall_xrsm(char *ret_buffer, cstring *str, __attribute__((unused)) cstring
 }
 
 // $&%GETENV - Returns the value of an environment variable
-int Xcall_getenv(char *ret_buffer, cstring *env, __attribute__((unused)) cstring *dummy)
+int Xcall_getenv(char *ret_buffer, const cstring *env, __attribute__((unused)) cstring *dummy)
 {
     char *p;                                                                    // ptr for getenv
 
@@ -1668,27 +1657,27 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
 *     Success - Number of bytes in ret_buffer (which contains
 *               the resolved host's IP address)
 */
-short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
+short Xcall_host(char *ret_buffer, cstring *name, cstring *arg)
 {
     int  i;
     char host[1024];
     char service[20];
 
-    if ((strcasecmp((char *) arg2->buf, "ip") == 0) || (strcasecmp((char *) arg2->buf, "ip6") == 0) ||
-     (strcasecmp((char *) arg2->buf, "uip") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+    if ((strcasecmp((char *) arg->buf, "ip") == 0) || (strcasecmp((char *) arg->buf, "ip6") == 0) ||
+     (strcasecmp((char *) arg->buf, "uip") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
         struct addrinfo info;                                                   // info for address match
         struct addrinfo *addr;                                                  // list of addresses returned
 
         if (name->len == 0) return 0;                                           // have to have a hostname
         memset(&info, 0, sizeof(info));                                         // zero out structure
 
-        if ((strcasecmp((char *) arg2->buf, "ip6") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+        if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
             info.ai_family = AF_INET6;                                          // IPv6
         } else {
             info.ai_family = AF_INET;                                           // IPv4
         }
 
-        if ((strcasecmp((char *) arg2->buf, "uip") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+        if ((strcasecmp((char *) arg->buf, "uip") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
             info.ai_socktype = SOCK_DGRAM;                                      // only datagram sockets
             info.ai_protocol = IPPROTO_UDP;                                     // only UDP protocol
         } else {
@@ -1699,7 +1688,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
         i = getaddrinfo((char *) name->buf, NULL, &info, &addr);
 
         if (i == 0) {
-            if ((strcasecmp((char *) arg2->buf, "ip6") == 0) || (strcasecmp((char *) arg2->buf, "uip6") == 0)) {
+            if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
                 char ipstr6[INET6_ADDRSTRLEN];
 
                 snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
@@ -1717,7 +1706,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
         }
 
         return (short) strlen(ret_buffer);
-    } else if (strcasecmp((char *) arg2->buf, "name") == 0) {
+    } else if (strcasecmp((char *) arg->buf, "name") == 0) {
         struct sockaddr_in sin;
 
         if (name->len == 0) {
@@ -1739,7 +1728,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
         }
 
         return (short) strlen(ret_buffer);
-    } else if (strcasecmp((char *) arg2->buf, "name6") == 0) {
+    } else if (strcasecmp((char *) arg->buf, "name6") == 0) {
         struct sockaddr_in6 sin6;
 
         if (name->len == 0) {
@@ -1786,7 +1775,7 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg2)
  *
  * num_bytes in ret_buffer which contains "pid number#error_code#terminate signal number"
  */
-short Xcall_wait(char *ret_buffer, cstring *arg1, cstring *arg2)
+short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
 {
     int   pid;                                                                  // PID number
     int   status;                                                               // Exit status

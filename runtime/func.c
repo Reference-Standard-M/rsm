@@ -4,7 +4,7 @@
  * Summary:  module runtime - runtime functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -101,8 +101,8 @@ int Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
     int i;                                                                      // for loops
 
     /* NOTE: support negative offsets
-    if (start < 0) start = expr->len + start + 1;                               // support negative arguments
-    if (stop < 0) stop = expr->len + stop + 1;                                  // support negative arguments
+    if (start < 0) start += expr->len + 1;                                      // support negative arguments
+    if (stop < 0) stop += expr->len + 1;                                        // support negative arguments
     */
     if ((start < 1) && (stop > 0)) start = 1;                                   // ensure sensible
     ret_buffer[0] = '\0';                                                       // setup null string
@@ -178,19 +178,19 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     char    *c2 = NULL;                                                         // flag
     char    *d1 = NULL;                                                         // flag
     char    *dp = NULL;                                                         // decimal point position
+    u_char  cnt = 0;                                                            // count of valid codes
 
     ret_buffer[0] = '\0';
-    a1 = strchr((const char *) &code->buf[0], 'p');                             // in code string ??
-    a2 = strchr((const char *) &code->buf[0], 'P');                             // in code string ??
-    b1 = strchr((const char *) &code->buf[0], '+');                             // in code string ??
-    b2 = strchr((const char *) &code->buf[0], '-');                             // in code string ??
-    c1 = strchr((const char *) &code->buf[0], 't');                             // in code string ??
-    c2 = strchr((const char *) &code->buf[0], 'T');                             // in code string ??
-    d1 = strchr((const char *) &code->buf[0], ',');                             // in code string ??
-    dp = strchr((const char *) &numexp->buf[0], '.');                           // decimal position in number *|Null
+    if ((a1 = strchr((const char *) &code->buf[0], 'p'))) cnt++;                // in code string ??
+    if ((a2 = strchr((const char *) &code->buf[0], 'P'))) cnt++;                // in code string ??
+    if ((b1 = strchr((const char *) &code->buf[0], '+'))) cnt++;                // in code string ??
+    if ((b2 = strchr((const char *) &code->buf[0], '-'))) cnt++;                // in code string ??
+    if ((c1 = strchr((const char *) &code->buf[0], 't'))) cnt++;                // in code string ??
+    if ((c2 = strchr((const char *) &code->buf[0], 'T'))) cnt++;                // in code string ??
+    if ((d1 = strchr((const char *) &code->buf[0], ','))) cnt++;                // in code string ??
+    if ((dp = strchr((const char *) &numexp->buf[0], '.'))) cnt++;              // decimal position in number *|Null
 
-    if (((a1 != NULL) || (a2 != NULL)) &&                                       // check for invalid
-      ((b1 != NULL) || (b2 != NULL) || (c1 != NULL) || (c2 != NULL))) {
+    if (((a1 != NULL) || (a2 != NULL)) && ((b1 != NULL) || (b2 != NULL) || (c1 != NULL) || (c2 != NULL))) { // check for invalid
         return -ERRM2;                                                          // invalid code, error
     }
 
@@ -200,6 +200,8 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
             return -ERRM2;                                                      // invalid code, error
         }
     }
+
+    if (code->len > cnt) return -ERRM2;                                         // extra invalid characters
 
     if (numexp->len > 1) {
         for (z = 0; z <= numexp->len; z++) {
@@ -765,12 +767,10 @@ int Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
 }
 
 // $QUERY(variable[,int])
-/*
 short Dquery1(u_char *ret_buffer, mvar *var)
 {
     return Dquery2(ret_buffer, var, 1);                                         // use Dquery2()
 }
-*/
 
 short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 {
@@ -861,7 +861,7 @@ short Dstack1x(u_char *ret_buffer, int level, int job)
     }
 
     if (level == systab->jobtab[job].error_frame) level = STM1_FRAME;           // error frame adjust
-    i = systab->jobtab[job].dostk[level].type & 127;                            // get the type
+    i = systab->jobtab[job].dostk[level].type & 127;                            // get the type (what was high bit going to be for?)
     if (i == TYPE_RUN) return (short) mcopy((u_char *) "BREAK", ret_buffer, 5);
     if (i == TYPE_DO) return (short) mcopy((u_char *) "DO", ret_buffer, 2);
     if (i == TYPE_EXTRINSIC) return (short) mcopy((u_char *) "$$", ret_buffer, 2);
@@ -877,14 +877,12 @@ int Dstack2(u_char *ret_buffer, int level, cstring *code)
 
 int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
 {
-    int arg2 = 0;                                                               // arg 2 - 1 = ECODE
-                                                                                //         2 = MCODE
-                                                                                //         3 = PLACE
+    int     arg2 = 0;                                                           // arg 2 - 1 = ECODE, 2 = MCODE, 3 = PLACE
     var_u   *rounam;                                                            // routine name
     int     line;                                                               // line number
     int     i;                                                                  // a handy int
     u_char  *p;                                                                 // a handy pointer
-    mvar    *var;                                                               // for ^$R()
+    mvar    *var;                                                               // for ^$ROUTINE()
     u_char  temp[VAR_LEN + 4];                                                  // ditto
     cstring *cptr;                                                              // ditto
     int     s;                                                                  // ditto
@@ -935,7 +933,12 @@ ENABLE_WARN
       (var_empty(systab->jobtab[job].dostk[level].rounam))) {
         if (arg2 == 2) {                                                        // "MCODE"
             ret_buffer[0] = '\0';                                               // JIC
-            if (systab->jobtab[job].cur_do < level) return 0;                   // no can do
+
+            // no can do
+            if (systab->jobtab[job].cur_do < ((level == STM1_FRAME) ? systab->jobtab[job].error_frame : level)) {
+                return 0;
+            }
+
             if (job != (partab.jobtab - systab->jobtab)) return 0;              // can't find
             p = (u_char *) systab->jobtab[job].dostk[level].routine;
             if (p == NULL) return 0;                                            // nothing there
@@ -943,7 +946,7 @@ ENABLE_WARN
             return i;                                                           // return the count
         }
 
-        return mcopy((u_char *) "XECUTE", ret_buffer, 6);                       // "PLACE"
+        return mcopy((u_char *) "@", ret_buffer, 1);                            // "PLACE"
     }
 
     rounam = &systab->jobtab[job].dostk[level].rounam;                          // point at routine name
@@ -1060,7 +1063,7 @@ ENABLE_WARN
     }                                                                           // end offset stuff
 
     if ((str->buf[i] != '^') && (str->buf[i] != '\0')) return -(ERRZ12 + ERRMLAST); // complain
-    j = 0;                                                                      // clear routine ptr
+    j = 0;                                                                      // clear routine pointer
 
     if (str->buf[i] == '^') {                                                   // routine name
         i++;                                                                    // skip the ^
@@ -1170,7 +1173,7 @@ int Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *exp
 {
     u_int i1;                                                                   // for expr1
     u_int i2;                                                                   // for expr2
-    int   p = 0;                                                                // ptr to ret_buffer
+    int   p = 0;                                                                // pointer to ret_buffer
 
     for (i1 = 0; i1 != expr1->len; i1++) {                                      // scan expr1
         short found = FALSE;                                                    // assume no match

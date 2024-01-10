@@ -4,7 +4,7 @@
  * Summary:  module compile - parse a routine ref
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -335,7 +335,6 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     var_u   var;                                                                // for one var
     int     num_tags = 0;                                                       // count tags
     int     num_vars = 0;                                                       // and variables
-    int     lino = 0;                                                           // current line number
     int     last_dots = 0;                                                      // remember last line dots
     int     i;                                                                  // a handy int
     int     j;                                                                  // and another
@@ -346,7 +345,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 
     partab.checkonly = 0;                                                       // a real compile
     partab.errors = 0;                                                          // total number of syntax errors - checkonly
-    partab.ln = &lino;                                                          // save for $&%ROUCHK()
+    partab.ln = 0;                                                              // save for $&%ROUCHK()
     line = (cstring *) stack;                                                   // for source lines
     code = stack + sizeof(cstring);                                             // where the code goes
     cptr = (cstring *) temp;                                                    // point at temp space
@@ -594,12 +593,12 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
             }
         }                                                                       // end tag processing
 
-        lino++;                                                                 // count a line
+        partab.ln++;                                                            // count a line
 
         if (!same) {                                                            // write if required
             for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ') continue; // convert leading tab to space
 DISABLE_WARN(-Warray-bounds)
-            cptr->len = itocstring(cptr->buf, lino);                            // convert to a cstring
+            cptr->len = itocstring(cptr->buf, partab.ln);                       // convert to a cstring
 ENABLE_WARN
             s = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                      // build the key
             rou->slen = rou_slen + s;                                           // store the new length
@@ -613,7 +612,7 @@ ENABLE_WARN
             }
         }
 
-        if (lino > MAXROULINE) {
+        if (partab.ln > MAXROULINE) {
             comperror(-(ERRZ54 + ERRMLAST));                                    // complain
             continue;                                                           // ignore the rest
         }
@@ -627,7 +626,7 @@ ENABLE_WARN
 
         while (*source_ptr == ' ') source_ptr++;                                // skip spare spaces
         *comp_ptr++ = LINENUM;                                                  // mark new line
-        us = (u_short) lino;
+        us = (u_short) partab.ln;
         assert(sizeof(us) == sizeof(u_short));
         memcpy(comp_ptr, &us, sizeof(u_short));
         comp_ptr += sizeof(u_short);

@@ -8,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.79.1 - 2023 Aug 5*
+*Version 1.80.0 - 2024 Jan 9*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -17,7 +17,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 === Copyright and License
 
 Developed and maintained by David Wicksell dlw@linux.com +
-Copyright © 2020-2023 Fourth Watch Software LC +
+Copyright © 2020-2024 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 Originally based on MUMPS V1 by Raymond Douglas Newman +
@@ -362,6 +362,11 @@ To build the RSM Docker image from source, while in the `rsm` directory:
 ----
 $ docker build -t rsm .
 ----
+or
+[source,bash]
+----
+$ docker buildx build -t rsm .
+----
 
 You can change a few build parameters, by passing them as follows:
 
@@ -373,6 +378,14 @@ You can change a few build parameters, by passing them as follows:
 # blocks=<blocks>  The number of blocks in the database - defaults to 16384
 
 $ docker build -t rsm \
+      --build-arg journal=on \
+      --build-arg bsize=32 \
+      --build-arg blocks=32768 .
+----
+or
+[source,bash]
+----
+$ docker buildx build -t rsm \
       --build-arg journal=on \
       --build-arg bsize=32 \
       --build-arg blocks=32768 .

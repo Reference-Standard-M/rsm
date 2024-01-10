@@ -4,7 +4,7 @@
  * Summary:  module runtime - runtime variables
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -35,6 +35,7 @@
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // standard errors
+#include "opcode.h"                                                             // for OPNOP
 
 /*
  * All variables use the following structure
@@ -169,19 +170,27 @@ int Vset(mvar *var, cstring *cptr)                                              
 
     if (var->slen != 0) return -ERRM8;                                          // no subscripts permitted
 
-    if ((strncasecmp((char *) &var->name.var_cu[1], "ec", 2) == 0) ||
-      (strncasecmp((char *) &var->name.var_cu[1], "ecode", 5) == 0)) {          // $EC[ODE]
-        if ((cptr->len > 1) && (cptr->buf[0] == ',') &&                         // if it starts with a comma
-          (cptr->buf[cptr->len - 1] == ',')) {                                  // and ends with a comma
+    if ((strncasecmp((char *) &var->name.var_cu[1], "ec\0", 3) == 0) ||
+      (strncasecmp((char *) &var->name.var_cu[1], "ecode\0", 6) == 0)) {        // $EC[ODE]
+        for (i = 0; i < cptr->len; i++) {                                       // if it isn't a graphic character
+            if (iscntrl(cptr->buf[i])) return -ERRM101;
+        }
+
+        if ((cptr->len > 1) && (cptr->buf[0] == ',') && (cptr->buf[cptr->len - 1] == ',')) { // if it starts and ends with a comma
             cptr->len--;
             memmove(&cptr->buf[0], &cptr->buf[1], cptr->len--);                 // ignore the commas
             cptr->buf[cptr->len] = '\0';                                        // and nul terminate
+            cptr->buf[cptr->len + 1] = OPNOP;                                   // don't confuse the interpreter
         }
 
-        if (((cptr->len == 0) || (cptr->buf[0] == 'M') ||                       // set to null ok or Manything,Manything,Manything
+        if ((cptr->len == 0) || (((cptr->buf[0] == 'M') ||                      // set to null ok or Manything,Manything,Manything
           (cptr->buf[0] == 'Z') || (cptr->buf[0] == 'U')) &&                    // set to Zanything,Zanything,Uanything,Uanything
-          (cptr->buf[cptr->len - 1] != ',')) {                                  // and does not end with a comma
+          (cptr->buf[cptr->len - 1] != ','))) {                                 // and does not end with a comma
             char *code = strtok((char *) cptr->buf, ",");                       // check for error code format
+
+            if ((code != NULL) && (code[0] != 'M') && (code[0] != 'Z') && (code[0] != 'U')) { // check for proper format
+                return -ERRM101;
+            }
 
             while ((code = strtok(NULL, ",")) != NULL) {                        // loop through each argument
                 if ((code[0] != 'M') && (code[0] != 'Z') && (code[0] != 'U')) { // check for proper format
@@ -202,16 +211,16 @@ int Vset(mvar *var, cstring *cptr)                                              
         return -ERRM101;                                                        // can't do that
     }
 
-    if ((strncasecmp((char *) &var->name.var_cu[1], "et", 2) == 0) ||
-      (strncasecmp((char *) &var->name.var_cu[1], "etrap", 5) == 0)) {          // $ET[RAP]
+    if ((strncasecmp((char *) &var->name.var_cu[1], "et\0", 3) == 0) ||
+      (strncasecmp((char *) &var->name.var_cu[1], "etrap\0", 6) == 0)) {        // $ET[RAP]
         VAR_CLEAR(var->name);
         memcpy(&var->name.var_cu[0], "$ETRAP", 6);                              // ensure name correct
         if (cptr->len == 0) return ST_Kill(var);                                // kill it
         return ST_Set(var, cptr);                                               // do it in symbol
     }
 
-    if ((strncasecmp((char *) &var->name.var_cu[1], "k", 1) == 0) ||
-      (strncasecmp((char *) &var->name.var_cu[1], "key", 3) == 0)) {            // $K[EY]
+    if ((strncasecmp((char *) &var->name.var_cu[1], "k\0", 2) == 0) ||
+      (strncasecmp((char *) &var->name.var_cu[1], "key\0", 4) == 0)) {          // $K[EY]
         if (cptr->len > MAX_DKEY_LEN) return -ERRM75;                           // too big
         memcpy(partab.jobtab->seqio[partab.jobtab->io].dkey, cptr->buf, cptr->len + 1); // copy this many (incl null)
         partab.jobtab->seqio[partab.jobtab->io].dkey_len = cptr->len;
@@ -219,24 +228,24 @@ int Vset(mvar *var, cstring *cptr)                                              
     }
 
 #if RSM_DBVER != 1
-    if ((strncasecmp((char *) &var->name.var_cu[1], "r", 1) == 0) ||
-      (strncasecmp((char *) &var->name.var_cu[1], "reference", 9) == 0)) {      // $R[EFERENCE]
+    if ((strncasecmp((char *) &var->name.var_cu[1], "r\0", 2) == 0) ||
+      (strncasecmp((char *) &var->name.var_cu[1], "reference\0", 10) == 0)) {     // $R[EFERENCE]
 #else
-    if ((strncasecmp((char *) &var->name.var_cu[1], "r", 1) == 0)) {            // $R
+    if ((strncasecmp((char *) &var->name.var_cu[1], "r\0", 2) == 0)) {            // $R[EFERENCE]
 #endif
         if ((cptr->len > 0) && (cptr->buf[0] != '^')) return -(ERRZ76 + ERRMLAST); // invalid global name
         UTIL_MvarFromCStr(cptr, &partab.jobtab->last_ref);
         return 0;
     }
 
-    if (strncasecmp((char *) &var->name.var_cu[1], "x", 1) == 0) {              // $X
+    if (strncasecmp((char *) &var->name.var_cu[1], "x\0", 2) == 0) {            // $X
         i = cstringtoi(cptr);                                                   // get val
         if ((i < 0) || (i > (MAX_STR_LEN + 1))) return -ERRM43;                 // return range error
         partab.jobtab->seqio[partab.jobtab->io].dx = (u_short) i;
         return 0;                                                               // and return
     }
 
-    if (strncasecmp((char *) &var->name.var_cu[1], "y", 1) == 0) {              // $Y
+    if (strncasecmp((char *) &var->name.var_cu[1], "y\0", 2) == 0) {            // $Y
         i = cstringtoi(cptr);                                                   // get val
         if ((i < 0) || (i > (MAX_STR_LEN + 1))) return -ERRM43;                 // return range error
         partab.jobtab->seqio[partab.jobtab->io].dy = (u_short) i;

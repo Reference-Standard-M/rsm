@@ -10,12 +10,12 @@ link:index.adoc[Index]
 == Reference Standard M Conformance Clause
 
 David Wicksell <dlw@linux.com> +
-Copyright © 2021-2023 Fourth Watch Software LC +
+Copyright © 2021-2024 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 === Summary
 
-Reference Standard M Version 1.79.1 conforms to ANSI/MDC X11.1-1995
+Reference Standard M Version 1.80.0 conforms to ANSI/MDC X11.1-1995
 (ISO/IEC 11756:1999) with the following exceptions (there may be more):
 
 * Supports up to 32 uniquely distinguished characters in names, rather than 8
@@ -24,10 +24,12 @@ Reference Standard M Version 1.79.1 conforms to ANSI/MDC X11.1-1995
 * Only supports the M character set profile
 * Transaction processing is not implemented
 * A comment can start in the first column
+* Local and global variables are restricted to a maximum of 63 subscripts
+* Does not support variable indirection in `for`
 * Supports some forms of expression indirection
 * Routine references do not support environments (extended references)
 * `$NEXT` is supported by default, but can be disabled
-* `OPEN` does not acquire exclusive access of devices
+* `OPEN` does not always acquire exclusive access of devices
 * `CLOSE` device parameters are not implemented (allowed by standard)
 * `JOB` process parameters are not implemented (allowed by standard)
 * `HANG 0` is not ignored, it gives up the process timeslice

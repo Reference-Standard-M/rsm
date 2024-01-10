@@ -4,7 +4,7 @@
  * Summary:  module database - set database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -108,16 +108,16 @@ int Set_data(cstring *data)                                                     
 {
     int      s;                                                                 // for returns
     u_int    i;                                                                 // a handy unsigned int
-    u_int    *ui;                                                               // an int ptr
+    u_int    *ui;                                                               // an int pointer
     u_char   tmp[VAR_LEN + 4];                                                  // spare string
     u_char   cstr[8];                                                           // and another
     u_char   fk[MAX_KEY_SIZE + 5];                                              // for keys
-    cstring  *ptr;                                                              // spare ptr
-    gbd      *cblk[4];                                                          // current level blks
+    cstring  *ptr;                                                              // spare pointer
+    gbd      *cblk[4];                                                          // current level blocks
     int      rs;                                                                // required space
     int      ts;                                                                // trailing size
     int      rls;                                                               // RL space
-    u_int    trailings;                                                         // ptr to orig trail
+    u_int    trailings;                                                         // pointer to original trail
     int      this_level;                                                        // to save level
     DB_Block *btmp;                                                             // ditto
 
@@ -139,9 +139,9 @@ int Set_data(cstring *data)                                                     
         idx[Index] = blk[level]->mem->last_free + 1;                            // the data
         chunk = (cstring *) &iidx[idx[Index]];                                  // point at it
         chunk->len = 8;                                                         // used two words
-        chunk->buf[0] = 0;                                                      // ccc
-        chunk->buf[1] = 0;                                                      // ucc
-        record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record ptr
+        chunk->buf[0] = 0;                                                      // CCC
+        chunk->buf[1] = 0;                                                      // UCC
+        record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record pointer
         record->len = 0;                                                        // no data
         level = 0;                                                              // clear level
         s = Get_data(0);                                                        // try the get again
@@ -165,7 +165,7 @@ ENABLE_WARN
         s = Insert(tmp, ptr);                                                   // insert a node
 
         if (s < 0) {                                                            // if that failed
-            level++;                                                            // point at new blk
+            level++;                                                            // point at new block
             Free_block(blk[level]->block);                                      // give block back
             Free_GBD(blk[level]);                                               // free GBD
             level--;                                                            // back at the dir
@@ -355,26 +355,26 @@ ENABLE_WARN
     trailings = Index;                                                          // for ron
 
     if (trailings <= blk[level]->mem->last_idx) {                               // if any point
-        for (i = IDX_START; i < trailings; i++) {                               // scan front of blk
+        for (i = IDX_START; i < trailings; i++) {                               // scan front of block
             chunk = (cstring *) &iidx[idx[i]];                                  // point at chunk
             memcpy(&fk[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);
         }                                                                       // get fk[] correct
 
         i = Index;                                                              // start here
         chunk = (cstring *) &iidx[idx[i]];                                      // point at first chunk
-        ts = chunk->buf[0] + 2;                                                 // get ccc plus a bit
+        ts = chunk->buf[0] + 2;                                                 // get CCC plus a bit
 
         while (i <= blk[level]->mem->last_idx) {                                // loop thru trailings
             chunk = (cstring *) &iidx[idx[i]];                                  // point at chunk
             ts += (chunk->len + 2);                                             // add the chunk + idx
             i++;                                                                // increment idx
         }
-    }                                                                           // end ts calc
+    }                                                                           // end ts calculate
 
-    for (i = 0; i < 4; cblk[i++] = NULL) continue;                              // clear curr lev blks
+    for (i = 0; i < 4; cblk[i++] = NULL) continue;                              // clear current level blocks
     cblk[0] = blk[level];                                                       // save this here
     blk[level] = NULL;                                                          // and zot it
-    rls = 0;                                                                    // no rl yet
+    rls = 0;                                                                    // no RL yet
     i = cblk[0]->mem->right_ptr;                                                // get RL
 
     if (i) {                                                                    // if there is one
@@ -410,7 +410,7 @@ ENABLE_WARN
         blk[level]->mem = cblk[3]->mem;                                         // copy in this
         cblk[3]->mem = btmp;                                                    // end swap 'mem'
         Free_GBD(blk[level]);                                                   // give it back
-        blk[level] = cblk[0];                                                   // orig blk again
+        blk[level] = cblk[0];                                                   // original block again
         idx = (u_short *) blk[level]->mem;                                      // point at it
         iidx = (int *) blk[level]->mem;                                         // point at it
 
@@ -431,7 +431,7 @@ ENABLE_WARN
         }
 
         if (trailings == IDX_START) return -(ERRZ61 + ERRMLAST);                // if was first node so stuffed
-        s = New_block();                                                        // new blk for insert
+        s = New_block();                                                        // new block for insert
         if (s < 0) panic("Set_data: Failed to get new block for insert");       // if failed
         blk[level]->mem->type = cblk[0]->mem->type;                             // copy type
         blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr;                   // copy RL
@@ -466,7 +466,7 @@ ENABLE_WARN
     cblk[0]->mem->right_ptr = blk[level]->block;                                // point at it
     Copy_data(cblk[0], trailings);                                              // copy trailings
     cblk[2] = blk[level];                                                       // save this one
-    blk[level] = cblk[0];                                                       // orig blk again
+    blk[level] = cblk[0];                                                       // original block again
     idx = (u_short *) blk[level]->mem;                                          // point at it
     iidx = (int *) blk[level]->mem;                                             // point at it
 
@@ -486,7 +486,7 @@ ENABLE_WARN
     }
 
     if (trailings == IDX_START) return -(ERRZ61 + ERRMLAST);                    // if was first node so stuffed
-    blk[level] = cblk[2];                                                       // new blk again
+    blk[level] = cblk[2];                                                       // new block again
     s = Insert(&db_var.slen, data);                                             // attempt to insert
 
     if (s >= 0) {                                                               // if OK
@@ -495,7 +495,7 @@ ENABLE_WARN
         return s;                                                               // error!
     }
 
-    s = New_block();                                                            // new blk for insert
+    s = New_block();                                                            // new block for insert
     if (s < 0) panic("Set_data: Failed to get new block for insert");           // if failed
     blk[level]->mem->type = cblk[0]->mem->type;                                 // copy type
     blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr;                       // copy RL
@@ -511,7 +511,7 @@ ENABLE_WARN
 fix_keys:
     blk[level] = NULL;                                                          // clear this
 
-    for (int j = level - 1; j >= 0; j--) {                                      // scan ptr blks
+    for (int j = level - 1; j >= 0; j--) {                                      // scan pointer blocks
         if (blk[j]->dirty == (gbd *) 2) {                                       // if changed
             if (blk[level] == NULL) {                                           // list empty
                 blk[j]->dirty = blk[j];                                         // point at self

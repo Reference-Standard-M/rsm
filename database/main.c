@@ -4,7 +4,7 @@
  * Summary:  module database - main database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -33,6 +33,7 @@
 #include <fcntl.h>                                                              // for file stuff
 #include <ctype.h>                                                              // for GBD stuff
 #include <errno.h>                                                              // errno
+#include <signal.h>                                                             // for kill
 #include <sys/types.h>                                                          // for semaphores
 #include <sys/ipc.h>                                                            // for semaphores
 #include <sys/sem.h>                                                            // for semaphores
@@ -79,17 +80,10 @@ short Copy2local(mvar *var)
     level = -1;                                                                 // no claimed GBDs yet
     memcpy(&db_var, var, sizeof(var_u) + 4 + var->slen);                        // copy the data
     if (db_var.volset == 0) db_var.volset = partab.jobtab->vol;                 // if volset is zero then get current volset
+    if (db_var.uci == 0) db_var.uci = partab.jobtab->uci;                       // if UCI is zero then get current UCI
+    if (db_var.name.var_cu[0] == '%') db_var.uci = 1;                           // if routine is %, change to UCI 1 (vol too?)
     if (db_var.volset > MAX_VOL) return -ERRM26;                                // within limits? if not - error
     if (systab->vol[db_var.volset - 1] == NULL) return -ERRM26;                 // is it mounted? if not - error
-
-    if (db_var.uci == 0) {                                                      // UCI specified?
-        if (db_var.name.var_cu[0] == '%') {
-            db_var.uci = 1;                                                     // manager UCI
-        } else {
-            db_var.uci = partab.jobtab->uci;                                    // or current
-        }
-    }
-
     if (db_var.uci > UCIS) return -ERRM26;                                      // too big
 
     if ((var->volset == 0) && (var->uci == 0)) {                                // no vol or UCI
@@ -126,12 +120,12 @@ int DB_Get(mvar *var, u_char *buf)                                              
     if (s < 0) return s;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+    if (s > 0) {                                                                // routine process
+        s--;                                                                    // point at trantab entry
          * This code needs to invoke XXX^<systab->tt[s].to_global.var_cu>
          * as a routine where XXX is GET (this example), SET, KILL etc.
          * with mvar *var converted to cstring as arg1 and buf as
-         * argument 2 passed by reference.
+         * argument 2 passed by-reference.
          *
          * This code must then be copied to all 10 other calls to Copy2local
     }
@@ -169,7 +163,7 @@ int DB_Set(mvar *var, cstring *data)                                            
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -186,7 +180,7 @@ int DB_Set(mvar *var, cstring *data)                                            
 
     while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
         sleep(1);                                                               // wait a bit
-        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
+        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
     i = systab->vol[volnum - 1]->vollab->max_block >> 3;                        // last map byte necessary for current database size
@@ -219,7 +213,7 @@ short DB_Data(mvar *var, u_char *buf)                                           
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -230,8 +224,16 @@ short DB_Data(mvar *var, u_char *buf)                                           
     if (t == -ERRM7) {                                                          // undefined global?
         i = 0;                                                                  // yes - no data
 
-        if ((level == 0) && (memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) != 0)) { // check for global, but not ^$GLOBAL
+        if (level == 0) {
             if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                       // if locked then release global lock
+
+            if ((!db_var.slen) && (memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0)) { // top level for $GLOBAL
+                buf[0] = '1';                                                   // one to return
+                buf[1] = '0';                                                   // zero to return
+                buf[2] = '\0';                                                  // null terminated
+                return 2;                                                       // and exit
+            }
+
             buf[0] = '0';                                                       // zero to return
             buf[1] = '\0';                                                      // null terminated
             return 1;                                                           // and exit
@@ -279,7 +281,7 @@ short DB_Kill(mvar *var)                                                        
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -287,7 +289,7 @@ short DB_Kill(mvar *var)                                                        
 
     while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
         sleep(1);                                                               // wait a bit
-        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
+        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
     s = Get_data(0);                                                            // attempt to get it
@@ -346,7 +348,7 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -425,7 +427,7 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -517,7 +519,7 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -552,7 +554,7 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
     }
-     */
+    */
 
     memcpy(var->key, &keybuf[1], (int) keybuf[0]);                              // copy in the key
     var->slen = keybuf[0];                                                      // update the length
@@ -595,7 +597,7 @@ int DB_GetLen(mvar *var, int lock, u_char *buf)                                 
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -620,7 +622,7 @@ int DB_GetLen(mvar *var, int lock, u_char *buf)                                 
 int DB_Free(int vol)                                                            // total free blocks
 {
     short s;                                                                    // for funcs
-    int   count = 0;                                                            // blk count
+    int   count = 0;                                                            // block count
 
     s = SemOp(SEM_GLOBAL, READ);                                                // lock the globals
     if (s < 0) return s;                                                        // return any errors
@@ -673,7 +675,7 @@ short DB_Expand(int vol, u_int vsiz)                                            
     while (vexp) {
         int i = write(dbfd, p, systab->vol[vol]->vollab->block_size);
 
-        if (i == -1) {                                                            // if failed
+        if (i == -1) {                                                          // if failed
             free(p);                                                            // free memory
             return -(ERRMLAST + ERRZLAST + errno);                              // and die
         }
@@ -698,6 +700,12 @@ int DB_Dismount(int vol)                                                        
 {
     DB_StopJournal(vol, JRN_ESTOP);
     systab->vol[vol - 1]->dismount_flag = 1;                                    // set the flag
+
+    while (systab->vol[vol - 1]->wd_tab[0].pid) {                               // wait until main daemon has stopped
+        if (kill(systab->vol[vol - 1]->wd_tab[0].pid, 0) == -1) break;          // main daemon died (or no perm) before clearing PID
+        sleep(1);
+    }
+
     return 0;                                                                   // that's all for now
 }
 
@@ -741,7 +749,7 @@ int DB_GetFlags(mvar *var)                                                      
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -781,7 +789,7 @@ int DB_SetFlags(mvar *var, int flags)                                           
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -790,7 +798,7 @@ int DB_SetFlags(mvar *var, int flags)                                           
 
     while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
         sleep(1);                                                               // wait a bit
-        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
+        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
     Get_GBDs(1);                                                                // ensure this many
@@ -839,7 +847,7 @@ short DB_Compress(mvar *var, int flags)                                         
 
     /*
     if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab ent
+        s--;                                                                    // point at trantab entry
     }
     */
 
@@ -863,10 +871,10 @@ short DB_Compress(mvar *var, int flags)                                         
 
         while (systab->vol[volnum - 1]->writelock) {                            // check for write lock
             sleep(1);                                                           // wait a bit
-            if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);          // for <Control><C>
+            if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);          // for <Control-C>
         }                                                                       // end writelock check
 
-        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
+        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
         s = Get_data(retlevel);                                                 // get the block
         if ((s == -ERRM7) && !db_var.slen) s = 0;                               // if first node then it exists
 

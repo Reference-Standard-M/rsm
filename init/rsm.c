@@ -4,7 +4,7 @@
  * Summary:  module init - startup (main) code
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -105,7 +105,7 @@ int main(int argc, char **argv)                                                 
             break;
 
         case 's':                                                               // switch -s
-            blocks = atoi(optarg);                                              // number of data blks (create)
+            blocks = atoi(optarg);                                              // number of data blocks (create)
             break;
 
         case 'v':                                                               // switch -v

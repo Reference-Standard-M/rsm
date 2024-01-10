@@ -4,7 +4,7 @@
  * Summary:  module database - database daemon functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -100,7 +100,7 @@ void do_write(void)                                                             
             file_off = (file_off * (off_t) systab->vol[volnum - 1]->vollab->block_size)
                      + (off_t) systab->vol[volnum - 1]->vollab->header_bytes;
 
-            file_off = lseek(dbfd, file_off, SEEK_SET);                         // Seek to block
+            file_off = lseek(dbfd, file_off, SEEK_SET);                         // seek to block
 
             if (file_off < 1) {
                 systab->vol[volnum - 1]->stats.diskerrors++;                    // count an error
@@ -123,7 +123,7 @@ void do_write(void)                                                             
             break;                                                              // break from while
         }
 
-        lastptr = gbdptr;                                                       // remember this ptr
+        lastptr = gbdptr;                                                       // remember this pointer
         gbdptr = gbdptr->dirty;                                                 // get next in list
 
         if (lastptr != gbdptr) {                                                // if not at end
@@ -191,24 +191,18 @@ int do_zot(u_int gb)                                                            
     int      Idx;                                                               // the index
     DB_Block *bptr;                                                             // block pointer
     off_t    file_off;                                                          // for lseek() et al
-    off_t    file_ret;                                                          // for lseek() et al
-    int      typ;                                                               // block type
-    int      zot_data = 0;                                                      // bottom level flag
+    int      type;                                                              // block type
+    int      zot_data = FALSE;                                                  // bottom level flag
     gbd      *ptr;                                                              // a handy pointer
 
-    bptr = malloc(systab->vol[volnum - 1]->vollab->block_size);                 // get some memory
-
-    if (bptr == NULL) {                                                         // if failed
-        fprintf(stderr, "do_zot: malloc for block %u failed\n", gb);
+    if ((bptr = malloc(systab->vol[volnum - 1]->vollab->block_size)) == NULL) { // get some memory
+        fprintf(stderr, "do_zot: malloc() for block %u failed\n", gb);
         fflush(stderr);                                                         // flush to the file
-        return -1;                                                              // return fail
+        return errno;                                                           // return fail
     }
 
-    file_off = (off_t) gb - 1;                                                  // the block#
-
-    file_off = (file_off * (off_t) systab->vol[volnum - 1]->vollab->block_size)
-             + (off_t) systab->vol[volnum - 1]->vollab->header_bytes;
-
+    // file offset of block to zot
+    file_off = (off_t) (gb - 1) * systab->vol[volnum - 1]->vollab->block_size + systab->vol[volnum - 1]->vollab->header_bytes;
     while(SemOp(SEM_GLOBAL, READ)) continue;                                    // take a global lock
     ptr = systab->vol[volnum - 1]->gbd_hash[gb & (GBD_HASH - 1)];               // get head
 
@@ -225,27 +219,26 @@ int do_zot(u_int gb)                                                            
     SemOp(SEM_GLOBAL, -curr_lock);                                              // release the lock
 
     if (ptr == NULL) {                                                          // if not found
-        file_ret = lseek(dbfd, file_off, SEEK_SET);                             // Seek to block
-
-        if (file_ret < 1) {
-            fprintf(stderr, "do_zot: seek to block %u failed\n", gb);
-            fflush(stderr);                                                     // flush to the file
+        if (lseek(dbfd, file_off, SEEK_SET) == (off_t) -1) {                    // seek to block
             free(bptr);                                                         // free memory
-            return -1;                                                          // return error
+            fprintf(stderr, "do_zot: lseek() to block %u failed\n", gb);
+            fflush(stderr);                                                     // flush to the file
+            return errno;                                                       // return error
         }
 
         ret = read(dbfd, bptr, systab->vol[volnum - 1]->vollab->block_size);    // read it
 
-        if (ret < 0) {                                                          // if it failed
-            fprintf(stderr, "do_zot: read of block %u failed\n", gb);
-            fflush(stderr);                                                     // flush to the file
+        if (ret < (int) systab->vol[volnum - 1]->vollab->block_size) {          // read it
             free(bptr);                                                         // free memory
-            return -1;                                                          // return error
+            fprintf(stderr, "do_zot: read() of block %u failed\n", gb);
+            fflush(stderr);                                                     // flush to the file
+            if (ret == -1) return errno;                                        // return error
+            return -1;                                                          // return generic error
         }
     }                                                                           // end read from disk
 
-    typ = bptr->type;                                                           // save type
-    if (typ > 64) goto zotit;                                                   // data type? if so, just zot
+    type = bptr->type;                                                          // save type
+    if (type > 64) goto zotit;                                                  // data type? if so, just zot
 
     for (Idx = IDX_START; Idx <= bptr->last_idx; Idx++) {                       // for each entry
         idx = (u_short *) bptr;                                                 // point at the block
@@ -256,21 +249,18 @@ int do_zot(u_int gb)                                                            
         i = *(u_int *) record;                                                  // get block#
 
         if (zot_data) {                                                         // if we are zotting
-            file_ret = (off_t) i - 1;                                           // block#
+            off_t off;                                                          // for lseek() for each entry
 
-            file_ret = (file_ret * (off_t) systab->vol[volnum - 1]->vollab->block_size)
-                     + (off_t) systab->vol[volnum - 1]->vollab->header_bytes;
+            // block#
+            off = (off_t) (i - 1) * systab->vol[volnum - 1]->vollab->block_size + systab->vol[volnum - 1]->vollab->header_bytes;
 
-            file_ret = lseek(dbfd, file_ret, SEEK_SET);                         // Seek to block
-
-            if (file_ret < 1) {                                                 // check for fail
-                fprintf(stderr, "do_zot: seek to block %u failed\n", i);
+            if (lseek(dbfd, off, SEEK_SET) == (off_t) -1) {                     // seek to block
+                fprintf(stderr, "do_zot: seek() to block %u failed\n", i);
                 fflush(stderr);                                                 // flush to the file
             } else {                                                            // looks ok
-                ret = write(dbfd, systab->vol[volnum - 1]->zero_block, systab->vol[volnum - 1]->vollab->block_size); // write zeroes
-
-                if (ret == -1) {                                                // fail ?
-                    fprintf(stderr, "do_zot: zero of block %u failed\n", i);
+                // write zeroes
+                if (write(dbfd, systab->vol[volnum - 1]->zero_block, systab->vol[volnum - 1]->vollab->block_size) == -1) {
+                    fprintf(stderr, "do_zot: write() zero of block %u failed\n", i);
                     fflush(stderr);                                             // flush to the file
                 }
 
@@ -279,34 +269,29 @@ int do_zot(u_int gb)                                                            
                 do_free(i);                                                     // free the block
             }
         } else {                                                                // end zotting - give to lower level
-            ret = do_zot(i);                                                    // re-call
-            if (ret > 64) zot_data = TRUE;                                      // data block? then do the rest here
+            if (do_zot(i) > 64) zot_data = TRUE;                                // re-call - data block? then do the rest here
         }
     }                                                                           // end of indexes
 
 zotit:
-    file_ret = lseek(dbfd, file_off, SEEK_SET);                                 // Seek to block
-
-    if (file_ret < 1) {
-        fprintf(stderr, "do_zot: zeroing seek to block %u failed\n", gb);
-        fflush(stderr);                                                         // flush to the file
+    if (lseek(dbfd, file_off, SEEK_SET) == (off_t) -1) {                        // seek to block
         free(bptr);                                                             // free memory
-        return -1;                                                              // return error
+        fprintf(stderr, "do_zot: lseek() to block %u failed\n", gb);
+        fflush(stderr);                                                         // flush to the file
+        return errno;                                                           // return error
     }
 
-    ret = write(dbfd, systab->vol[volnum - 1]->zero_block, systab->vol[volnum - 1]->vollab->block_size); // write zeroes
-
-    if (ret == -1) {                                                            // if it failed
-        fprintf(stderr, "do_zot: zero of block %u failed\n", gb);
+    if (write(dbfd, systab->vol[volnum - 1]->zero_block, systab->vol[volnum - 1]->vollab->block_size) == -1) { // write zeroes
+        type = -1;                                                              // flag fail
+        fprintf(stderr, "do_zot: write() zero of block %u failed\n", gb);
         fflush(stderr);                                                         // flush to the file
-        typ = -1;                                                               // flag fail
     }
 
     systab->vol[volnum - 1]->stats.phywt++;                                     // count a write
     systab->vol[volnum - 1]->stats.logwt++;                                     // and a logical
     free(bptr);                                                                 // free memory
     do_free(gb);                                                                // and the block
-    return typ;                                                                 // return the type
+    return type;                                                                // return the type
 }
 
 /*
@@ -340,7 +325,6 @@ void do_garb(void)                                                              
  */
 void do_dismount(void)                                                          // dismount volnum
 {
-    int     ret;                                                                // for function returns
     int     cnt;                                                                // and another
     int     pid;                                                                // for jobs
     time_t  t;                                                                  // for ctime()
@@ -351,8 +335,11 @@ void do_dismount(void)                                                          
     semun_t semvals = {.val = 0};                                               // dummy for semctl IPC_RMID
 #endif
 
-    ret = shmctl(systab->vol[volnum - 1]->shm_id, IPC_RMID, &sbuf);             // remove share
-    if (ret == -1) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+
+    if (shmctl(systab->vol[volnum - 1]->shm_id, IPC_RMID, &sbuf) == -1) {       // remove share
+        fprintf(stderr, "do_dismount: shmctl() error: %d - %s\n", errno, strerror(errno));
+        fflush(stderr);                                                         // flush to the file
+    }
 
     if (volnum == 1) {
         for (u_int i = 0; i < systab->maxjob; i++) {                            // for each job
@@ -374,8 +361,8 @@ void do_dismount(void)                                                          
             systab->vol[volnum - 1]->gbd_head[i].dirty = &systab->vol[volnum - 1]->gbd_head[i]; // point at self
             systab->vol[volnum - 1]->wd_tab[0].currmsg.gbddata = &systab->vol[volnum - 1]->gbd_head[i]; // add to our struct
             do_write();                                                         // write it
-        }                                                                       // end GBD has blk
-    }                                                                           // end blk search
+        }                                                                       // end GBD has block
+    }                                                                           // end block search
 
     cnt = TRUE;
 
@@ -403,20 +390,31 @@ void do_dismount(void)                                                          
 
     pid = systab->vol[volnum - 1]->wd_tab[myslot].pid;
     t = current_time(FALSE);                                                    // for ctime()
-    fprintf(stderr, "%s [%6d]: Daemon %2d writing out clean flag as clean\n", strtok(ctime(&t), "\n"), pid, myslot); // operation
+    fprintf(stderr, "%s [%7d]: Daemon %2d writing out clean flag as clean\n", strtok(ctime(&t), "\n"), pid, myslot); // operation
+    fflush(stderr);                                                             // flush to the file
     systab->vol[volnum - 1]->vollab->clean = 1;                                 // set database as clean
-    lseek(dbfd, 0, SEEK_SET);                                                   // seek to start of file
-    ret = write(dbfd, systab->vol[volnum - 1]->vollab, systab->vol[volnum - 1]->vollab->header_bytes); // write the label/clean flag
-    if (ret == -1) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+
+    if (lseek(dbfd, 0, SEEK_SET) == (off_t) -1) {                               // seek to start of file
+        fprintf(stderr, "do_dismount lseek() error: %d - %s\n", errno, strerror(errno));
+        fflush(stderr);                                                         // flush to the file
+    }
+
+    // write the label/clean flag
+    if (write(dbfd, systab->vol[volnum - 1]->vollab, systab->vol[volnum - 1]->vollab->header_bytes) == -1) {
+        fprintf(stderr, "do_dismount write() error: %d - %s\n", errno, strerror(errno));
+        fflush(stderr);                                                         // flush to the file
+    }
 
     if (volnum == 1) {
-        ret = semctl(systab->sem_id, 0, IPC_RMID, semvals);                     // remove the semaphores
-        if (ret == -1) fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
+        if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {               // remove the semaphores
+            fprintf(stderr, "do_dismount semctl() error: %d - %s\n", errno, strerror(errno));
+            fflush(stderr);                                                     // flush to the file
+        }
     }
 
     t = current_time(FALSE);                                                    // for ctime()
 
-    fprintf(stderr,"%s [%6d]: Daemon %2d stopped and detached from %s\n",
+    fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
             strtok(ctime(&t), "\n"), pid, myslot, systab->vol[volnum - 1]->file_name); // stopping
 
     fflush(stderr);                                                             // flush to the file
@@ -434,7 +432,6 @@ void do_daemon(void)                                                            
     int    i;                                                                   // handy int
     int    j;                                                                   // and another
     int    pid;
-    off_t  file_off;                                                            // for lseek()
     time_t t;                                                                   // for ctime()
 
 start:
@@ -442,16 +439,12 @@ start:
 
     if (systab->vol[volnum - 1]->wd_tab[myslot].doing == DOING_NOTHING) {
         if (!myslot && systab->vol[volnum - 1]->map_dirty_flag) {               // first daemon
-            file_off = lseek(dbfd, 0, SEEK_SET);                                // move to start of file
-
-            if (file_off == -1) {
+            if (lseek(dbfd, 0, SEEK_SET) == (off_t) -1) {                       // move to start of file
                 systab->vol[volnum - 1]->stats.diskerrors++;                    // count an error
                 panic("do_daemon: lseek() to start of file failed");
             }
 
-            i = write(dbfd, systab->vol[volnum - 1]->vollab, systab->vol[volnum - 1]->vollab->header_bytes); // label/map
-
-            if (i == -1) {
+            if (write(dbfd, systab->vol[volnum - 1]->vollab, systab->vol[volnum - 1]->vollab->header_bytes) == -1) { // label/map
                 systab->vol[volnum - 1]->stats.diskerrors++;                    // count an error
                 panic("do_daemon: write() map block failed");
             }
@@ -511,7 +504,7 @@ start:
                 systab->vol[volnum - 1]->wd_tab[myslot].pid = 0;                // say gone
                 t = current_time(FALSE);                                        // for ctime()
 
-                fprintf(stderr,"%s [%6d]: Daemon %2d stopped and detached from %s\n",
+                fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
                         strtok(ctime(&t), "\n"), pid, myslot, systab->vol[volnum - 1]->file_name); // stopping
 
                 fflush(stderr);                                                 // flush to the file
@@ -519,6 +512,7 @@ start:
             }
 
             do_dismount();                                                      // dismount it
+            systab->vol[volnum - 1]->wd_tab[myslot].pid = 0;                    // say gone
             exit(EXIT_SUCCESS);                                                 // and exit
         } else {                                                                // end dismount code
             return;                                                             // nothing to do
@@ -594,14 +588,14 @@ int DB_Daemon(int slot, int vol)                                                
     t = current_time(FALSE);                                                    // for ctime()
 
     if (dbfd < 0) {
-        fprintf(stderr, "%s [%6d]: Daemon %2d failed to attach to %s - exiting \n",
+        fprintf(stderr, "%s [%7d]: Daemon %2d failed to attach to %s - exiting \n",
                 strtok(ctime(&t), "\n"), pid, myslot, systab->vol[volnum - 1]->file_name); // failure
 
         fflush(stderr);                                                         // flush to the file
         return errno;                                                           // check for error
     }
 
-    fprintf(stderr, "%s [%6d]: Daemon %2d started and attached to %s\n",
+    fprintf(stderr, "%s [%7d]: Daemon %2d started and attached to %s\n",
             strtok(ctime(&t), "\n"), pid, myslot, systab->vol[volnum - 1]->file_name); // success
 
     fflush(stderr);                                                             // flush to the file

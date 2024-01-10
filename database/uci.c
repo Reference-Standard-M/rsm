@@ -4,7 +4,7 @@
  * Summary:  module database - database functions, UCI manipulation
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -64,7 +64,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
 
     while (systab->vol[vol - 1]->writelock) {                                   // check for write lock
         sleep(1);                                                               // wait a bit
-        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
+        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
     s = SemOp(SEM_GLOBAL, WRITE);                                               // get write lock
@@ -99,7 +99,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         chunk->buf[0] = 0;                                                      // zero ccc
         chunk->buf[1] = 9;                                                      // ucc
         memcpy(&chunk->buf[2], "\200$GLOBAL\0", 9);                             // the key
-        record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record ptr
+        record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // setup record pointer
         Align_record();                                                         // align it
         *(u_int *) record = blk[level]->block;                                  // point at self
         memset(&record->buf[2], 0, sizeof(u_int));                              // zero flags
@@ -131,7 +131,7 @@ short DB_UCIKill(int vol, int uci)                                              
 
     while (systab->vol[vol - 1]->writelock) {                                   // check for write lock
         sleep(1);                                                               // wait a bit
-        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control><C>
+        if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
     s = SemOp(SEM_GLOBAL, WRITE);                                               // get write lock

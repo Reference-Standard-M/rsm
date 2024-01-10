@@ -4,7 +4,7 @@
  * Summary:  module symbol - symbol table new'ing and un-new'ing utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -246,7 +246,7 @@ void ST_Restore(ST_newtab *newtab)
  * Function: ST_ConData(mvar *, ST_data *) - connect reference to data ptr
  * Returns : 0 on success, or -'ve error
  */
-short ST_ConData(mvar *var, u_char *data)
+short ST_ConData(const mvar *var, u_char *data)
 {
     short cnct;                                                                 // connector var loc
 

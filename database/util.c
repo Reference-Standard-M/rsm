@@ -4,7 +4,7 @@
  * Summary:  module database - database functions - utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -28,10 +28,12 @@
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy
+#include <time.h>                                                               // for ctime
 #include <unistd.h>                                                             // for file reading
 #include <fcntl.h>                                                              // for expand
 #include <ctype.h>                                                              // for GBD stuff
 #include <errno.h>                                                              // for errors
+#include <sys/param.h>                                                          // for realpath() function
 #include <sys/types.h>                                                          // for semaphores
 #include <sys/ipc.h>                                                            // for semaphores
 #include <sys/sem.h>                                                            // for semaphores
@@ -47,7 +49,7 @@
  * Input(s): Pointer the the key and data to insert
  * Return:   0 -> Ok, negative M error -(ERRZ62 + ERRMLAST)
  */
-short Insert(u_char *key, cstring *data)                                        // insert a node
+short Insert(u_char *key, const cstring *data)                                  // insert a node
 {
     int    isdata;                                                              // data/ptr flag
     int    rs;                                                                  // required size
@@ -81,7 +83,7 @@ short Insert(u_char *key, cstring *data)                                        
 
     keybuf[0] = 0;                                                              // clear keybuf
 
-    for (u_int i = IDX_START; i < Index; i++) {                                 // for all prev Indexes
+    for (u_int i = IDX_START; i < Index; i++) {                                 // for all previous Indexes
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
@@ -92,14 +94,14 @@ short Insert(u_char *key, cstring *data)                                        
     if (key[0] && keybuf[0]) {                                                  // if any there
         while (key[ccc + 1] == keybuf[ccc + 1]) {                               // while the same
             if ((ccc == key[0]) || (ccc == keybuf[0])) break;                   // at end of either we're done
-            ccc++;                                                              // increment ptr
+            ccc++;                                                              // increment pointer
         }
     }
 
     ucc = key[0] - ccc;                                                         // and this
     rs = sizeof(u_short) + 2 + ucc + data->len;                                 // chunksize + ccc + ucc + key + data
 
-    if (isdata) {                                                               // if it's a data blk
+    if (isdata) {                                                               // if it's a data block
         rs += sizeof(u_short);                                                  // add the dbc size
     } else if (!level) {                                                        // if GD
         rs += 4;                                                                // allow for flags
@@ -128,7 +130,7 @@ short Insert(u_char *key, cstring *data)                                        
     chunk->buf[1] = ucc;                                                        // then this
     memcpy(&chunk->buf[2], &key[ccc + 1], ucc);                                 // then the key bit
 
-    if (isdata) {                                                               // for data blk
+    if (isdata) {                                                               // for data block
         record->len = data->len;                                                // copy the length
         memcpy(record->buf, data->buf, data->len);                              // then the data
     } else {                                                                    // it's a pointer
@@ -153,7 +155,7 @@ short Insert(u_char *key, cstring *data)                                        
 void Queit(void)                                                                // queue a GBD for write
 {
     int i;                                                                      // a handy int
-    gbd *ptr;                                                                   // a handy ptr
+    gbd *ptr;                                                                   // a handy pointer
 
     ptr = blk[level];                                                           // point at the block
     systab->vol[volnum - 1]->stats.logwt++;                                     // incr logical
@@ -181,7 +183,7 @@ void Queit(void)                                                                
  * Return:   None
  * Note:     Must hold a write lock before calling this function
  */
-void Garbit(u_int blknum)                                                       // queue a blk for garb
+void Garbit(u_int blknum)                                                       // queue a block for garb
 {
     int i;                                                                      // a handy int
     int j;                                                                      // for loop
@@ -206,7 +208,7 @@ void Garbit(u_int blknum)                                                       
  * Return:   None
  * Note:     Must hold a write lock before calling this function
  */
-void Free_block(u_int blknum)                                                   // free blk in map
+void Free_block(u_int blknum)                                                   // free block in map
 {
     int    i;                                                                   // a handy int
     int    off;                                                                 // and another
@@ -238,7 +240,7 @@ void Free_block(u_int blknum)                                                   
  *           scan in progress, this block is less than "upto"
  * This is only called from rsm/database/view.c
  */
-void Used_block(u_int blknum)                                                   // set blk in map
+void Used_block(u_int blknum)                                                   // set block in map
 {
     int    i;                                                                   // a handy int
     int    off;                                                                 // and another
@@ -264,7 +266,7 @@ void Used_block(u_int blknum)                                                   
  *           This function omits records with dbc = NODE_UNDEFINED
  *           This function omits pointers with record = PTR_UNDEFINED
  */
-void Tidy_block(void)                                                           // tidy current blk
+void Tidy_block(void)                                                           // tidy current block
 {
     gbd      *ptr;                                                              // a handy pointer
     DB_Block *btmp;                                                             // ditto
@@ -283,7 +285,7 @@ void Tidy_block(void)                                                           
     blk[level]->mem = ptr->mem;                                                 // copy in this
     ptr->mem = btmp;                                                            // end swap 'mem'
     Free_GBD(blk[level]);                                                       // release it
-    blk[level] = ptr;                                                           // restore the ptr
+    blk[level] = ptr;                                                           // restore the pointer
     idx = (u_short *) blk[level]->mem;                                          // set this up
     iidx = (int *) blk[level]->mem;                                             // and this
     return;                                                                     // and exit
@@ -341,7 +343,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
         if (fk[0] && keybuf[0]) {                                               // if any there
             while (fk[ccc + 1] == keybuf[ccc + 1]) {                            // while the same
                 if ((ccc == fk[0]) || (ccc == keybuf[0])) break;                // at end of either, done
-                ccc++;                                                          // increment ptr
+                ccc++;                                                          // increment pointer
             }
         }
 
@@ -370,7 +372,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
             if (fidx == -1) c->len = NODE_UNDEFINED;
         } else {                                                                // for a pointer
             Align_record();                                                     // ensure aligned
-            *(u_int *) record = *(u_int *) c;                                   // copy ptr
+            *(u_int *) record = *(u_int *) c;                                   // copy pointer
             if (fidx == -1) *(int *) c = PTR_UNDEFINED;
 
             if (!level) {                                                       // if GD
@@ -431,7 +433,7 @@ short Compress1(void)
     if (s < 0) return (short) s;                                                // any other error then return it
 
     if (!blk[level]->mem->right_ptr) {                                          // if no more blocks
-        if ((level == 2) && !db_var.slen) {                                     // and blk 1 on level 2
+        if ((level == 2) && !db_var.slen) {                                     // and block 1 on level 2
             u_char gtmp[VAR_LEN + 4];                                           // to find glob
 
             level = 0;                                                          // look at the GD
@@ -448,7 +450,7 @@ short Compress1(void)
             s = Locate(gtmp);                                                   // search for it
             if (s < 0) return (short) s;                                        // failed? then return error
             Align_record();                                                     // if not aligned
-            *((u_int *) record) = blk[2]->block;                                // new top level blk
+            *((u_int *) record) = blk[2]->block;                                // new top level block
 
             if (blk[level]->dirty < (gbd *) 5) {                                // if it needs queueing
                 blk[level]->dirty = blk[level];                                 // terminate list
@@ -498,11 +500,11 @@ short Compress1(void)
     }
 
     Un_key();                                                                   // unkey RL block
-    level++;                                                                    // point at left blk
+    level++;                                                                    // point at left block
     Tidy_block();                                                               // ensure it's tidy
     Copy_data(blk[level - 1], -1);                                              // combine them
     if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = (gbd *) 2;          // if not queued then mark for queuing
-    level--;                                                                    // point at rl
+    level--;                                                                    // point at RL
     Tidy_block();                                                               // ensure it's tidy
 
     if (blk[level]->mem->last_idx < IDX_START) {                                // if it's empty
@@ -534,7 +536,7 @@ short Compress1(void)
     level += 2;                                                                 // spare level
     blk[level] = NULL;                                                          // clear it
 
-    for (i = level - 1; i >= 0; i--) {                                          // scan ptr blks
+    for (i = level - 1; i >= 0; i--) {                                          // scan pointer blocks
         if (blk[i] != NULL) {
             if (blk[i]->dirty == (gbd *) 2) {                                   // if changed
                 if (blk[level] == NULL) {                                       // list empty
@@ -565,27 +567,43 @@ void ClearJournal(int vol)                                                      
 {
     jrnrec jj;                                                                  // to write with
     int    jfd;                                                                 // file descriptor
-    int    i;                                                                   // a handy int
+    char   fullpathvol[MAXPATHLEN];                                             // full pathname of vol file
 
     struct __attribute__ ((__packed__)) {
         u_int magic;
         off_t free;
-    } tmp;
+    }      tmp;
 
     umask(0);                                                                   // set umask to 0000
 
     // Create journal file, with 0660 permissions, jobs write their own journal entries
     jfd = open(systab->vol[vol]->vollab->journal_file, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
-    if (jfd > 0) {                                                              // if OK
+    if (jfd == -1) {                                                            // error
+        fprintf(stderr, "Journal %s open error: %d - %s\n", systab->vol[vol]->vollab->journal_file, errno, strerror(errno));
+    } else {                                                                    // if OK
+        if (realpath(systab->vol[vol]->vollab->journal_file, fullpathvol) != NULL) { // get full path
+            if (strlen(fullpathvol) <= JNL_FILENAME_MAX) {                      // if can fit in our struct
+                strcpy(systab->vol[vol]->vollab->journal_file, fullpathvol);    // copy this full path into the vol_def structure
+            } else {                                                            // end if path will fit - otherwise
+                int i;
+
+                i = strlen(fullpathvol) - JNL_FILENAME_MAX;                     // copy as much as
+                strcpy(systab->vol[vol]->vollab->journal_file, &fullpathvol[i]); // is possible, thats the best we can do
+            }                                                                   // end length testing
+        }
+
         tmp.magic = RSM_MAGIC - 1;
 #if RSM_DBVER == 1
         tmp.free = 20;                                                          // next free byte
 #else
         tmp.free = 24;                                                          // next free byte
 #endif
-        i = write(jfd, (u_char *) &tmp, 12);
-        if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+
+        if (write(jfd, (u_char *) &tmp, 12) < 12) {                             // write the journal header
+            fprintf(stderr, "Journal %s write error: %d - %s\n", systab->vol[vol]->vollab->journal_file, errno, strerror(errno));
+        }
+
 #if RSM_DBVER == 1
         jj.size = 8;
         jj.time = current_time(TRUE);
@@ -595,8 +613,11 @@ void ClearJournal(int vol)                                                      
 #endif
         jj.action = JRN_CREATE;
         jj.uci = 0;
-        i = write(jfd, &jj, jj.size);                                           // write the create record
-        if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+
+        if (write(jfd, &jj, jj.size) < jj.size) {                               // write the create record
+            fprintf(stderr, "Journal %s write error: %d - %s\n", systab->vol[vol]->vollab->journal_file, errno, strerror(errno));
+        }
+
         close(jfd);                                                             // and close it
         systab->vol[vol]->jrn_next = (off_t) tmp.free;                          // where it's upto
     }
@@ -614,36 +635,86 @@ void ClearJournal(int vol)                                                      
  */
 void DoJournal(jrnrec *jj, cstring *data)                                       // Write journal
 {
-    off_t jptr;
-    int   i;
-    int   j;
+    int i;
 
-    jptr = lseek(partab.jnl_fds[volnum - 1], systab->vol[volnum - 1]->jrn_next, SEEK_SET); // address to locn
-    if (jptr != systab->vol[volnum  - 1]->jrn_next) goto fail;                  // if failed
+    // address to location
+    if (lseek(partab.jnl_fds[volnum - 1], systab->vol[volnum - 1]->jrn_next, SEEK_SET) != systab->vol[volnum - 1]->jrn_next) {
+        goto fail;                                                              // if failed
+    }
+
     jj->size = 13 + sizeof(var_u) + jj->slen;
     if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) jj->size = 12;     // not SET or KILL, small size is 12
     i = jj->size;                                                               // store full size, but data is written below
     if (jj->action == JRN_SET) jj->size += (sizeof(short) + data->len);
     jj->time = (u_int64) current_time(TRUE);                                    // store the time
-    j = write(partab.jnl_fds[volnum - 1], jj, i);                               // write header
-    if (j != i) goto fail;                                                      // if that failed
+    if (write(partab.jnl_fds[volnum - 1], jj, i) != i) goto fail;               // write header
 
     if (jj->action == JRN_SET) {
         i = sizeof(short) + data->len;                                          // data size
-        j = write(partab.jnl_fds[volnum - 1], data, i);                         // write data
-        if (j != i) goto fail;                                                  // if that failed
+        if (write(partab.jnl_fds[volnum - 1], data, i) != i) goto fail;         // write data
     }
 
     if (jj->size & 3) jj->size += (4 - (jj->size & 3));                         // round it
     systab->vol[volnum  - 1]->jrn_next += jj->size;                             // update next
-    jptr = lseek(partab.jnl_fds[volnum - 1], 4, SEEK_SET);
-    if (jptr != 4) goto fail;
-    j = write(partab.jnl_fds[volnum - 1], &systab->vol[volnum  - 1]->jrn_next, sizeof(off_t)); // write next
-    if (j < 0) goto fail;
+    if (lseek(partab.jnl_fds[volnum - 1], 4, SEEK_SET) != 4) goto fail;
+    if (write(partab.jnl_fds[volnum - 1], &systab->vol[volnum  - 1]->jrn_next, sizeof(off_t)) == -1) goto fail; // write next
     return;
 
 fail:
     systab->vol[volnum - 1]->vollab->journal_available = 0;                     // turn it off
     close(partab.jnl_fds[volnum - 1]);                                          // close the file
+    return;                                                                     // and exit
+}
+
+// The following are internal only (first called from $&DEBUG())
+void Dump_gbd(void)                                                             // dump GBDs
+{
+    u_int   i;                                                                  // for loops
+    int     j;                                                                  // and another
+    u_short len;
+    u_short cnt = 0;
+    short   s;                                                                  // for function returns
+    char    uci;
+    gbd     *p;                                                                 // a pointer
+    gbd     *f;                                                                 // free pointer
+    char    tmp[VAR_LEN + 1];                                                   // some space
+    char    type[10];                                                           // for block type
+    time_t  t;                                                                  // for time
+
+    s = SemOp(SEM_GLOBAL, READ);                                                // lock the globals
+    if (s < 0) return;                                                          // exit on error
+    p = systab->vol[partab.jobtab->vol - 1]->gbd_head;                          // get listhead
+    t = current_time(FALSE);
+    printf("Dump of all Global Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) t);
+
+    for (i = 0; i < systab->vol[partab.jobtab->vol - 1]->num_gbd; i++) {        // for all
+        if (!p[i].block) continue;                                              // skip empty buffers
+        cnt += 1;
+    }
+
+    f = systab->vol[partab.jobtab->vol - 1]->gbd_hash[GBD_HASH];
+    printf("Global Buffers Free at %p --> %p\r\n", f, (f == NULL) ? NULL : f->mem);
+    printf("Using %u of %u Global Buffers\r\n\r\n", cnt, systab->vol[partab.jobtab->vol - 1]->num_gbd);
+    printf("       Address   Global Buffer       Block  Right Link  Block Type  Last Access  VOL  UCI  Global Name\r\n");
+
+    for (i = 0; i < systab->vol[partab.jobtab->vol - 1]->num_gbd; i++) {        // for all
+        if (!p[i].block) continue;                                              // skip empty buffers
+        for (j = 0; j < VAR_LEN; j++) tmp[j] = ' ';                             // space fill tmp[]
+
+        for (j = 0; j < VAR_LEN; j++) {
+            if (p[i].mem->global.var_cu[j] == 0) break;
+            tmp[j] = p[i].mem->global.var_cu[j];
+        }
+
+        tmp[j] = '\0';                                                          // null terminate name
+        len = sprintf(type, "%s", (!strncmp(tmp, "$GLOBAL\0", 8)) ? "Directory" : (p[i].mem->type > UCIS) ? "Data" : "Pointer");
+        type[len] = '\0';
+        uci = p[i].mem->type % 64;
+
+        printf("%14p %15p %11u %11u %11s %12lld %4d %4d  %s\r\n", &p[i], p[i].mem, p[i].block, p[i].mem->right_ptr,
+               type, (long long) p[i].last_accessed, partab.jobtab->vol, uci, tmp);
+    }
+
+    SemOp(SEM_GLOBAL, -curr_lock);                                              // unlock the globals
     return;                                                                     // and exit
 }
