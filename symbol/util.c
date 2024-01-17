@@ -695,7 +695,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
         }
     } else {                                                                    // end if reverse order - forward order
         // while we have dependents and key cmp fails
-        while ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(current->bytes, var->key, current->keylen, var->slen) == 0)) {
+        while ((current != ST_DEPEND_NULL) && (memcmp(current->bytes, var->key, var->slen) == 0)) {
             current = current->deplnk;                                          // go to next dependent
         }                                                                       // end while
 

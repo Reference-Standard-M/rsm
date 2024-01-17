@@ -12,6 +12,11 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.80.2 -- 2024 Jan 17
+
+* Fix regression caused by the buffer overflow bug fix in `$ORDER`
+* Update continuous integration configuration script [`.gitlab-ci.yml`]
+
 === v1.80.1 -- 2024 Jan 16
 
 * Fix bug in symbol table optimization that could lead to segfaults

@@ -8,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.80.1 - 2024 Jan 16*
+*Version 1.80.2 - 2024 Jan 17*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
