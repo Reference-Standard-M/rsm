@@ -40,5 +40,5 @@ version-release:
     - sed -n "/$CI_COMMIT_TAG/,/^===/"'{s/===/###/; /^\[.*,.*\]/{N; N; N; N; s/^\[.*,\(.*\)\].*\n.*\n\(.*\)\n.*\n/```\1\n\2\n```\n/}; /^\[.*/d; p}' CHANGELOG.adoc | sed '$d' | sed '$d' > ${CI_COMMIT_TAG}.md
   release:
     tag_name: $CI_COMMIT_TAG
-    name: "Reference Standard M ${CI_COMMIT_TAG/v/V}"
+    name: "Reference Standard M $CI_COMMIT_TAG"
     description: ${CI_COMMIT_TAG}.md
