@@ -274,33 +274,19 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
 {
     if (dp == ST_DEPEND_NULL) return;                                           // no dependents to check
 
-    if ((dp->deplnk != ST_DEPEND_NULL) && (mvardr->slen == 0)) {                // kill DT more dep - (not currently called)
+    if ((dp->deplnk != ST_DEPEND_NULL) && (memcmp(dp->bytes, mvardr->key, mvardr->slen) == 0)) { // next dep, has part match key
         ST_RemDp(dblk, dp, dp->deplnk, mvardr);                                 // try to get rid of next one
-    } else {                                                                    // end if more to do - kill DP or run out of deps
-        if ((dp->deplnk != ST_DEPEND_NULL) && (memcmp(dp->bytes, mvardr->key, mvardr->slen) == 0)) { // next dep, has part match key
-            ST_RemDp(dblk, dp, dp->deplnk, mvardr);                             // try to get rid of next one
-        }                                                                       // end if keys part match
-    }                                                                           // end if more to do
+    }                                                                           // end if keys part match
 
-    if (mvardr->slen == 0) {                                                    // killing a data block - (not currently called)
-        if (prev != ST_DEPEND_NULL) {                                           // prev is defined
-            prev->deplnk = ST_DEPEND_NULL;                                      // unlink all deps regardless
-        } else {                                                                // end if prev defined - prev not defined
-            dblk->deplnk = ST_DEPEND_NULL;                                      // unlink one and only dep
-        }                                                                       // end if prev not defined
+    if (memcmp(dp->bytes, mvardr->key, mvardr->slen) == 0) {                    // keys match to slen
+        if (prev != ST_DEPEND_NULL) {                                           // if not removing first dep
+            prev->deplnk = dp->deplnk;                                          // bypass a dep killee
+        } else {                                                                // end if !removing first dep - removing first dep
+            dblk->deplnk = dp->deplnk;                                          // bypass a first dep killee
+        }                                                                       // end else removing first dep
 
-        free(dp);                                                               // get rid of dep
-    } else {                                                                    // end if killing a data block - killing a dep tree
-        if (memcmp(dp->bytes, mvardr->key, mvardr->slen) == 0) {                // keys match to slen
-            if (prev != ST_DEPEND_NULL) {                                       // if not removing first dep
-                prev->deplnk = dp->deplnk;                                      // bypass a dep killee
-            } else {                                                            // end if !removing first dep - removing first dep
-                dblk->deplnk = dp->deplnk;                                      // bypass a first dep killee
-            }                                                                   // end else removing first dep
-
-            free(dp);                                                           // get rid of this dep
-        }                                                                       // end if keys match up to slen
-    }                                                                           // end else killing a dep
+        free(dp);                                                               // get rid of this dep
+    }                                                                           // end if keys match up to slen
 }                                                                               // end function ST_RemDp
 
 /*
@@ -709,7 +695,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
         }
     } else {                                                                    // end if reverse order - forward order
         // while we have dependents and key cmp fails
-        while ((current != ST_DEPEND_NULL) && (memcmp(current->bytes, var->key, var->slen) == 0)) {
+        while ((current != ST_DEPEND_NULL) && (UTIL_Key_KeyCmp(current->bytes, var->key, current->keylen, var->slen) == 0)) {
             current = current->deplnk;                                          // go to next dependent
         }                                                                       // end while
 
@@ -995,6 +981,7 @@ short ST_SymSet(short pos, cstring *data)
     if (symtab[pos].data == ST_DATA_NULL) {                                     // if no data block
         symtab[pos].data = malloc(i);                                           // get some memory
         if (symtab[pos].data == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);      // no mem
+        symtab[pos].data->last_key = ST_DEPEND_NULL;                            // init last used key
         symtab[pos].data->deplnk = ST_DEPEND_NULL;                              // init dep link
         symtab[pos].data->attach = 1;                                           // init attach count
     } else if (symtab[pos].data->dbc < data->len) {                             // enough space?
@@ -1021,6 +1008,7 @@ short ST_SymKill(short pos)
 
     if (symtab[pos].data != ST_DATA_NULL) {                                     // there is data
         dptr = symtab[pos].data->deplnk;                                        // get dependent ptr
+        symtab[pos].data->last_key = ST_DEPEND_NULL;                            // clear it
         symtab[pos].data->deplnk = ST_DEPEND_NULL;                              // clear it
 
         while (dptr != ST_DEPEND_NULL) {                                        // for each dependent

@@ -43,11 +43,10 @@ error_off()
 error_on
 
 echo -e "${log}Reference Standard M Database Upgrade Utility${def}\n"
-echo -e "Upgrades an RSM or MUMPS V1 (MV1) database from version 1 to 2\n"
-echo -e "${err}WARNING:${def} This script is experimental.\n"
-echo "David Wicksell <dlw@linux.com>"
 echo "Copyright (c) 2020-2024 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
+echo -e "Upgrades an RSM (or MV1) database from version 1 to 2\n"
+echo -e "${err}WARNING:${def} This script is experimental"
 
 [[ $1 == "-h" ]] && echo -e "\n${log}Usage:${def}\t$0 [<database file to upgrade>]\n\t$0 -h" && exit 0
 
@@ -64,7 +63,7 @@ repo="$(dirname "$(readlink -f "${cwd}"/"$(dirname "$0")")")"
 dbbkup="${dbfile}-$(date "+%Y%m%d%H%M%S").bkup"
 version="$(file -bm "${repo}"/etc/magic "${dbfile}")"
 
-if [[ ${version} != "Reference Standard M Database file, version 1" ]]
+if [[ ${version} != "Reference Standard M database file, version 1" ]]
 then
     echo -e "\n${err}Wrong database file version [${version}], aborting${def}"
     exit 3
@@ -75,7 +74,7 @@ cd "${repo}"
 echo -e "\n${log}Building RSM for database version 1...${def}"
 
 make clean 2>/dev/null
-make dbver=1 2>/dev/null
+make debug dbver=1 2>/dev/null
 
 echo -e "\n${log}Making sure the ${dbfile} environment is shut down for the database backup...${def}"
 
@@ -176,7 +175,7 @@ echo -e "\n${log}Shutting down the old ${dbfile} environment...${def}"
 echo -e "\n${log}Building RSM for database version 2...${def}"
 
 make clean 2>/dev/null
-make 2>/dev/null
+make debug 2>/dev/null
 
 echo -e "\n${log}Removing the old ${dbfile} database...${def}"
 
@@ -239,16 +238,21 @@ do
     fi
 done
 
-"${repo}"/rsm -k "${dbfile}"
+if [[ ${jrnreq} == 1 ]]
+then
+    echo
 
-while fuser "${dbfile}" &>/dev/null
-do
-    sleep 1
-done
+    "${repo}"/rsm -k "${dbfile}"
 
-echo
+    while fuser "${dbfile}" &>/dev/null
+    do
+        sleep 1
+    done
 
-"${repo}"/rsm -j 2 "${dbfile}"
+    echo
+
+    "${repo}"/rsm -j 2 "${dbfile}"
+fi
 
 echo -e "\n${log}Loading the new vendor utilities...${def}"
 
@@ -258,9 +262,9 @@ echo -e "\n${log}Shutting down the new ${dbfile} environment...${def}"
 
 "${repo}"/rsm -k "${dbfile}"
 
-echo -e "\n${log}Removing the temporary routine and global export files...${def}"
+echo -e "\n${log}Removing the temporary global and routine export files...${def}"
 
-rm -f "${dbfile}"-*.[rg]o
+rm -f "${dbfile}"-*.[gr]o
 
 echo -e "\n${log}Cleaning the build environment...${def}"
 
