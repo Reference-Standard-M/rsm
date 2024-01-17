@@ -1309,8 +1309,9 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
             return bytesread;
         }
 
-        // Check for Ctrl-H (ASCII 8 BS) or Backspace key (ASCII 127 DEL) for Backspace
-        if (((curr == 8) && (c->options & MASK[DEL8])) || ((curr == 127) && (c->options & MASK[DEL127]))) {
+        // Check for Ctrl-H (ASCII 8 BS) or (ASCII 127 DEL) from Backspace key
+        if (((curr == 8) && ((c->options & MASK[DEL8]) || (in_hist != OFF))) ||
+          ((curr == 127) && ((c->options & MASK[DEL127]) || (in_hist != OFF)))) {
             if (bytesread <= 0) continue;
 
             if (in_hist == OFF) {

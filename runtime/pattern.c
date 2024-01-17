@@ -186,6 +186,8 @@ short pattern(cstring *a, cstring *b)
     int    x = 0;
     int    y;
 
+    a->buf[a->len] = '\0';                                                      // initialize one past for while loop comparison
+
     while (x < (b->len - 1)) {                                                  // get minimum repeat count
         mincnt[patx] = 0;                                                       // default to 0
         maxcnt[patx] = 255;                                                     // default to 255

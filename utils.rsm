@@ -714,14 +714,14 @@ LOOP ; Main loop to convert to bit
  new cmd,cs,wid,a,bl,$etrap
  set $ecode="",$etrap="do ERROR^%M"
 ;---
-START set wid="terminator="_$char(1,2,4,5,6,7,8,9,10,11,12,13,14,15,16,18,20,21,22,23,24,25,26,28,29,30,31,127)
+START set wid="terminator="_$char(1,2,4,5,6,7,9,10,11,12,13,14,15,16,18,20)
  use $principal:("controlc":"delete=none":"notypeahead":"escape":"echo":wid)
  ; Work out Bottom Line and Width
- write $&v(999,999),$char(27)_"[6n" read a use $principal:("delete=delete":"typeahead")
+ write $&v(999,999),$char(27)_"[6n" read a use $principal:("delete=both":"typeahead")
  set bl=+$piece($key,"[",2),wid=+$piece($key,";",2)
  set:'bl bl=24 set:'wid wid=80 ; Default in case terminal is wonky
  do READ if $get(cmd)'="EXIT" goto START
- use $principal:("terminator="_$char(13)) set $ecode="" quit
+ use $principal:("delete=delete":"terminator="_$char(13)) set $ecode="" quit
 ;---
 READ new vol,uci,pmt,%pmt,e,cst,key,p,sav
  set vol=^$job($job,"global_vol"),uci=^$job($job,"global")
@@ -963,6 +963,7 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
  . read a use $principal:"typeahead"
  . set l=+$piece($key,"[",2),w=+$piece($key,";",2)
  . set:'l l=24 set:'w w=80 ; Default in case terminal is wonky
+ . write $char(13) ; Start in the left column after working out the screen dimensions
  ; Get each line in turn
  for %=1:1 quit:'$data(^$routine(rou,%))  set f=^$routine(rou,%) do  quit:stop
  . ; Format it
