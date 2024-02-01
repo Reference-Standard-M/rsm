@@ -1,0 +1,3 @@
+# Identify files with the rsm extension as the M language on Gitlab/Github
+*.rsm gitlab-language=M
+*.rsm linguist-language=M
