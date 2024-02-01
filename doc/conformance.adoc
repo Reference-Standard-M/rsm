@@ -15,7 +15,7 @@ https://gitlab.com/Reference-Standard-M/rsm
 
 === Summary
 
-Reference Standard M Version 1.80.1 conforms to ANSI/MDC X11.1-1995
+Reference Standard M Version 1.80.3 conforms to ANSI/MDC X11.1-1995
 (ISO/IEC 11756:1999) with the following exceptions (there may be more):
 
 * Supports up to 32 uniquely distinguished characters in names, rather than 8

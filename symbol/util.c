@@ -368,7 +368,9 @@ int ST_Set(mvar *var, cstring *data)                                            
     if (fwd < 0) return fwd;                                                    // error if none free
 
     if (symtab[fwd].data == ST_DATA_NULL) {                                     // if not already exists
-        u_int i = DTBLKSIZE + data->len;                                        // required memory
+        u_int i;
+
+        i = DTBLKSIZE + data->len;                                              // required memory
 
         if ((var->slen != 0) || (i < DTMINSIZE)) i = DTMINSIZE;                 // not required or too small so make it min size
         newPtrDt = malloc(i);                                                   // allocate necessary space

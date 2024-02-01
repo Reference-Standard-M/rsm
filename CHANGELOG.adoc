@@ -12,6 +12,13 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.80.3 -- 2024 Jan 31
+
+* Fix bug in lock table that prevents certain locks from being acquired
+* Fix bug in lock table that allows certain unavailable locks to be acquired
+* Revert lock table performance optimization from `v1.80.0`
+* Add git attributes configuration script [`.gitattributes`]
+
 === v1.80.2 -- 2024 Jan 17
 
 * Fix regression caused by the buffer overflow bug fix in `$ORDER`
