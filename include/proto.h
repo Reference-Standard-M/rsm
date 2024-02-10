@@ -66,7 +66,7 @@ short SQ_Use(int chan, cstring *interm, const cstring *outerm, int par);
 short SQ_Close(int chan);                                                       // close channel
 int   SQ_Write(cstring *buf);                                                   // write to current $IO
 short SQ_WriteStar(u_char c);                                                   // output one character
-short SQ_WriteFormat(int count);                                                // write format chars
+int   SQ_WriteFormat(int count);                                                // write format chars
 
 // read from current $IO to buf, timeout (-1 = unlimited), maximum bytes (-1 = unlimited)
 int   SQ_Read(u_char *buf, int tout, int maxbyt);
@@ -247,7 +247,7 @@ int   Xcall_v(char *ret_buffer, cstring *lin, cstring *col);
 int   Xcall_x(char *ret_buffer, cstring *str, const cstring *flag);
 short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy);
 int   Xcall_getenv(char *ret_buffer, const cstring *env, cstring *dummy);
-short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value);
+short Xcall_setenv(char *ret_buffer, cstring *env, const cstring *value);
 short Xcall_fork(char *ret_buffer, cstring *dummy1, cstring *dummy2);
 short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
 short Xcall_host(char *ret_buffer, cstring *name, cstring *arg);

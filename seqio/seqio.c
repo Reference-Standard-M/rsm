@@ -1761,7 +1761,7 @@ short SQ_Init(void)
         ret = getpeername(s->cid, (struct sockaddr *) &addr, (socklen_t *) &len);
         if (ret == -1) return (short) getError(SYS, errno);
 
-#ifdef _AIX
+#if defined(_AIX) && !defined(_AIX53)
         if (addr.__ss_family == AF_INET6) {
 #else
         if (addr.ss_family == AF_INET6) {
@@ -2206,7 +2206,6 @@ int SQ_Write(cstring *writebuf)
 {
     int chan;                                                                   // Current IO channel
     int ret;                                                                    // Return value
-    int cnt = 0;                                                                // Printable count for $X
 
     ret = checkCstring(writebuf);
     if (ret < 0) return ret;
@@ -2217,15 +2216,23 @@ int SQ_Write(cstring *writebuf)
     ret = objectWrite(chan, (char *) writebuf->buf, writebuf->len);
     if (ret < 0) return ret;
 
-    for (int i = 0; i < writebuf->len; i++) {
-        if (writebuf->buf[i] == '\t') {
-            cnt += (8 - ((partab.jobtab->seqio[chan].dx + cnt) % 8));           // Increment $X by tab-over
-        } else if (isprint(writebuf->buf[i])) {
-            cnt++;                                                              // Increment $X by one
+    if (partab.jobtab->seqio[chan].type == SQ_TERM) {
+        int cnt = 0;                                                            // Printable count for $X
+
+        for (int i = 0; i < writebuf->len; i++) {
+            if (writebuf->buf[i] == '\t') {
+                cnt += (8 - ((partab.jobtab->seqio[chan].dx + cnt) % 8));       // Increment $X by tab-over
+            } else if (isprint(writebuf->buf[i])) {
+                cnt++;                                                          // Increment $X by one
+            }
         }
+
+        partab.jobtab->seqio[chan].dx += cnt;
+        if (partab.jobtab->seqio[chan].dx == 0) partab.jobtab->seqio[chan].dx++; // Increment $X by one if $X overflows
+    } else {
+        partab.jobtab->seqio[chan].dx += ret;
     }
 
-    partab.jobtab->seqio[chan].dx += cnt;
     return ret;
 }
 
@@ -2246,10 +2253,16 @@ short SQ_WriteStar(u_char c)
     ret = objectWrite(chan, (char *) &c, 1);
     if (ret < 0) return ret;
 
-    if (c == '\t') {
-        partab.jobtab->seqio[chan].dx += (8 - (partab.jobtab->seqio[chan].dx % 8)); // Increment $X by tab-over
-    } else if (isprint(c)) {
-        partab.jobtab->seqio[chan].dx++;                                        // Increment $X by one
+    if (partab.jobtab->seqio[chan].type == SQ_TERM) {
+        if (c == '\t') {
+            partab.jobtab->seqio[chan].dx += (8 - (partab.jobtab->seqio[chan].dx % 8)); // Increment $X by tab-over
+        } else if (isprint(c)) {
+            partab.jobtab->seqio[chan].dx++;                                    // Increment $X by one
+        }
+
+        if (partab.jobtab->seqio[chan].dx == 0) partab.jobtab->seqio[chan].dx++; // Increment $X by one if $X overflows
+    } else {
+        partab.jobtab->seqio[chan].dx += ret;
     }
 
     return ret;
@@ -2276,7 +2289,7 @@ short SQ_WriteStar(u_char c)
  * Otherwise, a negative integer value is returned to indicate the error that
  * has occurred.
  */
-short SQ_WriteFormat(int count)
+int SQ_WriteFormat(int count)
 {
     int     chan;                                                               // Current IO channel
     SQ_Chan *IOptr;                                                             // Useful pointer
@@ -2287,10 +2300,10 @@ short SQ_WriteFormat(int count)
     int     bytestowrite;                                                       // Bytes to write
     int     index;                                                              // Useful integer
 
-    if (count < -2) return (short) getError(INT, ERRZ41);
+    if (count < -2) return getError(INT, ERRZ41);
     chan = (int) partab.jobtab->io;
-    if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);
-    if (isChanFree(chan) == 1) return (short) getError(INT, ERRZ27);
+    if (isChan(chan) == 0) return getError(INT, ERRZ25);
+    if (isChanFree(chan) == 1) return getError(INT, ERRZ27);
     IOptr = &partab.jobtab->seqio[chan];
 
     switch (count) {
@@ -2353,6 +2366,7 @@ short SQ_WriteFormat(int count)
             numspaces -= bytestowrite;
         }
 
+        if ((IOptr->type == SQ_TERM) && (IOptr->dx == 0)) IOptr->dx++;          // Increment $X by one if $X overflows
         return byteswritten;
     }
 }

@@ -1,5 +1,6 @@
 .git
 .gitignore
+.gitattributes
 .gitlab-ci.yml
 .dockerignore
 Dockerfile

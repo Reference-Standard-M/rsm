@@ -4,7 +4,7 @@
  * Summary:  module runtime - runtime utilities
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
@@ -309,7 +309,7 @@ time_t current_time(short local)                                                
 
         tzset();                                                                // pick up $TZ overrides
         buf = localtime(&sec);                                                  // return broken-down time
-#if defined(_AIX) || defined(__sun__) || defined(__CYGWIN__)
+#if defined(_HPUX_SOURCE) || defined(_AIX) || defined(__sun__) || defined(__CYGWIN__)
         buf->tm_sec -= timezone;                                                // adjust to local
         if (daylight && buf->tm_isdst) buf->tm_hour += 1;                       // adjust for daylight-savings time
         sec = mktime(buf);                                                      // return seconds from broken-down time

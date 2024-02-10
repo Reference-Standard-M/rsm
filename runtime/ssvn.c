@@ -1171,12 +1171,12 @@ ENABLE_WARN
                 u_int vsiz;                                                     // for the size
 
                 vsiz = (u_int) atol((char *) data->buf);                        // get the new
-                if (vsiz <= systab->vol[i]->vollab->max_block) return -(ERRZ12 + ERRMLAST);
+                if (vsiz <= systab->vol[i]->vollab->max_block) return -ERRM38;
                 vsiz |= 7;                                                      // fix size
-                if (vsiz > MAX_DATABASE_BLKS) return -(ERRZ12 + ERRMLAST);
+                if (vsiz > MAX_DATABASE_BLKS) return -ERRM38;
 
-                if (vsiz > (((systab->vol[i]->vollab->header_bytes - (sizeof(label_block)) * 8)) | 7)) {
-                    return -(ERRZ12 + ERRMLAST);
+                if (vsiz > (((systab->vol[i]->vollab->header_bytes - sizeof(label_block)) * 8) | 7)) {
+                    return -ERRM38;
                 }
 
                 return DB_Expand(i, vsiz);                                      // do it

@@ -42,7 +42,7 @@
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       80                                                  // Minor version number
-#define VERSION_PATCH       3                                                   // Patch version number
+#define VERSION_PATCH       4                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -226,7 +226,7 @@
 
 #define MAX_TRANTAB         64                                                  // total number of entries
 
-#if defined(linux) || defined(_AIX) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun__) || defined(__CYGWIN__)
+#if !defined(__APPLE__) && !defined(__OpenBSD__)
 typedef union semun {
     int             val;                                                        // value for SETVAL
     struct semid_ds *buf;                                                       // buffer for IPC_STAT, IPC_SET

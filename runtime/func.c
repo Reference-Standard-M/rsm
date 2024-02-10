@@ -490,6 +490,7 @@ int Djustify2(u_char *ret_buffer, cstring *expr, int size)
     int adj;                                                                    // adjust required
     int i;                                                                      // for loops
 
+    if (size > MAX_STR_LEN) return -ERRM75;                                     // complain if too long
     adj = size - (int) expr->len;                                               // get number of spaces
     if (adj < 0) adj = 0;                                                       // ensure positive
     for (i = 0; i < adj; i++) ret_buffer[i] = ' ';                              // for each required space, copy in a space
@@ -512,6 +513,7 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
     int cop;
 
     if (round < 0) return -ERRM28;                                              // that's an error
+    if (size > MAX_STR_LEN) return -ERRM75;                                     // complain if too long
     if (size < 0) size = 0;                                                     // if negative size then make it zero
     len = expr->len;
 

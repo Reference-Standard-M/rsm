@@ -12,6 +12,19 @@ link:doc/index.adoc[Index]
 
 == Reference Standard M Changelog
 
+=== v1.80.4 -- 2024 Feb 9
+
+* Fix bug that prevents proper database volume expansion
+* Change database expansion error codes
+* Fix bug in `$JUSTIFY` caused by lack of bounds checking
+* Fix bug in `WRITE ?` caused by incorrect data typing
+* Improve handling of `$X` overflow in terminal devices
+* Fix socket support on AIX (>= 5.3), with help from Matthew Wilson
+* Improve the `$&%SETENV` XCall on AIX (>= 5.2), with help from Matthew Wilson
+* Add better support for HP-UX, with help from Matthew Wilson
+* Fix bugs in the `^%RD`, `^%SS`, and `^%ZOSV` vendor routines
+* Improve scoping in many vendor utility routines
+
 === v1.80.3 -- 2024 Jan 31
 
 * Fix bug in lock table that prevents certain locks from being acquired
