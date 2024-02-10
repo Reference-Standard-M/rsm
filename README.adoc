@@ -8,7 +8,7 @@ image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
 
 == Reference Standard M
 
-*Version 1.80.3 - 2024 Jan 31*
+*Version 1.80.4 - 2024 Feb 9*
 
 === Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
@@ -61,25 +61,29 @@ The RSM link:doc/index.adoc[documentation] is a work-in-progress.
 
 RSM builds and runs on most UNIX, and UNIX-derived platforms, running 32-bit and
 64-bit processors, in little-endian and big-endian mode. The platforms that have
-been tested, or known to build and run RSM, are:
+been tested, and/or known (or suspected) to build and run RSM, are:
 
 * Linux (Ubuntu, Debian, Red Hat, OpenSUSE, and Slackware) on i386 and x86_64
+* Debian Linux on ppc64le
+* Gentoo Linux on IA-64
 * FreeBSD on amd64
 * NetBSD on amd64
 * OpenBSD on amd64
 * macOS 10.4 and newer on ILP32 and LP64 Intel (Clang or GCC)
 * macOS 11.0 and newer on 64-bit M1 ARMv8 (Clang or GCC)
 * Solaris on i86pc
-* AIX on ppc32be
+* AIX on ppc32be and ppc64be
+* HP-UX on IA-64
 * Windows XP, 7, and 10, under Cygwin and/or Windows Subsystem for Linux 1 and 2
 * Raspberry Pi on armv6l and armv7l running Raspbian
 * Mobian (Mobile Debian Linux) on aarch64
 
-WARNING: RSM will not run on SPARC hardware, due to memory alignment
-requirements
+WARNING: RSM will not run on SPARC, and may not run on PA-RISC hardware, due to
+memory alignment requirements
 
 Thanks to link:https://gitlab.com/jpwillis[John Willis] for providing access to
-his build farm, and to Terry Wiechmann for helping me with testing.
+the build farm, and to link:https://github.com/racingmars[Matthew Wilson],
+Terry Wiechmann, and Flavio Fornazier for helping me with testing.
 
 To build RSM, clone the RSM git repository:
 

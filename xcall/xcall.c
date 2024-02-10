@@ -1531,26 +1531,28 @@ int Xcall_getenv(char *ret_buffer, const cstring *env, __attribute__((unused)) c
  *           existing environment variable), or unsets an existing
  *           environment variable if "value" == NULL
  */
-short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value)
+short Xcall_setenv(char *ret_buffer, cstring *env, const cstring *value)
 {
-    int ret;                                                                    // Return value
+    int ret = 0;                                                                // Return value
 
     ret_buffer[0] = '\0';                                                       // Always return NULL
 
     if (value == NULL) {                                                        // Unset environment variable
-#ifndef _AIX
-        unsetenv ((char *) env->buf);                                           // TODO: AIX doesn't have this, use a different API
+#if (!defined(_HPUX_SOURCE) && !defined(_AIX)) || defined(_AIX52)
+        ret = unsetenv((char *) env->buf);                                      // TODO: AIX older than 5.2 doesn't have this
+#else
+        return ret;
 #endif
-        return 0;
     } else {                                                                    // Set environment variable
+#ifndef _HPUX_SOURCE
         ret = setenv((char *) env->buf, (char *) value->buf, 1);
-
-        if (ret == -1) {                                                        // Error has occurred
-            return -(ERRMLAST + ERRZLAST + errno);
-        } else {
-            return 0;
-        }
+#else
+        return ret;
+#endif
     }
+
+    if (ret == -1) return -(ERRMLAST + ERRZLAST + errno);                       // Error has occurred
+    return ret;
 }
 
 /*
@@ -1795,9 +1797,9 @@ short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
     if (arg1->len) {                                                            // call with an arguments (PID)
         pid = cstringtoi(arg1);                                                 // get pid number
         if (pid < 1) return -ERRM99;
-        pid = wait4(pid, &status, blocked, NULL);
+        pid = waitpid(pid, &status, blocked);
     } else {                                                                    // call without an arguments
-        pid = wait3(&status, blocked, NULL);
+        pid = waitpid(-1, &status, blocked);
         if ((pid < 0) && blocked && (errno == ECHILD)) pid = 0;                 // no error if non blocked
     }
 

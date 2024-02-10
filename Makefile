@@ -2,10 +2,10 @@
 # Package:  Reference Standard M
 # File:     rsm/Makefile
 # Summary:  Makefile for FreeBSD, NetBSD, and OpenBSD
-#           See rsm/GNUmakefile for Linux, macOS, Solaris, AIX, and Raspberry Pi
+#           See rsm/GNUmakefile for Linux, macOS, Solaris, AIX, HP-UX, and RPi
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020-2023 Fourth Watch Software LC
+# Copyright © 2020-2024 Fourth Watch Software LC
 # https://gitlab.com/Reference-Standard-M/rsm
 #
 # Based on MUMPS V1 by Raymond Douglas Newman

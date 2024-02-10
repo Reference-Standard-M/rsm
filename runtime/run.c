@@ -1079,23 +1079,23 @@ int run(int savasp, int savssp)                                                 
         case CMWRTNL:                                                           // WRITE !
             partab.jobtab->commands++;                                          // count a command
             in_hist = OFF;
-            s = SQ_WriteFormat(SQ_LF);                                          // do it
+            t = SQ_WriteFormat(SQ_LF);                                          // do it
             in_hist = FALSE;
-            if (s < 0) ERROR(s);                                                // complain on error
+            if (t < 0) ERROR(t);                                                // complain on error
             break;
 
         case CMWRTFF:                                                           // WRITE #
             partab.jobtab->commands++;                                          // count a command
-            s = SQ_WriteFormat(SQ_FF);                                          // do it
-            if (s < 0) ERROR(s);                                                // complain on error
+            t = SQ_WriteFormat(SQ_FF);                                          // do it
+            if (t < 0) ERROR(t);                                                // complain on error
             break;
 
         case CMWRTAB:                                                           // WRITE ?expr
             partab.jobtab->commands++;                                          // count a command
             i = cstringtoi((cstring *) addstk[--asp]);                          // get the value
             if (i < 1) break;                                                   // ingore junk
-            s = SQ_WriteFormat(i);                                              // do it
-            if (s < 0) ERROR(s);                                                // complain on error
+            t = SQ_WriteFormat(i);                                              // do it
+            if (t < 0) ERROR(t);                                                // complain on error
             break;
 
         case CMWRTEX:                                                           // WRITE expr
@@ -2906,7 +2906,7 @@ int run(int savasp, int savssp)                                                 
                 args++;
 
                 if (var_empty(list[args - 1])) {                                // an index type?
-                    rouadd = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+                    rouadd = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
                     vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
                     VAR_COPY(list[args - 1], vt[var->volset - 1]);              // get the var name
                 }
@@ -2993,7 +2993,7 @@ int run(int savasp, int savssp)                                                 
                 if (var->slen) ERROR(-(ERRZ13 + ERRMLAST));                     // any subscripts? also not permitted
 
                 if (var->volset) {                                              // index type?
-                    rouadd = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+                    rouadd = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
                     vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);
 
                     // point at var table
@@ -3014,7 +3014,7 @@ int run(int savasp, int savssp)                                                 
             if (var->slen) ERROR(-(ERRZ13 + ERRMLAST));                         // any subscripts? also not permitted
 
             if (var->volset) {                                                  // index type?
-                rouadd = (rbd *) (partab.jobtab->dostk[partab.jobtab->cur_do].routine);
+                rouadd = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
                 vt = (var_u *) (((u_char *) rouadd) + rouadd->var_tbl);         // point at var table
                 VAR_COPY(var->name, vt[var->volset - 1]);                       // get the var name
                 var->volset = 0;                                                // clear the index

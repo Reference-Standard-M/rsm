@@ -1,11 +1,11 @@
 #
 # Package:  Reference Standard M
 # File:     rsm/GNUmakefile
-# Summary:  Makefile for Linux, macOS, Solaris, AIX, and Raspberry Pi
+# Summary:  Makefile for Linux, macOS, Solaris, AIX, HP-UX, and RPi
 #           See rsm/Makefile for FreeBSD, NetBSD, and OpenBSD
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020-2023 Fourth Watch Software LC
+# Copyright © 2020-2024 Fourth Watch Software LC
 # https://gitlab.com/Reference-Standard-M/rsm
 #
 # Based on MUMPS V1 by Raymond Douglas Newman
@@ -33,7 +33,6 @@ DEPS    := $(wildcard include/*.h)
 SRC     := $(wildcard */*.c)
 OBJ     := $(SRC:.c=.o)
 CFLAGS  := -Wall -Wextra -fsigned-char -fwrapv -std=gnu99 -Iinclude -D_FILE_OFFSET_BITS=64
-LDFLAGS := -lcrypt
 PREFIX  := /usr/local
 GIT_SHA := $(shell git rev-parse --short=10 HEAD 2>/dev/null; true)
 
@@ -45,8 +44,17 @@ ifdef dbver
     CFLAGS  += -DRSM_DBVER=$(dbver)
 endif
 
+ifeq ($(OS),HP-UX)
+    LDFLAGS := -lm
+else
+    LDFLAGS := -lcrypt
+endif
+
 ifneq ($(OS),AIX)
-    LDFLAGS += -lm
+    ifneq ($(OS),HP-UX)
+        LDFLAGS += -lm
+    endif
+
     INSTALL := install -o root -g 0 -m 755 -s ${PROG} ${PREFIX}/bin
 else
     INSTALL := install -O root -G 0 -M 755 -S -f ${PREFIX}/bin ${PROG}
