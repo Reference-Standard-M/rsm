@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/util/memory.c
- * Summary:  module util - memory subroutines
+ * Package: Reference Standard M
+ * File:    rsm/util/memory.c
+ * Summary: module util - memory subroutines
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2016
+ * Copyright © 1999-2016
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -126,6 +129,7 @@ short ncopy(u_char **src, u_char *dst)                                          
     }                                                                           // string now copied
 
     if (dp) {                                                                   // if there was a dot
+        if ((i == 1) && !k) return -(ERRZ12 + ERRMLAST);                        // if just a dp, complain
         for (k = 0; dst[i - k - 1] == '0'; k++) continue;                       // check for trailing zeroes
         i -= k;                                                                 // remove them (if any)
         if (dst[i - 1] == '.') i--;                                             // ensure last is not dot
@@ -232,23 +236,24 @@ void CleanJob(int job)                                                          
     int i;                                                                      // a handy int
 
     j = job - 1;                                                                // copy argument to int job form
-    if (!job) j = partab.jobtab - systab->jobtab;                               // or get current int job#
+    if (!job) j = partab.jobtab - partab.job_table;                             // or get current int job#
     LCK_Remove(j + 1);                                                          // remove locks
-    i = systab->jobtab[j].cur_do;                                               // get current do
+    i = partab.job_table[j].cur_do;                                             // get current do
 
     while (i) {                                                                 // for each i
         if (!job) {                                                             // called by ourselves ?
-            if (systab->jobtab[j].dostk[i].newtab != NULL) {
-                ST_Restore((ST_newtab *) systab->jobtab[j].dostk[i].newtab);
+            if (partab.job_table[j].dostk[i].newtab != NULL) {
+                ST_Restore((ST_newtab *) partab.job_table[j].dostk[i].newtab);
             }
 
-            if ((systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) && (systab->jobtab[j].dostk[i].symbol != NULL)) { // detach symbols
-                ST_SymDet(((rbd *) systab->jobtab[j].dostk[i].routine)->num_vars, systab->jobtab[j].dostk[i].symbol);
+            // detach symbols
+            if ((partab.job_table[j].dostk[i].flags & DO_FLAG_ATT) && (partab.job_table[j].dostk[i].symbol != NULL)) {
+                ST_SymDet(((rbd *) SOA(partab.job_table[j].dostk[i].routine))->num_vars, partab.job_table[j].dostk[i].symbol);
             }
         }
 
-        if (systab->jobtab[j].dostk[i].flags & DO_FLAG_ATT) {                   // if we attached
-            Routine_Detach((rbd *) systab->jobtab[j].dostk[i].routine);         // detach routine
+        if (partab.job_table[j].dostk[i].flags & DO_FLAG_ATT) {                 // if we attached
+            Routine_Detach((rbd *) SOA(partab.job_table[j].dostk[i].routine));  // detach routine
         }
 
         i--;                                                                    // decrement do ptr
@@ -268,19 +273,19 @@ void CleanJob(int job)                                                          
     }
 
     for (i = 0; i < MAX_VOL; i++) {                                             // scan view table
-        if (systab->jobtab[j].view[i] != NULL) {                                // if buffer locked
-            DB_ViewRel(i + 1, systab->jobtab[j].view[i]);                       // release it
-            systab->jobtab[j].view[i] = NULL;                                   // clear entry
+        if (partab.job_table[j].view[i] != NULL) {                              // if buffer locked
+            DB_ViewRel(i + 1, SOA(partab.job_table[j].view[i]));                // release it
+            partab.job_table[j].view[i] = NULL;                                 // clear entry
         }
     }
 
-    systab->jobtab[j].cur_do = 0;                                               // in case we get back here
+    partab.job_table[j].cur_do = 0;                                             // in case we get back here
 
     if (!job) {                                                                 // if current job
         for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) continue;                    // close all io
         partab.jobtab = NULL;                                                   // clear jobtab
     }
 
-    memset(&systab->jobtab[j], 0, sizeof(jobtab));                              // zot all
+    memset(&partab.job_table[j], 0, sizeof(jobtab));                            // zot all
     return;                                                                     // and exit
 }

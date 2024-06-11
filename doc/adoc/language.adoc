@@ -1,27 +1,34 @@
-:source-highlighter: highlight.js
-:highlightjs-languages: cos
-:toc: macro
-:toclevels: 2
+////
+Package: Reference Standard M
+File:    doc/adoc/language.adoc
+Summary: Language usage documentation
 
-[role="left"]
-image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
-="Fourth Watch Software Logo", width="480", height="80"]
-
-[role="right"]
-link:index.adoc[Index]
-
-'''
-
-[discrete]
-== Reference Standard M Language Guide
-
-David Wicksell <dlw@linux.com> +
-Copyright © 2020-2024 Fourth Watch Software LC +
+David Wicksell <dlw@linux.com>
+Copyright © 2020-2024 Fourth Watch Software LC
 https://gitlab.com/Reference-Standard-M/rsm
 
-toc::[]
+Based on MUMPS V1 by Raymond Douglas Newman
+Copyright © 1999-2003
+https://gitlab.com/Reference-Standard-M/mumpsv1
 
-== Introduction
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
+:source-highlighter: highlight.js
+:highlightjs-languages: cos
+
+= Language Guide
+
+== Summary
 
 This guide provides documentation of the M language elements implemented in
 Reference Standard M [RSM] and their relation to the ANSI/MDC X11.1-1995
@@ -73,7 +80,7 @@ current debugging breakpoints.
 
 User-written external calls [XCalls] are not currently supported; however,
 several external calls have been provided as native implementations -- see
-link:xcall.adoc[External Call Interface].
+xref:xcall.adoc[External Call Interface].
 
 === Volume Sets and User Class Identifiers
 
@@ -116,8 +123,7 @@ IMPORTANT: Currently any user may create or edit a library routine
 
 IMPORTANT: Commands without an argument must be followed by two or more spaces
 
-NOTE: M commands are case-insensitive, and have a short and long form, denoted
-with square bracket notation
+NOTE: M commands are case-insensitive, and have a long and short form
 
 === `*;*` Comment
 
@@ -148,7 +154,7 @@ Mostly complies, but the standard does not permit a `;` in the first column.
 ; This is a comment
 ----
 
-=== B[REAK]
+=== BREAK|B
 
 Stops execution of current process for debugging until signaled.
 
@@ -170,7 +176,7 @@ effectively runs as an `XECUTE` or `DO` command (adding a level to the stack).
 The break specifier may be one of the following:
 
 [%autowidth]
-.B[REAK] Usage
+.BREAK Usage
 |===
 | Specifier                     | Description
 
@@ -181,6 +187,8 @@ The break specifier may be one of the following:
 | `BREAK ":"`                   | Clear `QUIT` handler
 | `BREAK ""`                    | Clear all breakpoints/handlers - stop debugger
 | `BREAK`                       | Break here (in routine code or direct mode)
+| `BREAK 0`                     | Disable `BREAK` within current job
+| `BREAK 1`                     | Re-enable `BREAK` within current job
 |===
 
 Where _breakref_ is `_label_[+_offset_]^_routine_` or `[+_linenum_]^_routine_`
@@ -207,14 +215,13 @@ WARNING: Code entered in the debugger must be 255 characters or less
 
 ==== Standard
 
-Complies, as the standard does not specify arguments or signals. This feature
-may be disabled with `break 0`, and re-enabled with `break 1`, within a job.
+Complies, as the standard does not specify arguments or signals.
 
 ==== Examples
 
 [source,cos]
 ----
-break "+7^routine:do ^%debug" ; Break at line 7 of ^routine, and call ^debug
+break "+7^routine:do ^%debug" ; Break at line 7 of ^routine, and call ^%debug
 break "+3^routine:"           ; Set simple breakpoint at line 3 of ^routine
 break "+1^routine"            ; Clear breakpoint on line 1 of ^routine
 break ":do ^%debug"           ; Set up quit handler that fires after each step
@@ -232,7 +239,7 @@ for  set routine=$order($ZBP(routine)) quit:routine=""  do
 . . write ?4,"+"_line_"^"_routine,!
 ----
 
-=== C[LOSE]
+=== CLOSE|C
 
 Releases ownership of an I/O device.
 
@@ -263,9 +270,9 @@ Complies exactly, as device parameters are implementation-specific in the standa
 close 1,2 ; Close channels 1 and 2
 ----
 
-See link:seqio.adoc[Sequential I/O Interface] for details on how to use `CLOSE`.
+See xref:seqio.adoc[Sequential I/O Interface] for details on how to use `CLOSE`.
 
-=== D[O]
+=== DO|D
 
 Executes a subroutine (named or anonymous via a dotted-do block), then returns
 control to the next command after the `DO`; for multiple arguments, each
@@ -308,7 +315,7 @@ do  ; Do the following block of code
 do label,ext^routine,label2(arg1) ; Various subroutine calls
 ----
 
-=== E[LSE]
+=== ELSE|E
 
 Execute the following commands if `$TEST` evaluates to false.
 
@@ -338,7 +345,7 @@ if 0 write "True!",!   ; This write command will not execute - $test=0
 else  write "False!",! ; This write command will execute - $test=0
 ----
 
-=== F[OR]
+=== FOR|F
 
 Execute commands repeatedly, until certain conditions are met; argumented form
 sets the value of a variable, argumentless form does not.
@@ -383,7 +390,7 @@ for i=1:1:3,5,7:1:9 write i             ; Write out 1235789
 for i=1:1 for j=1:1 do sub goto done:ok ; Process all i and j until ok true
 ----
 
-=== G[OTO]
+=== GOTO|G
 
 Transfer control to another line of code without use of the stack.
 
@@ -418,7 +425,7 @@ may be turned off with `set ^$system("offok")=0` as a privileged user.
 goto done:ok,fail ; Dispatch to done or fail on ok flag
 ----
 
-=== H[ALT]
+=== HALT|H
 
 Stop the currently executing process (M job).
 
@@ -445,7 +452,7 @@ Complies exactly.
 halt ; Terminate the job
 ----
 
-=== H[ANG]
+=== HANG|H
 
 Pause execution of the currently running process (M job) for a specified number
 of seconds.
@@ -456,7 +463,7 @@ Valid truth-value expression.
 
 ==== Arguments
 
-Numeric expression -- interpretated as a positive integer and using its floor.
+Numeric expression -- interpreted as a positive integer and using its floor.
 
 ==== Usage
 
@@ -465,8 +472,9 @@ number of seconds, otherwise the current time slice is surrendered.
 
 ==== Standard
 
-Mostly complies, however a `hang 0` gives up the current timeslice to the OS
-process scheduler, rather than doing nothing.
+Mostly complies, however a timeout less than `1` gives up the current time slice
+to the OS process scheduler, when the job is using a real-time scheduling
+policy, otherwise, it does nothing, which is standard.
 
 ==== Examples
 
@@ -474,11 +482,11 @@ process scheduler, rather than doing nothing.
 ----
 hang 30   ; Wait for 30 seconds
 hang 30.9 ; Behaves the same as hang 30
-hang 0    ; Give up the current timeslice to the OS process scheduler
+hang 0    ; Give up the time slice to the OS process scheduler (real-time only)
 hang -5   ; Behaves the same as hang 0
 ----
 
-=== I[F]
+=== IF|I
 
 Execute the following commands if the argument expression evaluates to true;
 sets `$TEST` to whether the `IF` succeeded.
@@ -508,7 +516,7 @@ Complies exactly.
 if a=b,c=d goto label ; Dispatch to label when a=b and c=d
 ----
 
-=== J[OB]
+=== JOB|J
 
 Starts a new process (M job) that begins execution at the specified line of
 code.
@@ -545,7 +553,7 @@ Complies exactly, as process parameters are implementation-specific in the stand
 job int^routine("param1") ; Start background job
 ----
 
-=== K[ILL]
+=== KILL|K
 
 Deletes specified variables, and all their array descendants.
 
@@ -576,7 +584,7 @@ kill (a,b)        ; Remove all local variables except a and b
 kill ^database(1) ; Remove ^database(1) and its descendants
 ----
 
-=== L[OCK]
+=== LOCK|L
 
 Create, or remove, an advisory lock (normal or incremental) on a name.
 
@@ -619,7 +627,7 @@ lock ^user         ; Acquire another lock (releases previous lock)
 lock               ; Releases all locks
 ----
 
-=== M[ERGE]
+=== MERGE|M
 
 Copies the value and all array descendants from one variable to another
 variable.
@@ -649,7 +657,7 @@ Complies exactly.
 merge ^database(1)=local ; Save our data in the database
 ----
 
-=== N[EW]
+=== NEW|N
 
 Saves and temporarily removes locals and their array descendants, and restores
 them when the block of code ends.
@@ -675,7 +683,7 @@ are restored to their previous state.
 Additionally, the following intrinsic special variables may be ``NEW``ed:
 
 [%autowidth]
-.N[EW] ISVs
+.NEW ISVs
 |===
 | ISV       | Action when ``NEW``ed
 
@@ -696,7 +704,7 @@ new (a,b) ; Save all local variables except a and b
 new a,b   ; Save a and b
 ----
 
-=== O[PEN]
+=== OPEN|O
 
 Acquires ownership of an I/O device.
 
@@ -717,7 +725,7 @@ or file in that channel. One and only one second parameter must be supplied. It
 may be supplied in full or abbreviated form, and is case-insensitive.
 
 [%autowidth]
-.O[PEN] Parameters
+.OPEN Parameters
 |===
 | First Parameter    | Second Parameter
 
@@ -744,9 +752,9 @@ open 1:("/home/user/data.txt":"write") close 1 ; Delete the file
 open 2:("80":"server=4") use 2 read job        ; Setup a TCP server (4 jobs)
 ----
 
-See link:seqio.adoc[Sequential I/O Interface] for details on how to use `OPEN`.
+See xref:seqio.adoc[Sequential I/O Interface] for details on how to use `OPEN`.
 
-=== Q[UIT]
+=== QUIT|Q
 
 Ends the current process level and returns a value; argumentless quit ends the
 current process level without returning a value
@@ -777,7 +785,7 @@ quit:ok     ; Quit when done
 quit result ; Return the result
 ----
 
-=== R[EAD]
+=== READ|R
 
 Gets input from the current I/O device and puts the response in the specified
 variables.
@@ -833,9 +841,9 @@ use of character transforms which aren't implemented.
 read !,"Answer: ",ans:10 ; Give them 10 seconds to answer and store it in ans
 ----
 
-See link:seqio.adoc[Sequential I/O Interface] for details on how to use `READ`.
+See xref:seqio.adoc[Sequential I/O Interface] for details on how to use `READ`.
 
-=== S[ET]
+=== SET|S
 
 Puts values into variables.
 
@@ -878,7 +886,7 @@ set $etrap="do ^%error"     ; Setup the error trap
 set $piece(list,",",5)=date ; Update date in list piece 5
 ----
 
-=== U[SE]
+=== USE|U
 
 Changes the current device from the list of I/O devices owned by the current
 process.
@@ -895,10 +903,11 @@ List of `_channel_[:(_param1_[:__param2__...])[:__namespace__]]`.
 
 Make an owned device current for input and/or output.
 
-Valid parameters (passed as strings) by file/socket/pipe/device class type are:
+Valid parameters (passed as strings) by file/socket/pipe/character class type
+are:
 
 [%autowidth]
-.U[SE] Parameters
+.USE Parameters
 |===
 | Parameter                      | Valid Class Types | Description
 
@@ -931,9 +940,9 @@ use term read *chk:0 use file                      ; See if user has hit a key
 use 0:("terminator="_$char(1,5,7,13):"nocontrolc") ; Set terminators, disable ^C
 ----
 
-See link:seqio.adoc[Sequential I/O Interface] for details on how to use `USE`.
+See xref:seqio.adoc[Sequential I/O Interface] for details on how to use `USE`.
 
-=== V[IEW]
+=== VIEW|V
 
 Adds, or removes, disk blocks to, or from, the view buffer.
 
@@ -966,7 +975,7 @@ As the standard is so vague, nearly anything complies exactly.
 view -1:1 ; Get the global directory for the manager UCI
 ----
 
-=== W[RITE]
+=== WRITE|W
 
 Formats and outputs values to the current I/O device.
 
@@ -995,11 +1004,11 @@ Output characters to the current output device.
 `$X` and `$Y` are altered as follows:
 
 [%autowidth]
-.W[RITE] Usage
+.WRITE Usage
 |===
 | Character Type         | Description
 
-| Graphic [ASCII 32-126] | Increment `$X`
+| Graphic (ASCII 32-126) | Increment `$X`
 | Backspace              | Decrement `$X` to a minimum of `0`
 | Line feed              | Increment `$Y`
 | Carriage return        | `$X` -> `0`
@@ -1019,9 +1028,9 @@ Complies exactly.
 write "Heading",! ; Output Heading to display
 ----
 
-See link:seqio.adoc[Sequential I/O Interface] for details on how to use `WRITE`.
+See xref:seqio.adoc[Sequential I/O Interface] for details on how to use `WRITE`.
 
-=== X[ECUTE]
+=== XECUTE|X
 
 Interprets and executes a string as M code.
 
@@ -1056,7 +1065,7 @@ xecute "write ""x is 1""":x=1,"write ""x is not 1""":x-1 ; Run string as M code
 NOTE: Intrinsic functions are case-insensitive, and have a short and long form,
 denoted with square bracket notation
 
-=== $A[SCII]
+=== $ASCII|$A
 
 ASCII code corresponding to one character in a string.
 
@@ -1080,7 +1089,7 @@ Complies exactly.
 write $ascii("ABC",2) ; -> 66
 ----
 
-=== $C[HAR]
+=== $CHAR|$C
 
 Characters corresponding to a list of ASCII codes.
 
@@ -1105,7 +1114,7 @@ Complies exactly using the ASCII character set.
 write $char(65,66,-1,67) ; -> "ABC"
 ----
 
-=== $D[ATA]
+=== $DATA|$D
 
 Number indicating whether a variable is defined or has nodes.
 
@@ -1116,7 +1125,7 @@ Number indicating whether a variable is defined or has nodes.
 ==== Returns
 
 [%autowidth]
-.$D[ATA] Returns
+.$DATA Returns
 |===
 | Value | Description
 
@@ -1138,7 +1147,7 @@ set A(1)=42 write $data(A)               ; -> 10
 set A="forty-two",A(1)=42 write $data(A) ; -> 11
 ----
 
-=== $E[XTRACT]
+=== $EXTRACT|$E
 
 Returns one or more characters from a string.
 
@@ -1164,7 +1173,7 @@ Complies exactly.
 write $extract("ABCD",-1,2) ; -> "AB"
 ----
 
-=== $F[IND]
+=== $FIND|$F
 
 Position of character following left-most occurrence of substring in a string.
 
@@ -1190,7 +1199,7 @@ Complies exactly.
 write $find("ABCDEF","CD") ; -> 5
 ----
 
-=== $FN[UMBER]
+=== $FNUMBER|$FN
 
 Number formatted according to codes.
 
@@ -1200,7 +1209,7 @@ Number formatted according to codes.
 Where code is zero or more of the following:
 
 [%autowidth]
-.$FN[UMBER] Format
+.$FNUMBER Format
 |===
 | Code        | Description
 
@@ -1229,7 +1238,7 @@ Complies exactly.
 write $fnumber(1234.567,"T+,",2) ; -> 1,234.57+
 ----
 
-=== $G[ET]
+=== $GET|$G
 
 Returns the value of a variable, or a default value if variable is not defined.
 
@@ -1253,7 +1262,7 @@ Complies exactly.
 write $get(^DATABASE(1),"Undefined") ; -> "Undefined" if $data(^DATABASE(1))#2=0
 ----
 
-=== $I[NCREMENT]
+=== $INCREMENT|$I
 
 Atomically increments or decrements the value of a variable, by a specified
 number (default 1).
@@ -1283,7 +1292,7 @@ write $increment(value,-35) ; -> -35
 write value                 ; -> -35
 ----
 
-=== $J[USTIFY]
+=== $JUSTIFY|$J
 
 Right justify a string in a field of spaces.
 
@@ -1308,7 +1317,7 @@ write $justify("ABC",5)  ; -> "  ABC"
 write $justify(.456,6,2) ; -> "  0.46"
 ----
 
-=== $L[ENGTH]
+=== $LENGTH|$L
 
 Returns the length of a string, measured in characters or pieces.
 
@@ -1334,7 +1343,7 @@ write $length("ABC")             ; -> 3
 write $length("ABC,DEF,GHI",",") ; -> 3
 ----
 
-=== $NA[ME]
+=== $NAME|$NA
 
 Evaluated name of a variable with some, all, or no subscripts; such a string is
 called a name value.
@@ -1362,7 +1371,7 @@ write $name(A(1,2,3),0)                  ; -> "A"
 set %=$data(^A(1,2,3)) write $name(^(6)) ; -> ^A(1,2,6)
 ----
 
-=== $N[EXT]
+=== $NEXT|$N
 
 Next subscript in a specified array.
 
@@ -1393,7 +1402,7 @@ write $next(A(1,2))            ; -> 4
 write $next(A(1,4))            ; -> -1
 ----
 
-=== $O[RDER]
+=== $ORDER|$O
 
 Next or previous subscript in a specified array.
 
@@ -1425,7 +1434,7 @@ write $order(A(1,4),-1)        ; -> 2
 write $order(A(1,4))           ; -> ""
 ----
 
-=== $P[IECE]
+=== $PIECE|$P
 
 Partitions a string into pieces based on a delimiter, and returns some of those
 pieces.
@@ -1453,7 +1462,7 @@ Complies exactly.
 write $piece("ABC,DE,FG,H,I",",",2,4) ; -> "DE,FG,H"
 ----
 
-=== $QL[ENGTH]
+=== $QLENGTH|$QL
 
 Number of subscripts in a variable name, passed as a name value.
 
@@ -1478,7 +1487,7 @@ write $qlength("A(3)")           ; -> 1
 write $qlength($name(^A(1,2,3))) ; -> 3
 ----
 
-=== $QS[UBSCRIPT]
+=== $QSUBSCRIPT|$QS
 
 Specified part (name, environment, or a subscript) of a variable name, passed as
 a name value.
@@ -1505,7 +1514,7 @@ Complies exactly.
 write $qsubscript("^ABC(1,6,2)",2) ; -> 6
 ----
 
-=== $Q[UERY]
+=== $QUERY|$Q
 
 Next subscripted variable name in array, returned as a name value.
 
@@ -1538,7 +1547,7 @@ write $query(A)      ; -> "A(4,3)"
 write $query(A(4,3)) ; -> ""
 ----
 
-=== $R[ANDOM]
+=== $RANDOM|$R
 
 Random integer uniformly distributed over an interval between 0 and
 `_intargument_-1`, inclusive.
@@ -1563,7 +1572,7 @@ Complies exactly.
 write $random(1) ; -> 0
 ----
 
-=== $RE[VERSE]
+=== $REVERSE|$RE
 
 Returns the characters of a string in reverse order.
 
@@ -1586,7 +1595,7 @@ Complies exactly.
 write $reverse("ABC") ; -> "CBA"
 ----
 
-=== $S[ELECT]
+=== $SELECT|$S
 
 Returns the value corresponding to first true condition of list, evaluated left
 to right.
@@ -1611,7 +1620,7 @@ Complies exactly.
 kill A write $select($data(A):1,1:4) ; -> 4
 ----
 
-=== $ST[ACK]
+=== $STACK|$ST
 
 Information about how a level of the process stack was created, what code is
 executing at that level, and what errors have accumulated there.
@@ -1658,7 +1667,7 @@ Complies exactly.
 write $stack(1) ; -> "DO"
 ----
 
-=== $T[EXT]
+=== $TEXT|$T
 
 Returns a line of code from a routine.
 
@@ -1686,7 +1695,7 @@ write $text(+0^ROUTINE) ; -> "ROUTINE"
 write $text(+0)         ; -> Current routine name
 ----
 
-=== $TR[ANSLATE]
+=== $TRANSLATE|$TR
 
 A translation of a string, in which certain characters are removed or replaced.
 
@@ -1710,7 +1719,7 @@ Complies exactly.
 write $translate("ABCDEF","FED","*$") ; -> "ABC$*"
 ----
 
-=== $V[IEW]
+=== $VIEW|$V
 
 Returns, or changes, disk blocks from, or in, the view buffer.
 
@@ -1740,7 +1749,7 @@ write $view(-1,44,2) ; -> Index for first key in block
 NOTE: Intrinsic special variables are case-insensitive, and have a short and
 long form, denoted with square bracket notation
 
-=== $D[EVICE]
+=== $DEVICE|$D
 
 The status of the current device.
 
@@ -1772,7 +1781,7 @@ write $device ; -> "0,2,127.0.0.1 80"
 write $device ; -> "0,2,::1 8080"
 ----
 
-=== $EC[ODE]
+=== $ECODE|$EC
 
 The error status.
 
@@ -1791,7 +1800,7 @@ Complies exactly.
 write $ecode ; -> ""
 ----
 
-=== $ES[TACK]
+=== $ESTACK|$ES
 
 User-controlled stack level indicator.
 
@@ -1810,7 +1819,7 @@ Complies exactly.
 write $estack ; -> 0
 ----
 
-=== $ET[RAP]
+=== $ETRAP|$ET
 
 The error trap.
 
@@ -1829,7 +1838,7 @@ Complies exactly.
 write $etrap ; -> "do ^%error"
 ----
 
-=== $H[OROLOG]
+=== $HOROLOG|$H
 
 The current datetime.
 
@@ -1849,7 +1858,7 @@ Complies exactly.
 write $horolog ; -> "57623,29373" (Wednesday 07 Oct 1998 08:09:33)
 ----
 
-=== $I[O]
+=== $IO|$I
 
 The current I/O channel.
 
@@ -1868,7 +1877,7 @@ Complies exactly.
 write $io ; -> 0
 ----
 
-=== $J[OB]
+=== $JOB|$J
 
 The current job number.
 
@@ -1887,7 +1896,7 @@ Complies exactly.
 write $job ; -> 1
 ----
 
-=== $K[EY]
+=== $KEY|$K
 
 The read terminator sequence.
 
@@ -1908,7 +1917,7 @@ write $key ; -> $char(27,91,65) (the <up-arrow> key)
 write $key ; -> $char(255) (EOF)
 ----
 
-=== $P[RINCIPAL]
+=== $PRINCIPAL|$P
 
 The principal device.
 
@@ -1927,7 +1936,7 @@ Complies exactly (always returns `0`).
 write $principal ; -> 0
 ----
 
-=== $Q[UIT]
+=== $QUIT|$Q
 
 The type of the last `QUIT`.
 
@@ -1947,7 +1956,7 @@ Complies exactly.
 write $quit ; -> 0
 ----
 
-=== $R[EFERENCE]
+=== $REFERENCE|$R
 
 The last global reference.
 
@@ -1967,7 +1976,7 @@ This is not defined in the standard, though it is referenced there.
 write $reference ; -> ""
 ----
 
-=== $ST[ACK]
+=== $STACK|$ST
 
 The current stack level.
 
@@ -1986,7 +1995,7 @@ Complies exactly.
 write $stack ; -> 0
 ----
 
-=== $S[TORAGE]
+=== $STORAGE|$S
 
 The free space in the symbol table.
 
@@ -2007,7 +2016,7 @@ characters of free space remaining.
 write $storage ; -> 3072
 ----
 
-=== $SY[STEM]
+=== $SYSTEM|$SY
 
 ==== Returns
 
@@ -2026,7 +2035,7 @@ Complies exactly, assuming that it really is unique.
 write $system ; -> "50,Reference Standard M V<major>.<minor>.<patch> for ..."
 ----
 
-=== $T[EST]
+=== $TEST|$T
 
 The status of the last conditional or timeout.
 
@@ -2102,7 +2111,7 @@ merge ^$routine("routine")=utility($job,"routine")
 merge utility($job,"routine")=^$routine("routine")
 ----
 
-=== ^$C[HARACTER]
+=== \^$CHARACTER|^$C
 
 ==== Format
 
@@ -2137,7 +2146,7 @@ write ^$character("m","input","m")  ; -> "" - empty string for no transformation
 write ^$character("m","output","m") ; -> "" - empty string for no transformation
 ----
 
-=== ^$D[EVICE]
+=== \^$DEVICE|^$D
 
 ==== Format
 
@@ -2168,7 +2177,7 @@ The following second level (and higher) subscripts are also provided:
 | `"OPTIONS","DELETE"`     | Which keys are delete characters
 | `"OPTIONS","ECHO"`       | Whether input keys are echoed
 | `"OPTIONS","ESCAPE"`     | Whether escape processing is on
-| `"OPTIONS","OUTPUT"`     | The output sequence when using `write !`
+| `"OPTIONS","OUTPUT"`     | The output terminator when using `write !`
 | `"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
 | `"OPTIONS","TYPEAHEAD"`  | Whether read type-ahead processing is on
 | `"REMOTE"`               | Remote host and port
@@ -2204,7 +2213,7 @@ write ^$device(1,"type")      ; either "1,FILE", "2,SOCKET", "3,PIPE", or
 set dev="" for  set dev=$order(^$device(dev)) quit:dev=""  write dev,!
 ----
 
-=== ^$G[LOBAL]
+=== \^$GLOBAL|^$G
 
 ==== Format
 
@@ -2255,7 +2264,7 @@ write ^$global("RSM","journal")   ; -> 1|0 - whether ^RSM journaling is on
 set gvn="" for  set gvn=$order(^$global(gvn)) quit:gvn=""  write gvn,!
 ----
 
-=== ^$J[OB]
+=== \^$JOB|^$J
 
 ==== Format
 
@@ -2326,7 +2335,7 @@ kill ^$job(104) ; Stop job number 104
 kill ^$job      ; Shutdown the system
 ----
 
-=== ^$L[OCK]
+=== \^$LOCK|^$L
 
 ==== Format
 
@@ -2356,7 +2365,7 @@ write ^$lock("^lock") ; -> "1,2"
 set L="" for  set L=$order(^$lock(L)) quit:L=""  write ^$lock(L),?10,L,!
 ----
 
-=== ^$R[OUTINE]
+=== \^$ROUTINE|^$R
 
 ==== Format
 
@@ -2392,7 +2401,7 @@ set utility($job,"routine",1)="routine ; A test routine" ; change a source line
 merge ^$routine("routine")=utility($job,"routine")       ; recompile routine
 ----
 
-=== ^$S[YSTEM]
+=== \^$SYSTEM|^$S
 
 ==== Format
 
@@ -2873,6 +2882,3 @@ The routine source is stored at `^$ROUTINE(_routine_,_linenum_)=_source_`. The
 compiled routine is stored at `^$ROUTINE(_routine_,0)=_bytecode_`. Where
 _routine_ is the name of the routine, and _linenum_ is an integer greater than
 `0`.
-
-[role="right"]
-link:index.adoc[Index]

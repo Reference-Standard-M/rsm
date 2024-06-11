@@ -1,10 +1,10 @@
 #
-# Package:  Reference Standard M
-# File:     rsm/etc/rsm@.service
-# Summary:  Systemd service file
+# Package: Reference Standard M
+# File:    rsm/etc/rsm@.service
+# Summary: Systemd user template service file
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2023 Fourth Watch Software LC
+# Copyright © 2023-2024 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -17,11 +17,14 @@
 # License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see http://www.gnu.org/licenses/.
+# along with this program. If not, see https://www.gnu.org/licenses/.
 #
 # Make sure you have created a database file and configured rsm/etc/rsm.env
 # for your environment before installing and running this service.
 #
+# SPDX-FileCopyrightText:  © 2023 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 # Copy this file to $HOME/.config/systemd/user/.
 #
 # Then reload the systemd daemon:
@@ -52,7 +55,7 @@ WorkingDirectory=/home/%I/rsm
 EnvironmentFile=/home/%I/rsm/etc/rsm.env
 ExecStart=/usr/local/bin/rsm -j $RSM_JOBS -g $RSM_GBUF -r $RSM_RBUF $RSM_DBFILE
 ExecStop=/usr/local/bin/rsm -k $RSM_DBFILE
-Restart=always
+Restart=on-failure
 KillSignal=SIGINT
 
 [Install]

@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/include/database.h
- * Summary:  module database header file - standard includes
+ * Package: Reference Standard M
+ * File:    rsm/include/database.h
+ * Summary: module database header file - standard includes
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,19 +22,18 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#ifndef _RSM_DATABASE_H_                                                        // only do this once
-#define _RSM_DATABASE_H_
+#ifndef RSM_DATABASE_H
+#define RSM_DATABASE_H
 
 // Defines
-#define READ            ((int) -1)                                              // Locking defines makes
-#define WRITE           ((int) -systab->maxjob)                                 // easy reading code
-#define WR_TO_R         (systab->maxjob - 1)                                    // from write to read
-
-#define NODE_UNDEFINED  VAR_UNDEFINED                                           // junk record (was -1 now MAX_STR_LEN + 1)
-#define PTR_UNDEFINED   0                                                       // junk pointer
+#define NODE_UNDEFINED VAR_UNDEFINED                                            // junk record (was -1 now MAX_STR_LEN + 1)
+#define PTR_UNDEFINED  0                                                        // junk pointer
 
 /*
  * Below is the maximum depth that the database code will search down to.
@@ -48,14 +47,14 @@
 #define GBD_EXPIRED     60                                                      // seconds to expire
 
 // DB_Block flags
-#define BLOCK_DIRTY     1                                                       // block needs tidying
+#define BLOCK_DIRTY 1                                                           // block needs tidying
 
 // Write Daemon defines
-#define DOING_NOTHING   0                                                       // nothing
-#define DOING_MAP       1                                                       // cleaning the map
-#define DOING_WRITE     2                                                       // writing
-#define DOING_GARB      3                                                       // garbage collect
-#define DOING_DISMOUNT  4                                                       // dismounting
+#define DOING_NOTHING  0                                                        // nothing
+#define DOING_MAP      1                                                        // cleaning the map
+#define DOING_WRITE    2                                                        // writing
+#define DOING_GARB     3                                                        // garbage collect
+#define DOING_DISMOUNT 4                                                        // dismounting
 
 // Structures
 typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK {                  // database block layout
@@ -94,12 +93,12 @@ typedef struct __attribute__ ((__packed__)) JRNREC {                            
     //u_char  data[MAX_STR_LEN];                                                  // bytes to MAX_STR_LEN
 } jrnrec;                                                                       // end jrnrec struct
 
-#define JRN_CREATE  0                                                           // create file
-#define JRN_START   1                                                           // start/mount environ
-#define JRN_STOP    2                                                           // stop journaling
-#define JRN_ESTOP   3                                                           // stop/dism environ
-#define JRN_SET     4                                                           // Set global
-#define JRN_KILL    5                                                           // Kill global
+#define JRN_CREATE 0                                                            // create file
+#define JRN_START  1                                                            // start/mount environ
+#define JRN_STOP   2                                                            // stop journaling
+#define JRN_ESTOP  3                                                            // stop/dism environ
+#define JRN_SET    4                                                            // Set global
+#define JRN_KILL   5                                                            // Kill global
 
 /*
  * NOTE: The first 4 bytes (u_int) = (RSM_MAGIC - 1).
@@ -138,7 +137,7 @@ void  Get_GBDs(int greqd);                                                      
 void  Free_GBD(gbd *free);                                                      // Free a GBD
 
 // File: rsm/database/get.c
-int   Get_data(int dir);                                                        // get db_var node
+int Get_data(int dir);                                                          // get db_var node
 
 // File: rsm/database/kill.c
 short Kill_data(void);                                                          // remove tree
@@ -153,7 +152,7 @@ short Re_key(void);                                                             
 void  Un_key(void);                                                             // un-key blk[level]
 
 // File: rsm/database/set.c
-int   Set_data(cstring *data);                                                  // set a record
+int Set_data(cstring *data);                                                    // set a record
 
 // File: rsm/database/util.c
 void  Align_record(void);                                                       // align record (int)
@@ -167,4 +166,4 @@ void  Tidy_block(void);                                                         
 void  Used_block(u_int blknum);                                                 // set blk in map
 short Compress1(void);                                                          // compress 1 block
 
-#endif                                                                          // !_RSM_DATABASE_H_
+#endif

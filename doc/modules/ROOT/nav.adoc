@@ -1,0 +1,16 @@
+////
+SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
+= Reference Standard M
+
+* xref:language.adoc[Language Guide]
+* xref:database.adoc[Database Management Guide]
+* xref:seqio.adoc[Sequential I/O Interface]
+* xref:xcall.adoc[External Call Interface]
+* xref:util.adoc[Supplemental Utilities]
+* xref:web.adoc[Web Server Utility]
+* xref:rsm.adoc[Manual Page]
+* xref:upgrade.adoc[Database Upgrade Instructions]
+* xref:conformance.adoc[Conformance Clause]

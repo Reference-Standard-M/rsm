@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: docs
+title: Reference Standard M
+version:
+  (*)-doc: $1
+
+start_page: index.adoc
+
+nav:
+  - modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    page-pagination: '@'

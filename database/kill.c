@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/database/kill.c
- * Summary:  module database - database functions, kill
+ * Package: Reference Standard M
+ * File:    rsm/database/kill.c
+ * Summary: module database - database functions, kill
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -44,7 +47,7 @@
  */
 short Kill_data(void)                                                           // remove tree
 {
-    int     s;                                                                  // for funcs
+    int     t;                                                                  // for funcs
     int     i;                                                                  // a handy int
     u_int   j;                                                                  // a handy unsigned int
     gbd     *rblk[MAXTREEDEPTH];                                                // right side tree
@@ -61,14 +64,14 @@ short Kill_data(void)                                                           
     memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
     memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     SemOp(SEM_GLOBAL, -curr_lock);                                              // release read lock
-    systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
+    systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                             // clear last
 
 start:
     Get_GBDs(MAXTREEDEPTH * 2);                                                 // ensure this many
     j = 0;                                                                      // clear counter
 
     for (i = 0; i < NUM_GARB; i++) {
-        if (systab->vol[volnum - 1]->garbQ[i] == 0) {
+        if (partab.vol[volnum - 1]->garbQ[i] == 0) {
             if (j++ >= (NUM_GARB / 2)) goto cont;                               // ensure we have 1/2 table
         }
     }
@@ -80,11 +83,11 @@ start:
 cont:
     writing = 1;                                                                // say we are killing
     level = 0;                                                                  // reset level
-    s = Get_data(0);                                                            // attempt to get it
-    if ((s < 0) && (s != -ERRM7)) return (short) s;                             // error, not undef then return it
+    t = Get_data(0);                                                            // attempt to get it
+    if ((t < 0) && (t != -ERRM7)) return (short) t;                             // error, not undef then return it
 
-    if ((systab->vol[volnum - 1]->vollab->journal_available) &&
-      (systab->vol[volnum - 1]->vollab->journal_requested) &&
+    if ((SOA(partab.vol[volnum - 1]->vollab)->journal_available) &&
+      (SOA(partab.vol[volnum - 1]->vollab)->journal_requested) &&
       (partab.jobtab->last_block_flags & GL_JOURNAL)) {                         // if journaling
         jrnrec jj;                                                              // jrn structure
         jj.action = JRN_KILL;                                                   // doing kill
@@ -111,9 +114,9 @@ cont:
         i += 2;                                                                 // correct count
         tmp[i] = '\0';                                                          // null terminate
         tmp[0] = (u_char) i;                                                    // add the count
-        s = Locate(tmp);                                                        // search for it
+        t = Locate(tmp);                                                        // search for it
 
-        if (s == -ERRM7) {
+        if (t == -ERRM7) {
             if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;       // if reserved then clear it
             return 0;                                                           // nothing to do
         }
@@ -124,17 +127,17 @@ cont:
         Tidy_block();                                                           // and tidy it
 
         if (blk[level]->dirty == (gbd *) 1) {                                   // if reserved
-            blk[level]->dirty = blk[level];                                     // set it
+            blk[level]->dirty = SBA(blk[level]);                                // set it
             Queit();                                                            // and queue for write
         }
 
         Garbit(blknum);                                                         // garbage the block
-        memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(int) * MAX_VOL); // zot all
+        memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(u_int) * MAX_VOL); // zot all
         level--;                                                                // backup a level
         return 0;                                                               // and exit
     }                                                                           // end full kill
 
-    systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
+    systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                             // clear last
 
     while (level >= 0) {                                                        // what we just got
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if reserved then clear it
@@ -142,17 +145,17 @@ cont:
     }
 
     db_var.key[db_var.slen++] = 255;                                            // modify key
-    s = Get_data(0);                                                            // attempt to get it
-    if (s != -ERRM7) return -(ERRZ61 + ERRMLAST);                               // must be undefined so database stuffed
+    t = Get_data(0);                                                            // attempt to get it
+    if (t != -ERRM7) return -(ERRZ61 + ERRMLAST);                               // must be undefined so database stuffed
     db_var.slen--;                                                              // put count back
     rlevel = level;                                                             // number in right side
     for (i = 0; i <= level; i++) rblk[i] = blk[i];                              // for each level, copy GBD
     level = 0;                                                                  // reset level
-    systab->last_blk_used[(partab.jobtab - systab->jobtab) + (systab->maxjob * (volnum - 1))] = 0; // clear last
-    s = Get_data(-1);                                                           // get left side
+    systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                             // clear last
+    t = Get_data(-1);                                                           // get left side
 
-    if ((s < 0) && (s != -ERRM7)) {                                             // error, not undef
-        return (short) s;                                                       // return it
+    if ((t < 0) && (t != -ERRM7)) {                                             // error, not undef
+        return (short) t;                                                       // return it
     }                                                                           // WARNING: This leaves blocks reserved
 
     if (rlevel != level) panic("Kill_data: left level not equal to right level"); // check this, if not correct, die
@@ -165,7 +168,7 @@ cont:
         // NEVER first one
         i = Index;                                                              // start here
 
-        while (i <= blk[level]->mem->last_idx) {                                // while in block
+        while (i <= SOA(blk[level]->mem)->last_idx) {                           // while in block
             chunk = (cstring *) &iidx[idx[i]];                                  // point at the chunk
             memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // fix the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
@@ -182,7 +185,7 @@ cont:
         Tidy_block();                                                           // tidy the block
 
         if (blk[level]->dirty == (gbd *) 1) {                                   // if reserved
-            blk[level]->dirty = blk[level];                                     // set it
+            blk[level]->dirty = SBA(blk[level]);                                // set it
             Queit();                                                            // and queue for write
         }
 
@@ -211,13 +214,13 @@ cont:
     }
 
     for (level = top; level <= rlevel; level++) {                               // scan left edge
-        s = Locate(&db_var.slen);                                               // locate the record
+        t = Locate(&db_var.slen);                                               // locate the record
 
-        if ((s < 0) && (s != -ERRM7)) {                                         // error?
-            return (short) s;                                                   // give up
+        if ((t < 0) && (t != -ERRM7)) {                                         // error?
+            return (short) t;                                                   // give up
         }                                                                       // WARNING: This leaves blocks reserved
 
-        for (i = Index; i <= blk[level]->mem->last_idx; i++) {                  // scan block
+        for (i = Index; i <= SOA(blk[level]->mem)->last_idx; i++) {             // scan block
             chunk = (cstring *) &iidx[idx[i]];                                  // point at the chunk
             memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // update the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
@@ -237,21 +240,21 @@ cont:
                 record->len = NODE_UNDEFINED;                                   // mark as junk
             }
 
-            blk[level]->mem->flags |= BLOCK_DIRTY;                              // mark it so
+            SOA(blk[level]->mem)->flags |= BLOCK_DIRTY;                         // mark it so
         }                                                                       // end block scan
 
-        if (blk[level]->mem->flags & BLOCK_DIRTY) Tidy_block();                 // if we changed it then tidy it
-        if (level > top) blk[level]->mem->right_ptr = rblk[level]->block;       // not at top so hook to right edge
+        if (SOA(blk[level]->mem)->flags & BLOCK_DIRTY) Tidy_block();            // if we changed it then tidy it
+        if (level > top) SOA(blk[level]->mem)->right_ptr = rblk[level]->block;  // not at top so hook to right edge
     }                                                                           // end left edge scan
 
     for (level = rlevel; level > top; level--) {                                // scan right edge (up)
         leftblk = blk[level];                                                   // save left here
         blk[level] = rblk[level];                                               // get right one
-        idx = (u_short *) blk[level]->mem;                                      // point at the block
-        iidx = (int *) blk[level]->mem;                                         // point at the block
+        idx = (u_short *) SOA(blk[level]->mem);                                 // point at the block
+        iidx = (int *) SOA(blk[level]->mem);                                    // point at the block
         Index = IDX_START;                                                      // start at the start
 
-        while (Index <= blk[level]->mem->last_idx) {                            // scan the block
+        while (Index <= SOA(blk[level]->mem)->last_idx) {                       // scan the block
             chunk = (cstring *) &iidx[idx[Index]];                              // point at the chunk
             memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);  // update the key
             keybuf[0] = chunk->buf[0] + chunk->buf[1];                          // and the size
@@ -277,47 +280,47 @@ cont:
                 record->len = NODE_UNDEFINED;                                   // mark as junk
             }
 
-            blk[level]->mem->flags |= BLOCK_DIRTY;                              // mark it so
+            SOA(blk[level]->mem)->flags |= BLOCK_DIRTY;                         // mark it so
             Index++;                                                            // next
         }                                                                       // end block scan
 
-        if (blk[level]->mem->flags & BLOCK_DIRTY) Tidy_block();                 // if we changed it then tidy it
+        if (SOA(blk[level]->mem)->flags & BLOCK_DIRTY) Tidy_block();            // if we changed it then tidy it
 
         if ((level < rlevel) && (rblk[level + 1] != NULL)) {                    // if in a pointer block AND is lower level
-            idx = (u_short *) rblk[level + 1]->mem;                             // point at the block
-            iidx = (int *) rblk[level + 1]->mem;                                // point at the block
+            idx = (u_short *) SOA(rblk[level + 1]->mem);                        // point at the block
+            iidx = (int *) SOA(rblk[level + 1]->mem);                           // point at the block
             chunk = (cstring *) &iidx[idx[IDX_START]];                          // point at first chunk
             p = &chunk->buf[1];                                                 // point at the key
-            s = Locate(p);                                                      // see if it's there
+            t = Locate(p);                                                      // see if it's there
 
-            if (s == -ERRM7) {                                                  // if it isn't
+            if (t == -ERRM7) {                                                  // if it isn't
                 c = (cstring *) tmp;                                            // point at this
 DISABLE_WARN(-Warray-bounds)
                 c->len = 4;                                                     // the size
 ENABLE_WARN
                 ui = (u_int *) c->buf;                                          // point the int here
                 *ui = rblk[level + 1]->block;                                   // get the block#
-                s = Insert(p, c);                                               // insert the node
+                t = Insert(p, c);                                               // insert the node
 
-                if (s == -(ERRZ62 + ERRMLAST)) {
+                if (t == -(ERRZ62 + ERRMLAST)) {
                     Add_rekey(rblk[level + 1]->block, level + 1);               // do it later
-                } else if (s < 0) {
-                    return (short) s;                                           // error!
+                } else if (t < 0) {
+                    return (short) t;                                           // error!
                 }
             }
         }                                                                       // end of insert pointer
 
-        if ((((u_long) ((leftblk->mem->last_free * 2 + 1 - leftblk->mem->last_idx) * 2)
-          + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2))
-          > (systab->vol[volnum - 1]->vollab->block_size - sizeof(DB_Block)))   // if will fit in 1
-          || (blk[level]->mem->last_idx < IDX_START)) {                         // or empty blk
+        if ((((u_long) ((SOA(leftblk->mem)->last_free * 2 + 1 - SOA(leftblk->mem)->last_idx) * 2)
+          + ((SOA(blk[level]->mem)->last_free * 2 + 1 - SOA(blk[level]->mem)->last_idx) * 2))
+          > (SOA(partab.vol[volnum - 1]->vollab)->block_size - sizeof(DB_Block))) // if will fit in 1
+          || (SOA(blk[level]->mem)->last_idx < IDX_START)) {                    // or empty block
             ptr = blk[level];                                                   // right edge
             blk[level] = leftblk;                                               // left edge
-            idx = (u_short *) blk[level]->mem;                                  // point at the block
-            iidx = (int *) blk[level]->mem;                                     // point at the block
-            if (ptr->mem->last_idx > (IDX_START - 1)) Copy_data(ptr, IDX_START); // if any data then copy to left edge
-            blk[level]->mem->right_ptr = ptr->mem->right_ptr;                   // copy right ptr
-            ptr->mem->type = 65;                                                // say type = data!!
+            idx = (u_short *) SOA(blk[level]->mem);                             // point at the block
+            iidx = (int *) SOA(blk[level]->mem);                                // point at the block
+            if (SOA(ptr->mem)->last_idx > (IDX_START - 1)) Copy_data(ptr, IDX_START); // if any data then copy to left edge
+            SOA(blk[level]->mem)->right_ptr = SOA(ptr->mem)->right_ptr;         // copy right pointer
+            SOA(ptr->mem)->type = 65;                                           // say type = data!!
             ptr->last_accessed = current_time(TRUE);                            // clear last access
             Garbit(ptr->block);                                                 // dump the block
             rblk[level] = NULL;                                                 // mark gone
@@ -328,25 +331,25 @@ ENABLE_WARN
 
     // Now ensure that the right edge has a pointer in [top] - (level == top)
     if (rblk[top + 1] != NULL) {                                                // and there is level+1
-        idx = (u_short *) rblk[top + 1]->mem;                                   // point at the block
-        iidx = (int *) rblk[top + 1]->mem;                                      // point at the block
+        idx = (u_short *) SOA(rblk[top + 1]->mem);                              // point at the block
+        iidx = (int *) SOA(rblk[top + 1]->mem);                                 // point at the block
         chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at the chunk
         p = &chunk->buf[1];                                                     // point at the key
-        s = Locate(p);                                                          // see if it's there
+        t = Locate(p);                                                          // see if it's there
 
-        if (s == -ERRM7) {                                                      // if it isn't
+        if (t == -ERRM7) {                                                      // if it isn't
             c = (cstring *) tmp;                                                // point at this
 DISABLE_WARN(-Warray-bounds)
             c->len = 4;                                                         // the size
 ENABLE_WARN
             ui = (u_int *) c->buf;                                              // point the int here
             *ui = rblk[level + 1]->block;                                       // get the block#
-            s = Insert(p, c);                                                   // insert the node
+            t = Insert(p, c);                                                   // insert the node
 
-            if (s == -(ERRZ62 + ERRMLAST)) {
+            if (t == -(ERRZ62 + ERRMLAST)) {
                 Add_rekey(rblk[level + 1]->block, level + 1);                   // do it later
-            } else if (s < 0) {
-                return (short) s;                                               // error!
+            } else if (t < 0) {
+                return (short) t;                                               // error!
             }
         }                                                                       // end of insert pointer
     }                                                                           // end pointer level
@@ -357,9 +360,9 @@ ENABLE_WARN
     for (i = top; i <= rlevel; i++) {                                           // scan left list
         if (blk[i]->dirty == (gbd *) 1) {                                       // reserved?
             if (blk[level] == NULL) {                                           // if list not started
-                blk[i]->dirty = blk[i];                                         // point at self
+                blk[i]->dirty = SBA(blk[i]);                                    // point at self
             } else {                                                            // end start of list // just add it in
-                blk[i]->dirty = blk[level];                                     // point at previous
+                blk[i]->dirty = SBA(blk[level]);                                // point at previous
             }
 
             blk[level] = blk[i];                                                // remember this one
@@ -370,9 +373,9 @@ ENABLE_WARN
         if (rblk[i] != NULL) {                                                  // if anything there
             if (rblk[i]->dirty == (gbd *) 1) {                                  // reserved?
                 if (blk[level] == NULL) {                                       // if list not started
-                    rblk[i]->dirty = rblk[i];                                   // point at self
+                    rblk[i]->dirty = SBA(rblk[i]);                              // point at self
                 } else {                                                        // end start of list - just add it in
-                    rblk[i]->dirty = blk[level];                                // point at previous
+                    rblk[i]->dirty = SBA(blk[level]);                           // point at previous
                 }
 
                 blk[level] = rblk[i];                                           // remember this one
@@ -384,6 +387,6 @@ ENABLE_WARN
         Queit();                                                                // yes - do so
     }                                                                           // end right edge stuff
 
-    memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(int) * MAX_VOL); // zot all
+    memset(&systab->last_blk_used[0], 0, systab->maxjob * sizeof(u_int) * MAX_VOL); // zot all
     return Re_key();                                                            // re-key and return
 }

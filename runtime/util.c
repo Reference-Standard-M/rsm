@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/runtime/util.c
- * Summary:  module runtime - runtime utilities
+ * Package: Reference Standard M
+ * File:    rsm/runtime/util.c
+ * Summary: module runtime - runtime utilities
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -137,11 +140,11 @@ int cstringtob(cstring *str)                                                    
     return ret;                                                                 // return the value
 }                                                                               // end cstringtob()
 
-u_short itocstring(u_char *buf, int n)                                          // convert int to string
+u_short ltocstring(u_char *buf, long n)                                         // convert long to string
 {
     int i = 0;                                                                  // array index
     int p = 0;                                                                  // string index
-    int a[12];                                                                  // array for digits
+    int a[22];                                                                  // array for digits
 
     a[0] = 0;                                                                   // ensure first is zero
 
@@ -161,11 +164,11 @@ u_short itocstring(u_char *buf, int n)                                          
     return (u_short) p;                                                         // and exit
 }
 
-u_short uitocstring(u_char *buf, u_int n)                                       // convert u_int to string
+u_short ultocstring(u_char *buf, u_long n)                                      // convert u_long to string
 {
     int i = 0;                                                                  // array index
     int p = 0;                                                                  // string index
-    int a[12];                                                                  // array for digits
+    int a[22];                                                                  // array for digits
 
     a[0] = 0;                                                                   // ensure first is zero
 
@@ -219,7 +222,7 @@ int Set_Error(int err, cstring *user, cstring *space)
                 space->buf[t++] = 'M';                                          // MDC error
             }
 
-            t += itocstring(&space->buf[t], j);                                 // convert the number
+            t += ltocstring(&space->buf[t], j);                                 // convert the number
         }                                                                       // end 'not user error'
 
         space->buf[t++] = ',';                                                  // trailing comma
@@ -228,7 +231,7 @@ int Set_Error(int err, cstring *user, cstring *space)
         ST_Set(var, space);                                                     // set it
         tmp = (cstring *) temp;                                                 // temp space
 DISABLE_WARN(-Warray-bounds)
-        tmp->len = itocstring(tmp->buf, partab.jobtab->cur_do);
+        tmp->len = ltocstring(tmp->buf, partab.jobtab->cur_do);
 ENABLE_WARN
         var->slen = (u_char) UTIL_Key_Build(tmp, var->key);
 
@@ -250,7 +253,7 @@ ENABLE_WARN
                     space->buf[t++] = 'M';                                      // MDC error
                 }
 
-                t += itocstring(&space->buf[t], j);                             // convert the number
+                t += ltocstring(&space->buf[t], j);                             // convert the number
             }
 
             space->buf[t++] = ',';                                              // trailing comma

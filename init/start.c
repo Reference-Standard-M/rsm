@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/init/start.c
- * Summary:  module init - startup code
+ * Package: Reference Standard M
+ * File:    rsm/init/start.c
+ * Summary: module init - startup code
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -50,11 +53,9 @@
 *  -r routine buffers in MiB       (0 to MAX_ROUTINE_BUFFERS)       Opt *
 *  -a additional buffers in MiB    (1 to MAX_ADDITIONAL_BUFFERS)    Opt *
 \***********************************************************************/
-int INIT_Start(char  *file,                                                     // database
-               u_int jobs,                                                      // number of jobs
-               u_int gmb,                                                       // MiB of global buffers
-               u_int rmb,                                                       // MiB of routine buffers
-               u_int addmb)                                                     // MiB of additional buffers (for volumes)
+
+// database, number of jobs, MiB of global buffers, MiB of routine buffers, MiB of additional buffers (for volumes)
+int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 {
     int             dbfd;                                                       // database file descriptor
     int             hbuf[sizeof(label_block) / 4];                              // header buffer
@@ -186,7 +187,7 @@ int INIT_Start(char  *file,                                                     
     share_size += (long long) addmb * MBYTE;                                    // and the additional
     printf("Creating share for %u job%s with %u MiB routine space,\n", jobs, ((jobs > 1) ? "s" : ""), rmb);
     printf("%u MiB (%u) global buffers, %d KiB label/map space,\n", gmb, n_gbd, hbuf[2] / 1024);
-    //if (addmb > 0) printf("%u MiB of additional buffers for supplemental volumes,\n", addmb);
+    if (addmb > 0) printf("%u MiB of additional buffers for supplemental volumes,\n", addmb);
     printf("%d KiB for the lock table, with a total share size of %lld MiB.\n", locksize / 1024, share_size / MBYTE);
     shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create share memory (0660)
 
@@ -310,8 +311,10 @@ int INIT_Start(char  *file,                                                     
     if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;                                 // minimum of MIN_DAEMONS
     if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;                                 // and the max
     systab->vol[0]->num_of_daemons = jobs;                                      // initialize this
-    while (SemOp(SEM_WD, WRITE)) continue;                                      // lock WD
+    while (SemOp(SEM_WD, SEM_WRITE)) continue;                                  // lock WD
 
+    partab.job_table = systab->jobtab;                                          // so the daemons can start processes
+    partab.vol[0] = systab->vol[0];                                             // so the daemons can manage table slots
     partab.vol_fds[0] = dbfd;                                                   // so the daemons can close inherited FD
     fflush(stdout);                                                             // force a flush before forking
 
@@ -333,7 +336,7 @@ int INIT_Start(char  *file,                                                     
         jrnrec      jj;                                                         // to write with
         int         jfd;                                                        // file descriptor
 
-        while (SemOp(SEM_GLOBAL, WRITE)) continue;                              // lock GLOBAL
+        while (SemOp(SEM_GLOBAL, SEM_WRITE)) continue;                          // lock GLOBAL
         systab->vol[0]->vollab->journal_available = 0;                          // assume fail
         i = stat(systab->vol[0]->vollab->journal_file, &sb);                    // check for file
 
@@ -410,10 +413,10 @@ int INIT_Start(char  *file,                                                     
             }
         }
 
-        SemOp(SEM_GLOBAL, -WRITE);                                              // unlock global
+        SemOp(SEM_GLOBAL, -SEM_WRITE);                                          // unlock global
     }                                                                           // end journal stuff
 
-    SemOp(SEM_WD, -WRITE);                                                      // release WD lock
+    SemOp(SEM_WD, -SEM_WRITE);                                                  // release WD lock
     gptr = systab->vol[0]->gbd_head;                                            // get start of GBDs
     ptr = (u_char *) systab->vol[0]->global_buf;                                // get start of global buffers
 

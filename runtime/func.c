@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/runtime/func.c
- * Summary:  module runtime - runtime functions
+ * Package: Reference Standard M
+ * File:    rsm/runtime/func.c
+ * Summary: module runtime - runtime functions
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -70,7 +73,7 @@ short Dascii2(u_char *ret_buffer, cstring *expr, int posn)
     int asc = -1;                                                               // default to -1
 
     if ((posn > 0) && (posn <= (int) expr->len)) asc = (int) expr->buf[posn - 1]; // if within range, get from string
-    return itocstring(ret_buffer, asc);                                         // convert answer to string and return count
+    return ltocstring(ret_buffer, asc);                                         // convert answer to string and return count
 }
 
 /*
@@ -123,20 +126,18 @@ int Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
 
 int Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start)
 {
-    return itocstring(ret_buffer, Dfind3x(expr1, expr2, start));                // eval into buffer and return length
+    return ltocstring(ret_buffer, Dfind3x(expr1, expr2, start));                // eval into buffer and return length
 }
 
 int Dfind3x(cstring *expr1, cstring *expr2, int start)
 {
-    int i;                                                                      // for loops
-    int j;                                                                      // for expr2
     int ret = 0;                                                                // return value
 
     if (start < 1) start = 1;                                                   // ensure sensible
     if (expr2->len == 0) return start;                                          // if expr2 is null str then just return start
 
-    for (i = start - 1; i < (int) expr1->len; i++) {                            // scan expr1
-        for (j = 0; j != (int) expr2->len; j++) {                               // scan expr2
+    for (int i = start - 1; i < (int) expr1->len; i++) {                        // scan expr1
+        for (int j = 0; j != (int) expr2->len; j++) {                           // scan expr2
             if (expr1->buf[i + j] != expr2->buf[j]) break;                      // quit if not the same
             if ((j + 1) == (int) expr2->len) ret = i + j + 2;                   // if at end of expr2, remember where we are
         }                                                                       // end compare loop
@@ -369,13 +370,13 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
 int Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
 {
     cstring *change;
-    int     s;
+    int     t;
 
-    s = Djustify3(ret_buffer, numexp, 0, rnd);
-    if (s < 0) return s;
-    change = malloc(sizeof(short) + s + 1);
-    change->len = s;
-    memcpy(change->buf, ret_buffer, s + 1);
+    t = Djustify3(ret_buffer, numexp, 0, rnd);
+    if (t < 0) return t;
+    change = malloc(sizeof(short) + t + 1);
+    change->len = t;
+    memcpy(change->buf, ret_buffer, t + 1);
     return Dfnumber2(ret_buffer, change, code);
 }
 
@@ -395,24 +396,24 @@ ENABLE_WARN
 
 int Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
 {
-    int s;                                                                      // for return values
+    int t;                                                                      // for return values
 
     if (var->uci == UCI_IS_LOCALVAR) {                                          // for a local var
-        s = ST_Get(var, ret_buffer);                                            // attempt to get the data
-        if (s >= 0) return s;                                                   // if we got data, return it
-        if (s == -ERRM6) s = 0;                                                 // flag undefined local var
+        t = ST_Get(var, ret_buffer);                                            // attempt to get the data
+        if (t >= 0) return t;                                                   // if we got data, return it
+        if (t == -ERRM6) t = 0;                                                 // flag undefined local var
     } else if (var->name.var_cu[0] == '$') {                                    // SSVN?
-        s = SS_Get(var, ret_buffer);                                            // attempt to get the data
-        if (s >= 0) return s;                                                   // if we got data, return it
-        if ((s == -ERRM38) || (s == -ERRM7)) s = 0;                             // flag undefined SSVN
+        t = SS_Get(var, ret_buffer);                                            // attempt to get the data
+        if (t >= 0) return t;                                                   // if we got data, return it
+        if ((t == -ERRM38) || (t == -ERRM7)) t = 0;                             // flag undefined SSVN
     } else {                                                                    // for a global var
         memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);   // update naked
-        s = DB_Get(var, ret_buffer);                                            // attempt to get the data
-        if (s >= 0) return s;                                                   // if we got data, return it
-        if (s == -ERRM7) s = 0;                                                 // flag undefined global var
+        t = DB_Get(var, ret_buffer);                                            // attempt to get the data
+        if (t >= 0) return t;                                                   // if we got data, return it
+        if (t == -ERRM7) t = 0;                                                 // flag undefined global var
     }
 
-    if (s != 0) return s;                                                       // if an error, return it
+    if (t != 0) return t;                                                       // if an error, return it
     memmove(&ret_buffer[0], &expr->buf[0], expr->len);                          // copy here
     ret_buffer[expr->len] = '\0';                                               // ensure null terminated
     return expr->len;                                                           // and return the length
@@ -436,52 +437,52 @@ ENABLE_WARN
 // $INCREMENT(variable[,numexpr])
 short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
 {
-    int    s;                                                                   // for return values
+    int    t;                                                                   // for return values
     u_char temp[MAX_STR_LEN];                                                   // some temp storage for arithmetic
     u_char *tmp;
 
     tmp = temp;
 
     if (var->uci == UCI_IS_LOCALVAR) {                                          // for a local var
-        s = ST_Get(var, temp);                                                  // attempt to get the data
+        t = ST_Get(var, temp);                                                  // attempt to get the data
     } else {                                                                    // for a global var
         memcpy(&partab.jobtab->last_ref, var, sizeof(var_u) + 5 + var->slen);   // update naked
-        s = SemOp(SEM_ATOMIC, WRITE);                                           // take an atomic write
-        if (s < 0) return s;                                                    // if we got an error then return it
-        s = DB_Get(var, temp);                                                  // attempt to get the data
+        t = SemOp(SEM_ATOMIC, SEM_WRITE);                                       // take an atomic write
+        if (t < 0) return (short) t;                                            // if we got an error then return it
+        t = DB_Get(var, temp);                                                  // attempt to get the data
     }
 
-    if ((s == -ERRM6) || (s == -ERRM7)) {                                       // use '0' for undefined var
+    if ((t == -ERRM6) || (t == -ERRM7)) {                                       // use '0' for undefined var
         ret_buffer[0] = '0';
-        s = 0;
-    } else if (s < 0) {
-        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
-        return s;
+        t = 0;
+    } else if (t < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -SEM_WRITE);         // release the atomic write
+        return (short) t;
     } else {
-        s = ncopy(&tmp, ret_buffer);
+        t = ncopy(&tmp, ret_buffer);
     }
 
-    if (s < 0) {
-        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
-        return s;
+    if (t < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -SEM_WRITE);         // release the atomic write
+        return (short) t;
     }
 
-    s = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
+    t = runtime_add((char *) numexpr->buf, (char *) ret_buffer);
 
-    if (s < 0) {
-        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -WRITE);             // release the atomic write
-        return s;
+    if (t < 0) {
+        if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -SEM_WRITE);         // release the atomic write
+        return (short) t;
     }
 
 DISABLE_WARN(-Warray-bounds)
-    numexpr->len = s;
+    numexpr->len = t;
 ENABLE_WARN
     memcpy(&ret_buffer[0], &numexpr->buf[0], numexpr->len);                     // copy here
     ret_buffer[numexpr->len] = '\0';                                            // ensure null terminated
-    if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, numexpr);               // set it back and return
-    s = DB_Set(var, numexpr);                                                   // set it back
-    SemOp(SEM_ATOMIC, -WRITE);                                                  // release the atomic write
-    return s;                                                                   // and return
+    if (var->uci == UCI_IS_LOCALVAR) return (short) ST_Set(var, numexpr);       // set it back and return
+    t = DB_Set(var, numexpr);                                                   // set it back
+    SemOp(SEM_ATOMIC, -SEM_WRITE);                                              // release the atomic write
+    return (short) t;                                                           // and return
 }
 
 // $JUSTIFY(expr,int1[,int2])
@@ -610,12 +611,12 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 // $LENGTH(expr1[,expr2])
 short Dlength1(u_char *ret_buffer, cstring *expr)
 {
-    return (short) uitocstring(ret_buffer, expr->len);                          // just do it
+    return (short) ultocstring(ret_buffer, expr->len);                          // just do it
 }
 
 short Dlength2(u_char *ret_buffer, cstring *expr, cstring *delim)
 {
-    return (short) itocstring(ret_buffer, Dlength2x(expr, delim));              // copy to buf and ret len
+    return (short) ltocstring(ret_buffer, Dlength2x(expr, delim));              // copy to buf and ret len
 }
 
 int Dlength2x(cstring *expr, cstring *delim)
@@ -792,16 +793,15 @@ short Drandom(u_char *ret_buffer, int seed)
 {
     if (seed < 1) return -ERRM3;                                                // an error
     seed = random() % seed;                                                     // get a random number
-    return itocstring(ret_buffer, seed);                                        // convert answer to string
+    return ltocstring(ret_buffer, seed);                                        // convert answer to string
 }
 
 // $REVERSE(expr)
 int Dreverse(u_char *ret_buffer, cstring *expr)
 {
-    int i;                                                                      // for the loop
     int j = 0;                                                                  // destination
 
-    for (i = (int) expr->len - 1; i >= 0; i--) ret_buffer[j++] = expr->buf[i];  // for each character copy it
+    for (int i = (int) expr->len - 1; i >= 0; i--) ret_buffer[j++] = expr->buf[i]; // for each character copy it
     ret_buffer[j] = '\0';                                                       // terminate it
     return expr->len;                                                           // and return count
 }
@@ -829,7 +829,7 @@ int Dreverse(u_char *ret_buffer, cstring *expr)
  */
 short Dstack1(u_char *ret_buffer, int level)
 {
-    return Dstack1x(ret_buffer, level, (partab.jobtab - systab->jobtab));
+    return Dstack1x(ret_buffer, level, (partab.jobtab - partab.job_table));
 }
 
 short Dstack1x(u_char *ret_buffer, int level, int job)
@@ -838,25 +838,25 @@ short Dstack1x(u_char *ret_buffer, int level, int job)
 
     ret_buffer[0] = '\0';                                                       // null terminate
     if (level < -1) return 0;                                                   // junk
-    i = systab->jobtab[job].cur_do;                                             // default
+    i = partab.job_table[job].cur_do;                                           // default
 
-    if (systab->jobtab[job].error_frame > systab->jobtab[job].cur_do) {
-        i = systab->jobtab[job].error_frame;                                    // ensure we have the error bit
+    if (partab.job_table[job].error_frame > partab.job_table[job].cur_do) {
+        i = partab.job_table[job].error_frame;                                  // ensure we have the error bit
     }
 
     if (level > i) return 0;                                                    // nothing there
-    if (level == -1) return itocstring(ret_buffer, i);                          // return the number
+    if (level == -1) return ltocstring(ret_buffer, i);                          // return the number
 
     if (level == 0) {
-        if (systab->jobtab[job].dostk[0].type == TYPE_JOB) {
+        if (partab.job_table[job].dostk[0].type == TYPE_JOB) {
             return (short) mcopy((u_char *) "JOB", ret_buffer, 3);              // for a JOB command
         }
 
         return (short) mcopy((u_char *) "RUN", ret_buffer, 3);                  // normal run
     }
 
-    if (level == systab->jobtab[job].error_frame) level = STM1_FRAME;           // error frame adjust
-    i = systab->jobtab[job].dostk[level].type & 127;                            // get the type (what was high bit going to be for?)
+    if (level == partab.job_table[job].error_frame) level = STM1_FRAME;         // error frame adjust
+    i = partab.job_table[job].dostk[level].type & 127;                          // get the type (what was high bit going to be for?)
     if (i == TYPE_RUN) return (short) mcopy((u_char *) "BREAK", ret_buffer, 5);
     if (i == TYPE_DO) return (short) mcopy((u_char *) "DO", ret_buffer, 2);
     if (i == TYPE_EXTRINSIC) return (short) mcopy((u_char *) "$$", ret_buffer, 2);
@@ -867,7 +867,7 @@ short Dstack1x(u_char *ret_buffer, int level, int job)
 
 int Dstack2(u_char *ret_buffer, int level, cstring *code)
 {
-    return Dstack2x(ret_buffer, level, code, (partab.jobtab - systab->jobtab));
+    return Dstack2x(ret_buffer, level, code, (partab.jobtab - partab.job_table));
 }
 
 int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
@@ -880,14 +880,14 @@ int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
     mvar    *var;                                                               // for ^$ROUTINE()
     u_char  temp[VAR_LEN + 4];                                                  // ditto
     cstring *cptr;                                                              // ditto
-    int     s;                                                                  // ditto
+    int     t;                                                                  // ditto
 
     ret_buffer[0] = '\0';                                                       // null terminate
     if (level < 0) return 0;                                                    // junk
-    i = systab->jobtab[job].cur_do;                                             // default
+    i = partab.job_table[job].cur_do;                                           // default
 
-    if (systab->jobtab[job].error_frame > systab->jobtab[job].cur_do) {
-        i = systab->jobtab[job].error_frame;                                    // ensure we have the error bit
+    if (partab.job_table[job].error_frame > partab.job_table[job].cur_do) {
+        i = partab.job_table[job].error_frame;                                  // ensure we have the error bit
     }
 
     if (level > i) return 0;                                                    // nothing there
@@ -904,7 +904,7 @@ int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
 
     if (arg2 == 1) {                                                            // "ECODE"
         ret_buffer[0] = '\0';                                                   // assume nothing
-        if (job != (partab.jobtab - systab->jobtab)) return 0;                  // can't find
+        if (job != (partab.jobtab - partab.job_table)) return 0;                // can't find
         var = (mvar *) ret_buffer;                                              // use same space for mvar
         VAR_CLEAR(var->name);
         memcpy(&var->name.var_cu[0], "$ECODE", 6);                              // copy in $ECODE
@@ -912,30 +912,30 @@ int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
         var->uci = UCI_IS_LOCALVAR;
         cptr = (cstring *) temp;                                                // some spare space
 DISABLE_WARN(-Warray-bounds)
-        cptr->len = itocstring(cptr->buf, level);                               // setup for subscript
+        cptr->len = ltocstring(cptr->buf, level);                               // setup for subscript
 ENABLE_WARN
         var->slen = UTIL_Key_Build(cptr, &var->key[0]);
-        s = ST_Get(var, ret_buffer);                                            // get and return
-        if (s == -ERRM6) s = 0;                                                 // allow for not there
-        return s;
+        t = ST_Get(var, ret_buffer);                                            // get and return
+        if (t == -ERRM6) t = 0;                                                 // allow for not there
+        return t;
     }
 
-    if (level && (level == systab->jobtab[job].error_frame)) level = STM1_FRAME; // error frame adjust
+    if (level && (level == partab.job_table[job].error_frame)) level = STM1_FRAME; // error frame adjust
 
-    if ((((systab->jobtab[job].dostk[level].type & 127) == TYPE_XECUTE) ||
-      ((systab->jobtab[job].dostk[level].type & 127) == TYPE_RUN) ||
-      ((systab->jobtab[job].dostk[level].type & 127) == TYPE_JOB)) &&
-      (var_empty(systab->jobtab[job].dostk[level].rounam))) {
+    if ((((partab.job_table[job].dostk[level].type & 127) == TYPE_XECUTE) ||
+      ((partab.job_table[job].dostk[level].type & 127) == TYPE_RUN) ||
+      ((partab.job_table[job].dostk[level].type & 127) == TYPE_JOB)) &&
+      (var_empty(partab.job_table[job].dostk[level].rounam))) {
         if (arg2 == 2) {                                                        // "MCODE"
             ret_buffer[0] = '\0';                                               // JIC
 
             // no can do
-            if (systab->jobtab[job].cur_do < ((level == STM1_FRAME) ? systab->jobtab[job].error_frame : level)) {
+            if (partab.job_table[job].cur_do < ((level == STM1_FRAME) ? partab.job_table[job].error_frame : level)) {
                 return 0;
             }
 
-            if (job != (partab.jobtab - systab->jobtab)) return 0;              // can't find
-            p = (u_char *) systab->jobtab[job].dostk[level].routine;
+            if (job != (partab.jobtab - partab.job_table)) return 0;            // can't find
+            p = (u_char *) SOA(partab.job_table[job].dostk[level].routine);
             if (p == NULL) return 0;                                            // nothing there
             for (i = 0; (ret_buffer[i] = p[i]); i++) continue;                  // copy it
             return i;                                                           // return the count
@@ -944,15 +944,15 @@ ENABLE_WARN
         return mcopy((u_char *) "@", ret_buffer, 1);                            // "PLACE"
     }
 
-    rounam = &systab->jobtab[job].dostk[level].rounam;                          // point at routine name
-    line = systab->jobtab[job].dostk[level].line_num;                           // get line number
+    rounam = &partab.job_table[job].dostk[level].rounam;                        // point at routine name
+    line = partab.job_table[job].dostk[level].line_num;                         // get line number
 
     if (arg2 == 2) {                                                            // "MCODE"
         var = (mvar *) ret_buffer;                                              // use same space for mvar
         VAR_CLEAR(var->name);
         memcpy(&var->name.var_cu[0], "$ROUTINE", 8);                            // copy in $ROUTINE
-        var->volset = systab->jobtab[job].rvol;                                 // volume number
-        var->uci = systab->jobtab[job].ruci;                                    // UCI number
+        var->volset = partab.job_table[job].rvol;                               // volume number
+        var->uci = partab.job_table[job].ruci;                                  // UCI number
         if (rounam->var_cu[0] == '%') var->uci = 1;                             // check for a percent routine
         cptr = (cstring *) temp;                                                // some spare space
 
@@ -964,23 +964,23 @@ DISABLE_WARN(-Warray-bounds)
 
         cptr->buf[i] = '\0';                                                    // null terminate
         cptr->len = i;                                                          // save the length
-        s = UTIL_Key_Build(cptr, &var->key[0]);                                 // make a key from it
-        if (s < 0) return s;                                                    // die on error
-        var->slen = (u_char) s;                                                 // save the length
-        cptr->len = itocstring(cptr->buf, line);                                // make a string from int
+        t = UTIL_Key_Build(cptr, &var->key[0]);                                 // make a key from it
+        if (t < 0) return t;                                                    // die on error
+        var->slen = (u_char) t;                                                 // save the length
+        cptr->len = ltocstring(cptr->buf, line);                                // make a string from int
 ENABLE_WARN
-        s = UTIL_Key_Build(cptr, &var->key[var->slen]);                         // make a key from it
-        if (s < 0) return s;                                                    // die on error
-        var->slen += (u_char) s;                                                // save the length
-        s = Dget1(ret_buffer, var);                                             // get data
-        if (s < 0) s = 0;                                                       // ignore errors
-        ret_buffer[s] = '\0';                                                   // null terminate
-        return s;                                                               // and return
+        t = UTIL_Key_Build(cptr, &var->key[var->slen]);                         // make a key from it
+        if (t < 0) return t;                                                    // die on error
+        var->slen += (u_char) t;                                                // save the length
+        t = Dget1(ret_buffer, var);                                             // get data
+        if (t < 0) t = 0;                                                       // ignore errors
+        ret_buffer[t] = '\0';                                                   // null terminate
+        return t;                                                               // and return
     }
 
     i = 0;                                                                      // the start
     ret_buffer[i++] = '+';                                                      // add plus
-    i += itocstring(&ret_buffer[i], line);                                      // add the line number
+    i += ltocstring(&ret_buffer[i], line);                                      // add the line number
     ret_buffer[i++] = '^';                                                      // the name indicator
 
     for (arg2 = 0; arg2 < VAR_LEN; arg2++) {                                    // copy name
@@ -1001,7 +1001,7 @@ int Dtext(u_char *ret_buffer, cstring *str)
     int     i = 0;                                                              // a handy int
     int     j = 0;                                                              // and another
     u_char  slen;                                                               // saved length
-    int     s;                                                                  // for functions
+    int     t;                                                                  // for functions
     int     off = 1;                                                            // line offset
     u_char  rou[VAR_LEN + 4];                                                   // routine name
     u_char  tag[VAR_LEN + 4];                                                   // the tag
@@ -1094,35 +1094,35 @@ DISABLE_WARN(-Warray-bounds)
     partab.src_var.uci = partab.jobtab->ruci;                                   // UCI
     if (cr->buf[0] == '%') partab.src_var.uci = 1;                              // manager routine? then point there
     partab.src_var.slen = 0;                                                    // init key size
-    s = UTIL_Key_Build(cr, &partab.src_var.key[0]);                             // first key
-    if (s < 0) return s;                                                        // die on error
-    slen = s;                                                                   // save key size
+    t = UTIL_Key_Build(cr, &partab.src_var.key[0]);                             // first key
+    if (t < 0) return t;                                                        // die on error
+    slen = (u_char) t;                                                          // save key size
 
     if (ct->len == 0) {                                                         // no tag?
-        ct->len = itocstring(ct->buf, off);                                     // cstring off
-        s = UTIL_Key_Build(ct, &partab.src_var.key[slen]);                      // next key
-        if (s < 0) return s;                                                    // die on error
-        partab.src_var.slen = s + slen;                                         // save key size
-        s = DB_Get(&partab.src_var, ret_buffer);                                // get it
+        ct->len = ltocstring(ct->buf, off);                                     // cstring off
+        t = UTIL_Key_Build(ct, &partab.src_var.key[slen]);                      // next key
+        if (t < 0) return t;                                                    // die on error
+        partab.src_var.slen = t + slen;                                         // save key size
+        t = DB_Get(&partab.src_var, ret_buffer);                                // get it
 
-        if (s < 0) {
+        if (t < 0) {
             ret_buffer[0] = '\0';                                               // nothing
-            s = 0;                                                              // zero length
+            t = 0;                                                              // zero length
         } else if (!off) {                                                      // just the name required?
             return mcopy(cr->buf, ret_buffer, cr->len);                         // return the name
         }
 
-        return s;                                                               // and return it
+        return t;                                                               // and return it
     }
 
     for (j = 1; ; j++) {                                                        // need to read all lines
-        cr->len = itocstring(cr->buf, j);                                       // cstring j
-        s = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
-        if (s < 0) return s;                                                    // die on error
-        partab.src_var.slen = s + slen;                                         // save key size
-        s = DB_Get(&partab.src_var, ret_buffer);                                // get it
+        cr->len = ltocstring(cr->buf, j);                                       // cstring j
+        t = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
+        if (t < 0) return t;                                                    // die on error
+        partab.src_var.slen = t + slen;                                         // save key size
+        t = DB_Get(&partab.src_var, ret_buffer);                                // get it
 
-        if (s < 0) {
+        if (t < 0) {
             ret_buffer[0] = '\0';                                               // nothing
             return 0;                                                           // zero length
         }
@@ -1138,30 +1138,30 @@ DISABLE_WARN(-Warray-bounds)
             continue;
         }
 
-        if (off == 0) return s;                                                 // no offset - all done
+        if (off == 0) return t;                                                 // no offset - all done
         j += off;                                                               // add the offset
-        cr->len = itocstring(cr->buf, j);                                       // cstring j
+        cr->len = ltocstring(cr->buf, j);                                       // cstring j
 ENABLE_WARN
-        s = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
-        if (s < 0) return s;                                                    // die on error
-        partab.src_var.slen = s + slen;                                         // save key size
-        s = DB_Get(&partab.src_var, ret_buffer);                                // get it
+        t = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
+        if (t < 0) return t;                                                    // die on error
+        partab.src_var.slen = t + slen;                                         // save key size
+        t = DB_Get(&partab.src_var, ret_buffer);                                // get it
 
-        if (s < 0) {
+        if (t < 0) {
             ret_buffer[0] = '\0';                                               // nothing
-            s = 0;                                                              // zero length
+            t = 0;                                                              // zero length
         }
 
-        return s;                                                               // done
+        return t;                                                               // done
     }
 }
 
 // $TRANSLATE(expr1,expr2[,expr3])
 int Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
 {
-    u_short s = 0;                                                              // arg 3
+    u_short us = 0;                                                             // arg 3
 
-    return Dtranslate3(ret_buffer, expr1, expr2, (cstring *) &s);
+    return Dtranslate3(ret_buffer, expr1, expr2, (cstring *) &us);
 }
 
 int Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3)
@@ -1196,25 +1196,27 @@ int Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
     if ((chan > -1) || (chan < -MAX_VOL)) return -(ERRZ63 + ERRMLAST);          // must be negative for now
     chan = (-chan) - 1;                                                         // negate it and 0 base
     if (partab.jobtab->view[chan] == NULL) return -(ERRZ63 + ERRMLAST);         // got a block? no - die
-    vb = (u_char *) partab.jobtab->view[chan]->mem;                             // get block memory address
+    vb = (u_char *) SOA(SOA(partab.jobtab->view[chan])->mem);                   // get block memory address
 
-    if ((loc < 0) || (size < 1) || ((loc + size) > (int) systab->vol[chan]->vollab->block_size)) {
+    if ((loc < 0) || (size < 1) || ((loc + size) > (int) SOA(partab.vol[chan]->vollab)->block_size)) {
         return -(ERRZ63 + ERRMLAST);                                            // out of range - die
     }
 
     vb += loc;                                                                  // offset to location
 
     if (value == NULL) {                                                        // a read?
-        if (size == 1) return uitocstring(ret_buffer, *vb);                     // one byte
-        if (size == 2) return uitocstring(ret_buffer, *((u_short *) vb));       // two bytes
-        if (size == 4) return uitocstring(ret_buffer, *((u_int *) vb));         // four bytes
+        if (size == 1) return ultocstring(ret_buffer, *vb);                     // one byte
+        if (size == 2) return ultocstring(ret_buffer, *((u_short *) vb));       // two bytes
+        if (size == 4) return ultocstring(ret_buffer, *((u_int *) vb));         // four bytes
         return mcopy(vb, ret_buffer, size);                                     // return the string
     }
 
     ret_buffer[0] = '\0';                                                       // null terminate
 
     if ((size == 1) || (size == 2) || (size == 4)) {                            // int type?
-        int i = cstringtoi(value);                                              // make int of it
+        int i;
+
+        i = cstringtoi(value);                                                  // make int of it
 
         if (size == 1) {
             *vb = (u_char) i;
@@ -1235,29 +1237,28 @@ int Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
 int DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2)
 {
     cstring *vptr;                                                              // where the variable goes
-    int     s;                                                                  // for the functions
-    int     i;                                                                  // a handy int
+    int     t;                                                                  // for the functions
 
     if (i1 < 1) i1 = 1;                                                         // ensure i1 positive
     if (i1 > i2) return 0;                                                      // ignore that, it's junk
     if (i2 > MAX_STR_LEN) return -ERRM75;                                       // complain if too long
     vptr = (cstring *) tmp;                                                     // where it goes
-    s = Dget1(vptr->buf, var);                                                  // get current value
-    if (s < 0) return s;                                                        // die on error
-    vptr->len = s;                                                              // save the size
-    for (i = s; i < i1; vptr->buf[i++] = ' ') continue;                         // ensure enough spaces
+    t = Dget1(vptr->buf, var);                                                  // get current value
+    if (t < 0) return t;                                                        // die on error
+    vptr->len = (u_short) t;                                                    // save the size
+    for (int i = t; i < i1; vptr->buf[i++] = ' ') continue;                     // ensure enough spaces
 
-    if (s <= i2) {                                                              // if no trailing left
-        s = mcopy(cptr->buf, &vptr->buf[i1 - 1], cptr->len);                    // copy it in
-        if (s < 0) return s;                                                    // check for overflow
+    if (t <= i2) {                                                              // if no trailing left
+        t = mcopy(cptr->buf, &vptr->buf[i1 - 1], cptr->len);                    // copy it in
+        if (t < 0) return t;                                                    // check for overflow
         vptr->len = i1 - 1 + cptr->len;                                         // the new length
         if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);              // set it back and return
         return DB_Set(var, vptr);                                               // set it back and return
     }
 
     if ((i2 - i1 + 1) != cptr->len) {                                           // not an exact fit?
-        s = mcopy(&vptr->buf[i2], &vptr->buf[i1 - 1 + cptr->len], vptr->len - i2 + 2); // move tail here
-        if (s < 0) return s;                                                    // check overflow
+        t = mcopy(&vptr->buf[i2], &vptr->buf[i1 - 1 + cptr->len], vptr->len - i2 + 2); // move tail here
+        if (t < 0) return t;                                                    // check overflow
     }
 
     memmove(&vptr->buf[i1 - 1], cptr->buf, cptr->len);                          // can't use mcopy() here
@@ -1270,7 +1271,7 @@ int DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2)
 int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2)
 {
     cstring *vptr;                                                              // where the variable goes
-    int     s;                                                                  // for the functions
+    int     t;                                                                  // for the functions
     int     beg = 0;                                                            // start copy from
     int     end;                                                                // copy to
     int     pce = 1;                                                            // current piece
@@ -1281,13 +1282,13 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     if (i1 < 1) i1 = 1;                                                         // ensure i1 positive
     if (i1 > i2) return 0;                                                      // ignore that, it's junk
     vptr = (cstring *) tmp;                                                     // where it goes
-    s = Dget1(vptr->buf, var);                                                  // get current value
-    if (s < 0) return s;                                                        // die on error
-    vptr->len = s;                                                              // save the size
+    t = Dget1(vptr->buf, var);                                                  // get current value
+    if (t < 0) return t;                                                        // die on error
+    vptr->len = t;                                                              // save the size
 
     if (dptr->len == 0) {                                                       // null delimiter ?
-        s = mcopy(cptr->buf, &vptr->buf[vptr->len], cptr->len);                 // copy at end
-        if (s < 0) return s;                                                    // die on error
+        t = mcopy(cptr->buf, &vptr->buf[vptr->len], cptr->len);                 // copy at end
+        if (t < 0) return t;                                                    // die on error
         vptr->len += cptr->len;                                                 // the new length
         if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);              // set it back and return
         return DB_Set(var, vptr);                                               // set it back and return
@@ -1299,15 +1300,15 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
         f = i1 - np;                                                            // delimiters required
 
         for (j = 0; j < f; j++) {                                               // for each required delimiter
-            s = mcopy(dptr->buf, &vptr->buf[vptr->len], dptr->len);             // copy 1 delim
-            if (s < 0) return s;                                                // check for overflow
-            if ((vptr->len + s) > MAX_STR_LEN) return -ERRM75;
-            vptr->len += s;                                                     // add to length
+            t = mcopy(dptr->buf, &vptr->buf[vptr->len], dptr->len);             // copy 1 delim
+            if (t < 0) return t;                                                // check for overflow
+            if ((vptr->len + t) > MAX_STR_LEN) return -ERRM75;
+            vptr->len += t;                                                     // add to length
         }
 
-        s = mcopy(cptr->buf, &vptr->buf[vptr->len], cptr->len);                 // copy in source
-        if ((vptr->len + s) > MAX_STR_LEN) return -ERRM75;
-        vptr->len += s;                                                         // add to length
+        t = mcopy(cptr->buf, &vptr->buf[vptr->len], cptr->len);                 // copy in source
+        if ((vptr->len + t) > MAX_STR_LEN) return -ERRM75;
+        vptr->len += t;                                                         // add to length
         if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);              // set it back and return
         return DB_Set(var, vptr);                                               // set it back and return
     }
@@ -1337,8 +1338,8 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     }                                                                           // end of expr scan
 
     if (np == i1) {                                                             // replace last piece
-        s = mcopy(cptr->buf, &vptr->buf[beg], cptr->len);                       // copy it
-        if (s < 0) return s;                                                    // check overflow
+        t = mcopy(cptr->buf, &vptr->buf[beg], cptr->len);                       // copy it
+        if (t < 0) return t;                                                    // check overflow
         vptr->len = beg + cptr->len;                                            // fixup length
         if (var->uci == UCI_IS_LOCALVAR) return ST_Set(var, vptr);              // set it back and return
         return DB_Set(var, vptr);                                               // set it back and return
@@ -1349,8 +1350,8 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     i2 = end;                                                                   // end of cut
 
     if ((i2 - i1 + 1) != cptr->len) {                                           // not an exact fit?
-        s = mcopy(&vptr->buf[i2 + 1], &vptr->buf[i1 + cptr->len], vptr->len - i2 + 2); // move tail here
-        if (s < 0) return s;                                                    // check overflow
+        t = mcopy(&vptr->buf[i2 + 1], &vptr->buf[i1 + cptr->len], vptr->len - i2 + 2); // move tail here
+        if (t < 0) return t;                                                    // check overflow
     }
 
     if (cptr->len) memmove(&vptr->buf[i1], cptr->buf, cptr->len);               // can't use mcopy() here

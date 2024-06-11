@@ -1,27 +1,52 @@
+////
+Package: Reference Standard M
+File:    README.adoc
+Summary: Basic getting started documentation
+
+David Wicksell <dlw@linux.com>
+Copyright © 2020-2024 Fourth Watch Software LC
+https://gitlab.com/Reference-Standard-M/rsm
+
+Based on MUMPS V1 by Raymond Douglas Newman
+Copyright © 1999-2003
+https://gitlab.com/Reference-Standard-M/mumpsv1
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
 :source-highlighter: highlight.js
 :highlightjs-languages: bash, cos
+:logo: image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png
+:documentation: https://reference-standard-m.gitlab.io/rsm[documentation]
 
-image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
-="Fourth Watch Software Logo", width="480", height="80"]
+= Reference Standard M
 
-'''
-
-== Reference Standard M
-
-*Version 1.80.4 - 2024 Feb 9*
-
-=== Implementation of ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
+{logo}[caption="Fourth Watch Software Logo", width="480", height="80"]
 
 '''
+
+== ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
+
+[.lead]
+*Version 1.81.0 - 2024 Jun 10*
 
 === Copyright and License
 
-Developed and maintained by David Wicksell dlw@linux.com +
+Developed and maintained by David Wicksell <dlw@linux.com> +
 Copyright © 2020-2024 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
 Originally based on MUMPS V1 by Raymond Douglas Newman +
-Copyright (c) 1999-2018 +
+Copyright © 1999-2018 +
 https://gitlab.com/Reference-Standard-M/mumpsv1
 
 This program is free software: you can redistribute it and/or modify it under
@@ -36,7 +61,7 @@ PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License along
 with this program. If not, see https://www.gnu.org/licenses/.
 
-Full license text: link:COPYING[AGPL-3.0]
+Full license text: link:COPYING[AGPL-3.0-or-later]
 
 === Summary and Information
 
@@ -50,12 +75,10 @@ Newman. When I took over maintenance and development of MV1, I changed its name
 to better reflect its use as a reference implementation for the MDC.
 
 See the link:CHANGELOG.adoc[Changelog] for more information on the development
-of Reference Standard M. This software uses link:https://semver.org/[semantic
-versioning].
+of Reference Standard M. The RSM {documentation} is a work-in-progress.
+This software uses https://semver.org/[semantic versioning].
 
 _This is the post-relational database._
-
-The RSM link:doc/index.adoc[documentation] is a work-in-progress.
 
 === Installation
 
@@ -78,12 +101,12 @@ been tested, and/or known (or suspected) to build and run RSM, are:
 * Raspberry Pi on armv6l and armv7l running Raspbian
 * Mobian (Mobile Debian Linux) on aarch64
 
-WARNING: RSM will not run on SPARC, and may not run on PA-RISC hardware, due to
-memory alignment requirements
+WARNING: RSM will not run on SPARC, and may not run on PA-RISC, due to memory
+alignment requirements
 
-Thanks to link:https://gitlab.com/jpwillis[John Willis] for providing access to
-the build farm, and to link:https://github.com/racingmars[Matthew Wilson],
-Terry Wiechmann, and Flavio Fornazier for helping me with testing.
+Thanks to https://gitlab.com/jpwillis[John Willis] for providing access to the
+build farm, and to https://github.com/racingmars[Matthew Wilson], Terry
+Wiechmann, and Flavio Fornazier for helping me with testing.
 
 To build RSM, clone the RSM git repository:
 
@@ -151,6 +174,70 @@ Uninstall the `rsm` executable from a different bin directory [/usr/bin]:
 [source,bash]
 ----
 $ sudo make uninstall PREFIX=/usr
+----
+
+Install the `utils.rsm` utilities to the default directory
+[/usr/local/share/rsm]:
+
+[source,bash]
+----
+$ sudo make install-utils
+----
+
+Install the `utils.rsm` utilities to a different directory
+[/usr/share/rsm]:
+
+[source,bash]
+----
+$ sudo make install-utils PREFIX=/usr
+----
+
+Uninstall the `utils.rsm` utilities from the default directory
+[/usr/local/share/rsm]:
+
+[source,bash]
+----
+$ sudo make uninstall-utils
+----
+
+Uninstall the `utils.rsm` utilities from a different directory
+[/usr/share/rsm]:
+
+[source,bash]
+----
+$ sudo make uninstall-utils PREFIX=/usr
+----
+
+Install the documentation (asciidoc/man page) to the default directories
+[/usr/local/share/doc/rsm, /usr/local/share/man/man1]:
+
+[source,bash]
+----
+$ sudo make install-docs
+----
+
+Install the documentation (asciidoc/man page) to different directories
+[/usr/share/doc/rsm, /usr/share/man/man1]:
+
+[source,bash]
+----
+$ sudo make install-docs PREFIX=/usr
+----
+
+Uninstall the documentation (asciidoc/man page) from the default directories
+[/usr/local/share/doc/rsm, /usr/local/share/man/man1]:
+
+[source,bash]
+----
+$ sudo make uninstall-docs
+----
+
+Uninstall the documentation (asciidoc/man page) from different directories
+[/usr/share/doc/rsm, /usr/share/man/man1]:
+
+[source,bash]
+----
+$ sudo make uninstall-docs PREFIX=/usr
 ----
 
 === Usage
@@ -227,6 +314,25 @@ $ sudo sysctl -w kern.sysv.shmmax=2147483648
 
 # 8 GiB of system shared memory (in number of pages at 4096 bytes per page):
 $ sudo sysctl -w kern.sysv.shmall=2097152
+----
+
+To persist the above configuration changes on macOS, you'll need to create a
+property list configuration and load it so the daemon picks it up at boot time.
+There is a sample plist XML file at `rsm/etc/sysctl.plist`. Run these commands,
+after adjusting the `kern.sysv.shmmax` and `kern.sysv.shmall` settings based on
+your system resources, and ensuring you aren't overwriting an existing file with
+that name:
+
+[source,bash]
+----
+# Copy plist configuration to the correct system location
+$ sudo cp /Users/user/rsm/etc/sysctl.plist /Library/LaunchDaemons/sysctl.plist
+
+# Change its ownership
+$ sudo chown root:wheel /Library/LaunchDaemons/sysctl.plist
+
+# Load it for the launch daemon to run at boot
+$ sudo launchctl load /Library/LaunchDaemons/sysctl.plist
 ----
 
 On Cygwin, you need to configure and start `cygserver` (as administrator) before
@@ -474,8 +580,8 @@ To stop the container while in detached mode:
 $ docker stop rsm
 ----
 
-Consult the Docker link:https://docs.docker.com/[documentation] to learn about
-other ways you can run and manage the RSM Docker image and container.
+Consult the Docker https://docs.docker.com/[documentation] to learn about other
+ways you can run and manage the RSM Docker image and container.
 
 === Database Upgrade
 
@@ -489,7 +595,7 @@ The RSM runtime image will detect a database in the older format, as well as
 compiled bytecode in the older format, and return an appropriate error. If you
 would like to move your globals and routines from an old database to a new one,
 which works with this version of RSM, please follow these database
-link:doc/upgrade.adoc[upgrade] instructions, or run the
+link:doc/adoc/upgrade.adoc[upgrade] instructions, or run the
 link:bin/upgrade[upgrade] script.
 
 Enjoy!

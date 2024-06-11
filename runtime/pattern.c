@@ -1,18 +1,18 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/runtime/pattern.c
- * Summary:  module runtime - pattern match
+ * Package: Reference Standard M
+ * File:    rsm/runtime/pattern.c
+ * Summary: module runtime - pattern match
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * Originally based on FreeMUMPS
- * Copyright (c) 1998 MUG Deutschland
+ * Copyright © 1998 MUG Deutschland
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -25,7 +25,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -269,6 +272,7 @@ short pattern(cstring *a, cstring *b)
     *          LOGICAL BREAK IN THE CODE         *
     *       THIS NOW EVALUATES THE STRINGS       *
     \********************************************/
+
     levels = patx;
 
     if ((b->buf[x - 1] == 'e') && (mincnt[levels - 1] == 0) && (maxcnt[levels - 1] == 255)) {

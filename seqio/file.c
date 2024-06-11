@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/seqio/file.c
- * Summary:  module IO - sequential file IO
+ * Package: Reference Standard M
+ * File:    rsm/seqio/file.c
+ * Summary: module IO - sequential file IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,8 +22,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
  *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/*
  * Extended Summary:
  *
  * This module implements the following sequential input/output (i.e., IO)
@@ -81,7 +86,7 @@ int SQ_File_Open(char *file, int op)
 
     /*
      * I am assuming that MODE will always be ignored, except when the file does
-     * not exist and "op" is either WRITE, APPEND, or IO.
+     * not exist, and "op" is either WRITE, APPEND, or IO.
      */
 
     fid = open(file, flag, MODE);

@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/compile/routine.c
- * Summary:  module compile - parse a routine ref
+ * Package: Reference Standard M
+ * File:    rsm/compile/routine.c
+ * Summary: module compile - parse a routine ref
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -322,8 +325,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 {
     cstring *line;                                                              // the source line
     u_char  *code;                                                              // the code
-    int     s;                                                                  // for returns
-    short   ss;                                                                 // for returns
+    int     t;                                                                  // for returns
     u_short us;                                                                 // for routine header
     u_short uss;                                                                // for routine header
     int     cnt;                                                                // count things
@@ -353,8 +355,8 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     if ((code + MAXROUSIZE) > partab.strstk_last) return -(ERRZ8 + ERRMLAST);   // too big? then complain
 
     if (rou != NULL) {
-        s = SS_Norm(rou);                                                       // normalize mvar
-        if (s < 0) return s;                                                    // quit on error
+        t = SS_Norm(rou);                                                       // normalize mvar
+        if (t < 0) return t;                                                    // quit on error
     }
 
     i = 0;                                                                      // clear i
@@ -366,9 +368,9 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
             cnt = 0;                                                            // flag no rabbit ears
             if (nsubs > 0) return -ERRM38;                                      // junk
             if (rou->slen > (VAR_LEN + 2)) return -ERRM38;                      // ditto
-            ss = UTIL_Key_Extract(&rou->key[i], temp, &cnt);                    // key to extract
-            if (ss < 0) return ss;                                              // die on error
-            if ((ss > VAR_LEN) || (ss < 1)) return -ERRM38;                     // outside routine length (1 to VAR_LEN) then junk
+            t = UTIL_Key_Extract(&rou->key[i], temp, &cnt);                     // key to extract
+            if (t < 0) return t;                                                // die on error
+            if ((t > VAR_LEN) || (t < 1)) return -ERRM38;                       // outside routine length (1 to VAR_LEN) then junk
             i += cnt;                                                           // count used bytes
             nsubs++;                                                            // count it
         }
@@ -404,11 +406,11 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     }
 
     if (src->name.var_cu[0] == '$') {                                           // source an SSVN?
-        s = SS_Norm(src);                                                       // normalize mvar
+        t = SS_Norm(src);                                                       // normalize mvar
 
-        if (s < 0) {                                                            // quit on error
+        if (t < 0) {                                                            // quit on error
             partab.checkonly = 0;                                               // reset to avoid buffer bugs in comperror
-            return s;
+            return t;
         }
 
 #if RSM_DBVER != 1
@@ -434,47 +436,47 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     }                                                                           // end source SSVN check
 
     if (!partab.checkonly) {                                                    // if it's a real compile
-        ss = SemOp(SEM_ROU, -systab->maxjob);                                   // grab the routine semaphore
-        if (ss < 0) return ss;                                                  // if we got an error, quit
+        t = SemOp(SEM_ROU, SEM_WRITE);                                          // grab the routine semaphore
+        if (t < 0) return t;                                                    // if we got an error, quit
         rou_slen = rou->slen;                                                   // save routine key size
     }
 
     if (!same) {                                                                // if not the same
-        ss = DB_Kill(rou);                                                      // dong it
+        t = DB_Kill(rou);                                                       // dong it
 
-        if (ss < 0) {                                                           // complain on error
-            SemOp(SEM_ROU, systab->maxjob);                                     // release sem
+        if (t < 0) {                                                            // complain on error
+            SemOp(SEM_ROU, -SEM_WRITE);                                         // release sem
             partab.checkonly = 0;                                               // reset to avoid buffer bugs in comperror
-            return ss;                                                          // exit
+            return t;                                                           // exit
         }
 
-        Routine_Delete(rounam, rou->uci);                                       // delete the routine
+        Routine_Delete(rounam, rou->volset, rou->uci);                          // delete the routine
     }
 
     src_slen = src->slen;                                                       // save source key size
     line->buf[0] = '0';                                                         // seed the $ORDER()
     line->buf[1] = '\0';                                                        // null terminated
     line->len = 1;                                                              // this long
-    ss = UTIL_Key_Build(line, &src->key[src_slen]);                             // build the key
-    src->slen = src_slen + ss;                                                  // store the new length
+    t = UTIL_Key_Build(line, &src->key[src_slen]);                              // build the key
+    src->slen = src_slen + t;                                                   // store the new length
     comp_ptr = code;                                                            // setup the compiler ptr
     partab.varlst = var_tbl;                                                    // for localvar()
 
     while (TRUE) {                                                              // for all lines
-        s = Dorder1(line->buf, src);                                            // get next in source
-        if (!s) break;                                                          // all done
+        t = Dorder1(line->buf, src);                                            // get next in source
+        if (!t) break;                                                          // all done
 
-        if (s < 0) {                                                            // if we got an error, quit
+        if (t < 0) {                                                            // if we got an error, quit
             partab.checkonly = 0;                                               // reset to avoid buffer bugs in comperror
-            return s;
+            return t;
         }
 
-        line->len = s;                                                          // save length
-        s = UTIL_Key_Build(line, &src->key[src_slen]);                          // build the key
-        src->slen = src_slen + s;                                               // store the new length
-        s = Dget1(line->buf, src);                                              // get the data
-        if (s < 1) continue;                                                    // ignore empty/undefined lines
-        line->len = s;                                                          // save the length
+        line->len = t;                                                          // save length
+        t = UTIL_Key_Build(line, &src->key[src_slen]);                          // build the key
+        src->slen = src_slen + t;                                               // store the new length
+        t = Dget1(line->buf, src);                                              // get the data
+        if (t < 1) continue;                                                    // ignore empty/undefined lines
+        line->len = t;                                                          // save the length
         source_ptr = line->buf;                                                 // where the source is
 
         if (isalnum(*source_ptr) || (*source_ptr == '%')) {                     // check for a tag
@@ -598,17 +600,17 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
         if (!same) {                                                            // write if required
             for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ') continue; // convert leading tab to space
 DISABLE_WARN(-Warray-bounds)
-            cptr->len = itocstring(cptr->buf, partab.ln);                       // convert to a cstring
+            cptr->len = ltocstring(cptr->buf, partab.ln);                       // convert to a cstring
 ENABLE_WARN
-            s = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                      // build the key
-            rou->slen = rou_slen + s;                                           // store the new length
-            s = DB_Set(rou, line);                                              // write out the source line
+            t = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                      // build the key
+            rou->slen = rou_slen + t;                                           // store the new length
+            t = DB_Set(rou, line);                                              // write out the source line
 
-            if (s < 0) {
-                if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob);          // unlock
+            if (t < 0) {
+                if (!partab.checkonly) SemOp(SEM_ROU, -SEM_WRITE);              // unlock
                 partab.varlst = NULL;                                           // for localvar()
                 partab.checkonly = 0;                                           // reset to avoid buffer bugs in comperror
-                return s;                                                       // exit with error
+                return t;                                                       // exit with error
             }
         }
 
@@ -720,7 +722,7 @@ ENABLE_WARN
 
     if (i > MAX_STR_LEN) {
         comperror(-(ERRZ54 + ERRMLAST));                                        // complain
-        if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob);                  // unlock
+        if (!partab.checkonly) SemOp(SEM_ROU, -SEM_WRITE);                      // unlock
         partab.checkonly = 0;                                                   // reset to avoid buffer bugs in comperror
         return -ERRM75;                                                         // ignore the rest
     }
@@ -737,11 +739,11 @@ ENABLE_WARN
         return partab.errors;
     }
 
-    s = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                              // build the key
-    rou->slen = rou_slen + s;                                                   // store the new length
-    s = DB_Set(rou, line);                                                      // set it
-    if (same) Routine_Delete(rounam, rou->uci);                                 // delete the routine
-    i = SemOp(SEM_ROU, systab->maxjob);                                         // release sem
+    t = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                              // build the key
+    rou->slen = rou_slen + t;                                                   // store the new length
+    t = DB_Set(rou, line);                                                      // set it
+    if (same) Routine_Delete(rounam, rou->volset, rou->uci);                    // delete the routine
+    i = SemOp(SEM_ROU, -SEM_WRITE);                                             // release sem
     partab.checkonly = 0;                                                       // reset to avoid buffer bugs in comperror
-    return s;                                                                   // NEED MORE HERE
+    return t;                                                                   // NEED MORE HERE
 }

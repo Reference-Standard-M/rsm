@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/seqio/signal.c
- * Summary:  module IO - sequential IO signal handling
+ * Package: Reference Standard M
+ * File:    rsm/seqio/signal.c
+ * Summary: module IO - sequential IO signal handling
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2016
+ * Copyright © 1999-2016
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,8 +22,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
  *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/*
  * Extended Summary:
  *
  * This module can be viewed as the facility for catching all signals that
@@ -43,7 +48,8 @@
 
 /*
  * This function handles all caught signals.
- * Note: refer to the function "setSignalBitMask" in the file rsm/seqio/util.c
+ *
+ * NOTE: Refer to the function "setSignalBitMask" in the file rsm/seqio/util.c
  */
 void signalHandler(int sig)                                                     // Caught signal
 {
@@ -87,8 +93,8 @@ int setSignal(int sig, int flag)
  * 0 is returned. Otherwise, a negative integer value is returned to indicate
  * the error that has occurred.
  *
- * Note, if a signal arrives during one of the primitive operations (i.e., open,
- * read etc.), the operation will exit with -1, with "errno" set to EINTR.
+ * NOTE: If a signal arrives during one of the primitive operations (i.e., open,
+ *       read etc.), the operation will exit with -1, with "errno" set to EINTR
  */
 int setSignals(void)
 {

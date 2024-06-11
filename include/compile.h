@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/include/compile.h
- * Summary:  module RSM header file - routine structures etc.
+ * Package: Reference Standard M
+ * File:    rsm/include/compile.h
+ * Summary: module RSM header file - routine structures etc.
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,11 +22,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#ifndef _RSM_COMPILE_H_                                                         // only do this once
-#define _RSM_COMPILE_H_
+#ifndef RSM_COMPILE_H
+#define RSM_COMPILE_H
 
 #define UNVAR { \
     comperror(-ERRM8); \
@@ -51,28 +54,27 @@
 
 #define INDSNOK(size) (((size * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)       // For testing indirection size - a guess
 #define INDANOK(addr) ((addr + (sizeof(long) * 2) + 1) >= &indstk[MAX_ISTK])    // For testing the address of compiled indirection
+#define RBD_OVERHEAD  (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
+                      + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))
 
-#define RBD_OVERHEAD (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
-                     + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))
+#define RESERVE_TIME (20 * 60)                                                  // 20 minutes
+#define SIZE_CLOSE   1024                                                       // routine size match
 
-#define RESERVE_TIME    (20 * 60)                                               // 20 minutes
-#define SIZE_CLOSE      1024                                                    // routine size match
-
-#define FOR_TYP_0       0                                                       // no args
-#define FOR_TYP_1       1                                                       // one arg
-#define FOR_TYP_2       2                                                       // two args
-#define FOR_TYP_3       3                                                       // three args
-#define FOR_NESTED      16                                                      // we are not an outside for
+#define FOR_TYP_0  0                                                            // no args
+#define FOR_TYP_1  1                                                            // one arg
+#define FOR_TYP_2  2                                                            // two args
+#define FOR_TYP_3  3                                                            // three args
+#define FOR_NESTED 16                                                           // we are not an outside for
 
 // BREAK control
-#define BREAK_OFF       0                                                       // BREAK off but ready (default)
-#define BREAK_ON        -1                                                      // BREAK hit or set
-#define BREAK_DISABLE   -2                                                      // disable BREAK
+#define BREAK_OFF     0                                                         // BREAK off but ready (default)
+#define BREAK_ON      -1                                                        // BREAK hit or set
+#define BREAK_DISABLE -2                                                        // disable BREAK
 
 // Funny opcode stuff
-#define BREAK_NOW       256                                                     // BREAK at breakpoint (not really an opcode)
-#define JOBIT           512                                                     // JOB (not really an opcode)
-#define BREAK_QN        1073741824                                              // return a QUIT n (BREAK in n commands)
+#define BREAK_NOW 256                                                           // BREAK at breakpoint (not really an opcode)
+#define JOBIT     512                                                           // JOB (not really an opcode)
+#define BREAK_QN  1073741824                                                    // return a QUIT n (BREAK in n commands)
 
 // Variable types follow
 #define TYPMAXSUB       63                                                      // max subscripts
@@ -93,8 +95,7 @@ extern long   isp;                                                              
 
 typedef struct __attribute__ ((__packed__)) FOR_STACK {                         // saved FOR details
     short  type;                                                                // type of for (see above)
-    short  svar;                                                                // syment of simple var
-                                                                                // (if -1 use var)
+    short  svar;                                                                // syment of simple var (if -1 use var)
     mvar   *var;                                                                // mvar on strstk of variable
     u_char *nxtarg;                                                             // where to jump for next
     u_char *startpc;                                                            // where the actual code starts
@@ -117,7 +118,6 @@ typedef struct __attribute__ ((__packed__)) RBD {                               
     u_char     uci;                                                             // UCI num for this rou
     u_char     vol;                                                             // vol num for this rou
     u_short    rou_size;                                                        // rou->len of routine node
-
     // what follows is the routine from disk (up to MAX_STR_LEN bytes + a NULL)
     u_short    comp_ver;                                                        // compiler version
     u_short    comp_user;                                                       // compiled by user#
@@ -159,4 +159,4 @@ void  Debug_off(void);                                                          
 short Debug_on(cstring *param);                                                 // turn on/modify debug
 short Debug(int savasp, int savssp, int dot);                                   // drop into debug
 
-#endif                                                                          // !_RSM_COMPILE_H_
+#endif

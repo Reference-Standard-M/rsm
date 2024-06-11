@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/runtime/buildmvar.c
- * Summary:  module runtime - build an mvar
+ * Package: Reference Standard M
+ * File:    rsm/runtime/buildmvar.c
+ * Summary: module runtime - build an mvar
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -39,17 +42,16 @@
 
 short getvol(const cstring *vol)                                                // get vol number for volume name
 {
-    int     i;                                                                  // a handy int
-    u_short s;                                                                  // for cstring length
+    u_short us;                                                                 // for cstring length
 
-    s = vol->len;                                                               // get len
-    if (s < VAR_LEN) s++;                                                       // include term null if possible
+    us = vol->len;                                                              // get len
+    if (us < VAR_LEN) us++;                                                     // include term null if possible
 
-    for (i = 0; i < MAX_VOL; i++) {                                             // scan the volumes
+    for (int i = 0; i < MAX_VOL; i++) {                                         // scan the volumes
         if (systab->vol[i] == NULL) continue;                                   // continue if no volume
-        if (systab->vol[i]->vollab == NULL) continue;                           // continue if none in slot
+        if (partab.vol[i]->vollab == NULL) continue;                            // continue if none in slot
 
-        if (memcmp(vol->buf, &systab->vol[i]->vollab->volnam.var_cu[0], s) != 0) {
+        if (memcmp(vol->buf, &SOA(partab.vol[i]->vollab)->volnam.var_cu[0], us) != 0) {
             continue;                                                           // if not the same continue
         }
 
@@ -61,16 +63,15 @@ short getvol(const cstring *vol)                                                
 
 short getuci(const cstring *uci, int vol)                                       // get UCI number
 {
-    int     i;                                                                  // for loops
-    u_short s;                                                                  // for cstring length
+    u_short us;                                                                 // for cstring length
 
-    s = uci->len;                                                               // get len
-    if (s < VAR_LEN) s++;                                                       // include term null if possible
+    us = uci->len;                                                              // get len
+    if (us < VAR_LEN) us++;                                                     // include term null if possible
     if (vol == 0) vol = partab.jobtab->vol;                                     // get current vol
     vol--;                                                                      // make internal reference
 
-    for (i = 0; i < UCIS; i++) {                                                // scan the UCIs
-        if (memcmp(uci->buf, &systab->vol[vol]->vollab->uci[i].name.var_cu[0], s) == 0) {
+    for (int i = 0; i < UCIS; i++) {                                            // scan the UCIs
+        if (memcmp(uci->buf, &SOA(partab.vol[vol]->vollab)->uci[i].name.var_cu[0], us) == 0) {
             return (short) (i + 1);
         }
     }
@@ -125,7 +126,7 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
             var->volset = i + 1;                                                // save the index (+ 1)
             VAR_CLEAR(var->name);                                               // clear the name
         } else {
-            p = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
+            p = (rbd *) SOA(partab.jobtab->dostk[partab.jobtab->cur_do].routine);
             vt = (var_u *) (((u_char *) p) + p->var_tbl);                       // point at var table
             VAR_COPY(var->name, vt[i]);                                         // get the var name
         }

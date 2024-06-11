@@ -1,22 +1,34 @@
-:source-highlighter: highlight.js
-:highlightjs-languages: cos, http, html
+////
+Package: Reference Standard M
+File:    doc/adoc/web.adoc
+Summary: Web server documentation
 
-[role="left"]
-image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
-="Fourth Watch Software Logo", width="480", height="80"]
-
-[role="right"]
-link:index.adoc[Index]
-
-'''
-
-== Reference Standard M Web Server Utility
-
-David Wicksell <dlw@linux.com> +
-Copyright © 2020-2023 Fourth Watch Software LC +
+David Wicksell <dlw@linux.com>
+Copyright © 2020-2024 Fourth Watch Software LC
 https://gitlab.com/Reference-Standard-M/rsm
 
-=== Summary
+Based on MUMPS V1 by Raymond Douglas Newman
+Copyright © 1999-2003
+https://gitlab.com/Reference-Standard-M/mumpsv1
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
+:source-highlighter: highlight.js
+:highlightjs-languages: cos, http, xml
+
+= Web Server Utility
+
+== Introduction
 
 The RSM web server is distributed as part of the vendor utilities. There are
 three routines that implement the web server, which uses the HTTP protocol:
@@ -108,13 +120,10 @@ return in this case, it may just halt.
 
 There is an extrinsic interface to the MCL, which could be added to a document:
 
-[source,html]
+[source,xml]
 ----
 <a href="?$$WWW^%25M&CMD=SHOW%20SYSTEM">Click here for SHOW SYSTEM</a>
 ----
 
 This will give some system info - note the 25 after the % is required as % is
 used as an escape character by HTTP.
-
-[role="right"]
-link:index.adoc[Index]

@@ -1,0 +1,172 @@
+////
+Package: Reference Standard M
+File:    doc/adoc/rsm.adoc
+Summary: rsm program documentation
+
+David Wicksell <dlw@linux.com>
+Copyright © 2024 Fourth Watch Software LC
+https://gitlab.com/Reference-Standard-M/rsm
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
+= RSM(1)
+
+== Name
+
+rsm - an implementation of the M programming language and database
+
+== Synopsis
+
+*rsm -V* +
+*rsm -h* +
+*rsm -i* [_database-file_] +
+*rsm -v* _volume-name_ *-b* _block-size_ *-s* _database-size_ [*-m*
+_map-size_] [*-e* _environment-name_] [_database-file_] +
+*rsm -j* _max-jobs_ [*-g* _global-buffers_] [*-r* _routine-buffers_]
+[_database-file_] +
+*rsm* [*-e* _environment-name_] [*-x* _M-commands_] [*-R*]
+[_database-file_] +
+*rsm -k* [_database-file_]
+
+== Description
+
+The *rsm* program creates database volumes, manages the environment, and
+runs instances [jobs] of *Reference Standard M*.
+
+*Reference Standard M* (RSM) is an implementation of the M programming
+language and database, which implements the latest M standard that has
+been released by the M Development Committee (MDC), currently ANSI/MDC
+X11.1-1995 (ISO/IEC 11756:1999).
+
+== Options
+
+RSM options are used together, as shown under each sub-heading. Some
+options may have different functionality based on context, which is
+outlined below. A full command line must either end with _database-file_
+or the *RSM_DBFILE* environment variable must be set to _database-file_,
+except when using the *-V* or *-h* options.
+
+=== Show useful information:
+
+*-V*::
+  Output a short version string.
+*-h*::
+  Output a help menu.
+*-i*::
+  Output information about the environment.
+
+=== Create a database volume:
+
+*-v* _volume-name_::
+  Name of the volume (1-32 alpha characters).
+*-b* _block-size_::
+  Size of the database blocks (1-256 KiB).
+*-s* _database-size_::
+  Initial size of the database (100-2147483647 blocks).
+[*-m* _map-size_]::
+  Size of the map block (0-262147 KiB). Defaults to 3 KiB, _block-size_,
+  or large enough to map _database-size_.
+[*-e* _environment-name_]::
+  Name of the manager UCI (1-32 alpha characters). Defaults to *MGR*.
+
+=== Initialize and start an environment:
+
+*-j* _max-jobs_::
+  Size of the job table in the environment (1-1024 jobs). Size of the
+  lock table is _max-jobs_ * 32 KiB.
+[*-g* _global-buffers_]::
+  Size of the global buffers (1-131072 MiB). Defaults to _max-jobs_ / 2
+  (min: 1 MiB or 64 buffers).
+[*-r* _routine-buffers_]::
+  Size of the routine buffers (1-4095 MiB). Defaults to _max-jobs_ / 8
+  (min: 1 MiB)
+
+=== Start a job and attach to the environment:
+
+[*-e* _environment-name_]::
+  Name of the initial UCI environment. Defaults to manager UCI.
+[*-x* _M-commands_]::
+  A string of M commands to execute.
+[*-R*]::
+  Start a job in restricted mode.
+
+=== Stop all jobs and shut down an environment:
+
+*-k*::
+  Kill an environment.
+
+== Exit Status
+
+0::
+  Success
+>0::
+  Failure (errno)
+255::
+  Failure (rsm)
+
+== Environment Variables
+
+*RSM_DBFILE*::
+  The path to the main database file. If not set, the file path has to
+  be passsed as the last argument to *rsm* for most commands. See above
+  for details.
+
+== Internet Resources
+
+Main website:::
+  *https://rsmlang.com/*
+Git repository:::
+  *https://gitlab.com/reference-standard-m/rsm*
+Company website:::
+  *https://www.fourthwatchsoftware.com/*
+
+== Author
+
+David Wicksell <dlw@linux.com>
+
+== Copyright
+
+This man page is for *Reference Standard M* +
+Copyright © 2020-2024 Fourth Watch Software LC
+
+== Code License
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License (AGPL) as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see *https://www.gnu.org/licenses/*.
+
+== Document License
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover texts, and with no Back-Cover
+Texts.
+
+You should have received a copy of the GNU Free Documentation License
+along with this program. If not, see *https://www.gnu.org/licenses/*.
+
+== Bugs
+
+Check the issue tracker at
+*https://gitlab.com/reference-standard-m/rsm/-/issues* for information
+on currently documented bugs.

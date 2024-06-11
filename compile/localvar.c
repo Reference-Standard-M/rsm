@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/compile/localvar.c
- * Summary:  module compile - parse a local variable
+ * Package: Reference Standard M
+ * File:    rsm/compile/localvar.c
+ * Summary: module compile - parse a local variable
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -31,7 +34,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
-#include <limits.h>                                                             // for LONG_MAX etc.
+#include <limits.h>
 #include <math.h>
 #include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes

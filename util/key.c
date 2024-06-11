@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/util/key.c
- * Summary:  module database - key utilities
+ * Package: Reference Standard M
+ * File:    rsm/util/key.c
+ * Summary: module database - key utilities
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2017
+ * Copyright © 1999-2017
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -83,7 +86,7 @@ short UTIL_Key_Build(cstring *src, u_char *dest)                                
     }                                                                           // end numeric check
 
     if ((dp != -1) && (src->buf[src->len - 1] == '0')) goto string;             // check trailing 0 after dp
-    if (dp == (src->len - 1)) goto string;                                      // or dp is last char in str
+    if ((dp + minus) == (src->len - 1)) goto string;                            // or dp is last char in str
     if (dp == -1) dp = (src->len - minus);                                      // get dp position (assumed)
     if (dp > 63) goto string;                                                   // max 63 digits before dp
 
@@ -131,10 +134,10 @@ string:                                                                         
  */
 short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
 {
-    int s;                                                                      // size
-    int i = 0;                                                                  // index
-    int idx = 0;                                                                // and another
-    int flg;                                                                    // flag for quotes in string
+    short s;                                                                    // size
+    int   i = 0;                                                                // index
+    int   idx = 0;                                                              // and another
+    int   flg;                                                                  // flag for quotes in string
 
     flg = *cnt;                                                                 // get the flag
     s = *key++;                                                                 // get first char
@@ -275,10 +278,10 @@ int UTIL_Key_Last(mvar *var)                                                    
  */
 short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
 {
-    int     i;                                                                  // for loops
-    int     p = 0;                                                              // string pointer
-    var_u   *vt;                                                                // var table pointer
-    u_char  *ptr;                                                               // string ptr
+    int    i;                                                                   // for loops
+    int    p = 0;                                                               // string pointer
+    var_u  *vt;                                                                 // var table pointer
+    u_char *ptr;                                                                // string ptr
 
     if (var->uci != UCI_IS_LOCALVAR) {                                          // if it's a global var
         str[p++] = '^';                                                         // lead off with the caret
@@ -291,7 +294,7 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
             str[p++] = '"';                                                     // a leading quote
             if (vol == 0) vol = partab.jobtab->vol;                             // if none, get default
             if (systab->vol[vol - 1] == NULL) return -ERRM26;                   // volume doesn't exist
-            up = systab->vol[vol - 1]->vollab->uci[var->uci - 1];               // UCI tab pointer
+            up = SOA(partab.vol[vol - 1]->vollab)->uci[var->uci - 1];           // UCI tab pointer
 
             for (i = 0; i < VAR_LEN; i++) {                                     // for each possible character
                 if (up.name.var_cu[i] == '\0') break;                           // done if we hit a null
@@ -303,7 +306,7 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
             if (var->volset != 0) {                                             // volset specified?
                 str[p++] = ',';                                                 // copy in a comma
                 str[p++] = '"';                                                 // a leading quote
-                ptr = systab->vol[var->volset - 1]->vollab->volnam.var_cu;
+                ptr = SOA(partab.vol[var->volset - 1]->vollab)->volnam.var_cu;
 
                 for (i = 0; i < VAR_LEN; i++) {                                 // for each possible character
                     if (ptr[i] == '\0') break;                                  // done if we hit a null
@@ -318,8 +321,9 @@ short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
     }                                                                           // end global specific stuff
 
     if ((var->uci == UCI_IS_LOCALVAR) && var->volset) {                         // special index type
-        rbd *r = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
+        rbd *r;
 
+        r = (rbd *) SOA(partab.jobtab->dostk[partab.jobtab->cur_do].routine);
         vt = (var_u *) (((u_char *) r) + r->var_tbl);                           // point at var table
         VAR_COPY(var->name, vt[var->volset - 1]);                               // get the var name
         var->volset = 0;                                                        // clear the volset
@@ -397,7 +401,7 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
 
                 for (i = 0; i < MAX_VOL; i++) {                                 // scan vol list
                     if (systab->vol[i] != NULL) {                               // vol here ?
-                        if (var_equal(systab->vol[i]->vollab->volnam, vol)) break; // quit if found
+                        if (var_equal(SOA(partab.vol[i]->vollab)->volnam, vol)) break; // quit if found
                     }
                 }
 
@@ -408,7 +412,7 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
             if (var->volset == 0) var->volset = partab.jobtab->vol;             // default
 
             for (i = 0; i < UCIS; i++) {                                        // scan UCI list
-                if (var_equal(systab->vol[var->volset - 1]->vollab->uci[i].name, nam)) {
+                if (var_equal(SOA(partab.vol[var->volset - 1]->vollab)->uci[i].name, nam)) {
                     break;                                                      // quit if found
                 }
             }
@@ -464,7 +468,7 @@ ENABLE_WARN
         if ((s + var->slen) > 255) return -(ERRZ12 + ERRMLAST);                 // junk
         if ((var->key[var->slen] == 128) && !q) return -(ERRZ12 + ERRMLAST);    // got a string + no quotes, that's junk
         subs++;                                                                 // count a subscript
-        var->slen = s + var->slen;                                              // save new length
+        var->slen += s;                                                         // save new length
 
         if (*ptr == ',') {                                                      // comma?
             ptr++;                                                              // skip it

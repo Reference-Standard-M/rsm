@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/include/symbol.h
- * Summary:  module RSM header file - includes for symbol module
+ * Package: Reference Standard M
+ * File:    rsm/include/symbol.h
+ * Summary: module RSM header file - includes for symbol module
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,11 +22,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#ifndef _RSM_SYMBOL_H_                                                          // only do this once
-#define _RSM_SYMBOL_H_
+#ifndef RSM_SYMBOL_H
+#define RSM_SYMBOL_H
 
 #define DTBLKSIZE (sizeof(short) + sizeof(u_short) + sizeof(u_char) + (sizeof(ST_depend *) * 2)) // ST_data - empty data
 #define DTMINSIZE (sizeof(short) + sizeof(u_short) + (sizeof(u_char) * 20) + (sizeof(ST_depend *) * 2)) // ST_data - 20 for data
@@ -101,8 +104,7 @@ typedef struct __attribute__ ((__packed__)) KEY_STRUCT {                        
 short ST_Locate(var_u var);                                                     // locate a var name
 short ST_LocateIdx(int idx);                                                    // locate in symtab by index
 short ST_Create(var_u var);                                                     // create and/or locate a var
+void  ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr);
+void  ST_Restore(ST_newtab *newtab);
 
-void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr);
-void ST_Restore(ST_newtab *newtab);
-
-#endif                                                                          // !_RSM_SYMBOL_H_
+#endif

@@ -1,0 +1,197 @@
+.\"
+.\" Package: Reference Standard M
+.\" File:    rsm/doc/man/rsm.1
+.\" Summary: Man page for the RSM executable (rsm/rsm)
+.\"
+.\" David Wicksell <dlw@linux.com>
+.\" Copyright © 2024 Fourth Watch Software LC
+.\"
+.\" Permission is granted to copy, distribute and/or modify this document under
+.\" the terms of the GNU Free Documentation License, Version 1.3 or any later
+.\" version published by the Free Software Foundation; with no Invariant
+.\" Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+.\"
+.\" You should have received a copy of the GNU Free Documentation License along
+.\" with this program. If not, see https://www.gnu.org/licenses/.
+.\"
+.\" SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+.\" SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+
+.\" If you want to install this for a single user, copy this file to
+.\" $HOME/.local/share/man/man1/, and run these commands:
+.\"   gzip -f9 $HOME/.local/share/man/man1/rsm.1 && mandb -q
+.\" or copy this file to $HOME/man/man1/, and run these commands:
+.\"   gzip -f9 $HOME/man/man1/rsm.1 && mandb -q
+.\"
+.\" If you want to install this for every user, copy this file to
+.\" /usr/local/share/man/man1/, and run these commands:
+.\"   sudo gzip -f9 /usr/local/share/man/man1/rsm.1 && sudo mandb -q
+
+.TH RSM 1 "2024 Jun 10" V1.81.0 "Reference Standard M User Manual"
+
+.SH NAME
+rsm - an implementation of the M programming language and database
+
+.SH SYNOPSIS
+\fBrsm -V\fP
+.br
+\fBrsm -h\fP
+.br
+\fBrsm -i\fP [\fIdatabase-file\fP]
+.br
+\fBrsm -v\fP \fIvolume-name\fP \fB-b\fP \fIblock-size\fP
+\fB-s\fP \fIdatabase-size\fP [\fB-m\fP \fImap-size\fP]
+[\fB-e\fP \fIenvironment-name\fP] [\fIdatabase-file\fP]
+.br
+\fBrsm -j\fP \fImax-jobs\fP [\fB-g\fp \fIglobal-buffers\fP]
+[\fB-r\fP \fIroutine-buffers\fP] [\fIdatabase-file\fP]
+.br
+\fBrsm\fP    [\fB-e\fP \fIenvironment-name\fP] [\fB-x\fP \fIM-commands\fP]
+[\fB-R\fP] [\fIdatabase-file\fP]
+.br
+\fBrsm -k\fP [\fIdatabase-file\fP]
+
+.SH DESCRIPTION
+The \fBrsm\fP program creates database volumes, manages the environment, and
+runs instances [jobs] of \fBReference Standard M\fP.
+
+\fBReference Standard M\fP (RSM) is an implementation of the M programming
+language and database, which implements the latest M standard that has been
+released by the M Development Committee (MDC), currently ANSI/MDC X11.1-1995
+(ISO/IEC 11756:1999).
+
+.SH OPTIONS
+RSM options are used together, as shown under each sub-heading. Some options may
+have different functionality based on context, which is outlined below. A full
+command line must either end with \fIdatabase-file\fP or the \fBRSM_DBFILE\fP
+environment variable must be set to \fIdatabase-file\fP, except when using
+the \fB-V\fP or \fB-h\fP options.
+
+.TP
+.SH Show useful information:
+.TP
+.BR -V
+Output a short version string.
+.TP
+.BR -h
+Output a help menu.
+.TP
+.BR -i
+Output information about the environment.
+
+.TP
+.SH Create a database volume:
+.TP
+\fB-v\fP \fIvolume-name\fP
+Name of the volume (1-32 alpha characters).
+.TP
+\fB-b\fP \fIblock-size\fP
+Size of the database blocks (1-256 KiB).
+.TP
+\fB-s\fP \fIdatabase-size\fP
+Initial size of the database (100-2147483647 blocks).
+.TP
+[\fB-m\fP \fImap-size\fP]
+Size of the map block (0-262147 KiB).
+Defaults to 3 KiB, \fIblock-size\fP, or large enough to map \fIdatabase-size\fP.
+.TP
+[\fB-e\fP \fIenvironment-name\fP]
+Name of the manager UCI (1-32 alpha characters).
+Defaults to \fBMGR\fP.
+
+.TP
+.SH Initialize and start an environment:
+.TP
+\fB-j\fP \fImax-jobs\fP
+Size of the job table in the environment (1-1024 jobs).
+Size of the lock table is \fImax-jobs\fP * 32 KiB.
+.TP
+[\fB-g\fP \fIglobal-buffers\fP]
+Size of the global buffers (1-131072 MiB).
+Defaults to \fImax-jobs\fP / 2 (min: 1 MiB or 64 buffers).
+.TP
+[\fB-r\fP \fIroutine-buffers\fP]
+Size of the routine buffers (1-4095 MiB).
+Defaults to \fImax-jobs\fP / 8 (min: 1 MiB)
+
+.TP
+.SH Start a job and attach to the environment:
+.TP
+[\fB-e\fP \fIenvironment-name\fP]
+Name of the initial UCI environment.
+Defaults to manager UCI.
+.TP
+[\fB-x\fP \fIM-commands\fP]
+A string of M commands to execute.
+.TP
+[\fB-R\fP]
+Start a job in restricted mode.
+
+.TP
+.SH Stop all jobs and shut down an environment:
+.TP
+.BR -k
+Kill an environment.
+
+.SH EXIT STATUS
+.TP
+0
+Success
+.TP
+>0
+Failure (errno)
+.TP
+255
+Failure (rsm)
+
+.SH ENVIRONMENT VARIABLES
+.TP
+.BR RSM_DBFILE
+The path to the main database file. If not set, the file path has to be passsed
+as the last argument to \fBrsm\fP for most commands. See above for details.
+
+.SH INTERNET RESOURCES
+.TP
+Main website:
+.BR https://rsmlang.com/
+.TP
+Git repository:
+.BR https://gitlab.com/reference\-standard\-m/rsm
+.TP
+Company website:
+.BR https://www.fourthwatchsoftware.com/
+
+.SH AUTHOR
+David Wicksell <dlw@linux.com>
+
+.SH COPYRIGHT
+This man page is for \fBReference Standard M\fP
+.br
+Copyright © 2020-2024 Fourth Watch Software LC
+
+.SH CODE LICENSE
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License (AGPL) as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see \fBhttps://www.gnu.org/licenses/\fP.
+
+.SH DOCUMENT LICENSE
+Permission is granted to copy, distribute and/or modify this document under the
+terms of the GNU Free Documentation License, Version 1.3 or any later version
+published by the Free Software Foundation; with no Invariant Sections, with no
+Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along with
+this program. If not, see \fBhttps://www.gnu.org/licenses/\fP.
+
+.SH BUGS
+Check the issue tracker at
+.BR https://gitlab.com/reference\-standard\-m/rsm/\-/issues
+for information on currently documented bugs.

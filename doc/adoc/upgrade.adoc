@@ -1,24 +1,31 @@
-:source-highlighter: highlight.js
-:highlightjs-languages: bash, cos
+////
+Package: Reference Standard M
+File:    doc/adoc/upgrade.adoc
+Summary: Database upgrade documentation
 
-[role="left"]
-image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
-="Fourth Watch Software Logo", width="480", height="80"]
-
-[role="right"]
-link:index.adoc[Index]
-
-'''
-
-== Reference Standard M
-
-David Wicksell <dlw@linux.com> +
-Copyright © 2020-2024 Fourth Watch Software LC +
+David Wicksell <dlw@linux.com>
+Copyright © 2020-2024 Fourth Watch Software LC
 https://gitlab.com/Reference-Standard-M/rsm
 
-'''
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
-=== Database Upgrade Instructions
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
+:source-highlighter: highlight.js
+:highlightjs-languages: bash, cos
+:site: https://gitlab.com/reference-standard-m/rsm/-/blob/main
+
+= Database Upgrade
+
+== Instructions
 
 RSM version 1.73.0 introduced some changes to the format of both the database
 and the routine bytecode. These changes were required to support the change to
@@ -31,17 +38,16 @@ upgrade an older RSM or MV1 database, to the new RSM database format, by
 connecting to an older database, and exporting all the routines and globals you
 wish to move to your new RSM database.
 
-There is an link:../bin/upgrade[upgrade] script that you can run to automate
-this process. It attempts to transfer every routine and global from every UCI,
-as well as setting up and configuring your new database to match your old
-database.
+There is an {site}/bin/upgrade[upgrade] script that you can run to automate this
+process. It attempts to transfer every routine and global from every UCI, as
+well as setting up and configuring your new database to match your old database.
 
 If you wish to do this process manually, follow the steps outlined in this
 document. This example process will upgrade '`old-database.dat`' to
 '`new-database.dat`', and assumes the old database environment has been shut
 down. In order to use this process, you must load the routines in `utils.rsm`
 in both the old and new databases, in order to run the export and import
-routines. See the link:../README.adoc[README] file for more information.
+routines. See the {site}/README.adoc[README] file for more information.
 
 Build RSM for database version 1, and then start the old database environment in
 single-user mode:
@@ -106,7 +112,7 @@ RSM [MGR]> kill ^$job
 Compile RSM without the `dbver` flag, using the latest build, with database
 version 2. Create a new database and start the new environment in single-user
 mode. For this example, we'll assume the new database volume will be named
-`TST`. See the link:../README.adoc[README] file for more information about
+`TST`. See the {site}/README.adoc[README] file for more information about
 creating a new RSM database and environment:
 
 [source,bash]
@@ -170,6 +176,3 @@ RSM [MGR]> kill ^$job
 ----
 
 Now you have a fully upgraded RSM database.
-
-[role="right"]
-link:index.adoc[Index]

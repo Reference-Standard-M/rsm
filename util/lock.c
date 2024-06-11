@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/util/lock.c
- * Summary:  module database - lock utilities
+ * Package: Reference Standard M
+ * File:    rsm/util/lock.c
+ * Summary: module database - lock utilities
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2016
+ * Copyright © 1999-2016
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -39,6 +42,8 @@
 #include "error.h"                                                              // errors
 #include "compile.h"                                                            // for RBD definition
 
+static locktab *luptr = NULL;                                                   // last used pointer
+
 // Used by failed
 typedef struct LCK_ADD {
     int     count;
@@ -54,7 +59,6 @@ typedef struct LCK_ADD {
 static int failed(lck_add *pctx)                                                // common code
 {
     pctx->done = pctx->count + 1;                                               // begin again from scratch
-
     if (pctx->to == 0) pctx->tryagain = 0;                                      // if no timeout then flag as if timeout expired
 
     if (pctx->to > 0) {                                                         // if timeout value specified
@@ -63,15 +67,15 @@ static int failed(lck_add *pctx)                                                
     }                                                                           // end if timeout specified
 
     if (pctx->tryagain == 1) {
-        pctx->x = SemOp(SEM_LOCK, systab->maxjob);                              // unlock SEM_LOCK
-        sleep(1);
+        pctx->x = SemOp(SEM_LOCK, -SEM_WRITE);                                  // unlock SEM_LOCK
+        SchedYield(TRUE);                                                       // give up slice (or sleep)
     }
 
     if (pctx->tryagain == 0) partab.jobtab->test = 0;                           // flag failure to lock
 
     if (partab.jobtab->attention) {
         if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP)) {
-            if (pctx->tryagain == 0) pctx->x = SemOp(SEM_LOCK, systab->maxjob); // unlock SEM_LOCK
+            if (pctx->tryagain == 0) pctx->x = SemOp(SEM_LOCK, -SEM_WRITE);     // unlock SEM_LOCK
             return -(ERRZ51 + ERRMLAST);
         }
     }
@@ -97,7 +101,7 @@ short UTIL_String_Lock(locktab *var, u_char *str)
         str[p++] = '^';                                                         // lead off with the caret
         str[p++] = '[';                                                         // open bracket
         str[p++] = '"';                                                         // a leading quote
-        up = systab->vol[var->vol - 1]->vollab->uci[var->uci - 1];              // UCI pointer
+        up = SOA(partab.vol[var->vol - 1]->vollab)->uci[var->uci - 1];          // UCI pointer
 
         for (i = 0; i < VAR_LEN; i++) {                                         // for each possible character
             if (up.name.var_cu[i] == '\0') break;                               // done if we hit a null
@@ -107,7 +111,7 @@ short UTIL_String_Lock(locktab *var, u_char *str)
         str[p++] = '"';                                                         // a trailing quote
         str[p++] = ',';                                                         // comma
         str[p++] = '"';                                                         // start quote for vol
-        vp = systab->vol[var->vol - 1]->vollab->volnam.var_cu;                  // point at name
+        vp = SOA(partab.vol[var->vol - 1]->vollab)->volnam.var_cu;              // point at name
 
         for (i = 0; i < VAR_LEN; i++) {                                         // for each possible character
             if (vp[i] == '\0') break;                                           // done if we hit a null
@@ -126,8 +130,9 @@ short UTIL_String_Lock(locktab *var, u_char *str)
     slen = var->byte_count - sizeof(var_u) - (2 * sizeof(u_char));              // subs length
 
     if (slen != 0) {                                                            // if there are subscripts
-        u_char save = var->name.var_cu[VAR_LEN - 1];                            // save that value
+        u_char save;
 
+        save = var->name.var_cu[VAR_LEN - 1];                                   // save that value
         var->name.var_cu[VAR_LEN - 1] = (u_char) slen;                          // put len there for call
         i = UTIL_String_Key(&var->name.var_cu[VAR_LEN - 1], &str[p], MAX_NUM_SUBS); // do the subscripts
         var->name.var_cu[VAR_LEN - 1] = save;                                   // restore saved value
@@ -146,9 +151,9 @@ short UTIL_mvartolock(mvar *var, u_char *buf)                                   
     if (var->uci == UCI_IS_LOCALVAR) {                                          // if local
         if (var->volset) {                                                      // if index type
             var_u *vt;                                                          // var table pointer
+            rbd *p;
 
-            rbd *p = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
-
+            p = (rbd *) SOA(partab.jobtab->dostk[partab.jobtab->cur_do].routine);
             vt = (var_u *) (((u_char *) p) + p->var_tbl);                       // point at var table
             VAR_COPY((*((var_u *) &buf[2])), vt[var->volset - 1]);              // get the var name
         } else {                                                                // non index type
@@ -208,10 +213,11 @@ short LCK_Combine(locktab *ptr)
     } else {
         while (TRUE) {
             next = (locktab *) (((u_char *) ptr) + ptr->size);                  // where next
-            if (((char *) next) >= (((char *) systab->lockstart) + systab->locksize)) break; // quit when done
-            if (next != ptr->fwd_link) break;                                   // quit if next not free
+            if (luptr == next) luptr = NULL;                                    // reset last used pointer
+            if (((char *) next) >= (((char *) SOA(systab->lockstart)) + systab->locksize)) break; // quit when done
+            if (next != SOA(ptr->fwd_link)) break;                              // quit if next not free
             if (next->job > -1) panic("Attempt to combine non-free in LCK_Combine()");
-            ptr->size += ptr->fwd_link->size;                                   // increment the new free space
+            ptr->size += next->size;                                            // increment the new free space
             ptr->fwd_link = next->fwd_link;                                     // new block now points correct
         }                                                                       // prev block/this block merge
     }
@@ -226,21 +232,22 @@ short LCK_Free(locktab *ptr)
     locktab *prevptr = NULL;                                                    // handy pointer
 
     if (ptr == NULL) panic("Null pointer passed to LCK_Free()");                // die
-    currptr = systab->lockfree;                                                 // start here
+    if (luptr == ptr) luptr = NULL;                                             // reset last used pointer
+    currptr = SOA(systab->lockfree);                                            // start here
 
     if ((ptr < currptr) || (currptr == NULL)) {                                 // free at start or end of memory
-        ptr->fwd_link = currptr;                                                // this block becomes new
-        systab->lockfree = ptr;                                                 // head of free list
-        return LCK_Combine(systab->lockfree);                                   // see if we can combine the 2
+        ptr->fwd_link = SBA(currptr);                                           // this block becomes new
+        systab->lockfree = SBA(ptr);                                            // head of free list
+        return LCK_Combine(SOA(systab->lockfree));                              // see if we can combine the 2
     }
 
     while ((currptr != NULL) && (ptr > currptr)) {                              // while more to look at
         prevptr = currptr;                                                      // save current to previous
-        currptr = currptr->fwd_link;                                            // move on
+        currptr = SOA(currptr->fwd_link);                                       // move on
     }
 
-    ptr->fwd_link = currptr;                                                    // point at next or NULL
-    prevptr->fwd_link = ptr;                                                    // link us in here
+    ptr->fwd_link = SBA(currptr);                                               // point at next or NULL
+    prevptr->fwd_link = SBA(ptr);                                               // link us in here
     return LCK_Combine(prevptr);                                                // see if we can combine the 2
 }
 
@@ -255,24 +262,24 @@ locktab *LCK_Insert(int size)                                                   
     int     ret;
 
     ret = systab->locksize + 1;                                                 // size comparator
-    free_curr = systab->lockfree;                                               // start here
+    free_curr = SOA(systab->lockfree);                                          // start here
 
     while (free_curr != NULL) {                                                 // while more locktabs
-        if ((free_curr->size < ret) && (free_curr->size > size)) {              // if this space
+        if ((free_curr->size < ret) && (free_curr->size >= size)) {             // if this space
             ptr = free_curr;                                                    // more appropriate
             prevptr = free_prev;                                                // save to previous
             ret = free_curr->size;                                              // than last space, use
         }                                                                       // this one instead
 
         free_prev = free_curr;                                                  // save previous pointer
-        free_curr = free_curr->fwd_link;                                        // check next one
+        free_curr = SOA(free_curr->fwd_link);                                   // check next one
     }                                                                           // end while
 
     if ((ptr == NULL) || (ret == (systab->locksize + 1))) {                     // if neither has changed
         return NULL;                                                            // no space available
     } else {                                                                    // and try again if both changed
-        // the 64 on the next line will be # defined shortly
-        if ((size + 64) < ptr->size) {                                          // if way too big
+        // 52 is the smallest size a lock table entry can be currently, so don't leave anything smaller
+        if ((size + 52) <= ptr->size) {                                         // if way too big
             p = (locktab *) ((u_char *) ptr + size);                            // setup for new block
             p->fwd_link = ptr->fwd_link;                                        // point it at same
             p->size = ptr->size - size;                                         // init the size
@@ -281,9 +288,9 @@ locktab *LCK_Insert(int size)                                                   
             p->byte_count = 0;                                                  // these two also
 
             if (prevptr == NULL) {
-                systab->lockfree = p;                                           // new head of freelist
+                systab->lockfree = SBA(p);                                      // new head of freelist
             } else {
-                prevptr->fwd_link = p;                                          // else link as usual
+                prevptr->fwd_link = SBA(p);                                     // else link as usual
             }
 
             ptr->size = size;                                                   // set this NOW
@@ -298,7 +305,7 @@ locktab *LCK_Insert(int size)                                                   
         return ptr;                                                             // tell them where
     }                                                                           // end else get some space
 
-    return NULL;                                                                // finished NO SPACE
+    return NULL;                                                                // finished NO SPACE - can't get here
 }                                                                               // end LCK_Insert
 
 short LCK_Order(const cstring *ent, u_char *buf, int dir)                       // get next/prev entry
@@ -308,16 +315,27 @@ short LCK_Order(const cstring *ent, u_char *buf, int dir)                       
     short   s;                                                                  // for functions
     short   x;                                                                  // for SEM's
 
-    x = SemOp(SEM_LOCK, -1);                                                    // read lock SEM_LOCK
+    x = SemOp(SEM_LOCK, SEM_READ);                                              // read lock SEM_LOCK
     if (x < 0) return x;                                                        // return error
-    lptr = systab->lockhead;                                                    // get the list head
+    lptr = SOA(systab->lockhead);                                               // get the list head
     plptr = NULL;                                                               // init previous ptr
+
+    if ((lptr != NULL) && (luptr != NULL)) {
+        int j;                                                                  // shortest lock size for comparison
+
+        j = ent->len;                                                           // get the length of this one
+        if (luptr->byte_count < j) j = luptr->byte_count;                       // find shortest length
+
+        // start search at last used lock pointer, rather than at the beginning (ent after luptr)
+        if ((memcmp(ent->buf, &luptr->vol, j) > 0) || (!memcmp(ent->buf, &luptr->vol, j) && (ent->len > luptr->byte_count))) {
+            lptr = luptr;
+        }
+    }
 
     while (lptr != NULL) {                                                      // while more locktabs
         int i;                                                                  // for entry lengths
 
         i = ent->len;                                                           // length of entry
-
         if (i > lptr->byte_count) i = lptr->byte_count;                         // but if locktab is less
         i = memcmp(ent->buf, &lptr->vol, i);                                    // compare them
 
@@ -328,48 +346,71 @@ short LCK_Order(const cstring *ent, u_char *buf, int dir)                       
 
         if ((dir > 0) && (i < 0)) break;                                        // found in fwd direction
 
-        if ((dir < 0) && (i <= 0)) {                                            // found in the back direction
+        if ((dir < 0) && (i <= 0) && memcmp(ent->buf, "\000\377\000", 3)) {     // found in the back direction and not ^$LOCK("")
             lptr = plptr;                                                       // point at previous
             break;                                                              // and quit
         }                                                                       // end if found in back dir
 
         plptr = lptr;                                                           // remember that one
-        lptr = lptr->fwd_link;                                                  // get the next one
+        lptr = SOA(lptr->fwd_link);                                             // get the next one
     }                                                                           // end while more locktabs
+
+    if ((plptr != NULL) && (plptr->job == (partab.jobtab - partab.job_table + 1))) { // set last used pointer
+        luptr = plptr;
+    }
 
     if ((dir < 0) && (lptr == NULL)) lptr = plptr;                              // adjust for last on ,-1)
     buf[0] = '\0';                                                              // null terminate
     s = 0;                                                                      // return value
     if (lptr != NULL) s = UTIL_String_Lock(lptr, buf);                          // got something? then convert it
-    SemOp(SEM_LOCK, 1);                                                         // release SEM_LOCK
+    SemOp(SEM_LOCK, -SEM_READ);                                                 // release SEM_LOCK
     return s;                                                                   // and return
 }
 
 short LCK_Get(const cstring *ent, u_char *buf)                                  // get job#,lock_count
 {
     locktab *lptr;                                                              // locktab entry we are doing
+    locktab *plptr;                                                             // previous locktab entry
     int     i;                                                                  // a handy int
     short   s = 0;                                                              // return value
     short   x;                                                                  // for SEM's
 
     buf[0] = '\0';                                                              // JIC
-    x = SemOp(SEM_LOCK, -1);                                                    // read lock SEM_LOCK
+    x = SemOp(SEM_LOCK, SEM_READ);                                              // read lock SEM_LOCK
     if (x < 0) return x;                                                        // return the error
-    lptr = systab->lockhead;                                                    // init current locktab pointer
+    lptr = SOA(systab->lockhead);                                               // init current locktab pointer
     i = ent->len;                                                               // get length of supplied entry
+    plptr = NULL;                                                               // init previous pointer
+
+    if ((lptr != NULL) && (luptr != NULL)) {
+        int j;                                                                  // shortest lock size for comparison
+
+        j = i;                                                                  // start with length of supplied entry
+        if (luptr->byte_count < j) j = luptr->byte_count;                       // find shortest length
+
+        // start search at last used lock pointer, rather than at the beginning (ent after luptr)
+        if ((memcmp(ent->buf, &luptr->vol, j) > 0) || (!memcmp(ent->buf, &luptr->vol, j) && (ent->len > luptr->byte_count))) {
+            lptr = luptr;
+        }
+    }
 
     while (lptr != NULL) {                                                      // while more lock tabs
         if ((i == lptr->byte_count) && (memcmp(ent->buf, &lptr->vol, i) == 0)) { // if bytes counts match, is there a match ?
-            s = itocstring(buf, lptr->job);                                     // convert job to string
+            s = ltocstring(buf, lptr->job);                                     // convert job to string
             buf[s++] = ',';                                                     // copy in comma
-            s += itocstring(&buf[s], lptr->lock_count);                         // convert count to str
+            s += ltocstring(&buf[s], lptr->lock_count);                         // convert count to str
             break;                                                              // found it
         }                                                                       // end if exact match
 
-        lptr = lptr->fwd_link;                                                  // get next
+        plptr = lptr;                                                           // remember that one
+        lptr = SOA(lptr->fwd_link);                                             // get next
     }                                                                           // end while more lock tabs
 
-    SemOp(SEM_LOCK, 1);                                                         // release SEM_LOCK
+    if ((plptr != NULL) && (plptr->job == (partab.jobtab - partab.job_table + 1))) { // set last used pointer
+        luptr = plptr;
+    }
+
+    SemOp(SEM_LOCK, -SEM_READ);                                                 // release SEM_LOCK
     return s;                                                                   // return the count
 }                                                                               // end function LCK_Get()
 
@@ -379,7 +420,7 @@ short LCK_Kill(const cstring *ent)                                              
     locktab *plptr;                                                             // previous locktab entry
     int     i;                                                                  // a handy int
 
-    lptr = systab->lockhead;                                                    // init current locktab pointer
+    lptr = SOA(systab->lockhead);                                               // init current locktab pointer
     plptr = NULL;                                                               // init prev locktab pointer
     i = ent->len;                                                               // get length of supplied entry
 
@@ -399,7 +440,7 @@ short LCK_Kill(const cstring *ent)                                              
         }                                                                       // end if byte counts match
 
         plptr = lptr;                                                           // make current, previous
-        lptr = lptr->fwd_link;                                                  // check next locktab
+        lptr = SOA(lptr->fwd_link);                                             // check next locktab
     }                                                                           // end while more lock tabs
 
     return 0;                                                                   // finished OK
@@ -411,10 +452,10 @@ void LCK_Remove(int job)                                                        
     locktab *plptr;                                                             // previous locktab entry
     short   x;                                                                  // for SEM's
 
-    if (!job) job = partab.jobtab - systab->jobtab + 1;                         // current job
-    x = SemOp(SEM_LOCK, -systab->maxjob);                                       // write lock SEM_LOCK
+    if (!job) job = partab.jobtab - partab.job_table + 1;                       // current job
+    x = SemOp(SEM_LOCK, SEM_WRITE);                                             // write lock SEM_LOCK
     if (x < 0) return;                                                          // return on error
-    lptr = systab->lockhead;                                                    // init current locktab pointer
+    lptr = SOA(systab->lockhead);                                               // init current locktab pointer
     plptr = NULL;                                                               // init prev locktab pointer
 
     while (lptr != NULL) {                                                      // while more lock tabs
@@ -423,7 +464,7 @@ void LCK_Remove(int job)                                                        
                 systab->lockhead = lptr->fwd_link;                              // link in new head lock node
                 lptr->job = -1;                                                 // flag it as free
                 LCK_Free(lptr);                                                 // add to the free list
-                lptr = systab->lockhead;                                        // point at next
+                lptr = SOA(systab->lockhead);                                   // point at next
                 plptr = NULL;                                                   // prev ptr still NULL
             }                                                                   // end if removing top node
 
@@ -431,21 +472,22 @@ void LCK_Remove(int job)                                                        
                 plptr->fwd_link = lptr->fwd_link;                               // bypass it
                 lptr->job = -1;                                                 // flag it as free
                 LCK_Free(lptr);                                                 // add to the free list
-                lptr = plptr->fwd_link;                                         // point at next
+                lptr = SOA(plptr->fwd_link);                                    // point at next
             }                                                                   // end if both pointers defined
         } else {                                                                // byte counts don't match
             plptr = lptr;                                                       // make current, previous
-            lptr = lptr->fwd_link;                                              // check next locktab
+            lptr = SOA(lptr->fwd_link);                                         // check next locktab
         }                                                                       // end else job numbers !=
     }                                                                           // end while more lock tabs
 
-    SemOp(SEM_LOCK, systab->maxjob);                                            // unlock SEM_LOCK
+    SemOp(SEM_LOCK, -SEM_WRITE);                                                // unlock SEM_LOCK
     return;                                                                     // return
 }                                                                               // end function LCK_Remove()
 
 short LCK_Old(int count, cstring *list, int to)                                 // old style lock
 {
     LCK_Remove(0);                                                              // remove all locks for job
+    SchedYield(TRUE);                                                           // give up slice (or sleep)
 
     if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP)) {      // quit
         return -(ERRZ51 + ERRMLAST);
@@ -485,17 +527,17 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
         pctx->tryagain = 0;                                                     // reset retry flag
         if (pctx->to > -1) partab.jobtab->test = 1;                             // flag successful locking
         pctx->done = 0;                                                         // init
-        pctx->x = SemOp(SEM_LOCK, -systab->maxjob);                             // write lock SEM_LOCK
+        pctx->x = SemOp(SEM_LOCK, SEM_WRITE);                                   // write lock SEM_LOCK
         if (pctx->x < 0) return pctx->x;                                        // return the error
 
         while ((pctx->done < pctx->count) && (pctx->tryagain == 0)) {           // while more to do
             current = (cstring *) &((u_char *) list)[pos];                      // extract this entry
             reqd = sizeof(short) * 3 + sizeof(int) + sizeof(locktab *) + current->len;
-            pctx->lptr = systab->lockhead;                                      // start at first locktab
+            pctx->lptr = SOA(systab->lockhead);                                 // start at first locktab
             plptr = NULL;                                                       // init previous pointer
 
             if (pctx->lptr == NULL) {                                           // add first lock
-                systab->lockfree->fwd_link = NULL;                              // make sure JIC
+                SOA(systab->lockfree)->fwd_link = NULL;                         // make sure JIC
                 nlptr = LCK_Insert(reqd);                                       // try and get some space
 
                 if (nlptr == NULL) {
@@ -515,14 +557,27 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                     if ((ret = failed(pctx))) return ret;
                 } else {
-                    nlptr->job = partab.jobtab - systab->jobtab + 1;            // init job number
+                    nlptr->job = partab.jobtab - partab.job_table + 1;          // init job number
                     nlptr->lock_count = 1;                                      // init lock count
                     nlptr->byte_count = current->len;                           // init data length
                     memcpy(&nlptr->vol, current->buf, current->len);            // copy in data
                     nlptr->fwd_link = systab->lockhead;                         // link it in sorted order
-                    systab->lockhead = nlptr;                                   // link it in sorted order
+                    systab->lockhead = SBA(nlptr);                              // link it in sorted order
                 }
             }                                                                   // end if first lock
+
+            if ((pctx->lptr != NULL) && (luptr != NULL)) {
+                int k;                                                          // shortest lock size for comparison
+
+                k = current->len;                                               // get the length of this one
+                if (luptr->byte_count < k) k = luptr->byte_count;               // find shortest length
+
+                // start search at last used lock pointer, rather than at the beginning (current after luptr)
+                if ((memcmp(current->buf, &luptr->vol, k) > 0) ||
+                  (!memcmp(current->buf, &luptr->vol, k) && (current->len > luptr->byte_count))) {
+                    pctx->lptr = luptr;
+                }
+            }
 
             while (pctx->lptr != NULL) {                                        // while more locktabs to see
                 i = current->len;                                               // get the length of this one
@@ -530,20 +585,20 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                 while ((pctx->lptr != NULL) && (memcmp(current->buf, &pctx->lptr->vol, i) > 0)) { // more to see until found or past
                     plptr = pctx->lptr;                                         // save current to previous
-                    pctx->lptr = pctx->lptr->fwd_link;                          // get next locktab
+                    pctx->lptr = SOA(pctx->lptr->fwd_link);                     // get next locktab
                     if (pctx->lptr == NULL) break;                              // run out of locktabs
                     i = current->len;                                           // get length of this one
                     if (pctx->lptr->byte_count < i) i = pctx->lptr->byte_count; // find shortest length
                 }                                                               // end while more/found/past
 
                 if ((pctx->lptr != NULL) && (memcmp(current->buf, &pctx->lptr->vol, i) == 0)) { // exists as sub/exact/superset
-                    if (pctx->lptr->job == (partab.jobtab - systab->jobtab + 1)) { // we MUST own
+                    if (pctx->lptr->job == (partab.jobtab - partab.job_table + 1)) { // we MUST own
                         while ((pctx->lptr != NULL) &&                          // more to look at
                           (((memcmp(current->buf, &pctx->lptr->vol, i) == 0) && // still matches
                           (pctx->lptr->byte_count < current->len)) ||           // length is less
                           (memcmp(current->buf, &pctx->lptr->vol, i) > 0))) {   // more to see
                             plptr = pctx->lptr;
-                            pctx->lptr = pctx->lptr->fwd_link;                  // have a look at next one
+                            pctx->lptr = SOA(pctx->lptr->fwd_link);             // have a look at next one
                             if (pctx->lptr == NULL) break;                      // run out of locktabs
                             i = current->len;                                   // get length
                             if (pctx->lptr->byte_count < i) i = pctx->lptr->byte_count; // get shortest
@@ -555,12 +610,12 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         while ((slptr != NULL) &&                               // more to look at
                           (memcmp(current->buf, &slptr->vol, j) == 0) &&        // still matches
                           (slptr->byte_count > current->len)) {                 // length is more
-                            if (slptr->job != (partab.jobtab - systab->jobtab + 1)) { // we MUST own
+                            if (slptr->job != (partab.jobtab - partab.job_table + 1)) { // we MUST own
                                 j = -1;                                         // set length to flag other job owns
                                 break;
                             }
 
-                            slptr = slptr->fwd_link;                            // have a look at next one
+                            slptr = SOA(slptr->fwd_link);                       // have a look at next one
                             if (slptr == NULL) break;                           // run out of locktabs
                             j = current->len;                                   // get length
                             if (slptr->byte_count < j) j = slptr->byte_count;   // get shortest
@@ -587,7 +642,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                                 if (memcmp(current->buf, &pctx->lptr->vol, i) == 0) { // if data matches
                                     if (pctx->lptr->byte_count == current->len) { // if exact length match
                                         if ((pctx->lptr->lock_count + 1) > SHRT_MAX) {
-                                            SemOp(SEM_LOCK, systab->maxjob);    // unlock SEM_LOCK
+                                            SemOp(SEM_LOCK, -SEM_WRITE);        // unlock SEM_LOCK
                                             return -(ERRZ78 + ERRMLAST);
                                         }
 
@@ -613,18 +668,18 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                                             if ((ret = failed(pctx))) return ret;
                                         } else {
-                                            nlptr->job = partab.jobtab - systab->jobtab + 1; // job#
+                                            nlptr->job = partab.jobtab - partab.job_table + 1; // job#
                                             nlptr->lock_count = 1;              // init lock count
                                             nlptr->byte_count = current->len;   // length of data
                                             memcpy(&nlptr->vol, current->buf, current->len); // copy data
 
                                             if (plptr != NULL) {                // not inserting at list head
-                                                plptr->fwd_link = nlptr;        // link it in this way
+                                                plptr->fwd_link = SBA(nlptr);   // link it in this way
                                             } else {                            // inserting at list head
-                                                systab->lockhead = nlptr;       // so link it in this way
+                                                systab->lockhead = SBA(nlptr);  // so link it in this way
                                             }
 
-                                            nlptr->fwd_link = pctx->lptr;       // link it in
+                                            nlptr->fwd_link = SBA(pctx->lptr);  // link it in
                                             pctx->lptr = NULL;                  // NULLIFY ptr, finished entry
                                         }
                                     }                                           // end else gone past it
@@ -648,12 +703,12 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                                         if ((ret = failed(pctx))) return ret;
                                     } else {
-                                        nlptr->job = partab.jobtab - systab->jobtab + 1; // init job
+                                        nlptr->job = partab.jobtab - partab.job_table + 1; // init job
                                         nlptr->lock_count = 1;                  // init lock count
                                         nlptr->byte_count = current->len;       // length of data
                                         memcpy(&nlptr->vol, current->buf, current->len); // copy data
-                                        plptr->fwd_link = nlptr;                // link it in
-                                        nlptr->fwd_link = pctx->lptr;           // link it in
+                                        plptr->fwd_link = SBA(nlptr);           // link it in
+                                        nlptr->fwd_link = SBA(pctx->lptr);      // link it in
                                         pctx->lptr = NULL;                      // NULLIFY pointer, finished entry
                                     }
                                 }                                               // end else memcmp no longer 0
@@ -677,12 +732,12 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                                     if ((ret = failed(pctx))) return ret;
                                 } else {
-                                    nlptr->job = partab.jobtab - systab->jobtab + 1; // job#
+                                    nlptr->job = partab.jobtab - partab.job_table + 1; // job#
                                     nlptr->lock_count = 1;                      // init lock count
                                     nlptr->byte_count = current->len;           // length of data
                                     memcpy(&nlptr->vol, current->buf, current->len); // copy data
-                                    plptr->fwd_link = nlptr;                    // link it in
-                                    nlptr->fwd_link = pctx->lptr;               // link it in
+                                    plptr->fwd_link = SBA(nlptr);               // link it in
+                                    nlptr->fwd_link = SBA(pctx->lptr);          // link it in
                                     pctx->lptr = NULL;                          // NULLIFY ptr, finished entry
                                 }
                             }                                                   // end else, pctx->lptr not defined
@@ -703,7 +758,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         }                                                       // end while when no more to do
 
                         if ((ret = failed(pctx))) return ret;
-                    }                                                           // end else we dont own it
+                    }                                                           // end else we don't own it
                 } else {                                                        // end if exists in super/sub - doesn't exist
                     if ((pctx->lptr != NULL) && (memcmp(current->buf, &pctx->lptr->vol, i) < 0)) {
                         nlptr = LCK_Insert(reqd);                               // try get some space
@@ -725,17 +780,17 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                             if ((ret = failed(pctx))) return ret;
                         } else {
-                            nlptr->job = partab.jobtab - systab->jobtab + 1;    // init job#
+                            nlptr->job = partab.jobtab - partab.job_table + 1;  // init job#
                             nlptr->lock_count = 1;                              // init lock count
                             nlptr->byte_count = current->len;                   // length of data
                             memcpy(&nlptr->vol, current->buf, current->len);    // copy the data
-                            nlptr->fwd_link = pctx->lptr;                       // link it in
+                            nlptr->fwd_link = SBA(pctx->lptr);                  // link it in
                             pctx->lptr = NULL;                                  // NULLIFY ptr, finished entry
 
                             if (plptr == NULL) {                                // insert as new top node
-                                systab->lockhead = nlptr;                       // link this way
+                                systab->lockhead = SBA(nlptr);                  // link this way
                             } else {                                            // end if insert as new top node - insert mid list
-                                plptr->fwd_link = nlptr;                        // or link this way
+                                plptr->fwd_link = SBA(nlptr);                   // or link this way
                             }                                                   // end else insert mid list
                         }
                     } else {                                                    // end if match result greater - add to end of list
@@ -759,17 +814,17 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
 
                                 if ((ret = failed(pctx))) return ret;
                             } else {
-                                nlptr->job = partab.jobtab - systab->jobtab + 1; // init job
+                                nlptr->job = partab.jobtab - partab.job_table + 1; // init job
                                 nlptr->lock_count = 1;                          // init lock count
                                 nlptr->byte_count = current->len;               // length of data
                                 memcpy(&nlptr->vol, current->buf, current->len); // copy data
-                                nlptr->fwd_link = pctx->lptr;                   // link it in
+                                nlptr->fwd_link = SBA(pctx->lptr);              // link it in
                                 pctx->lptr = NULL;                              // NULLIFY ptr, finished entry
 
                                 if (plptr == NULL) {                            // insert as new top node
-                                    systab->lockhead = nlptr;                   // link it in this way
+                                    systab->lockhead = SBA(nlptr);              // link it in this way
                                 } else {                                        // end if new top node - insert mid list
-                                    plptr->fwd_link = nlptr;                    // or link it in this way
+                                    plptr->fwd_link = SBA(nlptr);               // or link it in this way
                                 }                                               // end else insert mid list
                             }
                         }                                                       // end if run out of locktabs
@@ -782,11 +837,15 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                 if (size & 1) size += 1;                                        // pad to even boundary
                 pos += size;                                                    // find next start pos
                 pctx->done++;                                                   // number done + 1
+
+                if ((plptr != NULL) && (plptr->job == (partab.jobtab - partab.job_table + 1))) { // set last used pointer
+                    luptr = plptr;
+                }
             }
         }                                                                       // end while more to do
     }                                                                           // end while try again
 
-    SemOp(SEM_LOCK, systab->maxjob);                                            // unlock SEM_LOCK
+    SemOp(SEM_LOCK, -SEM_WRITE);                                                // unlock SEM_LOCK
     return 0;                                                                   // finished OK
 }                                                                               // end function LCK_Add()
 
@@ -799,31 +858,31 @@ short LCK_Sub(int count, cstring *list)                                         
     locktab *lptr;                                                              // locktab pointer
     short   x;                                                                  // for SEM's
 
-    x = SemOp(SEM_LOCK, -systab->maxjob);                                       // write lock SEM_LOCK
+    x = SemOp(SEM_LOCK, SEM_WRITE);                                             // write lock SEM_LOCK
     if (x < 0) return x;                                                        // return the error
 
     while (done < count) {                                                      // while more to do
         u_int size;                                                             // size of entry in *list
 
         current = (cstring *) &((u_char *) list)[pos];                          // extract this entry
-        lptr = systab->lockhead;                                                // start at first locktab
+        lptr = SOA(systab->lockhead);                                           // start at first locktab
 
         while (lptr != NULL) {                                                  // while more locktabs to see
             i = current->len;                                                   // get the length of this one
             if (lptr->byte_count < i) i = lptr->byte_count;                     // find shortest length
 
             while ((lptr != NULL) && (memcmp(current->buf, &lptr->vol, i) > 0)) { // while more locktabs do go until found or past
-                lptr = lptr->fwd_link;                                          // get next locktab
+                lptr = SOA(lptr->fwd_link);                                     // get next locktab
                 if (lptr == NULL) break;                                        // if we run out, stop
                 i = current->len;                                               // get length of this one
                 if (lptr->byte_count < i) i = lptr->byte_count;                 // find shortest length
             }                                                                   // end while not found/past
 
             if ((lptr != NULL) && (memcmp(current->buf, &lptr->vol, i) == 0)) { // in sub/exact/superset form
-                if (lptr->job == (partab.jobtab - systab->jobtab + 1)) {        // we MUST own
+                if (lptr->job == (partab.jobtab - partab.job_table + 1)) {      // we MUST own
                     // more to see - first bit match and length is smaller
                     while ((lptr != NULL) && (memcmp(current->buf, &lptr->vol, i) == 0) && (lptr->byte_count < current->len)) {
-                        lptr = lptr->fwd_link;                                  // look at next one
+                        lptr = SOA(lptr->fwd_link);                             // look at next one
                         if (lptr == NULL) break;                                // run out of locktabs, stop
                         i = current->len;                                       // save length
                         if (lptr->byte_count < i) i = lptr->byte_count;         // get shorter one
@@ -833,26 +892,15 @@ short LCK_Sub(int count, cstring *list)                                         
                         if (memcmp(current->buf, &lptr->vol, i) == 0) {         // first bit matches
                             if (lptr->byte_count == current->len) {             // exact match
                                 lptr->lock_count--;                             // decrement the lockcount
-
-                                if (lptr->lock_count <= 0) {                    // if becomes un-wanted
-                                    LCK_Kill(current);                          // Kill it
-                                    lptr = lptr->fwd_link;                      // NULLIFY ptr, finished entry
-                                } else {                                        // end if kill-able
-                                    lptr = lptr->fwd_link;                      // NULLIFY ptr, finished entry
-                                }
-                            } else {                                            // end if exact match
-                                lptr = lptr->fwd_link;                          // NULLIFY ptr, finished entry
+                                if (lptr->lock_count <= 0) LCK_Kill(current);   // if becomes un-wanted, kill it
+                                lptr = NULL;                                    // done with this one
                             }
-                        } else {                                                // end if entries match length
-                            lptr = lptr->fwd_link;                              // NULLIFY ptr, finished entry
                         }
                     }                                                           // end if still point at lock
-                } else {                                                        // end if we own it
-                    lptr = lptr->fwd_link;                                      // NULLIFY ptr, finished entry
                 }
-            } else {                                                            // end if we match to length
-                if (lptr != NULL) lptr = lptr->fwd_link;                        // NULLIFY ptr, finished entry
             }
+
+            if (lptr != NULL) lptr = SOA(lptr->fwd_link);                       // NULLIFY ptr, finished entry
         }                                                                       // end while more locktabs
 
         size = sizeof(u_short) + current->len;                                  // calculate length of entry
@@ -861,7 +909,7 @@ short LCK_Sub(int count, cstring *list)                                         
         done++;                                                                 // number done + 1
     }                                                                           // successful
 
-    SemOp(SEM_LOCK, systab->maxjob);                                            // unlock SEM_LOCK
+    SemOp(SEM_LOCK, -SEM_WRITE);                                                // unlock SEM_LOCK
     return 0;                                                                   // finished OK
 }                                                                               // end function LCK_Sub()
 
@@ -876,18 +924,18 @@ void Dump_ltd(void)
     u_char  workstr[MAX_KEY_SIZE + 5];
     time_t  t;                                                                  // for time
 
-    x = SemOp(SEM_LOCK, -systab->maxjob);                                       // write lock SEM_LOCK
+    x = SemOp(SEM_LOCK, SEM_WRITE);                                             // write lock SEM_LOCK
     if (x < 0) return;                                                          // return the error
-    lptr = (locktab *) systab->lockstart;
+    lptr = (locktab *) SOA(systab->lockstart);
     t = current_time(FALSE);
     printf("Dump of all Lock Table Descriptors on %s\r\n", ctime(&t));
-    printf("Lock Head starts at %p\r\n", systab->lockhead);
-    printf("Lock Free starts at %p\r\n", systab->lockfree);
-    used = systab->lockhead;
+    printf("Lock Head starts at %p\r\n", SOA(systab->lockhead));
+    printf("Lock Free starts at %p\r\n", SOA(systab->lockfree));
+    used = SOA(systab->lockhead);
 
     while (used != NULL) {
         size += used->size;
-        used = used->fwd_link;
+        used = SOA(used->fwd_link);
     }
 
     printf("Using %d of %d bytes of Lock Table Space\r\n\r\n", size, systab->locksize);
@@ -905,20 +953,20 @@ void Dump_ltd(void)
 
         if (lptr->job == -1) {                                                  // only display full stats for real locks
             printf("%14p %15p %9d %5d %9d %9d %4d %4d  %.32s%s\r\n",
-                   lptr, lptr->fwd_link, lptr->size, lptr->job, 0, 0, 0, 0, "", "");
+                   lptr, SOA(lptr->fwd_link), lptr->size, lptr->job, 0, 0, 0, 0, "", "");
         } else {
             printf("%14p %15p %9d %5d %9d %9d %4d %4d  %.32s%s\r\n",
-                   lptr, lptr->fwd_link, lptr->size, lptr->job, lptr->lock_count,
+                   lptr, SOA(lptr->fwd_link), lptr->size, lptr->job, lptr->lock_count,
                    lptr->byte_count, lptr->vol, lptr->uci, lptr->name.var_cu, keystr);
         }
 
         lptr = (locktab *) (((u_char *) lptr) + lptr->size);
 
-        if ((u_char *) lptr >= ((u_char *) systab->lockstart) + systab->locksize) {
+        if ((u_char *) lptr >= ((u_char *) SOA(systab->lockstart)) + systab->locksize) {
             break;
         }
     }
 
-    SemOp(SEM_LOCK, systab->maxjob);                                            // unlock SEM_LOCK
+    SemOp(SEM_LOCK, -SEM_WRITE);                                                // unlock SEM_LOCK
     return;                                                                     // finished OK
 }

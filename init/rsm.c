@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/init/rsm.c
- * Summary:  module init - startup (main) code
+ * Package: Reference Standard M
+ * File:    rsm/init/rsm.c
+ * Summary: module init - startup (main) code
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -43,23 +46,24 @@ int restricted = FALSE;                                                         
 // *** Main entry for create, init, run, help, info, and shutdown ***
 int main(int argc, char **argv)                                                 // main entry point
 {
-    int  c;                                                                     // for case
-    int  bsize = 0;                                                             // block size
-    char i = FALSE;                                                             // for info()
-    char k = FALSE;                                                             // for shutdown()
-    char *env = NULL;                                                           // start environment name
-    int  gmb = 0;                                                               // global buf MiB
-    int  jobs = 0;                                                              // max jobs
-    int  map = 0;                                                               // header/map block bytes
-    int  rmb = 0;                                                               // routine buf MiB
-    int  addmb = 0;                                                             // additional buffer in MiB
-    int  blocks = 0;                                                            // number of data blocks
-    char *volnam = NULL;                                                        // volume name
-    char *cmd = NULL;                                                           // startup command
-    char *dbfile = getenv("RSM_DBFILE");                                        // pass volume in environment
-    char file[VOL_FILENAME_MAX];
-    char version[40];                                                           // for the version string (-V)
+    int   c;                                                                    // for case
+    int   bsize = 0;                                                            // block size
+    char  i = FALSE;                                                            // for info()
+    char  k = FALSE;                                                            // for shutdown()
+    char  *env = NULL;                                                          // start environment name
+    int   jobs = 0;                                                             // max jobs
+    int   map = 0;                                                              // header/map block bytes
+    u_int gmb = 0;                                                              // global buf MiB
+    u_int rmb = 0;                                                              // routine buf MiB
+    u_int addmb = 0;                                                            // additional buffer in MiB
+    int   blocks = 0;                                                           // number of data blocks
+    char  *volnam = NULL;                                                       // volume name
+    char  *cmd = NULL;                                                          // startup command
+    char  *dbfile;                                                              // pass volume in environment
+    char  file[VOL_FILENAME_MAX];
+    char  version[40];                                                          // for the version string (-V)
 
+    dbfile = getenv("RSM_DBFILE");
     if ((argc < 2) && (dbfile == NULL)) help();                                 // they need help
 
     while ((c = getopt(argc, argv, "a:b:e:g:hij:km:r:s:v:x:RV")) != EOF) {
@@ -151,20 +155,13 @@ int main(int argc, char **argv)                                                 
     if (k) shutdown(file);                                                      // exit via shutdown()
 
     if (volnam != NULL) {                                                       // do a create
-        exit(INIT_Create_File(blocks,                                           // number of blocks
-                              bsize * 1024,                                     // block size in bytes
-                              map * 1024,                                       // map size in bytes
-                              volnam,                                           // volume name
-                              env,                                              // UCI name
-                              file));                                           // file name
+        // number of blocks, block size in bytes, map size in bytes, volume name, UCI name, file name
+        exit(INIT_Create_File(blocks, bsize * 1024, map * 1024, volnam, env, file));
     }
 
     if (jobs > 0) {                                                             // do an init
-        exit(INIT_Start(file,                                                   // database
-                        jobs,                                                   // number of jobs
-                        gmb,                                                    // MiB of global buf
-                        rmb,                                                    // MiB of routine buf
-                        addmb));                                                // MiB of additional buf
+        // database, number of jobs, MiB of global buf, MiB of routine buf, MiB of additional buf
+        exit(INIT_Start(file, jobs, gmb, rmb, addmb));
     }
 
     c = INIT_Run(file, env, cmd);                                               // run a job

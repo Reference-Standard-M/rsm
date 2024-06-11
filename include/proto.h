@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/include/proto.h
- * Summary:  module RSM header file - prototypes
+ * Package: Reference Standard M
+ * File:    rsm/include/proto.h
+ * Summary: module RSM header file - prototypes
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,11 +22,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#ifndef _RSM_PROTO_H_                                                           // only do this once
-#define _RSM_PROTO_H_
+#ifndef RSM_PROTO_H
+#define RSM_PROTO_H
 
 // Database
 int    DB_Get(mvar *var, u_char *buf);                                          // get global data
@@ -62,7 +65,6 @@ short SQ_Open(int chan, cstring *object, cstring *op, int tout);
 
 // set chan as current $IO, input terminators or NULL, output terminators or NULL, parameters see rsm/include/rsm.h
 short SQ_Use(int chan, cstring *interm, const cstring *outerm, int par);
-
 short SQ_Close(int chan);                                                       // close channel
 int   SQ_Write(cstring *buf);                                                   // write to current $IO
 short SQ_WriteStar(u_char c);                                                   // output one character
@@ -73,7 +75,6 @@ int   SQ_Read(u_char *buf, int tout, int maxbyt);
 
 // read one character, timeout (-1 = unlimited)
 short SQ_ReadStar(int *result, int timeout);
-
 short SQ_Flush(void);                                                           // flush input on $IO
 int   SQ_Device(u_char *buf);                                                   // return attributes
 short SQ_Force(const cstring *device, const cstring *msg);                      // force data to a device
@@ -88,8 +89,8 @@ short routine(int runtime);                                                     
 // Runtime utilities
 int     cstringtoi(cstring *str);                                               // convert cstring to int
 int     cstringtob(cstring *str);                                               // convert cstring to boolean
-u_short itocstring(u_char *buf, int n);                                         // convert int to string
-u_short uitocstring(u_char *buf, u_int n);                                      // convert u_int to string
+u_short ltocstring(u_char *buf, long n);                                        // convert long to string
+u_short ultocstring(u_char *buf, u_long n);                                     // convert u_long to string
 int     short_version(u_char *ret_buffer, int i);                               // return short version string
 int     rsm_version(u_char *ret_buffer);                                        // return version string
 int     Set_Error(int err, cstring *user, cstring *space);                      // Set $ECODE
@@ -101,7 +102,7 @@ short   getuci(const cstring *uci, int vol);                                    
 short   patmat(cstring *str, cstring *code);                                    // pattern match
 short   attention(void);                                                        // process attention
 int     ForkIt(int cft);                                                        // Fork (copy file table)
-void    SchedYield(void);                                                       // do a sched_yield()
+void    SchedYield(u_char sleep);                                               // do a sched_yield() or a nanosleep() or nothing
 void    DoInfo(void);                                                           // for <Control-T>
 
 // Runtime math (decimal ex FreeMUMPS)
@@ -212,7 +213,7 @@ void       panic(char *msg);                                                    
 void       Routine_Init(int vol);                                               // proto for routine setup
 struct RBD *Routine_Attach(var_u routine);                                      // attach to routine
 void       Routine_Detach(struct RBD *pointer);                                 // detach from routine
-void       Routine_Delete(var_u routine, int uci);                              // mark mapped routine deleted
+void       Routine_Delete(var_u routine, int vol, int uci);                     // mark mapped routine deleted
 void       Dump_gbd(void);                                                      // dump global descriptors
 void       Dump_rbd(void);                                                      // dump routine descriptors
 void       Dump_ltd(void);                                                      // dump lock descriptors
@@ -253,4 +254,4 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr);
 short Xcall_host(char *ret_buffer, cstring *name, cstring *arg);
 short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2);
 
-#endif                                                                          // !_RSM_PROTO_H_
+#endif

@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/database/locate.c
- * Summary:  module database - locate database functions
+ * Package: Reference Standard M
+ * File:    rsm/database/locate.c
+ * Summary: module database - locate database functions
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -55,8 +58,8 @@
  */
 short Locate(u_char *key)                                                       // find key
 {
-    idx = (u_short *) blk[level]->mem;                                          // point at the block
-    iidx = (int *) blk[level]->mem;                                             // point at the block
+    idx = (u_short *) SOA(blk[level]->mem);                                     // point at the block
+    iidx = (int *) SOA(blk[level]->mem);                                        // point at the block
     Index = IDX_START;                                                          // start at the start
 
     while (TRUE) {                                                              // loop
@@ -70,7 +73,7 @@ short Locate(u_char *key)                                                       
         if (i == KEQUAL) return 0;                                              // same? then done
         if (i == K2_LESSER) return -ERRM7;                                      // passed it? then no such
         Index++;                                                                // point at next
-        if (Index > blk[level]->mem->last_idx) return -ERRM7;                   // passed the end, there is no such
+        if (Index > SOA(blk[level]->mem)->last_idx) return -ERRM7;              // passed the end, there is no such
     }                                                                           // end locate loop
 }
 
@@ -87,12 +90,12 @@ short Locate_next(void)                                                         
 {
     Index++;                                                                    // point at next
 
-    if (Index > blk[level]->mem->last_idx) {                                    // passed end?
+    if (Index > SOA(blk[level]->mem)->last_idx) {                               // passed end?
         int   i;                                                                // a handy int
         short s;                                                                // function returns
 
-        if (!blk[level]->mem->right_ptr) return -ERRM7;                         // any more there? if no, just exit
-        i = blk[level]->mem->right_ptr;                                         // get right block#
+        if (!SOA(blk[level]->mem)->right_ptr) return -ERRM7;                    // any more there? if no, just exit
+        i = SOA(blk[level]->mem)->right_ptr;                                    // get right block#
         s = Get_block(i);                                                       // attempt to get it
         if (s < 0) return s;                                                    // if we got an error then return it
     }                                                                           // end new block

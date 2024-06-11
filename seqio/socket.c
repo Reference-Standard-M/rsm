@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/seqio/socket.c
- * Summary:  module IO - sequential socket IO
+ * Package: Reference Standard M
+ * File:    rsm/seqio/socket.c
+ * Summary: module IO - sequential socket IO
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,8 +22,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
  *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/*
  * Extended Summary:
  *
  * This module implements the following sequential input/output (i.e., IO)
@@ -66,7 +71,7 @@ extern short sock_proto;                                                        
  * returns a descriptor referencing the socket. Otherwise, a negative integer
  * value is returned to indicate the error that has occurred.
  *
- * NOTE: The socket is marked as non-blocking.
+ * NOTE: The socket is marked as non-blocking
  */
 int SQ_Socket_Create(int nonblock)
 {

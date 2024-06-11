@@ -1,10 +1,10 @@
 #
-# Package:  Reference Standard M
-# File:     rsm/etc/magic
-# Summary:  Magic file for Reference Standard M
+# Package: Reference Standard M
+# File:    rsm/etc/magic
+# Summary: Magic file for Reference Standard M
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2020-2023 Fourth Watch Software LC
+# Copyright © 2020-2024 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -17,20 +17,45 @@
 # License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see http://www.gnu.org/licenses/.
+# along with this program. If not, see https://www.gnu.org/licenses/.
 #
-# Copy this file to $HOME/.magic. If $HOME/.magic already exists, append the
-# non-comment contents of this file to it. You may optionally compile it with:
+# SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# If you want to install this for a single user, copy this file to $HOME/.magic.
+# If $HOME/.magic already exists, append the non-comment contents of this file
+# to it. You may optionally compile it with:
 #   cd $HOME && file -C -m $HOME/.magic
+#
+# If you want to install this for every user, copy this file to /etc/magic. If
+# /etc/magic already has magic entries in it, append the non-comment contents of
+# this file to it.
 
-0      long  4155766917U  Reference Standard M
->24   short            2  database file, version 2
-!:mime application/x-rsm-database
->24   short            1  database file, version 1
-!:mime application/x-rsm-database
+0       long         4155766917U  Reference Standard M database file,
+>24     short        2            version 2,
+>>24    leshort      2            little endian
+!:mime  application/x-rsm-database
+>>24    beshort      2            big endian
+!:mime  application/x-rsm-database
+>24     short        1            version 1,
+>>24    leshort      1            little endian
+!:mime  application/x-rsm-database
+>>24    beshort      1            big endian
+!:mime  application/x-rsm-database
 
-0      long  4155766916U  Reference Standard M
->12   short           12  journal file, version 2
-!:mime application/x-rsm-journal
->12   short            8  journal file, version 1
-!:mime application/x-rsm-journal
+0       long         4155766916U  Reference Standard M journal file,
+>12     short        12           version 2,
+>>12    leshort      12           little endian
+!:mime  application/x-rsm-journal
+>>12    beshort      12           big endian
+!:mime  application/x-rsm-journal
+>12     short        8            version 1,
+>>12    leshort      8            little endian
+!:mime  application/x-rsm-journal
+>>12    beshort      8            big endian
+!:mime  application/x-rsm-journal
+
+0       search/264c  \^$routine(  Reference Standard M source text
+!:mime  text/x-rsm
+0       search/264c  \^$r(        Reference Standard M source text
+!:mime  text/x-rsm

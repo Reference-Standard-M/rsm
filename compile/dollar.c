@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/compile/dollar.c
- * Summary:  module compile - evaluate functions, vars etc.
+ * Package: Reference Standard M
+ * File:    rsm/compile/dollar.c
+ * Summary: module compile - evaluate functions, vars etc.
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -62,23 +65,23 @@ void dodollar(void)                                                             
     if (c == '$') {                                                             // extrinsic
         ptr = comp_ptr;                                                         // save compile pointer
         *comp_ptr++ = CMDOTAG;                                                  // assume a do tag
-        i = routine(-1);                                                        // parse the rouref
+        s = routine(-1);                                                        // parse the rouref
 
-        if ((i > -1) || (i == -4)) {                                            // indirect etc. not on here
+        if ((s > -1) || (s == -4)) {                                            // indirect etc. not on here
             comp_ptr = ptr;                                                     // back where we started for error
             SYNTX;
         }
 
-        if (i < -4) {                                                           // check for error
-            comperror(i);                                                       // complain
+        if (s < -4) {                                                           // check for error
+            comperror(s);                                                       // complain
             return;                                                             // and exit
         }
 
         args = 129;                                                             // number of args (128=$$)
 
-        if (i == -2) {
+        if (s == -2) {
             *ptr = CMDORT;                                                      // routine and tag
-        } else if (i == -3) {
+        } else if (s == -3) {
             *ptr = CMDOROU;                                                     // just a routine
         }
 
@@ -451,10 +454,10 @@ function:                                                                       
             }
         }
     } else if ((name[0] == 'T') && (toupper((int) name[1]) != 'R')) {           // $TEXT
-        i = routine(-2);                                                        // parse to strstk
+        s = routine(-2);                                                        // parse to strstk
 
-        if (i < -4) {                                                           // check for error
-            comperror(i);                                                       // complain
+        if (s < -4) {                                                           // check for error
+            comperror(s);                                                       // complain
             return;                                                             // and exit
         }
     } else {
@@ -497,7 +500,7 @@ function:                                                                       
 
         EXPRE;
 
-    case 'C':                                                                   // $C[HARACTER]
+    case 'C':                                                                   // $C[HAR]
         if (len > 1) {                                                          // check for extended name
             if (strncasecmp(name, "char\0", 5) != 0) EXPRE;
         }

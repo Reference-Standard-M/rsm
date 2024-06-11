@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/xcall/xcall.c
- * Summary:  module xcall - supplied external calls
+ * Package: Reference Standard M
+ * File:    rsm/xcall/xcall.c
+ * Summary: module xcall - supplied external calls
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 // SYSTEM INCLUDE FILES
@@ -137,8 +140,10 @@ short Xcall_debug(char *ret_buffer, cstring *arg, __attribute__((unused)) cstrin
         Dump_ltd();
     } else if (strcasecmp((char *) arg->buf, "sems") == 0) {                    // Semaphores
         for (int i = 0; i < SEM_MAX; i++) {
-            int val = semctl(systab->sem_id, i, GETVAL, 0);
-            int sempid = semctl(systab->sem_id, i, GETPID, 0);
+            int val, sempid;
+
+            val = semctl(systab->sem_id, i, GETVAL, 0);
+            sempid = semctl(systab->sem_id, i, GETPID, 0);
 
             printf("%d) %s", i,
                    ((i == SEM_SYS) ? "SEM_SYS" :
@@ -713,8 +718,10 @@ static void DoubleTheBufferSizeIfItsTooSmall(tDirStatus *errPtr, tDirNodeReferen
     if (*errPtr == eDSBufferTooSmall) {
         err = eDSNoErr;
 
-        // If the buffer size is already bigger than 16 MiB, don't try to
-        // double it again; something has gone horribly wrong.
+        /*
+         * If the buffer size is already bigger than 16 MiB, don't try to
+         * double it again; something has gone horribly wrong.
+         */
         if ((*bufPtrPtr)->fBufferSize >= (16 * 1024 * 1024)) {
             err = eDSAllocationFailed;
         }
@@ -1298,8 +1305,7 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     if (err == eDSNoErr) err = GetSearchNodePathList(dirRef, &pathListToSearchNode);
     if (err == eDSNoErr) err = dsOpenDirNode(dirRef, pathListToSearchNode, &searchNodeRef);
 
-    // Search for the user's record and extract the user's authentication
-    // node and authentication user name..
+    // Search for the user's record and extract the user's authentication node and authentication user name..
     if (err == eDSNoErr) {
         err = FindUsersAuthInfo(dirRef, searchNodeRef, username, &pathListToAuthNode, &userNameForAuth);
     }
@@ -1563,9 +1569,10 @@ short Xcall_setenv(char *ret_buffer, cstring *env, const cstring *value)
  */
 short Xcall_fork(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
 {
-    int s = ForkIt(1);                                                          // fork it, copy file table
+    int t;
 
-    return itocstring((u_char *) ret_buffer, s);                                // return result
+    t = ForkIt(1);                                                              // fork it, copy file table
+    return ltocstring((u_char *) ret_buffer, t);                                // return result
 }
 
 /*
@@ -1805,12 +1812,12 @@ short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
 
     if (pid < 0) return -(ERRMLAST + ERRZLAST + errno);
     if (!pid) return 0;                                                         // none pid exit
-    s = itocstring((u_char *) ret_buffer, pid);
+    s = ltocstring((u_char *) ret_buffer, pid);
     ret_buffer[s++] = '#';
     ret_buffer[s++] = '\0';
-    if (WIFEXITED(status)) s += itocstring((u_char *) &ret_buffer[s], WEXITSTATUS(status));
+    if (WIFEXITED(status)) s += ltocstring((u_char *) &ret_buffer[s], WEXITSTATUS(status));
     ret_buffer[s++] = '#';
     ret_buffer[s++] = '\0';
-    if (WIFSIGNALED(status)) s += itocstring((u_char *) &ret_buffer[s], WTERMSIG(status));
+    if (WIFSIGNALED(status)) s += ltocstring((u_char *) &ret_buffer[s], WTERMSIG(status));
     return s;
 }

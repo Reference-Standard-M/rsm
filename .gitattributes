@@ -1,3 +1,6 @@
-# Identify files with the rsm extension as the M language on Gitlab/Github
+# SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Identify files with the rsm extension as the M language on GitLab/GitHub
 *.rsm gitlab-language=M
 *.rsm linguist-language=M

@@ -1,0 +1,98 @@
+////
+Package: Reference Standard M
+File:    doc/adoc/index.adoc
+Summary: Documentation index
+
+David Wicksell <dlw@linux.com>
+Copyright © 2020-2024 Fourth Watch Software LC
+https://gitlab.com/Reference-Standard-M/rsm
+
+Based on MUMPS V1 by Raymond Douglas Newman
+Copyright © 1999-2003
+https://gitlab.com/Reference-Standard-M/mumpsv1
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
+:logo: image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png
+:site: https://gitlab.com/reference-standard-m/rsm/-/blob/main
+
+= Reference Standard M
+
+{logo}[caption="Fourth Watch Software Logo", width="480", height="80"]
+
+'''
+
+[.lead]
+*We are dedicated to keeping the M language and database alive.*
+
+== Copyright and License
+
+This manual is for Reference Standard M +
+David Wicksell <dlw@linux.com> +
+Copyright © 2020-2024 Fourth Watch Software LC +
+https://gitlab.com/Reference-Standard-M/rsm
+
+=== Code License
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License (AGPL) as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+Full license text: {site}/COPYING[AGPL-3.0-or-later]
+
+=== Document License
+
+Permission is granted to copy, distribute and/or modify this document under the
+terms of the GNU Free Documentation License, Version 1.3 or any later version
+published by the Free Software Foundation; with no Invariant Sections, with no
+Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along with
+this program. If not, see https://www.gnu.org/licenses/.
+
+Full license text: {site}/doc/COPYING[GFDL-1.3-no-invariants-or-later]
+
+== Index
+
+* {site}/README.adoc[Readme]
+* {site}/CHANGELOG.adoc[Changelog]
+* xref:language.adoc[Language Guide]
+* xref:database.adoc[Database Management Guide]
+* xref:seqio.adoc[Sequential I/O Interface]
+* xref:xcall.adoc[External Call Interface]
+* xref:util.adoc[Supplemental Utilities]
+* xref:web.adoc[Web Server Utility]
+* xref:upgrade.adoc[Database Upgrade Instructions]
+* xref:conformance.adoc[Conformance Clause]
+
+== Other implementations that may be of interest
+
+* https://freem.coherent-logic.com[FreeM]
+* https://yottadb.com[YottaDB]
+* https://sourceforge.net/projects/fis-gtm/[GT.M]
+* https://www.cs.uni.edu/~okane/[GPL Mumps]
+
+== For more information on M
+
+* https://mumps.org[Mumps Site]
+* https://www.mumpster.org[Mumpster Site]
+* http://71.174.62.16/Demo/AnnoStd?Frame=Main&Page=a100006[MUMPS by Example]
+* http://www.hardhats.org[Hardhats Site]
