@@ -1,0 +1,23 @@
+<!--
+  SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+  SPDX-License-Identifier: CC0-1.0
+-->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>sysctl</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/sbin/sysctl</string>
+      <string>-w</string>
+      <!-- 2 GiB shared segment max -->
+      <string>kern.sysv.shmmax=2147483648</string>
+      <!-- 8 GiB of system shared memory (in number of pages at 4096 bytes per page) -->
+      <string>kern.sysv.shmall=2097152</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+  </dict>
+</plist>

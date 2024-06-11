@@ -111,6 +111,7 @@ INT(vol,blk,xx) new %,f,i,g,li,d,da,buf,ccc,ucc,k,key,data,zr,$etrap
  new varlen,hdrsize,long set varlen=$get(^$system("name_length"),8),hdrsize=varlen+12,long=0
  ; NOTE: If blk ends in +, it will output the full data, not truncate it to 500
  if $extract(blk,$length(blk))="+" set long=$get(^$system("string_max"),32767),blk=+blk
+ set blk=+blk\1 ; normalize block number
  ; Note: blk=0 means vol:blk is already in View Buffer and should be removed
  quit:vol>-1!(blk<1)  view vol:blk
  set %=$view(vol,0) if '% write "Block not in use",! view vol:0 goto EXIT
@@ -860,8 +861,8 @@ DEL(ccl,sw) new %,r,sel,ok,zr set zr="DEL^%RD",sw=$get(sw)["/NOQ"
 ;---
 RC(ccl) new %,r,sel,cnt,total,zr set zr="RC^%RD"
  do INT(3,ccl) set r=""
- for  set r=$order(sel(r)) quit:r=""  write:$x ! write r,! set cnt=$&%rouchk(r) write cnt,! set total=$get(total,0)+cnt
- write !,$fnumber(total,",")_" total error"_$select(total=1:"",1:"s")
+ for  set r=$order(sel(r)) quit:r=""  write:$x ! write r,! set cnt=$&%rouchk(r) write cnt,!! set total=$get(total,0)+cnt
+ write $fnumber(total,",")_" total error"_$select(total=1:"",1:"s")
  quit
 
 %RECOMP
@@ -887,7 +888,7 @@ INT(j) new %,zr set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or J
  ; Show LOCKS
  if $extract("LOCKS",1,$length(j))=j do  quit
  . write " Job  Count  Reference",! set j=""
- . for  set j=$order(^$lock(j)) quit:j=""  set %=^$lock(j) write $justify(+%,4),$justify($piece(%,",",2),7),"  ",j,!
+ . for  set j=$order(^$lock(j)) quit:j=""  set %=^$lock(j) write:%'="" $justify(+%,4),$justify($piece(%,",",2),7),"  ",j,!
  ; Show SYSTEM
  if $extract("SYSTEM",1,$length(j))=j do  quit
  . write "$SYSTEM=",$system,!,"UCI# Name",!
@@ -896,7 +897,7 @@ INT(j) new %,zr set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or J
  . write "Max: ",^$job," job",$select(^$job>1:"s",1:""),!
  . write "Vol: ",^$system("vol",vol,"name")," in file ",^$system("vol",vol,"file"),!
  . write ^$system("vol",vol,"size")," [",^$system("vol",vol,"block")/1024," KiB] Blocks, "
- . write ^$system("vol",vol,"free")," Free.",!
+ . write ^$system("vol",vol,"free")," Free",!
  . set j=^$system("vol",vol,"logrd"),%=^$system("vol",vol,"phyrd")
  . write "Database reads - Logical: ",j,"  Physical: ",%
  . write:j "  Cache hits: ",$justify((j-%)/j*100,0,2),"%" write !
@@ -935,7 +936,7 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
  write " ("_int_" secs)",!
  write "Volume: ",^$system("vol",vol,"name")
  write " in file: ",^$system("vol",vol,"file"),!
- write ^$system("vol",vol,"size")," x ",^$system("vol",vol,"block")/1024," KiB blocks - "
+ write ^$system("vol",vol,"size")," [",^$system("vol",vol,"block")/1024," KiB] blocks - "
  write ^$system("vol",vol,"free")," available ("
  write $justify(^$system("vol",vol,"free")/^$system("vol",vol,"size")*100,0,2),"%)"
  write $char(27)_"[0K",!! ; Clear to end-of-line to avoid display bug when available blocks shrink
@@ -3575,7 +3576,7 @@ KVALUE(r,row,col) ; KVALUE polyfill
 MUMTRIS
 MUMTRIS ;V 3.011 09 Jun 2012 11:28 AM
 ; Mumtris
-; Copyright (c) 2012 Piotr Koper <piotr.koper@gmail.com>
+; Copyright © 2012 Piotr Koper <piotr.koper@gmail.com>
 ; Converted for MUMPS V1 by Ray Douglas Newman
 ;
 ; This program is free software: you can redistribute it and/or modify
@@ -4006,16 +4007,16 @@ MENU ; Menu list
  ;;
 
 
-; Package:  Reference Standard M
-; File:     rsm/utils.rsm
-; Summary:  Impementation of the M Language and Database System
+; Package: Reference Standard M
+; File:    rsm/utils.rsm
+; Summary: Impementation of the M Language and Database System
 ;
 ; David Wicksell <dlw@linux.com>
-; Copyright (c) 2020-2024 Fourth Watch Software LC
+; Copyright © 2020-2024 Fourth Watch Software LC
 ; https://gitlab.com/Reference-Standard-M/rsm
 ;
 ; Based on MUMPS V1 by Raymond Douglas Newman
-; Copyright (c) 1999-2018
+; Copyright © 1999-2018
 ; https://gitlab.com/Reference-Standard-M/mumpsv1
 ;
 ; This program is free software: you can redistribute it and/or modify it
@@ -4029,4 +4030,7 @@ MENU ; Menu list
 ; License for more details.
 ;
 ; You should have received a copy of the GNU Affero General Public License
-; along with this program. If not, see http://www.gnu.org/licenses/.
+; along with this program. If not, see https://www.gnu.org/licenses/.
+;
+; SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+; SPDX-License-Identifier: AGPL-3.0-or-later

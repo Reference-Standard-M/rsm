@@ -1,6 +1,10 @@
+# SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 stages:
   - build
   - release
+  - deploy
 
 host-build:
   stage: build
@@ -35,10 +39,28 @@ version-release:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_TAG != null && $CI_COMMIT_TAG !~ /-doc$/
   script:
-    - sed -n "/$CI_COMMIT_TAG/,/^===/"'{s/===/###/; /^\[.*,.*\]/{N; N; N; N; s/^\[.*,\(.*\)\].*\n.*\n\(.*\)\n.*\n/```\1\n\2\n```\n/}; /^\[.*/d; p}' CHANGELOG.adoc | sed '$d' | sed '$d' > ${CI_COMMIT_TAG}.md
+    - sed -n "/^=== $CI_COMMIT_TAG/,/^=== v.*[^-pre]\.[0-9] -- /{/^=== $CI_COMMIT_TAG/{s/===/###/}; /^===/b; p}"
+      CHANGELOG.adoc > ${CI_COMMIT_TAG}.md
+    - sed -i '/^\[.*,.*\]/{N; N; N; N; s/^\[.*,\(.*\)\].*\n.*\n\(.*\)\n.*\n/```\1\n\2\n```/}'
+      ${CI_COMMIT_TAG}.md
+    - sed -i '/^\[.*/d; ${/^$/d}; s/\(http.*\)\[\(.*\)\]/[\2](\1)/'
+      ${CI_COMMIT_TAG}.md
   release:
     tag_name: $CI_COMMIT_TAG
     name: "Reference Standard M $CI_COMMIT_TAG"
     description: ${CI_COMMIT_TAG}.md
+
+pages:
+  stage: deploy
+  image: antora/antora:latest
+  rules:
+    - if: $CI_COMMIT_TAG != null && $CI_COMMIT_TAG =~ /-doc$/
+  script:
+    - npm install @antora/lunr-extension
+    - mkdir public
+    - antora --fetch --redirect-facility=gitlab --to-dir=public etc/antora-playbook.yml
+  artifacts:
+    paths:
+      - public

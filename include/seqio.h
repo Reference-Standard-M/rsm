@@ -1,15 +1,15 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/include/seqio.h
- * Summary:  This module declares all the global constants and functions
- *           used only by sequential Input/Output (IO) operations.
+ * Package: Reference Standard M
+ * File:    rsm/include/seqio.h
+ * Summary: This module declares all the global constants and functions
+ *          used only by sequential Input/Output (IO) operations.
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -23,11 +23,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#ifndef _RSM_SEQIO_H_                                                           // only do this once
-#define _RSM_SEQIO_H_
+#ifndef RSM_SEQIO_H
+#define RSM_SEQIO_H
 
 #include <sys/types.h>
 #include "rsm.h"
@@ -48,19 +51,19 @@
 #define NEWPIPE   10                                                            // Named pipe (reading)
 
 // Signal operations
-#define CATCH     0                                                             // Catch signal
-#define IGNORE    1                                                             // Ignore signal
+#define CATCH  0                                                                // Catch signal
+#define IGNORE 1                                                                // Ignore signal
 
 // Types of errors
-#define SYS       0                                                             // System error
-#define INT       1                                                             // Internal error
+#define SYS 0                                                                   // System error
+#define INT 1                                                                   // Internal error
 
 // File/Pipe permissions
-#define MODE      (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 // Select operations
-#define FDRD      0                                                             // Ready to read on object
-#define FDWR      1                                                             // Ready to write on object
+#define FDRD 0                                                                  // Ready to read on object
+#define FDWR 1                                                                  // Ready to write on object
 
 // Global function declarations
 void setSignalBitMask(int sig);
@@ -92,4 +95,4 @@ int  SQ_Socket_Connect(int sid, char *addr, u_short port);
 int  SQ_Socket_Write(int sid, u_char *writebuf, int nbytes);
 int  SQ_Socket_Read(int sid, u_char *readbuf, int tout);
 
-#endif                                                                          // !_RSM_SEQIO_H_
+#endif

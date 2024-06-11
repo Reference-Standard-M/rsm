@@ -1,8 +1,8 @@
 #!/bin/bash -
 #
-# Package:  Reference Standard M
-# File:     rsm/bin/upgrade
-# Summary:  Upgrade an RSM or MV1 database from version 1 to 2
+# Package: Reference Standard M
+# File:    rsm/bin/upgrade
+# Summary: Upgrade an RSM or MV1 database from version 1 to 2
 #
 # David Wicksell <dlw@linux.com>
 # Copyright © 2020-2024 Fourth Watch Software LC
@@ -18,7 +18,10 @@
 # License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see http://www.gnu.org/licenses/.
+# along with this program. If not, see https://www.gnu.org/licenses/.
+#
+# SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 def="\033[0m" log="\033[0;32m" err="\033[0;31m"
 
@@ -43,7 +46,7 @@ error_off()
 error_on
 
 echo -e "${log}Reference Standard M Database Upgrade Utility${def}\n"
-echo "Copyright (c) 2020-2024 Fourth Watch Software LC"
+echo "Copyright © 2020-2024 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 echo -e "Upgrades an RSM (or MV1) database from version 1 to 2\n"
 echo -e "${err}WARNING:${def} This script is experimental"
@@ -159,11 +162,11 @@ then
     rtnmax=$((rtnmax / 1024 + 1))
 
     echo -e "\nTo load your routines, use a block size of at least ${rtnmax} KiB - current size is ${blksize} KiB"
-    read -rp "Do you want to use a larger size? [N/y]: " ans
+    read -rep "Do you want to use a larger size? [N/y]: " ans
 
     if [[ ${ans} == y || ${ans} == Y ]]
     then
-        read -rp "What block size in KiB do you want to use? [4 - 256 KiB]: " ans
+        read -rep "What block size in KiB do you want to use? [1 - 256 KiB]: " ans
         [[ -n ${ans} ]] && blksize=${ans}
     fi
 fi

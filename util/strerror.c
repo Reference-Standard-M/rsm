@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/util/strerror.c
- * Summary:  module RSM strerror - return full name of error
+ * Package: Reference Standard M
+ * File:    rsm/util/strerror.c
+ * Summary: module RSM strerror - return full name of error
  *
  * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2023 Fourth Watch Software LC
+ * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2016
+ * Copyright © 1999-2016
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,17 +22,22 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
  *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/*
  * Extended Summary:
  *
  * Errors returned by functions internally are minus one of the following
  * Specifically -1 = ERRM1
- * Functions return  -ERRMn
+ * Functions return: -ERRMn
  *                   -(ERRZn + ERRMLAST)
  *                   -(ERRMLAST + ERRZLAST + errno)
  *
- * Use: short UTIL_strerror(int error, u_char *buff) to return the error string
+ * Use:  u_short UTIL_strerror(int err, u_char *buf)  to return the error string
  */
 
 #include <stdio.h>                                                              // always include
@@ -223,13 +228,13 @@ void panic(char *msg)                                                           
         fprintf(stderr, "RSM CRASH OCCURRED on %s", ctime(&t));                 // output the time
         rsm_version((u_char *) tmp);
         fprintf(stderr, "%s", tmp);
-        fprintf(stderr, "\nFATAL RSM ERROR occurred - PID %d!!\n%s\n", getpid(), msg); // print
+        fprintf(stderr, "\nFATAL RSM ERROR occurred - PID %ld!!\n%s\n", (long) getpid(), msg); // print
         if (errno) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
         if (partab.jobtab != NULL) {                                            // if not a daemon
             int j = partab.jobtab->cur_do;                                      // get current do
 
-            fprintf(stderr, "Job Number: %d\n", ((int) (partab.jobtab - systab->jobtab) + 1));
+            fprintf(stderr, "Job Number: %d\n", ((int) (partab.jobtab - partab.job_table) + 1));
 
             for (int i = 0; i < VAR_LEN; i++) {
                 tmp[i] = partab.jobtab->dostk[j].rounam.var_cu[i];              // copy it

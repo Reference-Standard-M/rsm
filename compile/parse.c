@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/compile/parse.c
- * Summary:  module compile - parse a line
+ * Package: Reference Standard M
+ * File:    rsm/compile/parse.c
+ * Summary: module compile - parse a line
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -39,6 +42,8 @@
 #include "error.h"                                                              // and the error defs
 #include "opcode.h"                                                             // and the opcodes
 #include "compile.h"                                                            // compile stuff
+
+u_char *jmp_eoc = NULL;                                                         // jump to end of cmd required
 
 int parse2eq(const u_char *ptr)                                                 // scan to = or EOS
 {
@@ -592,11 +597,15 @@ void parse_lock(void)                                                           
                     return;                                                     // and exit
                 }
 
+                if (*(comp_ptr - 2) == TYPVARNAKED) {                           // naked is not allowed in an nref
+                    comp_ptr = ptr;                                             // reset location for error
+                    EXPRE;
+                }
+
                 ptr[s] = OPMVAR;                                                // build an mvar
             }
 
             args++;                                                             // count the arg
-
             if (!i) break;                                                      // not expecting more
 
             if (*source_ptr == ')') {                                           // closing bracket?
@@ -646,7 +655,9 @@ void parse_merge(void)                                                          
         u_char *ptr1 = NULL;                                                    // a handy pointer
         u_char *ptr2 = NULL;                                                    // and another
         u_char *ptr3 = NULL;                                                    // and another
-        int    i = parse2eq(source_ptr);                                        // look for an equals
+        int    i;
+
+        i = parse2eq(source_ptr);                                               // look for an equals
 
         if (source_ptr[i] == '=') {                                             // did we find one?
             ptr1 = source_ptr;                                                  // save for ron
@@ -1167,7 +1178,9 @@ void parse_set(void)                                                            
         u_char *ptr1 = NULL;                                                    // a handy pointer
         u_char *ptr2 = NULL;                                                    // and another
         u_char *ptr3 = NULL;                                                    // and another
-        int    i = parse2eq(source_ptr);                                        // look for an equals
+        int    i;
+
+        i = parse2eq(source_ptr);                                               // look for an equals
 
         if (source_ptr[i] == '=') {                                             // did we find one?
             ptr1 = source_ptr;                                                  // save for ron
@@ -1478,15 +1491,15 @@ void parse_xecute(void)                                                         
  */
 void parse(void)                                                                // MAIN PARSE LOOP
 {
-    short   s;                                                                  // for functions
-    int     i;                                                                  // a handy int
-    int     args = 0;                                                           // number of args
-    u_char  *ptr;                                                               // a handy pointer
-    u_char  *jmp_eoc = NULL;                                                    // jump to end of cmd required
+    short  s;                                                                   // for functions
+    int    i;                                                                   // a handy int
+    int    args = 0;                                                            // number of args
+    u_char *ptr;                                                                // a handy pointer
 
     while (TRUE) {                                                              // loop
-        char c = toupper(*source_ptr++);                                        // get next char in upper case
+        char c;
 
+        c = toupper(*source_ptr++);                                             // get next char in upper case
         jmp_eoc = NULL;                                                         // clear post conditional
 
         switch (c) {

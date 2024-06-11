@@ -1,10 +1,10 @@
 #
-# Package:  Reference Standard M
-# File:     rsm/Dockerfile
-# Summary:  Create an RSM Docker image
+# Package: Reference Standard M
+# File:    rsm/Dockerfile
+# Summary: Create an RSM Docker image
 #
 # David Wicksell <dlw@linux.com>
-# Copyright © 2022-2023 Fourth Watch Software LC
+# Copyright © 2022-2024 Fourth Watch Software LC
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -17,8 +17,11 @@
 # License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see http://www.gnu.org/licenses/.
+# along with this program. If not, see https://www.gnu.org/licenses/.
 #
+# SPDX-FileCopyrightText:  © 2022 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 # syntax=docker/dockerfile:1
 
 # LTS release
@@ -26,7 +29,7 @@ FROM ubuntu:22.04
 MAINTAINER David Wicksell <dlw@linux.com>
 USER root
 
-# Install dependencies and upgrade packages
+# Install dependencies, upgrade packages, and clean up
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
     apt-get -qq --no-install-recommends install apt-utils libc6-dev file make gcc vim-nox bash-completion 2>/dev/null && \
@@ -37,10 +40,10 @@ RUN apt-get -qq update && \
 WORKDIR /opt/rsm
 COPY . /opt/rsm
 
-# The 'make install' command below requires USER set to root and SHELL is needed for the MCL to shell out
+# The 'make install' command below requires USER set to root and SHELL is needed for the MCL to shell out with the OS command
 ENV USER=root SHELL=/bin/bash RSM_DBFILE=/opt/rsm/tst.dat
 
-# Build the rsm executable, install it system-wide, and clean up the working directory
+# Build the rsm executable, install it system-wide for $PATH, and clean up the working directory
 RUN make -j && make install && make clean
 
 # Setup the environment and configure the database

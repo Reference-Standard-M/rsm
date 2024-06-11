@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/database/main.c
- * Summary:  module database - main database functions
+ * Package: Reference Standard M
+ * File:    rsm/database/main.c
+ * Summary: module database - main database functions
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -71,10 +74,8 @@ int     hash_start = 0;                                                         
  */
 short Copy2local(mvar *var)
 {
-    int i;                                                                      // a handy int
-
     partab.jobtab->grefs++;                                                     // count global ref
-    for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL) continue;                    // clear blk[]
+    for (int i = 0; i < MAXTREEDEPTH; blk[i++] = NULL) continue;                // clear blk[]
     curr_lock = 0;                                                              // ensure this is clear
     writing = 0;                                                                // assume reading
     level = -1;                                                                 // no claimed GBDs yet
@@ -87,7 +88,7 @@ short Copy2local(mvar *var)
     if (db_var.uci > UCIS) return -ERRM26;                                      // too big
 
     if ((var->volset == 0) && (var->uci == 0)) {                                // no vol or UCI
-        for (i = 0; i < systab->max_tt; i++) {                                  // scan trantab
+        for (int i = 0; i < systab->max_tt; i++) {                              // scan trantab
             if (memcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) {      // if a match
                 if (systab->tt[i].to_vol == 0) return i + 1;                    // flag routine proc (for triggers in the future)
                 memcpy(&db_var.name, (char *) &systab->tt[i] + offsetof(trantab, to_global), sizeof(var_u) + 2);
@@ -96,7 +97,7 @@ short Copy2local(mvar *var)
         }
     }                                                                           // end trantab lookup
 
-    if (systab->vol[db_var.volset - 1]->vollab->uci[db_var.uci - 1].name.var_cu[0] == '\0') { // does UCI exist?
+    if (SOA(partab.vol[db_var.volset - 1]->vollab)->uci[db_var.uci - 1].name.var_cu[0] == '\0') { // does UCI exist?
         return -ERRM26;                                                         // no - error
     }
 
@@ -114,15 +115,15 @@ short Copy2local(mvar *var)
  */
 int DB_Get(mvar *var, u_char *buf)                                              // get global data
 {
-    int s;                                                                      // for returns
+    int t;                                                                      // for returns
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return t;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // routine process
-        s--;                                                                    // point at trantab entry
-         * This code needs to invoke XXX^<systab->tt[s].to_global.var_cu>
+    if (t > 0) {                                                                // routine process
+        t--;                                                                    // point at trantab entry
+         * This code needs to invoke XXX^<systab->tt[t].to_global.var_cu>
          * as a routine where XXX is GET (this example), SET, KILL etc.
          * with mvar *var converted to cstring as arg1 and buf as
          * argument 2 passed by-reference.
@@ -131,19 +132,19 @@ int DB_Get(mvar *var, u_char *buf)                                              
     }
     */
 
-    systab->vol[volnum - 1]->stats.dbget++;                                     // update stats
-    s = Get_data(0);                                                            // attempt to get it
+    partab.vol[volnum - 1]->stats.dbget++;                                      // update stats
+    t = Get_data(0);                                                            // attempt to get it
 
-    if (s >= 0) {                                                               // if worked
+    if (t >= 0) {                                                               // if worked
         if (memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0) {              // if ^$GLOBAL
-            s = uitocstring(buf, *((u_int *) record));                          // block number
+            t = ultocstring(buf, *((u_int *) record));                          // block number
         } else {
-            s = mcopy(record->buf, buf, record->len);                           // copy the data
+            t = mcopy(record->buf, buf, record->len);                           // copy the data
         }
     }
 
     if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                               // if locked then release global lock
-    return s;                                                                   // return the count
+    return t;                                                                   // return the count
 }
 
 /*
@@ -155,15 +156,15 @@ int DB_Get(mvar *var, u_char *buf)                                              
  */
 int DB_Set(mvar *var, cstring *data)                                            // set global data
 {
-    int s;                                                                      // for returns
+    int t;                                                                      // for returns
     int i;                                                                      // a handy int
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return t;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
@@ -171,28 +172,28 @@ int DB_Set(mvar *var, cstring *data)                                            
     if (i & 3) i += (4 - (i & 3));                                              // if required then round up
     i += 4;                                                                     // add Index
 
-    if (i > (int) (systab->vol[volnum - 1]->vollab->block_size - sizeof(DB_Block))) {
+    if (i > (int) (SOA(partab.vol[volnum - 1]->vollab)->block_size - sizeof(DB_Block))) {
         return -ERRM75;                                                         // if too big then return an error
     }
 
-    systab->vol[volnum - 1]->stats.dbset++;                                     // update stats
+    partab.vol[volnum - 1]->stats.dbset++;                                      // update stats
     writing = 1;                                                                // say we are writing
 
-    while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
+    while (partab.vol[volnum - 1]->writelock) {                                 // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
-    i = systab->vol[volnum - 1]->vollab->max_block >> 3;                        // last map byte necessary for current database size
+    i = SOA(partab.vol[volnum - 1]->vollab)->max_block >> 3;                    // last map byte necessary for current database size
 
     while (i) {                                                                 // check from the end
-        if ((((u_char *) systab->vol[volnum - 1]->map)[i--]) == 0) break;       // OK if byte is free
+        if ((((u_char *) SOA(partab.vol[volnum - 1]->map))[i--]) == 0) break;   // OK if byte is free
     }
 
     if (!i) return -(ERRZ11 + ERRZLAST);                                        // complain if failed
-    s = Set_data(data);                                                         // do the set
+    t = Set_data(data);                                                         // do the set
     if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                               // if locked then release global lock
-    return s;                                                                   // return the result
+    return t;                                                                   // return the result
 }
 
 /*
@@ -204,20 +205,19 @@ int DB_Set(mvar *var, cstring *data)                                            
  */
 short DB_Data(mvar *var, u_char *buf)                                           // get $DATA()
 {
-    short s;                                                                    // for returns
-    int   t;                                                                    // for returns
-    int   i;                                                                    // a handy int
+    int t;                                                                      // for returns
+    int i;                                                                      // a handy int
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return t;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
-    systab->vol[volnum - 1]->stats.dbdat++;                                     // update stats
+    partab.vol[volnum - 1]->stats.dbdat++;                                      // update stats
     t = Get_data(0);                                                            // attempt to get it
     i = 1;                                                                      // assume data found
 
@@ -245,15 +245,15 @@ short DB_Data(mvar *var, u_char *buf)                                           
 
     if (!db_var.slen && !i) Index++;                                            // pointing at 1st
 
-    if (i || (Index > blk[level]->mem->last_idx)) {                             // found or passed end
-        s = Locate_next();                                                      // get next record
+    if (i || (Index > SOA(blk[level]->mem)->last_idx)) {                        // found or passed end
+        t = Locate_next();                                                      // get next record
 
-        if (s == -ERRM7) {                                                      // any more?
+        if (t == -ERRM7) {                                                      // any more?
             if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                       // if locked then release global lock
-            return itocstring(buf, i);                                          // return result
-        } else if (s < 0) {                                                     // error?
+            return ltocstring(buf, i);                                          // return result
+        } else if (t < 0) {                                                     // error?
             if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                       // if locked then release global lock
-            return s;                                                           // and exit
+            return (short) t;                                                   // and exit
         }
     }                                                                           // got next record
 
@@ -263,7 +263,7 @@ short DB_Data(mvar *var, u_char *buf)                                           
     }
 
     if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                               // if locked then release global lock
-    return itocstring(buf, i);                                                  // return result
+    return ltocstring(buf, i);                                                  // return result
 }
 
 /*
@@ -274,58 +274,58 @@ short DB_Data(mvar *var, u_char *buf)                                           
  */
 short DB_Kill(mvar *var)                                                        // remove sub-tree
 {
-    int s;                                                                      // for returns
+    int t;                                                                      // for returns
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return (short) s;                                                // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return (short) t;                                                // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
-    systab->vol[volnum - 1]->stats.dbkil++;                                     // update stats
+    partab.vol[volnum - 1]->stats.dbkil++;                                      // update stats
 
-    while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
+    while (partab.vol[volnum - 1]->writelock) {                                 // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
-    s = Get_data(0);                                                            // attempt to get it
+    t = Get_data(0);                                                            // attempt to get it
 
-    if (((s == -ERRM7) && (level == 0)) || ((s < 0) && (s != -ERRM7))) {        // if no such OR an error
+    if (((t == -ERRM7) && (level == 0)) || ((t < 0) && (t != -ERRM7))) {        // if no such OR an error
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
-        if (s == -ERRM7) s = 0;                                                 // if undefined, that is OK
-        return (short) s;                                                       // nothing to do
+        if (t == -ERRM7) t = 0;                                                 // if undefined, that is OK
+        return (short) t;                                                       // nothing to do
     }
 
-    if ((s == -ERRM7) && db_var.slen) {                                         // if undefined
-        if (Index <= blk[level]->mem->last_idx) {                               // and still in block
+    if ((t == -ERRM7) && db_var.slen) {                                         // if undefined
+        if (Index <= SOA(blk[level]->mem)->last_idx) {                          // and still in block
             if ((db_var.slen > keybuf[0]) || memcmp(&keybuf[1], db_var.key, db_var.slen)) { // smaller key OR not a descendant?
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
                 return 0;                                                       // nothing to do
             }
         } else {                                                                // end still in block
-            s = Locate_next();                                                  // point at next block
+            t = Locate_next();                                                  // point at next block
 
-            if (!s) {                                                           // found one
+            if (!t) {                                                           // found one
                 if ((db_var.slen > keybuf[0]) || memcmp(&keybuf[1], db_var.key, db_var.slen)) { // smaller key OR not a descendant?
-                    s = -ERRM7;                                                 // flag for later
+                    t = -ERRM7;                                                 // flag for later
                 }
             }
 
-            if (s < 0) {                                                        // no such or error
+            if (t < 0) {                                                        // no such or error
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
-                if (s == -ERRM7) s = 0;
-                return (short) s;                                               // nothing to do
+                if (t == -ERRM7) t = 0;
+                return (short) t;                                               // nothing to do
             }
         }
     }
 
-    s = Kill_data();                                                            // do the kill
+    t = Kill_data();                                                            // do the kill
     if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                               // if locked then release global lock
-    return (short) s;                                                           // return the result
+    return (short) t;                                                           // return the result
 }
 
 /*
@@ -338,21 +338,20 @@ short DB_Kill(mvar *var)                                                        
  */
 short DB_Order(mvar *var, u_char *buf, int dir)                                 // get next subscript
 {
-    short s;                                                                    // for returns
-    int   t;                                                                    // for returns
-    int   cnt;                                                                  // for character count
-    int   last_key;                                                             // start of last key
+    int t;                                                                      // for returns
+    int cnt;                                                                    // for character count
+    int last_key;                                                               // start of last key
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return t;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
-    systab->vol[volnum - 1]->stats.dbord++;                                     // update stats
+    partab.vol[volnum - 1]->stats.dbord++;                                      // update stats
     last_key = UTIL_Key_Last(&db_var);                                          // get start of last
     buf[0] = '\0';                                                              // null terminate ret
 
@@ -364,7 +363,7 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
             return (short) t;                                                   // and return the error
         }
 
-        if ((level == 0) && (s == -ERRM7) && memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8)) { // if no such global AND not ^$G()
+        if ((level == 0) && (t == -ERRM7) && memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8)) { // if no global AND not ^$GLOBAL
             if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                       // if locked then release global lock
             return 0;                                                           // and return
         }
@@ -387,12 +386,12 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
             return 0;                                                           // and return
         }
 
-        if (Index > blk[level]->mem->last_idx) {                                // no more available
-            s = Locate_next();                                                  // get next (if there)
+        if (Index > SOA(blk[level]->mem)->last_idx) {                           // no more available
+            t = Locate_next();                                                  // get next (if there)
 
-            if (s < 0) {                                                        // failed?
+            if (t < 0) {                                                        // failed?
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
-                return ((s == -ERRM7) ? 0 : s);                                 // done
+                return ((t == -ERRM7) ? 0 : t);                                 // done
             }
         }
     }                                                                           // end forwards
@@ -419,19 +418,18 @@ short DB_Order(mvar *var, u_char *buf, int dir)                                 
  */
 short DB_Query(mvar *var, u_char *buf, int dir)                                 // get next key
 {
-    short s;                                                                    // for returns
-    int   t;                                                                    // for returns
+    int t;                                                                      // for returns
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return (short) t;                                                // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
-    systab->vol[volnum - 1]->stats.dbqry++;                                     // update stats
+    partab.vol[volnum - 1]->stats.dbqry++;                                      // update stats
 
     if (dir < 0) {                                                              // if it's backward
         t = Get_data(-1);                                                       // get the previous
@@ -473,14 +471,14 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
 
         if ((t < 0) && !db_var.slen) Index++;
 
-        if ((Index > blk[level]->mem->last_idx) || (t >= 0)) {                  // want next one
-            s = Locate_next();                                                  // point at next
+        if ((Index > SOA(blk[level]->mem)->last_idx) || (t >= 0)) {             // want next one
+            t = Locate_next();                                                  // point at next
 
-            if (s < 0) {                                                        // not found or error
+            if (t < 0) {                                                        // not found or error
                 if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                   // if locked then release global lock
                 buf[0] = '\0';                                                  // null terminate ret
-                if (s == -ERRM7) s = 0;                                         // undefined? if yes - clear it
-                return s;                                                       // done
+                if (t == -ERRM7) t = 0;                                         // undefined? if yes - clear it
+                return (short) t;                                               // done
             }
         }
     }
@@ -511,15 +509,14 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
  */
 short DB_QueryD(mvar *var, u_char *buf)                                         // get next key
 {
-    short s;                                                                    // for returns
-    int   t;                                                                    // for returns
+    int t;                                                                      // for returns
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return (short) t;                                                // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
@@ -540,12 +537,12 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
         Index--;                                                                // <UNDEF> last time
     }                                                                           // back up Index
 
-    s = Locate_next();                                                          // point at next
+    t = Locate_next();                                                          // point at next
 
-    if (s < 0) {                                                                // not found or error
+    if (t < 0) {                                                                // not found or error
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
-        if (s == -ERRM7) s = -(ERRZ55 + ERRMLAST);                              // if no more then say 'at end'
-        return s;                                                               // done
+        if (t == -ERRM7) t = -(ERRZ55 + ERRMLAST);                              // if no more then say 'at end'
+        return (short) t;                                                       // done
     }
 
     /*
@@ -578,7 +575,7 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
  */
 int DB_GetLen(mvar *var, int lock, u_char *buf)                                 // length of node
 {
-    int s;                                                                      // for returns
+    int t;                                                                      // for returns
     int sav;                                                                    // save curr_lock
 
     if ((lock == -1) && (buf == NULL)) {                                        // just unlock?
@@ -587,30 +584,30 @@ int DB_GetLen(mvar *var, int lock, u_char *buf)                                 
     }
 
     sav = curr_lock;                                                            // save this
-    s = Copy2local(var);                                                        // get local copy
+    t = Copy2local(var);                                                        // get local copy
     curr_lock = sav;                                                            // restore current lock
 
-    if (s < 0) {                                                                // check for error
+    if (t < 0) {                                                                // check for error
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
-        return s;                                                               // and return
+        return t;                                                               // and return
     }
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
-    s = Get_data(0);                                                            // attempt to get it
+    t = Get_data(0);                                                            // attempt to get it
 
-    if (s < 0) {                                                                // check for error
+    if (t < 0) {                                                                // check for error
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
-        return s;                                                               // and return
+        return t;                                                               // and return
     }
 
-    if (buf != NULL) s = mcopy(record->buf, buf, record->len);                  // want data? then copy the data
+    if (buf != NULL) t = mcopy(record->buf, buf, record->len);                  // want data? then copy the data
     if ((lock != 1) && curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                // preserve lock? if no - release it
-    return s;                                                                   // and exit
+    return t;                                                                   // and exit
 }
 
 /*
@@ -624,12 +621,12 @@ int DB_Free(int vol)                                                            
     short s;                                                                    // for funcs
     int   count = 0;                                                            // block count
 
-    s = SemOp(SEM_GLOBAL, READ);                                                // lock the globals
+    s = SemOp(SEM_GLOBAL, SEM_READ);                                            // lock the globals
     if (s < 0) return s;                                                        // return any errors
 
     // start at block 1, while still in map, going up by one
-    for (u_int i = 1; i <= systab->vol[vol - 1]->vollab->max_block; i++) {
-        count += (((((u_char *) systab->vol[vol - 1]->map)[i >> 3]) & (1U << (i & 7))) == 0); // add up blocks
+    for (u_int i = 1; i <= SOA(partab.vol[vol - 1]->vollab)->max_block; i++) {
+        count += (((((u_char *) SOA(partab.vol[vol - 1]->map))[i >> 3]) & (1U << (i & 7))) == 0); // add up blocks
     }
 
     SemOp(SEM_GLOBAL, -curr_lock);                                              // unlock the globals
@@ -651,18 +648,21 @@ short DB_Expand(int vol, u_int vsiz)                                            
     u_char *p;                                                                  // for malloc
     int    dbfd;                                                                // for open
 
-    p = malloc(systab->vol[vol]->vollab->block_size);                           // get some space
+    p = malloc(SOA(partab.vol[vol]->vollab)->block_size);                       // get some space
     if (p == NULL) return -(ERRMLAST + ERRZLAST + errno);                       // die
-    memset(p, 0, systab->vol[vol]->vollab->block_size);                         // clear it
-    dbfd = open(systab->vol[vol]->file_name, O_RDWR);                           // open database read-write
+    memset(p, 0, SOA(partab.vol[vol]->vollab)->block_size);                     // clear it
+    dbfd = open(partab.vol[vol]->file_name, O_RDWR);                            // open database read-write
 
     if (dbfd == -1) {                                                           // if failed
         free(p);                                                                // free memory
         return -(ERRMLAST + ERRZLAST + errno);                                  // and die
     }
 
-    fptr = (off_t) systab->vol[vol]->vollab->max_block;                         // start here
-    fptr = (fptr * (off_t) systab->vol[vol]->vollab->block_size) + (off_t) systab->vol[vol]->vollab->header_bytes;
+    fptr = (off_t) SOA(partab.vol[vol]->vollab)->max_block;                     // start here
+
+    fptr = (fptr * (off_t) SOA(partab.vol[vol]->vollab)->block_size)
+         + (off_t) SOA(partab.vol[vol]->vollab)->header_bytes;
+
     fres = lseek(dbfd, fptr, SEEK_SET);                                         // Seek to eof
 
     if (fres != fptr) {                                                         // if failed
@@ -670,10 +670,12 @@ short DB_Expand(int vol, u_int vsiz)                                            
         return -(ERRMLAST + ERRZLAST + errno);                                  // and die
     }
 
-    vexp = vsiz - systab->vol[vol]->vollab->max_block;                          // expand by
+    vexp = vsiz - SOA(partab.vol[vol]->vollab)->max_block;                      // expand by
 
     while (vexp) {
-        int i = write(dbfd, p, systab->vol[vol]->vollab->block_size);
+        int i;
+
+        i = write(dbfd, p, SOA(partab.vol[vol]->vollab)->block_size);
 
         if (i == -1) {                                                          // if failed
             free(p);                                                            // free memory
@@ -685,8 +687,8 @@ short DB_Expand(int vol, u_int vsiz)                                            
 
     free(p);                                                                    // free memory
     close(dbfd);                                                                // close DB file
-    systab->vol[vol]->vollab->max_block = vsiz;                                 // store new size
-    systab->vol[vol]->map_dirty_flag = 1;                                       // say write this
+    SOA(partab.vol[vol]->vollab)->max_block = vsiz;                             // store new size
+    partab.vol[vol]->map_dirty_flag = 1;                                        // say write this
     return 0;
 }
 
@@ -699,10 +701,10 @@ short DB_Expand(int vol, u_int vsiz)                                            
 int DB_Dismount(int vol)                                                        // dismount a volume
 {
     DB_StopJournal(vol, JRN_ESTOP);
-    systab->vol[vol - 1]->dismount_flag = 1;                                    // set the flag
+    partab.vol[vol - 1]->dismount_flag = 1;                                     // set the flag
 
-    while (systab->vol[vol - 1]->wd_tab[0].pid) {                               // wait until main daemon has stopped
-        if (kill(systab->vol[vol - 1]->wd_tab[0].pid, 0) == -1) break;          // main daemon died (or no perm) before clearing PID
+    while (partab.vol[vol - 1]->wd_tab[0].pid) {                                // wait until main daemon has stopped
+        if (kill(partab.vol[vol - 1]->wd_tab[0].pid, 0) == -1) break;           // main daemon died (or no perm) before clearing PID
         sleep(1);
     }
 
@@ -721,14 +723,14 @@ void DB_StopJournal(int vol, u_char action)                                     
     jrnrec jj;
 
     volnum = vol;                                                               // set common var
-    if (!systab->vol[vol - 1]->vollab->journal_available) return;               // if no journal then just exit
-    while (SemOp(SEM_GLOBAL, WRITE)) sleep(1);
+    if (!SOA(partab.vol[vol - 1]->vollab)->journal_available) return;           // if no journal then just exit
+    while (SemOp(SEM_GLOBAL, SEM_WRITE)) sleep(1);
     jj.action = action;
     jj.uci = 0;
     VAR_CLEAR(jj.name);
     jj.slen = 0;
     DoJournal(&jj, NULL);
-    systab->vol[vol - 1]->vollab->journal_available = 0;
+    SOA(partab.vol[vol - 1]->vollab)->journal_available = 0;
     return;
 }
 
@@ -740,16 +742,15 @@ void DB_StopJournal(int vol, u_char action)                                     
  */
 int DB_GetFlags(mvar *var)                                                      // Get flags
 {
-    short s;                                                                    // for returns
-    int   t;                                                                    // for returns
-    int   i;                                                                    // a handy int
+    int t;                                                                      // for returns
+    int i;                                                                      // a handy int
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return t;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
@@ -774,29 +775,28 @@ int DB_GetFlags(mvar *var)                                                      
  */
 int DB_SetFlags(mvar *var, int flags)                                           // Set flags
 {
-    int   clearit = 0;
-    short s;
-    int   i;
-    int   t;                                                                    // for returns
+    int clearit = 0;
+    int i;
+    int t;                                                                      // for returns
 
     if (flags < 0) {
         clearit = 1;                                                            // setup to clear
         flags = -flags;                                                         // get flags correct
     }
 
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return s;                                                        // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return t;                                                        // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
-    systab->vol[volnum - 1]->stats.dbset++;                                     // update stats
+    partab.vol[volnum - 1]->stats.dbset++;                                      // update stats
     writing = 1;                                                                // say we are writing
 
-    while (systab->vol[volnum - 1]->writelock) {                                // check for write lock
+    while (partab.vol[volnum - 1]->writelock) {                                 // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
@@ -820,7 +820,7 @@ int DB_SetFlags(mvar *var, int flags)                                           
     ((int *) record)[1] = i;                                                    // set back to GD
 
     if (blk[level]->dirty == (gbd *) 1) {                                       // if reserved
-        blk[level]->dirty = blk[level];                                         // terminate list
+        blk[level]->dirty = SBA(blk[level]);                                    // terminate list
         Queit();                                                                // queue for write
     }
 
@@ -838,23 +838,23 @@ int DB_SetFlags(mvar *var, int flags)                                           
 short DB_Compress(mvar *var, int flags)                                         // Compress global
 {
     int   i;
-    int   s;
+    int   t;
     short retlevel;                                                             // the ACTUAL level
 
     flags &= 15;                                                                // clear high bits
-    s = Copy2local(var);                                                        // get local copy
-    if (s < 0) return (short) s;                                                // exit on error
+    t = Copy2local(var);                                                        // get local copy
+    if (t < 0) return (short) t;                                                // exit on error
 
     /*
-    if (s > 0) {                                                                // ROU process
-        s--;                                                                    // point at trantab entry
+    if (t > 0) {                                                                // ROU process
+        t--;                                                                    // point at trantab entry
     }
     */
 
     memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
     memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     memcpy(var, &db_var, sizeof(mvar));                                         // copy the data back
-    s = Get_data(flags);                                                        // get to level 'flags'
+    t = Get_data(flags);                                                        // get to level 'flags'
     retlevel = level;                                                           // save real level
 
     if (!level) {                                                               // give up if no such
@@ -869,17 +869,17 @@ short DB_Compress(mvar *var, int flags)                                         
         memcpy(&db_var, var, sizeof(mvar));                                     // get next key
         writing = 0;                                                            // flag we are reading
 
-        while (systab->vol[volnum - 1]->writelock) {                            // check for write lock
+        while (partab.vol[volnum - 1]->writelock) {                             // check for write lock
             sleep(1);                                                           // wait a bit
             if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);          // for <Control-C>
         }                                                                       // end writelock check
 
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
-        s = Get_data(retlevel);                                                 // get the block
-        if ((s == -ERRM7) && !db_var.slen) s = 0;                               // if first node then it exists
+        t = Get_data(retlevel);                                                 // get the block
+        if ((t == -ERRM7) && !db_var.slen) t = 0;                               // if first node then it exists
 
-        if (s == -ERRM7) {                                                      // if key changed
-            if (blk[level]->mem->right_ptr) {                                   // if more
+        if (t == -ERRM7) {                                                      // if key changed
+            if (SOA(blk[level]->mem)->right_ptr) {                              // if more
                 chunk = (cstring *) &iidx[idx[IDX_START]];                      // point at the first
                 memcpy(&db_var.slen, &chunk->buf[1], chunk->buf[1] + 1);        // save real key
                 SemOp(SEM_GLOBAL, -curr_lock);                                  // release global lock
@@ -890,33 +890,33 @@ short DB_Compress(mvar *var, int flags)                                         
             return retlevel;                                                    // all done, exit
         }
 
-        if (s < 0) {
+        if (t < 0) {
             SemOp(SEM_GLOBAL, -curr_lock);                                      // release global lock
-            return (short) s;                                                   // exit on error
+            return (short) t;                                                   // exit on error
         }
 
-        if (!blk[level]->mem->right_ptr) {                                      // if no more
+        if (!SOA(blk[level]->mem)->right_ptr) {                                 // if no more
             SemOp(SEM_GLOBAL, -curr_lock);                                      // release global lock
 
             if ((retlevel == 2) && !db_var.slen) {                              // if only block lvl 2
-                s = Compress1();                                                // do that
+                t = Compress1();                                                // do that
                 SemOp(SEM_GLOBAL, -curr_lock);                                  // release write lock
-                if (s < 0) return (short) s;                                    // exit on error
+                if (t < 0) return (short) t;                                    // exit on error
             }
 
             return retlevel;                                                    // all done, exit
         }
 
         level++;
-        s = Get_block(blk[level - 1]->mem->right_ptr);
+        t = Get_block(SOA(blk[level - 1]->mem)->right_ptr);
 
-        if (s < 0) {                                                            // if error
+        if (t < 0) {                                                            // if error
             SemOp(SEM_GLOBAL, -curr_lock);                                      // release global lock
-            return (short) s;                                                   // exit on error
+            return (short) t;                                                   // exit on error
         }
 
-        i = ((blk[level - 1]->mem->last_free * 2 + 1 - blk[level - 1]->mem->last_idx) * 2)
-          + ((blk[level]->mem->last_free * 2 + 1 - blk[level]->mem->last_idx) * 2);
+        i = ((SOA(blk[level - 1]->mem)->last_free * 2 + 1 - SOA(blk[level - 1]->mem)->last_idx) * 2)
+          + ((SOA(blk[level]->mem)->last_free * 2 + 1 - SOA(blk[level]->mem)->last_idx) * 2);
 
         // if REALLY not enough space (NOTE: make this a param)
         if (i < 1024) {
@@ -928,9 +928,9 @@ short DB_Compress(mvar *var, int flags)                                         
 
         level = retlevel;
         SemOp(SEM_GLOBAL, -curr_lock);                                          // release read lock
-        s = Compress1();                                                        // do that
+        t = Compress1();                                                        // do that
         SemOp(SEM_GLOBAL, -curr_lock);                                          // release write lock
-        if (s < 0) return (short) s;                                            // exit on error
+        if (t < 0) return (short) t;                                            // exit on error
         if (!var->volset) return retlevel;                                      // if done
     }
 }

@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/symbol/util.c
- * Summary:  module symbol - symbol table utilities
+ * Package: Reference Standard M
+ * File:    rsm/symbol/util.c
+ * Summary: module symbol - symbol table utilities
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2016
+ * Copyright © 1999-2016
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -46,8 +49,7 @@ symtab_struct symtab[ST_MAX + 1];                                               
  */
 short ST_Hash(var_u var)                                                        // var name in a quad
 {
-    int       i;                                                                // for the loop
-    int       ret = 0;                                                          // return value
+    int ret = 0;                                                                // return value
 
     const int p[32] = {
         3, 5, 7, 11, 13, 17, 19, 23,
@@ -56,7 +58,7 @@ short ST_Hash(var_u var)                                                        
         101, 103, 107, 109, 113, 127, 131, 137
     };                                                                          // odd primes
 
-    for (i = 0; i < VAR_LEN; i++) {                                             // for each character
+    for (int i = 0; i < VAR_LEN; i++) {                                         // for each character
         if (var.var_cu[i] == 0) break;
         ret = ((var.var_cu[i] * p[i]) + ret);
     }
@@ -70,13 +72,11 @@ short ST_Hash(var_u var)                                                        
  */
 void ST_Init(void)                                                              // no arguments
 {
-    int i;                                                                      // for loops
-
-    for (i = 0; i < ST_HASH; i++) st_hash[i] = -1;                              // clear hash table, -1 means empty
+    for (int i = 0; i < ST_HASH; i++) st_hash[i] = -1;                          // clear hash table, -1 means empty
     st_hash[ST_FREE] = 0;                                                       // head of free list
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each symbol entry
-        symtab[i].fwd_link = (i + 1);                                           // point to next entry
+    for (int i = 0; i < ST_MAX; i++) {                                          // for each symbol entry
+        symtab[i].fwd_link = i + 1;                                             // point to next entry
         symtab[i].usage = 0;                                                    // clear usage count
         symtab[i].data = ST_DATA_NULL;                                          // clear data pointer
         VAR_CLEAR(symtab[i].varnam);                                            // clear variable name
@@ -119,7 +119,7 @@ short ST_LocateIdx(int idx)                                                     
 
     fwd = partab.jobtab->dostk[partab.jobtab->cur_do].symbol[idx];
     if (fwd > -1) return fwd;                                                   // got it
-    p = (rbd *) partab.jobtab->dostk[partab.jobtab->cur_do].routine;
+    p = (rbd *) SOA(partab.jobtab->dostk[partab.jobtab->cur_do].routine);
     vt = (var_u *) (((u_char *) p) + p->var_tbl);                               // point at var table
     VAR_COPY(var, vt[idx]);                                                     // get the var name
     fwd = ST_SymAtt(var);                                                       // attach and get index
@@ -295,13 +295,13 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
  */
 int ST_Get(mvar *var, u_char *buf)                                              // get data at var/subscript
 {
-    int     s;                                                                  // for return value
+    int     t;                                                                  // for return value
     cstring *data;                                                              // ptr for ST_GetAdd()
 
-    s = ST_GetAdd(var, &data);                                                  // get address of data
-    if (s < 0) return s;                                                        // if error, quit
-    s = mcopy(&data->buf[0], buf, s);                                           // copy data (if any)
-    return s;                                                                   // return the size (or error)
+    t = ST_GetAdd(var, &data);                                                  // get address of data
+    if (t < 0) return t;                                                        // if error, quit
+    t = mcopy(&data->buf[0], buf, t);                                           // copy data (if any)
+    return t;                                                                   // return the size (or error)
 }                                                                               // end function ST_Get
 
 /*
@@ -312,7 +312,6 @@ int ST_Get(mvar *var, u_char *buf)                                              
 void FixData(const ST_data *old, ST_data *new, int count)
 {
     int       i;                                                                // for loops
-    int       c;                                                                // a counter
     ST_newtab *newtab;                                                          // for NEW tables
 
     for (i = 0; i < ST_MAX; i++) {                                              // scan symtab[]
@@ -329,7 +328,7 @@ void FixData(const ST_data *old, ST_data *new, int count)
         newtab = (ST_newtab *) partab.jobtab->dostk[i--].newtab;                // get newtab
 
         while (newtab != NULL) {                                                // for each table
-            for (c = 0; c < newtab->count_new; c++) {                           // for each variable
+            for (int c = 0; c < newtab->count_new; c++) {                       // for each variable
                 if (newtab->locdata[c].data == old) {                           // if this is one
                     newtab->locdata[c].data = new;                              // copy in new value
                     count--;                                                    // count that
@@ -526,9 +525,11 @@ short ST_Data(mvar *var, u_char *buf)                                           
     }                                                                           // end if not found
 
     if (var->slen > 0) {                                                        // going into dependents
-        int i = var->slen;                                                      // get the length
-        ST_depend *lastkey = symtab[ptr1].data->last_key;                       // pointer to last used key
+        int       i;
+        ST_depend *lastkey;
 
+        i = var->slen;                                                          // get the length
+        lastkey = symtab[ptr1].data->last_key;                                  // pointer to last used key
         depPtr = symtab[ptr1].data->deplnk;                                     // get first dependent
 
         if (depPtr != ST_DEPEND_NULL) {                                         // only if we should go on
@@ -640,7 +641,6 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     ST_depend *lastkey = ST_DEPEND_NULL;                                        // pointer to last used key
     int       pieces = 0;                                                       // subscripts in key
     int       subs;
-    int       i = 0;                                                            // generic counter
     char      keysub[256];                                                      // current key subscript
     u_char    upOneLev[256];
     u_char    crud[256];
@@ -715,7 +715,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
 
     if (current == ST_DEPEND_NULL) return 0;                                    // nothing past our key then return length
 
-    for (i = 1; i <= pieces; i++) {                                             // number of keys
+    for (int i = 1; i <= pieces; i++) {                                         // number of keys
         int upto = 0;                                                           // clear flag
 
         ret = UTIL_Key_Extract(&current->bytes[index], (u_char *) keysub, &upto); // next key
@@ -790,9 +790,9 @@ short ST_Query(mvar *var, u_char *buf, int dir)
 
 int ST_GetAdd(mvar *var, cstring **add)                                         // get local data address
 {
-    int       ptr1;                                                             // position in symtab
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
+    int       ptr1;                                                             // position in symtab
     int       i;                                                                // generic counter
 
     if (var->volset) {                                                          // if by index
@@ -844,11 +844,11 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
 // Return next key in supplied mvar and data at buf
 int ST_QueryD(mvar *var, u_char *buf)                                           // get next key and data
 {
-    int       ptr1;                                                             // position in symtab
     cstring   *cdata;                                                           // temporary data access
     ST_depend *current = ST_DEPEND_NULL;                                        // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
     ST_depend *lastkey = ST_DEPEND_NULL;                                        // pointer to last used key
+    int       ptr1;                                                             // position in symtab
     int       i;                                                                // generic counter
 
     if (var->volset) {                                                          // if by index
@@ -894,14 +894,13 @@ int ST_QueryD(mvar *var, u_char *buf)                                           
 // kill all local variables except those whose names appear in var_u *keep
 short ST_KillAll(int count, var_u *keep)
 {
-    int i;                                                                      // generic counter
-    int j;                                                                      // generic counter
-
     partab.src_var.uci = UCI_IS_LOCALVAR;                                       // init UCI as LOCAL
     partab.src_var.slen = 0;                                                    // init subscript length
     partab.src_var.volset = 0;                                                  // init volume set
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
+    for (int i = 0; i < ST_MAX; i++) {                                          // for each entry in symbol table
+        int j;                                                                  // generic counter
+
         if ((symtab[i].varnam.var_cu[0] == '$') || (symtab[i].varnam.var_cu[0] == '\0')) continue; // dont touch $ vars
         if (symtab[i].data == ST_DATA_NULL) continue;                           // ditto if it's undefined
 
@@ -925,8 +924,9 @@ short ST_KillAll(int count, var_u *keep)
  */
 short ST_SymAtt(var_u var)
 {
-    short pos = ST_Create(var);                                                 // position in symtab - locate/create variable
+    short pos;
 
+    pos = ST_Create(var);                                                       // position in symtab - locate/create variable
     if (pos >= 0) symtab[pos].usage++;                                          // if ok, increment usage
     return pos;                                                                 // return whatever we found
 }
@@ -937,9 +937,7 @@ short ST_SymAtt(var_u var)
  */
 void ST_SymDet(int count, short *list)
 {
-    int i;                                                                      // a handy int
-
-    for (i = 0; i < count; i++) {                                               // for all supplied vars
+    for (int i = 0; i < count; i++) {                                           // for all supplied vars
         if (list[i] >= 0) {                                                     // if this got attached
             symtab[list[i]].usage--;                                            // decrement usage
             if (symtab[list[i]].usage > 0) continue;                            // still NEWed or whatever
@@ -974,20 +972,20 @@ int ST_SymGet(short syment, u_char *buf)
 // set local data - symtab entry number provided
 short ST_SymSet(short pos, cstring *data)
 {
-    u_int   i;                                                                  // a handy int
+    u_int   u;                                                                  // a handy int
     ST_data *ptr;                                                               // and a pointer
 
-    i = DTBLKSIZE + data->len;                                                  // size required
-    if (i < DTMINSIZE) i = DTMINSIZE;                                           // check for minimum
+    u = DTBLKSIZE + data->len;                                                  // size required
+    if (u < DTMINSIZE) u = DTMINSIZE;                                           // check for minimum
 
     if (symtab[pos].data == ST_DATA_NULL) {                                     // if no data block
-        symtab[pos].data = malloc(i);                                           // get some memory
+        symtab[pos].data = malloc(u);                                           // get some memory
         if (symtab[pos].data == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);      // no mem
         symtab[pos].data->last_key = ST_DEPEND_NULL;                            // init last used key
         symtab[pos].data->deplnk = ST_DEPEND_NULL;                              // init dep link
         symtab[pos].data->attach = 1;                                           // init attach count
     } else if (symtab[pos].data->dbc < data->len) {                             // enough space?
-        ptr = realloc(symtab[pos].data, i);                                     // attempt to increase it
+        ptr = realloc(symtab[pos].data, u);                                     // attempt to increase it
         if (ptr == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);                   // no memory available
 
         if ((ptr != symtab[pos].data) && (ptr->attach > 1)) {                   // did it move and many attached?
@@ -1032,9 +1030,8 @@ short ST_SymKill(short pos)
 // 0 to ST_MAX - 1 (i.e., ((ST_HASH + 1) * 3))
 short ST_Dump(void)                                                             // dump entire symbol table to $IO
 {
-    int       i;                                                                // generic counter
     int       j;                                                                // generic counter
-    int       s;                                                                // for functions
+    int       t;                                                                // for functions
     int       escape;
     int       string;
     int       dot;
@@ -1044,7 +1041,7 @@ short ST_Dump(void)                                                             
     u_char    dumpk[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                // variable key name gets dumped
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
+    for (int i = 0; i < ST_MAX; i++) {                                          // for each entry in symbol table
         if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
         if (symtab[i].varnam.var_cu[0] == '$') continue;                        // dont spit out $ vars
         VAR_COPY(partab.src_var.name, symtab[i].varnam);                        // init var name
@@ -1057,14 +1054,14 @@ short ST_Dump(void)                                                             
         dot = 0;
 
         if (symtab[i].data->dbc != VAR_UNDEFINED) {                             // valid dbc
-            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);    // get var name and dump data block
-            if (s < 0) return (short) s;                                        // die on error
-            cdata->len = s;
+            t = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);    // get var name and dump data block
+            if (t < 0) return (short) t;                                        // die on error
+            cdata->len = t;
 DISABLE_WARN(-Warray-bounds)
             cdata->buf[cdata->len++] = '=';                                     // tack on equal sign
 ENABLE_WARN
-            s = SQ_Write(cdata);                                                // dump var name =
-            if (s < 0) return (short) s;                                        // die on error
+            t = SQ_Write(cdata);                                                // dump var name =
+            if (t < 0) return (short) t;                                        // die on error
 
             for (int k = 0; k < symtab[i].data->dbc; k++) {
                 if (symtab[i].data->data[k] == '.') {
@@ -1110,21 +1107,21 @@ ENABLE_WARN
                         strcpy((char *) cdata->buf, "\"_$C(");
                     }
 
-                    s = SQ_Write(cdata);                                        // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_Write(cdata);                                        // dump data character
+                    if (t < 0) return (short) t;                                // die on error
 DISABLE_WARN(-Warray-bounds)
-                    cdata->len = itocstring(cdata->buf, symtab[i].data->data[k]);
+                    cdata->len = ltocstring(cdata->buf, symtab[i].data->data[k]);
 ENABLE_WARN
-                    s = SQ_Write(cdata);                                        // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_Write(cdata);                                        // dump data character
+                    if (t < 0) return (short) t;                                // die on error
 
                     if (k == (symtab[i].data->dbc - 1)) {
 DISABLE_WARN(-Warray-bounds)
                         cdata->len = 1;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, ")");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
 
                     escape = TRUE;
@@ -1134,19 +1131,19 @@ DISABLE_WARN(-Warray-bounds)
                         cdata->len = 3;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, ")_\"");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     } else if ((string && (k == 0)) || (symtab[i].data->data[k] == '"')) {
 DISABLE_WARN(-Warray-bounds)
                         cdata->len = 1;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, "\"");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
 
-                    s = SQ_WriteStar(symtab[i].data->data[k]);                  // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_WriteStar(symtab[i].data->data[k]);                  // dump data character
+                    if (t < 0) return (short) t;                                // die on error
                     escape = FALSE;
 
                     if (string && (k == (symtab[i].data->dbc - 1))) {
@@ -1154,8 +1151,8 @@ DISABLE_WARN(-Warray-bounds)
                         cdata->len = 1;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, "\"");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
                 }
             }
@@ -1165,12 +1162,12 @@ DISABLE_WARN(-Warray-bounds)
                 cdata->len = 2;
 ENABLE_WARN
                 strcpy((char *) cdata->buf, "\"\"");
-                s = SQ_Write(cdata);                                            // dump data character
-                if (s < 0) return (short) s;                                    // die on error
+                t = SQ_Write(cdata);                                            // dump data character
+                if (t < 0) return (short) t;                                    // die on error
             }
 
-            s = SQ_WriteFormat(SQ_LF);                                          // line feed
-            if (s < 0) return (short) s;                                        // die on error
+            t = SQ_WriteFormat(SQ_LF);                                          // line feed
+            if (t < 0) return (short) t;                                        // die on error
         }                                                                       // end if valid dbc
 
         cdata = NULL;                                                           // nullify the cstring
@@ -1191,9 +1188,9 @@ ENABLE_WARN
             memcpy(partab.src_var.key, depPtr->bytes, depPtr->keylen);          // init key
             cdata = (cstring *) &dump[0];                                       // get into a cstring
             ckey = (cstring *) &dumpk[0];                                       // get into a cstring
-            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);    // get var name and dump dependent block
-            if (s < 0) return (short) s;                                        // die on error
-            cdata->len = s;
+            t = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);    // get var name and dump dependent block
+            if (t < 0) return (short) t;                                        // die on error
+            cdata->len = t;
 DISABLE_WARN(-Warray-bounds)
             cdata->buf[cdata->len++] = '=';                                     // tack on an equal sign
 
@@ -1221,13 +1218,13 @@ ENABLE_WARN
                         }
                     }
 
-                    s = SQ_Write(ckey);                                         // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_Write(ckey);                                         // dump data character
+                    if (t < 0) return (short) t;                                // die on error
 DISABLE_WARN(-Warray-bounds)
-                    ckey->len = itocstring(ckey->buf, cdata->buf[k]);
+                    ckey->len = ltocstring(ckey->buf, cdata->buf[k]);
 ENABLE_WARN
-                    s = SQ_Write(ckey);                                         // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_Write(ckey);                                         // dump data character
+                    if (t < 0) return (short) t;                                // die on error
                     escape = TRUE;
                 } else {
                     if (escape) {
@@ -1243,8 +1240,8 @@ ENABLE_WARN
                             strcpy((char *) ckey->buf, ")_\"");
                         }
 
-                        s = SQ_Write(ckey);                                     // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(ckey);                                     // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
 
 DISABLE_WARN(-Warray-bounds)
@@ -1256,9 +1253,9 @@ ENABLE_WARN
                     }
 
 DISABLE_WARN(-Warray-bounds)
-                    s = SQ_WriteStar(cdata->buf[k]);                            // dump data character
+                    t = SQ_WriteStar(cdata->buf[k]);                            // dump data character
 ENABLE_WARN
-                    if (s < 0) return (short) s;                                // die on error
+                    if (t < 0) return (short) t;                                // die on error
                     escape = FALSE;
                 }
             }
@@ -1310,21 +1307,21 @@ ENABLE_WARN
                         strcpy((char *) cdata->buf, "\"_$C(");
                     }
 
-                    s = SQ_Write(cdata);                                        // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_Write(cdata);                                        // dump data character
+                    if (t < 0) return (short) t;                                // die on error
 DISABLE_WARN(-Warray-bounds)
-                    cdata->len = itocstring(cdata->buf, depPtr->bytes[k]);
+                    cdata->len = ltocstring(cdata->buf, depPtr->bytes[k]);
 ENABLE_WARN
-                    s = SQ_Write(cdata);                                        // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_Write(cdata);                                        // dump data character
+                    if (t < 0) return (short) t;                                // die on error
 
                     if (k == (datalen + j + 1)) {
 DISABLE_WARN(-Warray-bounds)
                         cdata->len = 1;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, ")");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
 
                     escape = TRUE;
@@ -1334,19 +1331,19 @@ DISABLE_WARN(-Warray-bounds)
                         cdata->len = 3;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, ")_\"");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     } else if ((string && (k == (j + 2))) || (depPtr->bytes[k] == '"')) {
 DISABLE_WARN(-Warray-bounds)
                         cdata->len = 1;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, "\"");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
 
-                    s = SQ_WriteStar(depPtr->bytes[k]);                         // dump data character
-                    if (s < 0) return (short) s;                                // die on error
+                    t = SQ_WriteStar(depPtr->bytes[k]);                         // dump data character
+                    if (t < 0) return (short) t;                                // die on error
                     escape = FALSE;
 
                     if (string && (k == (datalen + j + 1))) {
@@ -1354,8 +1351,8 @@ DISABLE_WARN(-Warray-bounds)
                         cdata->len = 1;
 ENABLE_WARN
                         strcpy((char *) cdata->buf, "\"");
-                        s = SQ_Write(cdata);                                    // dump data character
-                        if (s < 0) return (short) s;                            // die on error
+                        t = SQ_Write(cdata);                                    // dump data character
+                        if (t < 0) return (short) t;                            // die on error
                     }
                 }
             }
@@ -1365,12 +1362,12 @@ DISABLE_WARN(-Warray-bounds)
                 cdata->len = 2;
 ENABLE_WARN
                 strcpy((char *) cdata->buf, "\"\"");
-                s = SQ_Write(cdata);                                            // dump data character
-                if (s < 0) return (short) s;                                    // die on error
+                t = SQ_Write(cdata);                                            // dump data character
+                if (t < 0) return (short) t;                                    // die on error
             }
 
-            s = SQ_WriteFormat(SQ_LF);                                          // write a line feed
-            if (s < 0) return (short) s;                                        // die on error
+            t = SQ_WriteFormat(SQ_LF);                                          // write a line feed
+            if (t < 0) return (short) t;                                        // die on error
             depPtr = depPtr->deplnk;                                            // get next if any
         }                                                                       // end while dependents exist
     }                                                                           // end for all symtab entries
@@ -1381,9 +1378,7 @@ ENABLE_WARN
 // copy all variables in as subscripts to specified global
 short ST_DumpV(mvar *global)
 {
-    int       i;                                                                // generic counter
     int       j;                                                                // generic counter
-    short     s;                                                                // for functions
     int       t;                                                                // for functions
     short     gs;                                                               // global slen save value
     u_char    gks[255];
@@ -1397,7 +1392,7 @@ short ST_DumpV(mvar *global)
     gs = global->slen;                                                          // save original sub length
     memcpy(gks, global->key, global->slen);                                     // save original key
 
-    for (i = 0; i < ST_MAX; i++) {                                              // for each entry in symbol table
+    for (int i = 0; i < ST_MAX; i++) {                                          // for each entry in symbol table
         if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump
         if (symtab[i].varnam.var_cu[0] == '$') continue;                        // no $ vars
         if (var_empty(symtab[i].varnam)) continue;                              // ensure something there
@@ -1405,10 +1400,10 @@ short ST_DumpV(mvar *global)
         partab.src_var.slen = 0;                                                // init subscript length
 
         if (symtab[i].data->dbc != VAR_UNDEFINED) {                             // if data exists
-            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
-            if (s < 0) return s;                                                // if error, quit
+            t = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
+            if (t < 0) return (short) t;                                        // if error, quit
 DISABLE_WARN(-Warray-bounds)
-            cdata->len = s;
+            cdata->len = t;
 ENABLE_WARN
             memcpy(global->key, gks, gs);                                       // restore initial key
             global->slen = gs;                                                  // restore initial length
@@ -1421,7 +1416,7 @@ ENABLE_WARN
             if (t == -ERRM75) {                                                 // if string too long
                 j = symtab[i].data->dbc;                                        // save this
                 symtab[i].data->dbc = 934;                                      // that should work (1024 - 90 overhead)
-                //symtab[i].data->dbc = systab->vol[global->volset - 1]->vollab->block_size - 90; // that should work
+                //symtab[i].data->dbc = SOA(partab.vol[global->volset - 1]->vollab)->block_size - 90; // that should work
                 t = DB_Set(global, (cstring *) &symtab[i].data->dbc);           // try again
                 symtab[i].data->dbc = j;                                        // restore this
             }
@@ -1433,16 +1428,16 @@ ENABLE_WARN
             partab.src_var.slen = depPtr->keylen;                               // init subscript length
             memcpy(partab.src_var.key, depPtr->bytes, depPtr->keylen);          // init key
             cdata = (cstring *) &dump[0];                                       // get it into a cstring
-            s = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
-            if (s < 0) return s;                                                // if error, quit
+            t = UTIL_String_Mvar(&partab.src_var, cdata->buf, MAX_NUM_SUBS);
+            if (t < 0) return (short) t;                                        // if error, quit
 DISABLE_WARN(-Warray-bounds)
-            cdata->len = s;
+            cdata->len = t;
 ENABLE_WARN
             j = (int) depPtr->keylen;                                           // find key length
             if ((j & 1) != 0) j++;                                              // up it to next even boudary
             memcpy(global->key, gks, gs);                                       // restore initial key
             global->slen = gs;                                                  // restore initial length
-            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
+            global->slen += UTIL_Key_Build(cdata, &global->key[gs]);
 
             // set up global key
             t = DB_Set(global, (cstring *) &depPtr->bytes[j]);                  // try to set it

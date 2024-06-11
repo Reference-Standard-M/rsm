@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+site:
+  title: Reference Standard M Documentation
+  url: https://reference-standard-m.gitlab.io/rsm
+  start_page: docs::index.adoc
+
+urls:
+  latest_version_segment: latest
+  latest_version_segment_strategy: redirect:to
+
+content:
+  edit_url: false
+  sources:
+  - url: https://gitlab.com/reference-standard-m/rsm
+    tags: '*-doc'
+    branches: ~
+    start_path: doc
+
+output:
+  clean: true
+  dir: public
+
+antora:
+  extensions:
+  - require: '@antora/lunr-extension'
+    index_latest_only: false
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+    snapshot: true
+  supplemental_files: doc/supplemental-ui

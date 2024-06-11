@@ -1,16 +1,93 @@
+////
+Package: Reference Standard M
+File:    CHANGELOG.adoc
+Summary: Log of changes for each release
+
+David Wicksell <dlw@linux.com>
+Copyright © 2020-2024 Fourth Watch Software LC
+https://gitlab.com/Reference-Standard-M/rsm
+
+Based on MUMPS V1 by Raymond Douglas Newman
+Copyright © 1999-2003
+https://gitlab.com/Reference-Standard-M/mumpsv1
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+
+SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+////
+
 :source-highlighter: highlight.js
 :highlightjs-languages: bash
 
-[role="left"]
-image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png[caption
-="Fourth Watch Software Logo", width="480", height="80"]
+= Reference Standard M
 
-[role="right"]
-link:doc/index.adoc[Index]
+== Release Changelog
 
-'''
+=== v1.81.0 -- 2024 Jun 10
 
-== Reference Standard M Changelog
+* Improve stability and reliability of shared memory usage
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/3
+* Add new performance optimization to the lock table search algorithm
+* Add reverse `$ORDER` support to `^$LOCK("")` to match forward support
+* Fix potential spin loops by improving the yield functionality
+* Fix bug in lock table optimization that could lead to incorrect lock hangs
+* Improve the space efficiency of locks in the lock table during inserts
+* Simplify the algorithm for the `LOCK -` command
+* Improve error handling with expressions that have a postcondition
+* Add more detailed information to some integrity checker [`^&%IC`] messages
+* Add message when map errors are repaired to the integrity checker [`$&%IC`]
+* Improve the volume number check in the integrity checker [`$&%IC`]
+* Add support for larger numbers to the number-to-string conversion functions
+* Fix old-style locks algorithm to follow the M standard
+  - Allow jobs waiting on a lock to have a chance to acquire it when released
+* Improve the `HANG 0` command to work with all scheduling policies correctly
+* Improve form feed support in non-terminal sequential I/O devices
+* Add max buffer size check for sequential I/O device reads
+* Fix bug in the exclusive `NEW` command
+* Fix bug that allows naked references as a lock argument
+* Fix bug in M canonical string copy function which allows a number of `.`
+* Fix key format bug in subscripts that begin with `-` and end with `.`
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/7
+  - Fix supplied by https://gitlab.com/jmriesen2[Jacob Riesen]
+* Add volume support to routine deletion
+* Improve accuracy of current job count in the environment info menu
+* Improve the output of the environment info menu
+* Improve macro use in semaphore operations
+* Add new macros to support shared memory and last used block
+* Improve consistency of temporary variable names based on type
+* Normalize the block number input to the block dump utility [`^$BLKDMP`]
+* Improve the output of the routine syntax check utility [`^RC^%RD`]
+* Fix race condition in the lock output of the system status utility [`^%SS`]
+* Improve the `magic` configuration, adding endian info, and an RSM source type
+* Add man page for `rsm` executable [`rsm.1`]
+* Add RSM executable command (man page) document [`rsm.adoc`]
+* Add systemd system service file [`rsm.service`]
+* Add sample macOS property list configuration file [`sysctl.plist`]
+* Add new rules to the Make configurations to support installing utilities
+  - Add rules `install-utils` and `uninstall-utils`
+* Add new rules to the Make configurations to support installing documentation
+  - Add rules `install-docs` and `uninstall-docs`
+* Fix bug in `Makefile` which prevents proper setting of the `GIT_SHA` macro
+* Add SPDX copyright and license identifiers to every file per REUSE
+* Add `LICENSES` directory with a copy of every license used per REUSE
+* Update continuous integration configuration script [`.gitlab-ci.yml`]
+  - Add new GitLab Pages deployment using Antora with `*-doc` tags
+* Add new configuration and content files for the Antora documentation site
+  - Add `antora-playbook.yml`, `antora.yml`, and `nav.adoc`
+  - Add `header-content.hbs`, `footer-content.hbs`, and `highlight.js`
+* Update the documentation format in preparation for the Pages deployment
+* Update the documentation content in the `README.adoc` and other files
+
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
 
 === v1.80.4 -- 2024 Feb 9
 
@@ -19,9 +96,12 @@ link:doc/index.adoc[Index]
 * Fix bug in `$JUSTIFY` caused by lack of bounds checking
 * Fix bug in `WRITE ?` caused by incorrect data typing
 * Improve handling of `$X` overflow in terminal devices
-* Fix socket support on AIX (>= 5.3), with help from Matthew Wilson
-* Improve the `$&%SETENV` XCall on AIX (>= 5.2), with help from Matthew Wilson
-* Add better support for HP-UX, with help from Matthew Wilson
+* Fix socket support on AIX (>= 5.3)
+  - Support from https://gitlab.com/racingmars[Matthew Wilson]
+* Improve the `$&%SETENV` XCall on AIX (>= 5.2)
+  - Support from https://gitlab.com/racingmars[Matthew Wilson]
+* Add better support for HP-UX
+  - Support from https://gitlab.com/racingmars[Matthew Wilson]
 * Fix bugs in the `^%RD`, `^%SS`, and `^%ZOSV` vendor routines
 * Improve scoping in many vendor utility routines
 
@@ -573,7 +653,8 @@ version, before installing.
 
 === v1.73.1 -- 2021 Mar 4
 
-* Add fix to support ISC Cache routine export format, supplied by Sam Habiel
+* Add fix to support ISC Cache routine export format
+  - Fix supplied by https://gitlab.com/shabiel[Sam Habiel]
 
 This version erroneously displays V1.73.0 instead of V1.73.1 when using
 `WRITE $SYSTEM` and `rsm -h`.
@@ -675,6 +756,3 @@ Standard M V1.72.0.
 * Improve the `$&%DIRECTORY` XCall semantics
 * Update, and improve, the `$&PASCHK` XCall to work on more supported platforms
 * Add entryref for port # to the vendor-supplied M web server [`^%WWW` `^%WWW1`]
-
-[role="right"]
-link:doc/index.adoc[Index]

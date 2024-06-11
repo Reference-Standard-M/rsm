@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/include/opcode.h
- * Summary:  module RSM header file - internal opcodes (and only real opcodes)
+ * Package: Reference Standard M
+ * File:    rsm/include/opcode.h
+ * Summary: module RSM header file - internal opcodes (and only real opcodes)
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,11 +22,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#ifndef _RSM_OPCODE_H_                                                          // only do this once
-#define _RSM_OPCODE_H_
+#ifndef RSM_OPCODE_H
+#define RSM_OPCODE_H
 
 #define ENDLIN   0                                                              // End of line
 #define OPHALT   1                                                              // Halt instruction
@@ -38,10 +41,9 @@
 #define OPIFA    7                                                              // if (check stack)
 #define OPIFI    8                                                              // if indirect
 #define OPELSE   9                                                              // else
-
 #define OPADD    10                                                             // add top two on the stack
 #define OPSUB    11                                                             // (sp-2) - (sp-1)
-#define OPMUL    12                                                             // mult top two on the stack
+#define OPMUL    12                                                             // multiply top two on the stack
 #define OPDIV    13                                                             // (sp-2) / (sp-1)
 #define OPINT    14                                                             // integer divide (M style)
 #define OPMOD    15                                                             // modulus (M style)
@@ -49,7 +51,6 @@
 #define OPCAT    17                                                             // a concatenated with b
 #define OPPLUS   18                                                             // unary plus
 #define OPMINUS  19                                                             // unary minus
-
 #define OPEQL    20                                                             // a = b
 #define OPLES    21                                                             // a < b
 #define OPGTR    22                                                             // a > b
@@ -60,7 +61,6 @@
 #define OPSAF    27                                                             // a sorts after b
 #define OPPAT    28                                                             // a pattern matches b
 #define OPHANG   29                                                             // hang
-
 #define OPNEQL   30                                                             // not a = b
 #define OPNLES   31                                                             // not a < b
 #define OPNGTR   32                                                             // not a > b
@@ -71,7 +71,6 @@
 #define OPNSAF   37                                                             // not a sorts after b
 #define OPNPAT   38                                                             // not a pattern matches b
 #define OPFOLEQL 39                                                             // a follows, or is equal to, b
-
 #define OPSAFEQL 40                                                             // a sorts after, or is equal to, b
 #define CMSET    41                                                             // set
 #define CMSETE   42                                                             // set $EXTRACT()
@@ -82,7 +81,6 @@
 #define CMREADST 47                                                             // read star with timeout
 #define CMREAD   48                                                             // read variable
 #define CMREADT  49                                                             // read variable t/o
-
 #define CMREADC  50                                                             // read variable count
 #define CMREADCT 51                                                             // read variable count, t/o
 #define CMWRTST  52                                                             // write star
@@ -93,7 +91,6 @@
 #define CMUSE    57                                                             // use (args) ch, a1, a2, ...
 #define CMOPEN   58                                                             // open chan, p1, p2, timeout
 #define CMCLOSE  59                                                             // close channel
-
 #define OPSTR    60                                                             // string follows in line
 #define OPVAR    61                                                             // eval var name follows
 #define OPMVAR   62                                                             // build mvar, name follows
@@ -104,14 +101,12 @@
 #define INDMVARN 67                                                             // mvar name ind (null ok)
 #define INDMVARF 68                                                             // mvar name ind, full size
 #define CMSETQS  69                                                             // set $QSUBSCRIPT()
-
 #define OPBRK0   70                                                             // argless break
 #define OPBRKN   71                                                             // break with arguments
 #define OPDUPASP 72                                                             // duplicate top of addstk
 #define OPXOR    73                                                             // a !! b (exclusive or)
 #define OPNXOR   74                                                             // not a !! b (exclusive or)
 //spare          75 -> 79
-
 #define VARD     80                                                             // $D[EVICE]
 #define VAREC    81                                                             // $EC[ODE]
 #define VARES    82                                                             // $ES[TACK]
@@ -122,7 +117,6 @@
 #define VARK     87                                                             // $K[EY]
 #define VARP     88                                                             // $P[RINCIPAL]
 #define VARQ     89                                                             // $Q[UIT]
-
 #define VARR     90                                                             // $R[EFERENCE]
 #define VARS     91                                                             // $S[TORAGE]
 #define VARST    92                                                             // $ST[ACK]
@@ -133,10 +127,9 @@
 #define VARZUT   97                                                             // $ZUT
 #define FUNI1    98                                                             // $I[NCREMENT] 1 arg
 #define FUNI2    99                                                             // $I[NCREMENT] 2 arg
-
 #define FUNA1    100                                                            // $A[SCII] 1 arg
 #define FUNA2    101                                                            // $A[SCII] 2 arg
-#define FUNC     102                                                            // $C[HARACTER]
+#define FUNC     102                                                            // $C[HAR]
 #define FUND     103                                                            // $D[ATA]
 #define FUNE1    104                                                            // $E[XTRACT] 1 arg
 #define FUNE2    105                                                            // $E[XTRACT] 2 arg
@@ -144,7 +137,6 @@
 #define FUNF2    107                                                            // $F[IND] 2 arg
 #define FUNF3    108                                                            // $F[IND] 3 arg
 #define FUNFN2   109                                                            // $FN[UMBER] 2 arg
-
 #define FUNFN3   110                                                            // $FN[UMBER] 2 arg
 #define FUNG1    111                                                            // $G[ET] 1 arg
 #define FUNG2    112                                                            // $G[ET] 2 arg
@@ -155,7 +147,6 @@
 #define FUNNA1   117                                                            // $NA[ME] 1 arg
 #define FUNNA2   118                                                            // $NA[ME] 1 arg
 #define FUNO1    119                                                            // $O[RDER] 1 arg
-
 #define FUNO2    120                                                            // $O[RDER] 1 arg
 #define FUNP2    121                                                            // $P[IECE] 2 arg
 #define FUNP3    122                                                            // $P[IECE] 3 arg
@@ -166,7 +157,6 @@
 #define FUNQ2    127                                                            // $Q[UERY] 2 arg
 #define FUNR     128                                                            // $R[ANDOM]
 #define FUNRE    129                                                            // $RE[VERSE]
-
 #define FUNST1   130                                                            // $ST[ACK]
 #define FUNST2   131                                                            // $ST[ACK] 2 arg
 #define FUNT     132                                                            // $T[EXT]
@@ -177,7 +167,6 @@
 #define FUNV4    137                                                            // $V[IEW] - 4 arg
 #define CMVIEW   138                                                            // VIEW command - 4 args
 #define CMMERGE  139                                                            // merge 1 variable from nxt
-
 #define CMDOWRT  140                                                            // DO from WRITE /xxx[(param)]
 #define CMDOTAG  141                                                            // DO tag in this routine [args]
 #define CMDOROU  142                                                            // DO routine (no tag) [args]
@@ -188,7 +177,6 @@
 #define CMJOBROU 147                                                            // JOB routine (no tag) [args]
 #define CMJOBRT  148                                                            // JOB routine, tag [args]
 #define CMJOBRTO 149                                                            // JOB routine, tag, off [args]
-
 #define CMGOTAG  150                                                            // GOTO tag in this rou
 #define CMGOROU  151                                                            // GOTO routine (no tag)
 #define CMGORT   152                                                            // GOTO routine, tag
@@ -199,7 +187,6 @@
 #define CMQUIT   157                                                            // QUIT - no arg (not FOR)
 #define CMQUITA  158                                                            // QUIT with argument
 //spare          159
-
 #define CMLCKU   160                                                            // un LOCK all
 #define CMLCK    161                                                            // LOCK #args()
 #define CMLCKP   162                                                            // LOCK + #args()
@@ -215,7 +202,6 @@
 #define CMKILLB  167                                                            // kill but() args
 #define NEWBREF  168                                                            // push null for NEW by ref
 #define VARUNDF  169                                                            // point at VAR_UNDEFINED
-
 #define LINENUM  170                                                            // set routine line number
 #define LOADARG  171                                                            // load args (illegal in line)
 #define JMP      172                                                            // unconditional jump
@@ -226,7 +212,6 @@
 #define CMFORSET 177                                                            // setup FOR
 #define CMFOREND 178                                                            // Jump to end of line
 #define OPNOP    179                                                            // NOP
-
 #define INDREST  180                                                            // restore isp & rsmpc
 #define INDCLOS  181                                                            // CLOSE arg indir
 #define INDDO    182                                                            // DO arg indir
@@ -237,7 +222,6 @@
 #define INDKILL  187                                                            // KILL arg indir
 #define INDLOCK  188                                                            // LOCK arg indir
 #define INDMERG  189                                                            // MERGE arg indir
-
 #define INDNEW   190                                                            // NEW arg indir
 #define INDOPEN  191                                                            // OPEN arg indir
 #define INDREAD  192                                                            // READ arg indir
@@ -246,18 +230,13 @@
 #define INDWRIT  195                                                            // WRITE arg indir
 #define INDXEC   196                                                            // XECUTE arg indir
 #define INDKILLB 197                                                            // KILL but() args indir
-//spare          198 -> 199
-
-//spare          200 -> 229
-
-//spare          230 -> 233
+//spare          198 -> 233
 #define XCWAIT   234                                                            // Xcall $&%WAIT()
 #define XCCOMP   235                                                            // Xcall $&%COMPRESS()
 #define XCSIG    236                                                            // Xcall $&%SIGNAL()
 #define XCHOST   237                                                            // Xcall $&%HOST()
 #define XCFILE   238                                                            // Xcall $&%FILE()
 #define XCDEBUG  239                                                            // Xcall $&DEBUG()
-
 #define XCDIR    240                                                            // Xcall $&%DIRECTORY()
 #define XCERR    241                                                            // Xcall $&%ERRMSG()
 #define XCOPC    242                                                            // Xcall $&%OPCOM()
@@ -268,7 +247,6 @@
 #define XCPAS    247                                                            // Xcall $&PASCHK()
 #define XCV      248                                                            // Xcall $&V()
 #define XCX      249                                                            // Xcall $&X()
-
 #define XCXRSM   250                                                            // Xcall $&XRSM()
 #define XCSETENV 251                                                            // Xcall $&%SETENV()
 #define XCGETENV 252                                                            // Xcall $&%GETENV()
@@ -276,4 +254,4 @@
 #define XCFORK   254                                                            // Xcall $&%FORK()
 #define XCIC     255                                                            // Xcall $&%IC()
 
-#endif                                                                          // !_RSM_OPCODE_H_
+#endif

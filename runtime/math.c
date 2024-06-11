@@ -1,18 +1,18 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/runtime/math.c
- * Summary:  module runtime - decimal arithmetic
+ * Package: Reference Standard M
+ * File:    rsm/runtime/math.c
+ * Summary: module runtime - decimal arithmetic
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * Originally based on FreeMUMPS
- * Copyright (c) 1998 MUG Deutschland
+ * Copyright © 1998 MUG Deutschland
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -25,7 +25,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -1064,7 +1067,7 @@ second:
 
     for (;;) {
         strcpy(XXX, a);
-        s = itocstring((u_char *) tmp1, n - 1);
+        s = ltocstring((u_char *) tmp1, n - 1);
         if (s < 0) return s;
         strcpy(tmp2, a);
         s = runtime_power(tmp2, tmp1);
@@ -1072,13 +1075,13 @@ second:
         strcpy(tmp1, XX);
         s = runtime_div(tmp1, tmp2, OPDIV);
         if (s < 0) break;
-        s = itocstring((u_char *) tmp2, n - 1);
+        s = ltocstring((u_char *) tmp2, n - 1);
         if (s < 0) return s;
         s = runtime_mul(a, tmp2);
         if (s < 0) return s;
         s = runtime_add(a, tmp1);
         if (s < 0) return s;
-        s = itocstring((u_char *) tmp2, n);
+        s = ltocstring((u_char *) tmp2, n);
         if (s < 0) return s;
         s = runtime_div(a, tmp2, OPDIV);
         if (s < 0) return s;
@@ -1334,7 +1337,7 @@ short runtime_power(char *a, char *b)
 
     Z[0] = ONE;
     Z[1] = EOL;
-    s = (short) itocstring((u_char *) c, j);
+    s = (short) ltocstring((u_char *) c, j);
     if (s < 0) return s;
     s = runtime_div(Z, c, OPDIV);
     if (s < 0) return s;

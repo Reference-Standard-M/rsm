@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/runtime/var.c
- * Summary:  module runtime - runtime variables
+ * Package: Reference Standard M
+ * File:    rsm/runtime/var.c
+ * Summary: module runtime - runtime variables
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -55,7 +58,7 @@
 int Vecode(u_char *ret_buffer)
 {
     mvar *var;                                                                  // for ST_Get
-    int  s;
+    int  t;
 
     var = (mvar *) ret_buffer;                                                  // use here for the mvar
     VAR_CLEAR(var->name);
@@ -63,21 +66,21 @@ int Vecode(u_char *ret_buffer)
     var->volset = 0;                                                            // clear volset
     var->uci = UCI_IS_LOCALVAR;                                                 // local var
     var->slen = 0;                                                              // no subscripts
-    s = ST_Get(var, ret_buffer);                                                // get it
+    t = ST_Get(var, ret_buffer);                                                // get it
 
-    if (s == -ERRM6) {
-        s = 0;                                                                  // ignore undef
+    if (t == -ERRM6) {
+        t = 0;                                                                  // ignore undef
         ret_buffer[0] = '\0';                                                   // null terminate
     }
 
-    return s;
+    return t;
 }
 
 // $ETRAP
 int Vetrap(u_char *ret_buffer)
 {
     mvar *var;                                                                  // for ST_Get
-    int  s;
+    int  t;
 
     var = (mvar *) ret_buffer;                                                  // use here for the mvar
     VAR_CLEAR(var->name);
@@ -85,9 +88,9 @@ int Vetrap(u_char *ret_buffer)
     var->volset = 0;                                                            // clear volset
     var->uci = UCI_IS_LOCALVAR;                                                 // local var
     var->slen = 0;                                                              // no subscripts
-    s = ST_Get(var, ret_buffer);                                                // exit with result
-    if (s == -ERRM6) s = 0;                                                     // ignore undef
-    return s;
+    t = ST_Get(var, ret_buffer);                                                // exit with result
+    if (t == -ERRM6) t = 0;                                                     // ignore undef
+    return t;
 }
 
 // $HOROLOG
@@ -123,7 +126,7 @@ short Vreference(u_char *ret_buffer)
 // $SYSTEM
 short Vsystem(u_char *ret_buffer)
 {
-    int i = uitocstring(ret_buffer, RSM_SYSTEM);                                // copy assigned #
+    int i = ultocstring(ret_buffer, RSM_SYSTEM);                                // copy assigned #
 
     ret_buffer[i++] = ',';                                                      // and a comma
     i += rsm_version(&ret_buffer[i]);                                           // do it elsewhere
@@ -135,7 +138,7 @@ short Vx(u_char *ret_buffer)
 {
     SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
 
-    return (short) uitocstring(ret_buffer, ioptr->dx);                          // return len with data in buf
+    return (short) ultocstring(ret_buffer, ioptr->dx);                          // return len with data in buf
 }
 
 // $Y
@@ -143,7 +146,7 @@ short Vy(u_char *ret_buffer)
 {
     SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
 
-    return (short) uitocstring(ret_buffer, ioptr->dy);                          // return len with data in buf
+    return (short) ultocstring(ret_buffer, ioptr->dy);                          // return len with data in buf
 }
 
 // $ZUT
@@ -186,7 +189,9 @@ int Vset(mvar *var, cstring *cptr)                                              
         if ((cptr->len == 0) || (((cptr->buf[0] == 'M') ||                      // set to null ok or Manything,Manything,Manything
           (cptr->buf[0] == 'Z') || (cptr->buf[0] == 'U')) &&                    // set to Zanything,Zanything,Uanything,Uanything
           (cptr->buf[cptr->len - 1] != ','))) {                                 // and does not end with a comma
-            char *code = strtok((char *) cptr->buf, ",");                       // check for error code format
+            char *code;
+
+            code = strtok((char *) cptr->buf, ",");                             // check for error code format
 
             if ((code != NULL) && (code[0] != 'M') && (code[0] != 'Z') && (code[0] != 'U')) { // check for proper format
                 return -ERRM101;

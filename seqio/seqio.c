@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/seqio/seqio.c
- * Summary:  module IO - main sequential IO functionality
+ * Package: Reference Standard M
+ * File:    rsm/seqio/seqio.c
+ * Summary: module IO - main sequential IO functionality
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,8 +22,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
  *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/*
  * Extended Summary:
  *
  * This module can be viewed as the "main" program for all matters relating
@@ -42,7 +47,7 @@
  *     SQ_Device      - Gathers information about the current IO object
  *     SQ_Force       - Forces data to an object
  *
- * Note, an object is one of a file, device, named pipe or tcpip socket.
+ * NOTE: An object is one of a file, device, named pipe or tcpip socket
  */
 
 #include <errno.h>
@@ -61,51 +66,51 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include "error.h"
 #include "rsm.h"
+#include "error.h"
 #include "proto.h"
 #include "seqio.h"
 
 // Set bit flags
-#define UNSET       -1                                                          // Unset bit
-#define LEAVE       0                                                           // Leave bit
-#define SET         1                                                           // Set bit
+#define UNSET -1                                                                // Unset bit
+#define LEAVE 0                                                                 // Leave bit
+#define SET   1                                                                 // Set bit
 
 // Object types
-#define UNKNOWN     0                                                           // Unknown object
-#define DIR         1                                                           // Directory
-#define CHR         2                                                           // Character special
-#define BLK         3                                                           // Block special
-#define REG         4                                                           // Regular
-#define FIFO        5                                                           // Named pipe (i.e., FIFO)
-#define LNK         6                                                           // Symbolic link
-#define SOCK        7                                                           // Socket
-#define WHT         8                                                           // Whiteout
+#define UNKNOWN 0                                                               // Unknown object
+#define DIR     1                                                               // Directory
+#define CHR     2                                                               // Character special
+#define BLK     3                                                               // Block special
+#define REG     4                                                               // Regular
+#define FIFO    5                                                               // Named pipe (i.e., FIFO)
+#define LNK     6                                                               // Symbolic link
+#define SOCK    7                                                               // Socket
+#define WHT     8                                                               // Whiteout
 
 // Miscellaneous buffer sizes
-#define MASKSIZE    64                                                          // Maximum bits in set bit mask
-#define WRITESIZE   132                                                         // Maximum write buffer size
-#define BUFSIZE     MAX_STR_LEN                                                 // Maximum buffer size
-#define READSIZE    1024                                                        // Maximum read buffer size
-#define OPSIZE      30                                                          // Maximum operation size
-#define TTYSIZE     128                                                         // Maximim tty name size
-#define ERRSIZE     100                                                         // Maximum error buffer size
+#define MASKSIZE  64                                                            // Maximum bits in set bit mask
+#define WRITESIZE 132                                                           // Maximum write buffer size
+#define BUFSIZE   MAX_STR_LEN                                                   // Maximum buffer size
+#define READSIZE  1024                                                          // Maximum read buffer size
+#define OPSIZE    30                                                            // Maximum operation size
+#define TTYSIZE   128                                                           // Maximim tty name size
+#define ERRSIZE   100                                                           // Maximum error buffer size
 
 // SQ_Chan.options bit mask
-#define INTERM      0                                                           // Input terminator(s) bit (ALL)
-#define OUTERM      1                                                           // Output terminator bit (ALL)
+#define INTERM    0                                                             // Input terminator(s) bit (ALL)
+#define OUTERM    1                                                             // Output terminator bit (ALL)
 
-#define ESC         2                                                           // Escape sequence bit (SQ_TERM)
-#define TTYECHO     3                                                           // Echo bit (SQ_TERM)
-#define DEL8        4                                                           // Delete key 8 bit (SQ_TERM)
-#define DEL127      5                                                           // Delete key 127 bit (SQ_TERM)
-#define TYPEAHEAD   6                                                           // Type-ahead bit (SQ_TERM)
+#define ESC       2                                                             // Escape sequence bit (SQ_TERM)
+#define TTYECHO   3                                                             // Echo bit (SQ_TERM)
+#define DEL8      4                                                             // Delete key 8 bit (SQ_TERM)
+#define DEL127    5                                                             // Delete key 127 bit (SQ_TERM)
+#define TYPEAHEAD 6                                                             // Type-ahead bit (SQ_TERM)
 
-#define IPV6        2                                                           // Socket IPv6 bit (SQ_SOCK)
-#define UDP         3                                                           // Socket UDP bit (SQ_SOCK)
+#define IPV6      2                                                             // Socket IPv6 bit (SQ_SOCK)
+#define UDP       3                                                             // Socket UDP bit (SQ_SOCK)
 
 // Miscellaneous
-#define STDCHAN     0                                                           // stdin, stdout and stderr
+#define STDCHAN 0                                                               // stdin, stdout and stderr
 
 static u_int64 MASK[MASKSIZE];                                                  // Set bit mask
 static u_int64 CRLF;                                                            // CRLF
@@ -187,10 +192,11 @@ int checkCstring(const cstring *cstr)
  * Otherwise, a negative integer value is returned to indicate the error that
  * has occurred.
  *
- * Note, if stat fails because the object does not exist, then it is possible
- * that the object is a file still to be created; hence, the object could be a
- * file, but this function is unable to confirm this as the file is not yet
- * created. Thus, a 0 is returned as opposed to a negative integer value.
+ * NOTE: If stat fails because the object does not exist, then it is possible
+ *       that the object is a file still to be created; hence, the object could
+ *       be a file, but this function is unable to confirm this as the file is
+ *       not yet created. Thus, a 0 is returned as opposed to a negative integer
+ *       value
  */
 int getObjectType(char *object)
 {
@@ -467,11 +473,11 @@ int getOperation(cstring *op)
  * can be found, the the number of bytes in the buffer searched (i.e., "nbytes")
  * is returned.
  *
- * Note, a set input terminator is an ASCII character (i.e., a character with an
- * integer value between 0 and 127, inclusive) whose integer value corresponds
- * to a set bit in the integer array "in_term". For example, the character NULL
- * has an integer value of 0. If bit 0 in the integer array "in_term.interm[]"
- * is equal to 1, then this bit has been set.
+ * NOTE: A set input terminator is an ASCII character (i.e., a character with an
+ *       integer value between 0 and 127, inclusive) whose integer value
+ *       corresponds to a set bit in the integer array "in_term". For example,
+ *       the character NULL has an integer value of 0. If bit 0 in the integer
+ *       array "in_term.interm[]" is equal to 1, then this bit has been set
  */
 /*
 int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           // NOTE: should we use this instead of the 4 loops?
@@ -664,7 +670,7 @@ int acceptSERVER(int chan, int tout)
     if ((s->slots > 0) && (s->taken > 0)) {
         for (index = 0; index < s->slots; index++) {
             if (s->forked[index].pid != -1) {
-                if (systab->jobtab[(s->forked[index].job_no - 1)].pid != s->forked[index].pid) {
+                if (partab.job_table[(s->forked[index].job_no - 1)].pid != s->forked[index].pid) {
                     // Child dead
                     initFORK(&s->forked[index]);
                     s->taken--;
@@ -748,7 +754,7 @@ int acceptSERVER(int chan, int tout)
 
         if (jobno > 0) {                                                        // Parent process; child jobno
             slot->job_no = jobno;
-            slot->pid = systab->jobtab[jobno - 1].pid;
+            slot->pid = partab.job_table[jobno - 1].pid;
             s->taken++;
             close(s->cid);
             s->cid = -1;
@@ -795,13 +801,13 @@ int closeSERVERClient(int chan)
     // Determine socket to close and close it (if required)
     if (((int) c->type == SQ_SOCK) && (sock_type == SOCK_STREAM)) {
         if ((int) c->mode == NOFORK) {
-            if (c->s.cid > -1) {
+            if (c->s.cid != -1) {
                 close(c->s.cid);
                 free(c->s.forked);
                 initSERVER(chan, 0);
             }
         } else if ((int) c->mode == SERVER) {
-            if (c->s.cid > -1) {
+            if (c->s.cid != -1) {
                 close(c->s.cid);
                 c->s.cid = -1;
                 c->s.name[0] = '\0';
@@ -1220,8 +1226,8 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
  * number of bytes read. Otherwise, it returns a negative integer value to
  * indicate the error that has occurred.
  *
- * Note: Terminal input buffer handling, including editing and history,
- *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991).
+ * NOTE: Terminal input buffer handling, including editing and history,
+ *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
  */
 int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 {
@@ -1331,7 +1337,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     // Move cursor to the end of the line
                     ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
                     if (ret < 0) return ret;
-                    writebuf.len = uitocstring(writebuf.buf, w.ws_col);
+                    writebuf.len = ultocstring(writebuf.buf, w.ws_col);
                     ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
                     if (ret < 0) return ret;
                     ret = SQ_Device_Write(oid, (u_char *) "G", 1);
@@ -1423,7 +1429,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         if (c->dx >= w.ws_col) {
                             ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
                             if (ret < 0) return ret;
-                            writebuf.len = uitocstring(writebuf.buf, c->dx / w.ws_col);
+                            writebuf.len = ultocstring(writebuf.buf, c->dx / w.ws_col);
                             ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
                             if (ret < 0) return ret;
                             ret = SQ_Device_Write(oid, (u_char *) "F", 1);
@@ -1433,7 +1439,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         // Move to the beginning of the input buffer that starts the current command buffer (after the prompt)
                         ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
                         if (ret < 0) return ret;
-                        writebuf.len = uitocstring(writebuf.buf, start + 1);
+                        writebuf.len = ultocstring(writebuf.buf, start + 1);
                         ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
                         if (ret < 0) return ret;
                         ret = SQ_Device_Write(oid, (u_char *) "G", 1);
@@ -1501,7 +1507,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                             // Move cursor to the end of the current line
                             ret = SQ_Device_Write(oid, (u_char *) "\033[", 2);
                             if (ret < 0) return ret;
-                            writebuf.len = uitocstring(writebuf.buf, w.ws_col);
+                            writebuf.len = ultocstring(writebuf.buf, w.ws_col);
                             ret = SQ_Device_Write(oid, writebuf.buf, writebuf.len);
                             if (ret < 0) return ret;
                             ret = SQ_Device_Write(oid, (u_char *) "G", 1);
@@ -1839,8 +1845,8 @@ short SQ_Init(void)
  * Otherwise, it returns a negative integer to indicate the error that has
  * occurred.
  *
- * Note, "tout" does not apply for files; and a "tout" of zero is used to
- *       test ownership success without starting a timer.
+ * NOTE: "tout" does not apply for files; and a "tout" of zero is used to
+ *       test ownership success without starting a timer
  */
 short SQ_Open(int chan, cstring *object, cstring *op, int tout)
 {
@@ -2357,16 +2363,25 @@ int SQ_WriteFormat(int count)
 
     switch (count) {
     case SQ_FF:
-        // Erase entire display
-        writebuf[0] = (char) 27;
-        writebuf[1] = '[';
-        writebuf[2] = '2';
-        writebuf[3] = 'J';
-        // Place cursor at home [0,0]
-        writebuf[4] = (char) 27;
-        writebuf[5] = '[';
-        writebuf[6] = 'H';
-        ret = objectWrite(chan, writebuf, 7);
+        if (IOptr->type == SQ_TERM) {
+            // Erase entire display
+            writebuf[0] = (char) 27;
+            writebuf[1] = '[';
+            writebuf[2] = '2';
+            writebuf[3] = 'J';
+
+            // Place cursor at home [0,0]
+            writebuf[4] = (char) 27;
+            writebuf[5] = '[';
+            writebuf[6] = 'H';
+            ret = objectWrite(chan, writebuf, 7);
+        } else {
+            // ASCII CR FF
+            writebuf[0] = (char) 13;
+            writebuf[1] = (char) 12;
+            ret = objectWrite(chan, writebuf, 2);
+        }
+
         if (ret < 0) return ret;
         IOptr->dx = 0;
         IOptr->dy = 0;
@@ -2426,7 +2441,8 @@ int SQ_WriteFormat(int count)
  * bytes read into the buffer is returned. Otherwise, a negative integer
  * value is returned to indicate the error which has occurred.
  *
- * Note, that a timeout value (i.e., "tout") or "maxbyt" value of -1 means unlimited.
+ * NOTE: That a timeout value (i.e., "tout") or "maxbyt" value of -1 means
+ *       unlimited
  */
 int SQ_Read(u_char *buf, int tout, int maxbyt)
 {
@@ -2441,6 +2457,7 @@ int SQ_Read(u_char *buf, int tout, int maxbyt)
     if (isChanFree(chan) == 1) return getError(INT, ERRZ27);
     if (tout < UNLIMITED) return getError(INT, ERRZ22);
     if (maxbyt < UNLIMITED) return getError(INT, ERRZ36);
+    if (maxbyt > BUFSIZE) return getError(INT, ERRZ37);
 
     // Initialize variables
     partab.jobtab->seqio[chan].dkey_len = 0;
@@ -2522,7 +2539,7 @@ int SQ_Read(u_char *buf, int tout, int maxbyt)
  * the error that has occurred.
  *
  * NOTE: $X and $Y are unchanged, and any key pressed does not echo on a
- * terminal device.
+ *       terminal device
  */
 short SQ_ReadStar(int *result, int timeout)
 {
@@ -2622,7 +2639,7 @@ short SQ_Flush(void)
  * It returns a negative integer to indicate the internal or system error that
  * has occurred.
  *
- * Note, each piece is comma deliminated.
+ * NOTE: Each piece is comma deliminated
  */
 int SQ_Device(u_char *buf)
 {

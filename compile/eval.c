@@ -1,14 +1,14 @@
 /*
- * Package:  Reference Standard M
- * File:     rsm/compile/eval.c
- * Summary:  module compile - evaluate
+ * Package: Reference Standard M
+ * File:    rsm/compile/eval.c
+ * Summary: module compile - evaluate
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
  * https://gitlab.com/Reference-Standard-M/rsm
  *
  * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright (c) 1999-2018
+ * Copyright © 1999-2018
  * https://gitlab.com/Reference-Standard-M/mumpsv1
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see http://www.gnu.org/licenses/.
+ * along with this program. If not, see https://www.gnu.org/licenses/.
+ *
+ * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include <stdio.h>                                                              // always include
@@ -43,14 +46,21 @@
 u_char *source_ptr;                                                             // pointer to source code
 u_char *comp_ptr;                                                               // pointer to compiled code
 
+extern u_char *jmp_eoc;                                                         // jump to end of cmd required
+
 void comperror(short err)                                                       // compile error
 {
-    int     s;                                                                  // for functions
+    int     t;                                                                  // for functions
     u_short us;                                                                 // for functions
     cstring *line;                                                              // line of code
     u_char  *src;                                                               // current src ptr
     int     i;                                                                  // a handy int
     u_char  tmp[128];                                                           // some space
+
+    if (jmp_eoc) {
+        comp_ptr = jmp_eoc - 1;                                                 // back comp_ptr up to JMP0 instruction
+        jmp_eoc = NULL;                                                         // reset so the offset doesn't overwrite the error
+    }
 
     *comp_ptr++ = OPERROR;                                                      // say it's an error
     assert(sizeof(err) == sizeof(short));
@@ -63,15 +73,15 @@ void comperror(short err)                                                       
     partab.checkonly = partab.ln;                                               // record done
     line = *partab.lp;                                                          // get the line address
     src = *partab.sp;                                                           // and the current source
-    s = SQ_Write(line);                                                         // write the line
-    if (s < 0) goto scan;                                                       // exit on error
-    s = SQ_WriteFormat(SQ_LF);                                                  // return
-    if (s < 0) goto scan;                                                       // exit on error
+    t = SQ_Write(line);                                                         // write the line
+    if (t < 0) goto scan;                                                       // exit on error
+    t = SQ_WriteFormat(SQ_LF);                                                  // return
+    if (t < 0) goto scan;                                                       // exit on error
     i = src - line->buf - 1;                                                    // get the offset
 
     if (i > 0) {
-        s = SQ_WriteFormat(i);                                                  // tab
-        if (s < 0) goto scan;                                                   // exit on error
+        t = SQ_WriteFormat(i);                                                  // tab
+        if (t < 0) goto scan;                                                   // exit on error
     }
 
     line = (cstring *) tmp;                                                     // some space
@@ -81,11 +91,11 @@ DISABLE_WARN(-Warray-bounds)
     us = UTIL_strerror(err, &line->buf[2]);                                     // get the error
     line->len = us + 2;                                                         // the length
     memcpy(&line->buf[line->len], " - At line ", 11);                           // front bit
-    us = itocstring(&line->buf[line->len + 11], partab.ln);                     // format line number
+    us = ltocstring(&line->buf[line->len + 11], partab.ln);                     // format line number
     line->len += us + 11;                                                       // the length
 ENABLE_WARN
-    s = SQ_Write(line);                                                         // write the line
-    if (s >= 0) SQ_WriteFormat(SQ_LF);                                          // if no error return
+    t = SQ_Write(line);                                                         // write the line
+    if (t >= 0) SQ_WriteFormat(SQ_LF);                                          // if no error return
     if (partab.checkonly) partab.errors++;                                      // syntax check so increment error count
 
 scan:
@@ -99,8 +109,8 @@ scan:
  */
 void atom(void)                                                                 // evaluate source
 {
-    char   c;                                                                   // current character
-    short  s;                                                                   // for function returns
+    char  c;                                                                    // current character
+    short s;                                                                    // for function returns
 
     c = *source_ptr++;                                                          // get a character
 
@@ -157,7 +167,7 @@ void atom(void)                                                                 
     }                                                                           // end numeric parse
 
     if (c == '"') {                                                             // rabbit ear
-        int    j = sizeof(u_short);                                             // point at p->buf[0]
+        int    i = sizeof(u_short);                                             // point at p->buf[0]
         u_char *p;                                                              // a pointer
 
         *comp_ptr++ = OPSTR;                                                    // say string following
@@ -171,17 +181,17 @@ void atom(void)                                                                 
             }                                                                   // end of error bit
 
             if ((*source_ptr == '"') && (source_ptr[1] != '"')) {               // check end of literal
-                p[j] = '\0';                                                    // null terminate it
+                p[i] = '\0';                                                    // null terminate it
                 source_ptr++;                                                   // point past it
                 break;                                                          // and exit
             }                                                                   // end 'end of str' code
 
-            p[j++] = *source_ptr++;                                             // copy the character
+            p[i++] = *source_ptr++;                                             // copy the character
             if ((*(source_ptr - 1) == '"') && (*source_ptr == '"')) source_ptr++; // got rabbit ears? then point past the second one
         }                                                                       // end of copy loop
 
-        *((u_short *) p) = (u_short) (j - sizeof(u_short));                     // store cstring count
-        comp_ptr += j + 1;                                                      // point past str and null
+        *((u_short *) p) = (u_short) (i - sizeof(u_short));                     // store cstring count
+        comp_ptr += i + 1;                                                      // point past str and null
         return;
     }                                                                           // end string literal
 
@@ -349,8 +359,10 @@ void eval(void)                                                                 
     }
 
     while (TRUE) {                                                              // until the end
-        int op = operator();                                                    // get the operator
         int pattern = 0;                                                        // for pattern match funny
+        int op;
+
+        op = operator();                                                        // get the operator
 
         if (op == 0) {                                                          // an error??
           comperror(-(ERRZ12 + ERRMLAST));                                      // compile the error
