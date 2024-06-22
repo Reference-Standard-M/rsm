@@ -31,31 +31,17 @@
 # /etc/magic already has magic entries in it, append the non-comment contents of
 # this file to it.
 
-0       long         4155766917U  Reference Standard M database file,
->24     short        2            version 2,
->>24    leshort      2            little endian
+0       long       4155766917U              Reference Standard M database file
 !:mime  application/x-rsm-database
->>24    beshort      2            big endian
-!:mime  application/x-rsm-database
->24     short        1            version 1,
->>24    leshort      1            little endian
-!:mime  application/x-rsm-database
->>24    beshort      1            big endian
-!:mime  application/x-rsm-database
+>24     leshort    <256                     \b, version %u, little endian
+>24     beshort    <256                     \b, version %u, big endian
 
-0       long         4155766916U  Reference Standard M journal file,
->12     short        12           version 2,
->>12    leshort      12           little endian
+0       long       4155766916U              Reference Standard M journal file
 !:mime  application/x-rsm-journal
->>12    beshort      12           big endian
-!:mime  application/x-rsm-journal
->12     short        8            version 1,
->>12    leshort      8            little endian
-!:mime  application/x-rsm-journal
->>12    beshort      8            big endian
-!:mime  application/x-rsm-journal
+>12     leshort    12                       \b, version 2, little endian
+>12     beshort    12                       \b, version 2, big endian
+>12     leshort    8                        \b, version 1, little endian
+>12     beshort    8                        \b, version 1, big endian
 
-0       search/264c  \^$routine(  Reference Standard M source text
-!:mime  text/x-rsm
-0       search/264c  \^$r(        Reference Standard M source text
+0       regex/1lc  \\^\\$(routine\\(|r\\()  Reference Standard M source text
 !:mime  text/x-rsm

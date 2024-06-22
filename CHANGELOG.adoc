@@ -30,6 +30,15 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 == Release Changelog
 
+=== v1.81.1 -- 2024 Jun 22
+
+* Fix several bugs and make many improvements to the Make configurations
+  - Move the functionality from the `install-utils` to the `install` rule
+  - Remove the `install-utils` rule
+* Improve and simplify the `magic` configuration
+* Fix minor display bug in `utils.rsm`
+* Update the `README.adoc` file
+
 === v1.81.0 -- 2024 Jun 10
 
 * Improve stability and reliability of shared memory usage
@@ -66,7 +75,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 * Improve the output of the routine syntax check utility [`^RC^%RD`]
 * Fix race condition in the lock output of the system status utility [`^%SS`]
 * Improve the `magic` configuration, adding endian info, and an RSM source type
-* Add man page for `rsm` executable [`rsm.1`]
+* Add man page for the `rsm` executable [`rsm.1`]
 * Add RSM executable command (man page) document [`rsm.adoc`]
 * Add systemd system service file [`rsm.service`]
 * Add sample macOS property list configuration file [`sysctl.plist`]
@@ -84,10 +93,6 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
   - Add `header-content.hbs`, `footer-content.hbs`, and `highlight.js`
 * Update the documentation format in preparation for the Pages deployment
 * Update the documentation content in the `README.adoc` and other files
-
-This version makes a change to some of the structures in the shared memory
-environment, which requires shutting down the environment with the previous
-version, before installing.
 
 === v1.80.4 -- 2024 Feb 9
 
