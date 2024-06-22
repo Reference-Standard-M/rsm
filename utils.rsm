@@ -1639,7 +1639,7 @@ COMPRESS ; Compress a specific global on-line
  do INT(g) quit
 ;---
 INT(g) new %,lev,zr,$etrap set zr="INT^COMPRESS",$etrap="do ^%ET",lev=15
- set g="^"_$translate(g,"^") if '$data(@g) write "Global ^",g," does not exist",! quit
+ set g="^"_$translate(g,"^") if '$data(@g) write "Global ",g," does not exist",! quit
  for  set lev=$&%compress(g,lev) quit:g["("  set lev=lev-1 quit:lev<2
  if lev>-1 write "Done",! quit
  set lev="M"_-lev  write *7,$&%errmsg(lev),! quit

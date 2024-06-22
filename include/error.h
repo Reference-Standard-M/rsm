@@ -84,6 +84,7 @@
 #define ERRM47   47                                                             // Invalid attribute value
 #define ERRM56   56                                                             // Name length exceeds implementation's limit
 #define ERRM57   57                                                             // More than one defining occurrence
+                                                                                //   of label in routine
 #define ERRM58   58                                                             // Too few formal parameters
 #define ERRM59   59                                                             // Environment reference not permitted for this SSVN
 #define ERRM60   60                                                             // Undefined SSVN

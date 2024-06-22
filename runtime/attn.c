@@ -151,10 +151,10 @@ void DoInfo(void)
  */
 int ForkIt(int cft)                                                             // Copy File Table True/False
 {
-    int  i;                                                                     // a handy int
-    int  ret;                                                                   // and another
-    int  mid = -1;                                                              // for the M id
-    void *j;                                                                    // a handy pointer
+    int          i;                                                             // a handy int
+    int          ret;                                                           // and another
+    volatile int mid = -1;                                                      // for the M id
+    void         *j;                                                            // a handy pointer
 
     for (u_int k = 0; k < systab->maxjob; k++) {                                // scan the slots
         ret = partab.job_table[k].pid;                                          // get pid
