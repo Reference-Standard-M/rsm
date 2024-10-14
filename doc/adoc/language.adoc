@@ -178,17 +178,17 @@ The break specifier may be one of the following:
 [%autowidth]
 .BREAK Usage
 |===
-| Specifier                     | Description
+|Specifier                    |Description
 
-| `BREAK "_breakref_:"`         | Set simple breakpoint
-| `BREAK "_breakref_:__code__"` | Set breakpoint with handler
-| `BREAK ":__code__"`           | Set `QUIT` handler
-| `BREAK "_breakref_"`          | Clear breakpoint
-| `BREAK ":"`                   | Clear `QUIT` handler
-| `BREAK ""`                    | Clear all breakpoints/handlers - stop debugger
-| `BREAK`                       | Break here (in routine code or direct mode)
-| `BREAK 0`                     | Disable `BREAK` within current job
-| `BREAK 1`                     | Re-enable `BREAK` within current job
+|`BREAK "_breakref_:"`        |Set simple breakpoint
+|`BREAK "_breakref_:__code__"`|Set breakpoint with handler
+|`BREAK ":__code__"`          |Set `QUIT` handler
+|`BREAK "_breakref_"`         |Clear breakpoint
+|`BREAK ":"`                  |Clear `QUIT` handler
+|`BREAK ""`                   |Clear all breakpoints/handlers - stop debugger
+|`BREAK`                      |Break here (in routine code or direct mode)
+|`BREAK 0`                    |Disable `BREAK` within current job
+|`BREAK 1`                    |Re-enable `BREAK` within current job
 |===
 
 Where _breakref_ is `_label_[+_offset_]^_routine_` or `[+_linenum_]^_routine_`
@@ -685,10 +685,10 @@ Additionally, the following intrinsic special variables may be ``NEW``ed:
 [%autowidth]
 .NEW ISVs
 |===
-| ISV       | Action when ``NEW``ed
+|ISV      |Action when ``NEW``ed
 
-| `$ESTACK` | Value set to zero
-| `$ETRAP`  | Value is unchanged
+|`$ESTACK`|Value set to zero
+|`$ETRAP` |Value is unchanged
 |===
 
 ==== Standard
@@ -727,14 +727,14 @@ may be supplied in full or abbreviated form, and is case-insensitive.
 [%autowidth]
 .OPEN Parameters
 |===
-| First Parameter    | Second Parameter
+|First Parameter   |Second Parameter
 
-| _/directory/file_  | `"R[EAD]"`\|`"W[RITE]"`\|`"A[PPEND]"`\|`"I[O]"`
-| _host.domain port_ | `"T[CPIP][6]"`\|`"U[DPIP][6]"`
-| _port_             | `"S[ERVER][6][=_int_]"`\|`"TCPSERVER[6][=_int_]"`
-| _port_             | `"US[6]"`\|`"UDPSERVER[6]"`
-| _/directory/pipe_  | `"P[IPE]"`\|`"N[EWPIPE]"`
-| _/dev/device_      | `"R[EAD]"`\|`"W[RITE]"`\|`"I[O]"`
+|_/directory/file_ |`"R[EAD]\|W[RITE]\|A[PPEND]\|I[O]"`
+|_host.domain port_|`"T[CPIP][6]\|U[DPIP][6]"`
+|_port_            |`"S[ERVER][6][=_int_]\|TCPSERVER[6][=_int_]"`
+|_port_            |`"US[6]\|UDPSERVER[6]"`
+|_/directory/pipe_ |`"P[IPE]\|N[EWPIPE]"`
+|_/dev/device_     |`"R[EAD]\|W[RITE]\|I[O]"`
 |===
 
 IMPORTANT: If you open a file in `IO` mode (read-write), it will set the file
@@ -909,17 +909,17 @@ are:
 [%autowidth]
 .USE Parameters
 |===
-| Parameter                      | Valid Class Types | Description
+|Parameter                          |Valid Class Types|Description
 
-| `DELETE=NONE|BACK|DELETE|BOTH` | Character Device  | Setup key(s) for DELETE
-| `DISCONNECT`                   | TCP Socket Server | Disconnect the client
-| `[NO]CONTROLC`                 | Principal Device  | Control-C processing
-| `[NO]CONTROLT`                 | Principal Device  | Control-T processing
-| `[NO]ECHO`                     | Character Device  | Echo processing
-| `[NO]ESCAPE`                   | Character Device  | Escape processing
-| `[NO]TYPEAHEAD`                | Character Device  | Type-ahead processing
-| `OUTPUT=$CHAR(_n_[,...])`      | All               | Output `!` sequence (6)
-| `TERMINATOR=$CHAR(_n_[,...])`  | All               | Input/read terminators
+|`"DELETE=NONE\|BACK\|DELETE\|BOTH"`|Character Device |Setup keys for DELETE
+|`"DISCONNECT"`                     |TCP Socket Server|Disconnect the client
+|`"[NO]CONTROLC"`                   |Principal Device |Control-C processing
+|`"[NO]CONTROLT"`                   |Principal Device |Control-T processing
+|`"[NO]ECHO"`                       |Character Device |Echo processing
+|`"[NO]ESCAPE"`                     |Character Device |Escape processing
+|`"[NO]TYPEAHEAD"`                  |Character Device |Type-ahead processing
+|`"OUTPUT="_$CHAR(_n_[,...])`       |All              |Output `!` sequence (6)
+|`"TERMINATOR="_$CHAR(_n_[,...])`   |All              |Input/read terminators
 |===
 
 IMPORTANT: `TERMINATOR` arguments must be ASCII characters [0-127]
@@ -1006,13 +1006,13 @@ Output characters to the current output device.
 [%autowidth]
 .WRITE Usage
 |===
-| Character Type         | Description
+|Character Type        |Description
 
-| Graphic (ASCII 32-126) | Increment `$X`
-| Backspace              | Decrement `$X` to a minimum of `0`
-| Line feed              | Increment `$Y`
-| Carriage return        | `$X` -> `0`
-| Form feed              | `$X` -> `0`, `$Y` -> `0`
+|Graphic (ASCII 32-126)|Increment `$X`
+|Backspace             |Decrement `$X` to a minimum of `0`
+|Line feed             |Increment `$Y`
+|Carriage return       |`$X` -> `0`
+|Form feed             |`$X` -> `0`, `$Y` -> `0`
 |===
 
 NOTE: `write *_intexpr_` does not alter `$X` or `$Y`
@@ -1127,12 +1127,12 @@ Number indicating whether a variable is defined or has nodes.
 [%autowidth]
 .$DATA Returns
 |===
-| Value | Description
+|Value|Description
 
-| 0     | _var_ is undefined
-| 1     | _var_ is defined but has no descendants
-| 10    | _var_ is undefined but has descendants
-| 11    | _var_ is defined and has descendants
+|0    |_var_ is undefined
+|1    |_var_ is defined but has no descendants
+|10   |_var_ is undefined but has descendants
+|11   |_var_ is defined and has descendants
 |===
 
 ==== Standard
@@ -1211,13 +1211,13 @@ Where code is zero or more of the following:
 [%autowidth]
 .$FNUMBER Format
 |===
-| Code        | Description
+|Code       |Description
 
-| `P` or `p`  | Surround negative numbers with parentheses, positive with spaces
-| `T` or `t`  | Format with trailing sign or (if suppressed) space
-| `,` (comma) | Insert a comma every three significant digits
-| `+` (plus)  | Force a plus sign on positive values
-| `-` (minus) | Suppress the minus sign on negative values
+|`P` or `p` |Surround negative numbers with parentheses, positive with spaces
+|`T` or `t` |Format with trailing sign or (if suppressed) space
+|`,` (comma)|Insert a comma every three significant digits
+|`+` (plus) |Force a plus sign on positive values
+|`-` (minus)|Suppress the minus sign on negative values
 |===
 
 NOTE: `P` may not be used with `T`, `+` (plus), or `-` (minus) [`$ECODE="M2"`]
@@ -2165,23 +2165,23 @@ The following second level (and higher) subscripts are also provided:
 [%autowidth]
 .^$DEVICE Usage
 |===
-| Subscripts               | Contains
+|Subscripts              |Contains
 
-| `"$X"`                   | Current horizontal cursor position
-| `"$Y"`                   | Current vertical cursor position
-| `"CHARACTER"`            | Always returns "M"
-| `"FD"`                   | Operating system file descriptor
-| `"MODE"`                 | Current I/O mode of the device
-| `"NAME"`                 | Device/file/pipe name or local port
-| `"NAMESPACE"`            | Mnemonic namespace routine name
-| `"OPTIONS","DELETE"`     | Which keys are delete characters
-| `"OPTIONS","ECHO"`       | Whether input keys are echoed
-| `"OPTIONS","ESCAPE"`     | Whether escape processing is on
-| `"OPTIONS","OUTPUT"`     | The output terminator when using `write !`
-| `"OPTIONS","TERMINATOR"` | The read terminator characters [ASCII]
-| `"OPTIONS","TYPEAHEAD"`  | Whether read type-ahead processing is on
-| `"REMOTE"`               | Remote host and port
-| `"TYPE"`                 | Type of device or file
+|`"$X"`                  |Current horizontal cursor position
+|`"$Y"`                  |Current vertical cursor position
+|`"CHARACTER"`           |Always returns "M"
+|`"FD"`                  |Operating system file descriptor
+|`"MODE"`                |Current I/O mode of the device
+|`"NAME"`                |Device/file/pipe name or local port
+|`"NAMESPACE"`           |Mnemonic namespace routine name
+|`"OPTIONS","DELETE"`    |Which keys are delete characters
+|`"OPTIONS","ECHO"`      |Whether input keys are echoed
+|`"OPTIONS","ESCAPE"`    |Whether escape processing is on
+|`"OPTIONS","OUTPUT"`    |The output terminator when using `write !`
+|`"OPTIONS","TERMINATOR"`|The read terminator characters [ASCII]
+|`"OPTIONS","TYPEAHEAD"` |Whether read type-ahead processing is on
+|`"REMOTE"`              |Remote host and port
+|`"TYPE"`                |Type of device or file
 |===
 
 ==== Action
@@ -2228,14 +2228,14 @@ as well.
 [%autowidth]
 .^$GLOBAL Usage
 |===
-| Subscripts             | Contains                              | Settable
+|Subscripts            |Contains                             |Settable
 
-| `_global_`             | Top pointer block number of _global_  | No
-| `"$GLOBAL"`            | Global directory block number for UCI | No
-| `_global_,"CHARACTER"` | Always returns "M"                    | No
-| `_global_,"COLLATE"`   | Always returns ""                     | No
-| `_global_,"JOURNAL"`   | Returns whether to journal _global_   | Yes
-| `"$GLOBAL","JOURNAL"`  | Returns the default journal action    | Yes
+|`_global_`            |Top pointer block number of _global_ |No
+|`"$GLOBAL"`           |Global directory block number for UCI|No
+|`_global_,"CHARACTER"`|Always returns "M"                   |No
+|`_global_,"COLLATE"`  |Always returns ""                    |No
+|`_global_,"JOURNAL"`  |Returns whether to journal _global_  |Yes
+|`"$GLOBAL","JOURNAL"` |Returns the default journal action   |Yes
 |===
 
 NOTE: While the name of a global is case-sensitive, including `$GLOBAL`, the
@@ -2284,33 +2284,33 @@ NOTE: The `^$JOB` subscripts listed below are case-insensitive
 [%autowidth]
 .^$JOB Usage
 |===
-| Subscripts                 | Contains                         | Settable
+|Subscripts                |Contains                        |Settable
 
-| `"$IO"`                    | Current channel number           | No
-| `"$IO",_channel_`          | Name of device/file on channel   | No
-| `"$REFERENCE"`             | As for `$REFERENCE`              | No
-| `"$STACK"`                 | As for `$STACK`                  | No
-| `"$STACK",_level_`         | As for `$STACK(_level_)`         | No
-| `"$STACK",_level_,"ECODE"` | As for `$STACK(_level_,"ECODE")` | No
-| `"$STACK",_level_,"MCODE"` | As for `$STACK(_level_,"MCODE")` | No
-| `"$STACK",_level_,"PLACE"` | As for `$STACK(_level_,"PLACE")` | No
-| `"CHARACTER"`              | Always returns "M"               | No
-| `"COMMANDS"`               | Number of commands executed      | No
-| `"GLOBAL"`                 | Global environment (UCI #)       | Current job
-| `"GLOBAL_VOL"`             | Global environment (VOL #)       | Current job
-| `"GREFS"`                  | Number of global references      | No
-| `"LOCK"`                   | Lock environment (UCI #)         | Current job
-| `"LOCK_VOL"`               | Lock environment (VOL #)         | Current job
-| `"OWNER"`                  | OS process owner name            | No
-| `"OWNER_ID"`               | OS process owner UID             | Privilege
-| `"PID"`                    | OS process ID                    | No
-| `"PRECISION"`              | Current numeric precision        | Current job
-| `"PRIORITY"`               | Current process priority         | Privilege
-| `"PRIV"`                   | Current process privilege        | Privilege
-| `"PROCESS_START"`          | `$HOROLOG` when process started  | No
-| `"ROUTINE"`                | Routine environment (UCI #)      | Current job
-| `"ROUTINE_NAME"`           | Routine name                     | No
-| `"ROUTINE_VOL"`            | Routine environment (VOL #)      | Current job
+|`"$IO"`                   |Current channel number          |No
+|`"$IO",_channel_`         |Name of device/file on channel  |No
+|`"$REFERENCE"`            |As for `$REFERENCE`             |No
+|`"$STACK"`                |As for `$STACK`                 |No
+|`"$STACK",_level_`        |As for `$STACK(_level_)`        |No
+|`"$STACK",_level_,"ECODE"`|As for `$STACK(_level_,"ECODE")`|No
+|`"$STACK",_level_,"MCODE"`|As for `$STACK(_level_,"MCODE")`|No
+|`"$STACK",_level_,"PLACE"`|As for `$STACK(_level_,"PLACE")`|No
+|`"CHARACTER"`             |Always returns "M"              |No
+|`"COMMANDS"`              |Number of commands executed     |No
+|`"GLOBAL"`                |Global environment (UCI #)      |Current job
+|`"GLOBAL_VOL"`            |Global environment (VOL #)      |Current job
+|`"GREFS"`                 |Number of global references     |No
+|`"LOCK"`                  |Lock environment (UCI #)        |Current job
+|`"LOCK_VOL"`              |Lock environment (VOL #)        |Current job
+|`"OWNER"`                 |OS process owner name           |No
+|`"OWNER_ID"`              |OS process owner UID            |Privilege
+|`"PID"`                   |OS process ID                   |No
+|`"PRECISION"`             |Current numeric precision       |Current job
+|`"PRIORITY"`              |Current process priority        |Privilege
+|`"PRIV"`                  |Current process privilege       |Privilege
+|`"PROCESS_START"`         |`$HOROLOG` when process started |No
+|`"ROUTINE"`               |Routine environment (UCI #)     |Current job
+|`"ROUTINE_NAME"`          |Routine name                    |No
+|`"ROUTINE_VOL"`           |Routine environment (VOL #)     |Current job
 |===
 
 ==== Action
@@ -2414,45 +2414,45 @@ Provides system specific data (e.g., database statistics).
 [%autowidth]
 .^$SYSTEM Usage
 |===
-| Subscripts                        | Contains                    | Settable
+|Subscripts                       |Contains                   |Settable
 
-| `"$NEXTOK"`                       | On/Off `$NEXT`              | Privilege
-| `"BIG_ENDIAN"`                    | Hardware endianness         | No
-| `"CHARACTER"`                     | Always returns "M"          | No
-| `"EOK"`                           | On/Off exponent notation    | Privilege
-| `"NAME_LENGTH"`                   | Length of all names         | No
-| `"OFFOK"`                         | On/Off `DO/GOTO/JOB` offset | Privilege
-| `"PRECISION"`                     | Default numeric precision   | Privilege
-| `"STRING_MAX"`                    | Maximum size of strings     | No
-| `"TRANTAB",_num_`                 | `_to=from_` (global maps)   | Privilege
-| `"VOL",_vol_,"BLKALLOC"`          | Block allocations           | No
-| `"VOL",_vol_,"BLKDEALL"`          | Block deallocations         | No
-| `"VOL",_vol_,"BLKREORG"`          | Block reorganizations       | No
-| `"VOL",_vol_,"BLOCK"`             | Block size in volume        | No
-| `"VOL",_vol_,"DBDAT"`             | Global ``$DATA``s           | No
-| `"VOL",_vol_,"DBGET"`             | Global gets                 | No
-| `"VOL",_vol_,"DBKIL"`             | Global kills                | No
-| `"VOL",_vol_,"DBORD"`             | Global ``$ORDER``s          | No
-| `"VOL",_vol_,"DBQRY"`             | Global ``$QUERY``s          | No
-| `"VOL",_vol_,"DBSET"`             | Global sets                 | No
-| `"VOL",_vol_,"DISKERRORS"`        | Daemon write errors         | No
-| `"VOL",_vol_,"FILE"`              | File name of volume         | Mount volume
-| `"VOL",_vol_,"FREE"`              | Free blocks in volume       | No
-| `"VOL",_vol_,"HEADER"`            | Header block size (volume)  | No
-| `"VOL",_vol_,"JOURNAL_AVAILABLE"` | Current journal status      | No
-| `"VOL",_vol_,"JOURNAL_FILE"`      | Journal file path (volume)  | Single-user
-| `"VOL",_vol_,"JOURNAL_REQUESTED"` | Enable/Disable journaling   | Privilege
-| `"VOL",_vol_,"JOURNAL_SIZE"`      | Journal file size (volume)  | 0 truncates
-| `"VOL",_vol_,"LASTOK"`            | Search last successes       | No
-| `"VOL",_vol_,"LASTTRY"`           | Search last tries           | No
-| `"VOL",_vol_,"LOGRD"`             | Logical block reads         | No
-| `"VOL",_vol_,"LOGWT"`             | Logical block writes        | No
-| `"VOL",_vol_,"PHYRD"`             | Physical block reads        | No
-| `"VOL",_vol_,"PHYWT"`             | Physical block writes       | No
-| `"VOL",_vol_,"NAME"`              | Name of volume              | Single-user
-| `"VOL",_vol_,"SIZE"`              | Size of volume in blocks    | Single-user
-| `"VOL",_vol_,"UCI",_uci_`         | Environment (UCI) name      | Create UCI
-| `"VOL",_vol_,"WRITELOCK"`         | Write lock status (volume)  | Yes (0 or 1)
+|`"$NEXTOK"`                      |On/Off `$NEXT`             |Privilege
+|`"BIG_ENDIAN"`                   |Hardware endianness        |No
+|`"CHARACTER"`                    |Always returns "M"         |No
+|`"EOK"`                          |On/Off exponent notation   |Privilege
+|`"NAME_LENGTH"`                  |Length of all names        |No
+|`"OFFOK"`                        |On/Off `DO/GOTO/JOB` offset|Privilege
+|`"PRECISION"`                    |Default numeric precision  |Privilege
+|`"STRING_MAX"`                   |Maximum size of strings    |No
+|`"TRANTAB",_num_`                |`_to=from_` (global maps)  |Privilege
+|`"VOL",_vol_,"BLKALLOC"`         |Block allocations          |No
+|`"VOL",_vol_,"BLKDEALL"`         |Block deallocations        |No
+|`"VOL",_vol_,"BLKREORG"`         |Block reorganizations      |No
+|`"VOL",_vol_,"BLOCK"`            |Block size in volume       |No
+|`"VOL",_vol_,"DBDAT"`            |Global ``$DATA``s          |No
+|`"VOL",_vol_,"DBGET"`            |Global gets                |No
+|`"VOL",_vol_,"DBKIL"`            |Global kills               |No
+|`"VOL",_vol_,"DBORD"`            |Global ``$ORDER``s         |No
+|`"VOL",_vol_,"DBQRY"`            |Global ``$QUERY``s         |No
+|`"VOL",_vol_,"DBSET"`            |Global sets                |No
+|`"VOL",_vol_,"DISKERRORS"`       |Daemon write errors        |No
+|`"VOL",_vol_,"FILE"`             |File name of volume        |Mount volume
+|`"VOL",_vol_,"FREE"`             |Free blocks in volume      |No
+|`"VOL",_vol_,"HEADER"`           |Header block size (volume) |No
+|`"VOL",_vol_,"JOURNAL_AVAILABLE"`|Current journal status     |No
+|`"VOL",_vol_,"JOURNAL_FILE"`     |Journal file path (volume) |Single-user
+|`"VOL",_vol_,"JOURNAL_REQUESTED"`|Enable/Disable journaling  |Privilege
+|`"VOL",_vol_,"JOURNAL_SIZE"`     |Journal file size (volume) |0 truncates
+|`"VOL",_vol_,"LASTOK"`           |Search last successes      |No
+|`"VOL",_vol_,"LASTTRY"`          |Search last tries          |No
+|`"VOL",_vol_,"LOGRD"`            |Logical block reads        |No
+|`"VOL",_vol_,"LOGWT"`            |Logical block writes       |No
+|`"VOL",_vol_,"PHYRD"`            |Physical block reads       |No
+|`"VOL",_vol_,"PHYWT"`            |Physical block writes      |No
+|`"VOL",_vol_,"NAME"`             |Name of volume             |Single-user
+|`"VOL",_vol_,"SIZE"`             |Size of volume in blocks   |Single-user
+|`"VOL",_vol_,"UCI",_uci_`        |Environment (UCI) name     |Create UCI
+|`"VOL",_vol_,"WRITELOCK"`        |Write lock status (volume) |Yes (0 or 1)
 |===
 
 ==== Action
@@ -2811,16 +2811,16 @@ set A="B",@A=1 ; sets B to 1
 [%autowidth]
 .Pattern Match
 |===
-| Code | Class       | Valid Characters
+|Code|Class      |Valid Characters
 
-| `E`  | Everything  | ASCII codes 0-255
-| `A`  | Alphabetic  | A-Z, a-z
-| `U`  | Uppercase   | A-Z
-| `L`  | Lowercase   | a-z
-| `N`  | Numeric     | 0-9
-| `P`  | Punctuation | ASCII codes 32-47, 58-64, 91-96, 123-126
-| `C`  | Control     | ASCII codes 0-31, 127-255
-|      | Literal     | As specified
+|`E` |Everything |ASCII codes 0-255
+|`A` |Alphabetic |A-Z, a-z
+|`U` |Uppercase  |A-Z
+|`L` |Lowercase  |a-z
+|`N` |Numeric    |0-9
+|`P` |Punctuation|ASCII codes 32-47, 58-64, 91-96, 123-126
+|`C` |Control    |ASCII codes 0-31, 127-255
+|    |Literal    |As specified
 |===
 
 A pattern is specified as a list of one or more _patternatoms_. A _patternatom_

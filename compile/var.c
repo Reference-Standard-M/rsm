@@ -1,6 +1,6 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/compile/localvar.c
+ * File:    rsm/compile/var.c
  * Summary: module compile - parse a local variable
  *
  * David Wicksell <dlw@linux.com>

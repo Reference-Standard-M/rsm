@@ -21,7 +21,8 @@
 #
 # SPDX-FileCopyrightText:  © 2023 David Wicksell <dlw@linux.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
+#
+#
 # If you want to install this for a single user, copy this file to
 # $HOME/.local/share/bash-completion/completions/.
 #

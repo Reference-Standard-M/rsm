@@ -178,16 +178,16 @@ short SS_Norm(mvar *var)                                                        
 
 int SS_Get(mvar *var, u_char *buf)                                              // get SSVN data
 {
-    int     i = 0;                                                              // useful int
-    int     j;                                                                  // and another
-    int     t;                                                                  // for functions
-    int     cnt;                                                                // count of bytes used
-    var_u   *rounam;                                                            // to extract rou name
-    u_char  tmp[1024];                                                          // temp string space
-    int     ptmp = 0;                                                           // pointer into this
-    int     nsubs = 0;                                                          // count subscripts
-    cstring *subs[4];                                                           // where to put them
-    mvar    *vp;                                                                // variable ptr
+    int          i = 0;                                                         // useful int
+    int          j;                                                             // and another
+    int          t;                                                             // for functions
+    int          cnt;                                                           // count of bytes used
+    const var_u *rounam;                                                        // to extract rou name
+    u_char       tmp[1024];                                                     // temp string space
+    int          ptmp = 0;                                                      // pointer into this
+    int          nsubs = 0;                                                     // count subscripts
+    cstring     *subs[4];                                                       // where to put them
+    mvar        *vp;                                                            // variable ptr
 
     while (i < var->slen) {                                                     // for all subs
         cnt = 0;                                                                // flag no rabbit ears quotes
@@ -706,7 +706,7 @@ ENABLE_WARN
         }                                                                       // end trantab stuff
 
         if (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) {
-            label_block *vol_label;                                             // current volume label
+            const label_block *vol_label;                                       // current volume label
 
             i = cstringtoi(subs[1]) - 1;                                        // make an int of vol#
             if ((i < 0) || (i >= MAX_VOL) || (systab->vol[i] == NULL)) return -ERRM26; // validate it, junk
@@ -1510,16 +1510,27 @@ ENABLE_WARN
         buf[0] = '\0';                                                          // null terminate
 
         if (dir < 0) {                                                          // backwards
-            if (subs[0]->buf[0] == '\0') i = MAX_SEQ_IO;                        // setup the seed
-            if (i == 0) return 0;
+            if (subs[0]->buf[0] == '\0') {
+                i = MAX_SEQ_IO;                                                 // setup the seed
+            } else if (i <= 0) {
+                return 0;                                                       // return empty string
+            } else if (i > MAX_SEQ_IO) {
+                i = MAX_SEQ_IO;                                                 // prevent out-of-bounds
+            }
 
-            for (i -= 1; i > -1; i--) {                                         // scan backwards
+            for (i--; i > -1; i--) {                                            // scan backwards
                 if (partab.jobtab->seqio[i].type != 0) break;                   // found one
             }
         } else {                                                                // forward
-            if (subs[0]->buf[0] == '\0') return ultocstring(buf, 0);
+            if (subs[0]->buf[0] == '\0') {
+                return ultocstring(buf, 0);                                     // return 0
+            } else if (i < -1) {
+                i = -1;                                                         // prevent out-of-bounds
+            } else if (i >= (MAX_SEQ_IO - 1)) {
+                return 0;                                                       // return empty string
+            }
 
-            for (i += 1; i < MAX_SEQ_IO; i++) {                                 // scan the list
+            for (i++; i < MAX_SEQ_IO; i++) {                                    // scan the list
                 if (partab.jobtab->seqio[i].type != 0) break;                   // found one
             }
         }

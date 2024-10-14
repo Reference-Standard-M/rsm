@@ -100,7 +100,7 @@ short Vhorolog(u_char *ret_buffer)
     int    day = sec / SECDAY + YRADJ;                                          // get number of days
 
     sec %= SECDAY;                                                              // and number of seconds
-    return (short) sprintf((char *) ret_buffer, "%d,%d", day, (int) sec);       // return count and $HOROLOG
+    return (short) snprintf((char *) ret_buffer, 14, "%d,%d", day, (int) sec);  // return count and $HOROLOG
 }
 
 // $KEY
@@ -136,7 +136,7 @@ short Vsystem(u_char *ret_buffer)
 // $X
 short Vx(u_char *ret_buffer)
 {
-    SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
+    const SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];      // ptr to current $IO
 
     return (short) ultocstring(ret_buffer, ioptr->dx);                          // return len with data in buf
 }
@@ -144,7 +144,7 @@ short Vx(u_char *ret_buffer)
 // $Y
 short Vy(u_char *ret_buffer)
 {
-    SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];            // ptr to current $IO
+    const SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];      // ptr to current $IO
 
     return (short) ultocstring(ret_buffer, ioptr->dy);                          // return len with data in buf
 }

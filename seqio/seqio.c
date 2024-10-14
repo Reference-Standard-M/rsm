@@ -26,9 +26,8 @@
  *
  * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
  * SPDX-License-Identifier: AGPL-3.0-or-later
- */
-
-/*
+ *
+ *
  * Extended Summary:
  *
  * This module can be viewed as the "main" program for all matters relating
@@ -47,7 +46,7 @@
  *     SQ_Device      - Gathers information about the current IO object
  *     SQ_Force       - Forces data to an object
  *
- * NOTE: An object is one of a file, device, named pipe or tcpip socket
+ * NOTE: An object is one of a file, device, named pipe or TCP/IP socket
  */
 
 #include <errno.h>
@@ -112,14 +111,6 @@
 // Miscellaneous
 #define STDCHAN 0                                                               // stdin, stdout and stderr
 
-static u_int64 MASK[MASKSIZE];                                                  // Set bit mask
-static u_int64 CRLF;                                                            // CRLF
-
-short proto_family = PF_INET;                                                   // PF_INET or PF_INET6
-short addr_family  = AF_INET;                                                   // AF_INET or AF_INET6
-short sock_type    = SOCK_STREAM;                                               // SOCK_STREAM or SOCK_DGRAM
-short sock_proto   = IPPROTO_TCP;                                               // IPPROTO_TCP or IPPROTO_UDP
-
 // The following required for linux
 #ifdef linux
 #   include <sys/ttydefaults.h>
@@ -128,6 +119,14 @@ short sock_proto   = IPPROTO_TCP;                                               
 #ifndef S_ISWHT
 #   define S_ISWHT(m) (((m) & 0170000) == 0160000)                              // whiteout
 #endif
+
+static u_int64 MASK[MASKSIZE];                                                  // Set bit mask
+static u_int64 CRLF;                                                            // CRLF
+
+short proto_family = PF_INET;                                                   // PF_INET or PF_INET6
+short addr_family  = AF_INET;                                                   // AF_INET or AF_INET6
+short sock_type    = SOCK_STREAM;                                               // SOCK_STREAM or SOCK_DGRAM
+short sock_proto   = IPPROTO_TCP;                                               // IPPROTO_TCP or IPPROTO_UDP
 
 extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
 extern u_short hist_next;                                                       // next history pointer
@@ -317,7 +316,7 @@ int isChanFree(int chan)
  * If any of the forementioned statements are true, this function returns a
  * negative integer value to indicate the error. Otherwise, a 0 is returned.
  */
-int checkAsciiChars(cstring *cstr)
+int checkAsciiChars(const cstring *cstr)
 {
     int index;
     int ret;
@@ -375,7 +374,7 @@ int setOptionsBitMask(int options, int bit, int flag)
  * "server[6]/tcpserver[6]", "udpserver[6]", "pipe", or "newpipe". Otherwise,
  * it returns a negative integer to indicate the error that has occurred.
  */
-int getOperation(cstring *op)
+int getOperation(const cstring *op)
 {
     char str[OPSIZE];                                                           // Useful buffer
     char *ptr;                                                                  // Pointer to '=' in operation
@@ -604,7 +603,7 @@ int initSERVER(int chan, u_int size)
  * If successful, this function returns 0. Otherwise, it returns a
  * negative integer value to indicate the error that has occurred.
  */
-int openSERVER(int chan, char *oper)
+int openSERVER(int chan, const char *oper)
 {
     SQ_Chan *c;
     char    *ptr;
@@ -1014,6 +1013,8 @@ int readFILE(int chan, u_char *buf, int maxbyt)
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
                     return bytesread - 1;
+                } else if (crflag == TRUE) {
+                    crflag = FALSE;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1127,6 +1128,8 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
                     return bytesread - 1;
+                } else if (crflag == TRUE) {
+                    crflag = FALSE;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1204,6 +1207,8 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
                     return bytesread - 1;
+                } else if (crflag == TRUE) {
+                    crflag = FALSE;
                 }
             } else if ((u_char) buf[bytesread] < 128) {
                 if (c->in_term.interm[(u_char) buf[bytesread] / 64] & MASK[(u_char) buf[bytesread] % 64]) {
@@ -1469,7 +1474,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         bytesread = len;
                         ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
                         if (ret < 0) return ret;
-                        sprintf((char *) buf, "%s", history[hist_curr]);
+                        snprintf((char *) buf, maxbyt, "%s", history[hist_curr]);
 
                         if (!(c->dx % w.ws_col)) {                              // Cursor has hit the end of the line
                             // Move cursor to the beginning of the next line
@@ -1575,6 +1580,8 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                     c->dkey[1] = (char) 10;
                     c->dkey[2] = '\0';
                     return bytesread - 1;
+                } else if (crflag == TRUE) {
+                    crflag = FALSE;
                 }
             } else if (curr < 128) {
                 if ((in_hist != OFF) && (curr == 13)) {
@@ -1611,7 +1618,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
         if ((in_hist != OFF) || (c->options & MASK[TTYECHO])) {
             if (curr == '\t') curr = ' ';                                       // Convert tab to space
             writebuf.len = 1;
-            sprintf((char *) writebuf.buf, "%c", curr);
+            snprintf((char *) writebuf.buf, 2, "%c", curr);
             ret = SQ_Write(&writebuf);
             if (ret < 0) return ret;
         }
@@ -1678,20 +1685,20 @@ int initObject(int chan, int type)
 
     case SQ_FILE:
         c->type = (u_char) SQ_FILE;
-        snprintf((char *) outerm.buf, BUFSIZE, "%c", (char) 10);
-        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
+        snprintf((char *) outerm.buf, 2, "%c", (char) 10);
+        snprintf((char *) interm.buf, 2, "%c", (char) 10);
         break;
 
     case SQ_SOCK:
         c->type = (u_char) SQ_SOCK;
-        snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) outerm.buf, 3, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, 3, "%c%c", (char) 13, (char) 10);
         break;
 
     case SQ_PIPE:
         c->type = (u_char) SQ_PIPE;
-        snprintf((char *) outerm.buf, BUFSIZE, "%c", (char) 10);
-        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 10);
+        snprintf((char *) outerm.buf, 2, "%c", (char) 10);
+        snprintf((char *) interm.buf, 2, "%c", (char) 10);
         break;
 
     case SQ_TERM:
@@ -1716,8 +1723,8 @@ int initObject(int chan, int type)
         }
 
         par |= (SQ_USE_ECHO | SQ_USE_ESCAPE | SQ_USE_TYPEAHEAD | SQ_USE_DEL127 | SQ_CONTROLC);
-        snprintf((char *) outerm.buf, BUFSIZE, "%c%c", (char) 13, (char) 10);
-        snprintf((char *) interm.buf, BUFSIZE, "%c", (char) 13);
+        snprintf((char *) outerm.buf, 3, "%c%c", (char) 13, (char) 10);
+        snprintf((char *) interm.buf, 2, "%c", (char) 13);
         break;
 
     default:
@@ -1848,7 +1855,7 @@ short SQ_Init(void)
  * NOTE: "tout" does not apply for files; and a "tout" of zero is used to
  *       test ownership success without starting a timer
  */
-short SQ_Open(int chan, cstring *object, cstring *op, int tout)
+short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
 {
     SQ_Chan *c;                                                                 // Channel to open
     int     oper;                                                               // Operation identifier
@@ -2276,7 +2283,7 @@ int SQ_Write(cstring *writebuf)
 
         for (int i = 0; i < writebuf->len; i++) {
             if (writebuf->buf[i] == '\t') {
-                cnt += (8 - ((partab.jobtab->seqio[chan].dx + cnt) % 8));       // Increment $X by tab-over
+                cnt += 8 - ((partab.jobtab->seqio[chan].dx + cnt) % 8);         // Increment $X by tab-over
             } else if (isprint(writebuf->buf[i])) {
                 cnt++;                                                          // Increment $X by one
             }
@@ -2310,7 +2317,7 @@ short SQ_WriteStar(u_char c)
 
     if (partab.jobtab->seqio[chan].type == SQ_TERM) {
         if (c == '\t') {
-            partab.jobtab->seqio[chan].dx += (8 - (partab.jobtab->seqio[chan].dx % 8)); // Increment $X by tab-over
+            partab.jobtab->seqio[chan].dx += 8 - (partab.jobtab->seqio[chan].dx % 8); // Increment $X by tab-over
         } else if (isprint(c)) {
             partab.jobtab->seqio[chan].dx++;                                    // Increment $X by one
         }
@@ -2643,10 +2650,10 @@ short SQ_Flush(void)
  */
 int SQ_Device(u_char *buf)
 {
-    int     chan;                                                               // Current IO channel
-    char    errmsg[BUFSIZE];                                                    // Error message
-    SQ_Chan *c;                                                                 // $IO pointer
-    char    *name;                                                              // Channel's attributes
+    int        chan;                                                            // Current IO channel
+    char       errmsg[2048];                                                    // Error message
+    SQ_Chan    *c;                                                              // $IO pointer
+    const char *name;                                                           // Channel's attributes
 
     // Check parameters
     if (buf == NULL) return getError(INT, ERRZ28);

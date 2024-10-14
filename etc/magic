@@ -21,7 +21,8 @@
 #
 # SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
+#
+#
 # If you want to install this for a single user, copy this file to $HOME/.magic.
 # If $HOME/.magic already exists, append the non-comment contents of this file
 # to it. You may optionally compile it with:

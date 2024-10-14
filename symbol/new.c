@@ -103,12 +103,12 @@ short ST_NewAll(int count, var_u *list)
             }                                                                   // if var is another non new
 
             if (new == 1) {                                                     // if new flag set
-                cntnew += 1;                                                    // incr num new'd vars
+                cntnew++;                                                       // increment number of new'd variables
             } else {                                                            // setup done for var, don't new, add to enn
-                cntnon += 1;                                                    // incr num non new'd vars
+                cntnon++;                                                       // increment number of non-new'd variables
             }                                                                   // end else add to enn
         } else {                                                                // end if vars to not new, no vars to keep
-            cntnew += 1;                                                        // incr count of new'd vars
+            cntnew++;                                                           // increment count of new'd variables
         }                                                                       // end else new everything
     }                                                                           // end for all in symtab
 

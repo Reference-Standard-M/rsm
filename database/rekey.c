@@ -54,7 +54,6 @@ short Set_key(u_int ptr_blk, int this_level)                                    
     u_char   tmp[8];                                                            // some space
     u_char   gtmp[VAR_LEN + 4];                                                 // to find glob
     u_int    i;                                                                 // a handy unsigned int
-    u_int    *ui;                                                               // an int pointer
     cstring  *ptr;                                                              // spare pointer
     int      rs;                                                                // required space
     int      ts;                                                                // trailing size
@@ -68,8 +67,7 @@ short Set_key(u_int ptr_blk, int this_level)                                    
 DISABLE_WARN(-Warray-bounds)
     ptr->len = 4;                                                               // always
 ENABLE_WARN
-    ui = (u_int *) ptr->buf;                                                    // for pointers
-    *ui = ptr_blk;                                                              // copy this here
+    memcpy(ptr->buf, &ptr_blk, sizeof(u_int));                                  // for pointers, copy this here
     level = this_level;                                                         // set current level
 
     if (!this_level) {                                                          // top level split
@@ -464,8 +462,6 @@ void Un_key(void)
 
             if (level < (this_level - 1)) {                                     // if up > 1 level
                 if (SOA(blk[level + 1]->mem)->last_idx > (IDX_START - 1)) {     // and if lower not mt
-                    u_int *xui;                                                 // an int pointer
-
                     idx = (u_short *) SOA(blk[level + 1]->mem);                 // point at the block
                     iidx = (int *) SOA(blk[level + 1]->mem);                    // point at the block
                     chunk = (cstring *) &iidx[idx[IDX_START]];                  // point at first chunk
@@ -474,8 +470,7 @@ void Un_key(void)
 DISABLE_WARN(-Warray-bounds)
                     xptr->len = 4;                                              // one int
 ENABLE_WARN
-                    xui = (u_int *) xptr->buf;                                  // point the int here
-                    *xui = blk[level + 1]->block;                               // get the block#
+                    memcpy(xptr->buf, &blk[level + 1]->block, sizeof(u_int));   // point the int here, get block#
                     s = Insert(lptr, xptr);                                     // insert that
 
                     if (s == -(ERRZ62 + ERRMLAST)) {

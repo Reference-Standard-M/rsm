@@ -30,6 +30,46 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 == Release Changelog
 
+=== v1.82.0 -- 2024 Oct 14
+
+* Add `.` format code to `$FNUMBER` for other locales
+* Add initial support for SPARC platforms
+* Improve CRLF as a single read terminator by requiring them to be together
+* Fix performance regression in the `LOCK` command
+* Fix channel overflow bugs in `$ORDER` support for `^$DEVICE`
+* Fix bug in how reverse `$QUERY` handles local variable roots
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/8
+* Fix quote display bug in the `$&%ZWRITE` XCall
+* Fix bug in `E` pattern match code when used with `$CHAR(0)`
+* Improve error handling in `$FNUMBER`
+* Fix rounding overflow bug in `$FNUMBER`
+* Fix rounding overflow bug in `$JUSTIFY`
+* Fix bug setting `$ECODE` to user-defined values (`,U...,`)
+* Improve error handling when setting `$ECODE` values
+* Correct bug fix when using an empty indirection string in `$TEXT`
+* Improve some daemon log messages
+* Fix semaphore bug when stopping the journal which can cause hangs
+* Add journal size to the environment info menu
+* Fix bug calculating free global buffers in the environment info menu
+* Update the base image version in the Docker configuration file [`Dockerfile`]
+* Improve the Make configurations
+  - Add the pedantic flag
+  - Modify `CFLAGS` and `LDFLAGS` to allow options from the environment
+  - Add memory leak detector to the address sanitizer option
+  - Improve the `install` and `install-docs` rules
+  - Improve the `uninstall` and `uninstall-docs` rules
+* Fix pedantic compiler warnings on supported platforms
+* Fix linter warnings
+* Fix warnings and errors from address sanitizer
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/8
+* Improve general bounds-checking in many places
+* Rename some source files
+  - `compile/localvar.c` => `compile/var.c`
+  - `runtime/buildmvar.c` => `runtime/mvar.c`
+  - `util/strerror.c` => `util/error.c`
+* Add input verification to the `COPY` command in the MCL
+* Improve the output of the block repair tool [`^FIX`]
+
 === v1.81.1 -- 2024 Jun 22
 
 * Fix several bugs and make many improvements to the Make configurations

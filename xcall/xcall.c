@@ -215,7 +215,7 @@ char *findNextChar(char ch, char *filename)
         if (*filename == ch) {
             return filename;
         } else {
-            filename += 1;
+            filename++;
         }
     }
 
@@ -239,13 +239,13 @@ int isPatternMatch(char *pattern, char *filename)
     while (*pattern != '\0') {
         if (*pattern == '*')  {                                                 // Get next character to match
             flag = 1;
-            pattern += 1;
+            pattern++;
         } else if (*pattern == '?') {                                           // Wildcard
             if (*filename == '\0') {
                 return 0;
             } else {
-                filename += 1;
-                pattern += 1;
+                filename++;
+                pattern++;
             }
         } else if (flag == 1) {                                                 // Find first occurrence
             filename = findNextChar(*pattern, filename);
@@ -253,8 +253,8 @@ int isPatternMatch(char *pattern, char *filename)
             if (*filename == '\0') {
                 return 0;
             } else {
-                filename += 1;
-                pattern += 1;
+                filename++;
+                pattern++;
                 flag = 0;
             }
         } else {                                                                // Match character
@@ -263,8 +263,8 @@ int isPatternMatch(char *pattern, char *filename)
             } else if (*filename != *pattern) {
                 return 0;
             } else {
-                filename += 1;
-                pattern += 1;
+                filename++;
+                pattern++;
             }
         }
     }
@@ -273,7 +273,7 @@ int isPatternMatch(char *pattern, char *filename)
 }
 
 // $&%DIRECTORY - Directory lookup
-short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) cstring *dummy)
+short Xcall_directory(char *ret_buffer, const cstring *file, __attribute__((unused)) cstring *dummy)
 {
     struct dirent *dent;                                                        // Directory entry
     char          path[MAXFILENAME];                                            // Directory
@@ -325,20 +325,20 @@ short Xcall_directory(char *ret_buffer, cstring *file, __attribute__((unused)) c
 
                 // If the first occurrence of PATHSEP is the first character in "path",
                 // then we want to search the root directory.
-                if (len == 0) sprintf(path, "%c", PATHSEP);
-                patptr += 1;
+                if (len == 0) snprintf(path, MAXFILENAME, "%c", PATHSEP);
+                patptr++;
                 len = -2;
             } else {
-                if (len != 0) patptr -= 1;
+                if (len != 0) patptr--;
                 len--;
             }
         }
 
-        sprintf(pattern, "%s", patptr);                                         // Record pattern for subsequent calls
+        snprintf(pattern, MAXFILENAME, "%s", patptr);                           // Record pattern for subsequent calls
 
         // If path is empty, then assume current directory
         if (len == -1) {
-            sprintf((char *) env.buf, "%s", "PWD");
+            snprintf((char *) env.buf, MAX_STR_LEN + 1, "%s", "PWD");
             env.len = strlen((char *) env.buf);
             ret = Xcall_getenv(path, &env, NULL);
             if (ret < 0) return (short) ret;
@@ -1245,13 +1245,11 @@ static tDirStatus AuthenticateWithNode(tDirReference dirRef, tDataListPtr pathLi
     }
 
     if (err == eDSNoErr) {
-        length = userNameLen + 1;                                               // + 1 to include trailing null
 #ifdef __clang__
+        length = userNameLen + 1;                                               // + 1 to include trailing null
         assert(dsDataBufferAppendData(authInBuf, &length, sizeof(length)) == noErr);
         assert(dsDataBufferAppendData(authInBuf, userNameForAuth, userNameLen + 1) == noErr);
-#endif
         length = passwordLen + 1;                                               // + 1 to include trailing null
-#ifdef __clang__
         assert(dsDataBufferAppendData(authInBuf, &length, sizeof(length)) == noErr);
         assert(dsDataBufferAppendData(authInBuf, password, passwordLen + 1) == noErr);
 #endif
@@ -1338,8 +1336,8 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
 // $&PASCHK - Check user/password
 short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 {
-    char       *username;
-    char       *password;
+    const char *username;
+    const char *password;
     tDirStatus err;
 
     username = (char *) user->buf;
@@ -1379,12 +1377,12 @@ short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 short Xcall_paschk(char *ret_buffer, const cstring *user, __attribute__((unused)) cstring *pwd)
 #endif
 {
-    FILE *fd;                                                                   // secure user database
-    char line[256];                                                             // line
-    char *err;                                                                  // fgets error
-    char *preptr;                                                               // ':' (i.e., username:)
-    char *postptr;                                                              // ':' (i.e., username:password:)
-    char password[256] = {0};                                                   // encrypted password
+    FILE       *fd;                                                             // secure user database
+    char       line[256];                                                       // line
+    const char *err;                                                            // fgets error
+    char       *preptr;                                                         // ':' (i.e., username:)
+    char       *postptr;                                                        // ':' (i.e., username:password:)
+    char       password[256] = {0};                                             // encrypted password
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
     fd = fopen("/etc/master.passwd", "r");
@@ -1420,7 +1418,7 @@ short Xcall_paschk(char *ret_buffer, const cstring *user, __attribute__((unused)
                 postptr = strchr(preptr, ':');
                 *postptr = '\0';
 #ifndef __CYGWIN__
-                strcpy(password, crypt((char *) pwd->buf, preptr));             // WON'T WORK ON CYGWIN
+                strncpy(password, crypt((char *) pwd->buf, preptr), 255);       // WON'T WORK ON CYGWIN
 #endif
 
                 if (strcmp(password, preptr) == 0) {

@@ -423,7 +423,7 @@ function:                                                                       
             ptr = comp_ptr - 1;                                                 // remember where this goes
 
             if (*ptr == INDEVAL) {                                              // if it's going to eval it
-                if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) { // $NAME, $ORDER or $QUERY
+                if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) { // $NAME/$NEXT, $ORDER or $QUERY
                     *ptr = INDMVARN;                                            // allow null subs
                 } else {
                     *ptr = INDMVAR;                                             // make an mvar from it
@@ -432,7 +432,7 @@ function:                                                                       
                 ptr -= 2;                                                       // back up over subs to type
 
                 if (*ptr == OPVAR) {
-                    if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) { // $NAME, $ORDER or $QUERY
+                    if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) { // $NAME/$NEXT, $ORDER or $QUERY
                         *ptr = OPMVARN;                                         // allow null subs
                     } else {
                         *ptr = OPMVAR;                                          // change to OPMVAR
@@ -449,7 +449,7 @@ function:                                                                       
 
             ptr = &ptr[s];                                                      // point at the OPVAR
 
-            if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) {     // $NAME, $ORDER or $QUERY
+            if ((name[0] == 'N') || (name[0] == 'O') || (name[0] == 'Q')) {     // $NAME/$NEXT, $ORDER or $QUERY
                 *ptr = OPMVARN;                                                 // allow null subs
             } else {
                 *ptr = OPMVAR;                                                  // change to a OPMVAR
@@ -774,10 +774,13 @@ function:                                                                       
 
             for (i = 1; i <= args; i++) {                                       // scan the addr array
                 if (i & 1) {
-                    *((short *) selj[i]) = (short) (selj[i + 1] - selj[i]);
+                    s = (short) (selj[i + 1] - selj[i]);
                 } else {
-                    *((short *) selj[i]) = (short) (comp_ptr - selj[i]) - sizeof(short);
+                    s = (short) (comp_ptr - selj[i] - sizeof(short));
                 }
+
+                assert(sizeof(s) == sizeof(short));
+                memcpy(selj[i], &s, sizeof(short));
             }
 
             return;                                                             // end of $SELECT()

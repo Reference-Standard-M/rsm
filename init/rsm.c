@@ -46,22 +46,22 @@ int restricted = FALSE;                                                         
 // *** Main entry for create, init, run, help, info, and shutdown ***
 int main(int argc, char **argv)                                                 // main entry point
 {
-    int   c;                                                                    // for case
-    int   bsize = 0;                                                            // block size
-    char  i = FALSE;                                                            // for info()
-    char  k = FALSE;                                                            // for shutdown()
-    char  *env = NULL;                                                          // start environment name
-    int   jobs = 0;                                                             // max jobs
-    int   map = 0;                                                              // header/map block bytes
-    u_int gmb = 0;                                                              // global buf MiB
-    u_int rmb = 0;                                                              // routine buf MiB
-    u_int addmb = 0;                                                            // additional buffer in MiB
-    int   blocks = 0;                                                           // number of data blocks
-    char  *volnam = NULL;                                                       // volume name
-    char  *cmd = NULL;                                                          // startup command
-    char  *dbfile;                                                              // pass volume in environment
-    char  file[VOL_FILENAME_MAX];
-    char  version[40];                                                          // for the version string (-V)
+    int        c;                                                               // for case
+    int        bsize = 0;                                                       // block size
+    char       i = FALSE;                                                       // for info()
+    char       k = FALSE;                                                       // for shutdown()
+    char       *env = NULL;                                                     // start environment name
+    int        jobs = 0;                                                        // max jobs
+    int        map = 0;                                                         // header/map block bytes
+    u_int      gmb = 0;                                                         // global buf MiB
+    u_int      rmb = 0;                                                         // routine buf MiB
+    u_int      addmb = 0;                                                       // additional buffer in MiB
+    int        blocks = 0;                                                      // number of data blocks
+    char       *volnam = NULL;                                                  // volume name
+    char       *cmd = NULL;                                                     // startup command
+    const char *dbfile;                                                         // pass volume in environment
+    char       file[VOL_FILENAME_MAX];
+    char       version[40];                                                     // for the version string (-V)
 
     dbfile = getenv("RSM_DBFILE");
     if ((argc < 2) && (dbfile == NULL)) help();                                 // they need help

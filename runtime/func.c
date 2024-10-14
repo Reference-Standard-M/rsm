@@ -165,21 +165,22 @@ int Dfind3x(cstring *expr1, cstring *expr2, int start)
  *
  * NOTE: numexp MUST be a canonic number!!
  */
-int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
+int Dfnumber2(u_char *ret_buffer, const cstring *numexp, const cstring *code)
 {
-    cstring *tempc;
-    cstring *dest;
-    int     z;
-    int     dlen;
-    char    *a1 = NULL;                                                         // flag
-    char    *a2 = NULL;                                                         // flag
-    char    *b1 = NULL;                                                         // flag
-    char    *b2 = NULL;                                                         // flag
-    char    *c1 = NULL;                                                         // flag
-    char    *c2 = NULL;                                                         // flag
-    char    *d1 = NULL;                                                         // flag
-    char    *dp = NULL;                                                         // decimal point position
-    u_char  cnt = 0;                                                            // count of valid codes
+    cstring    *tempc;
+    cstring    *dest;
+    int        z;
+    int        dlen;
+    const char *a1 = NULL;                                                      // flag
+    const char *a2 = NULL;                                                      // flag
+    const char *b1 = NULL;                                                      // flag
+    const char *b2 = NULL;                                                      // flag
+    const char *c1 = NULL;                                                      // flag
+    const char *c2 = NULL;                                                      // flag
+    const char *d1 = NULL;                                                      // flag
+    const char *d2 = NULL;                                                      // flag
+    const char *dp = NULL;                                                      // decimal point position
+    u_char     cnt = 0;                                                         // count of valid codes
 
     ret_buffer[0] = '\0';
     if ((a1 = strchr((const char *) &code->buf[0], 'p'))) cnt++;                // in code string ??
@@ -189,15 +190,18 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     if ((c1 = strchr((const char *) &code->buf[0], 't'))) cnt++;                // in code string ??
     if ((c2 = strchr((const char *) &code->buf[0], 'T'))) cnt++;                // in code string ??
     if ((d1 = strchr((const char *) &code->buf[0], ','))) cnt++;                // in code string ??
+    if ((d2 = strchr((const char *) &code->buf[0], '.'))) cnt++;                // in code string ??
     if ((dp = strchr((const char *) &numexp->buf[0], '.'))) cnt++;              // decimal position in number *|Null
 
     if (((a1 != NULL) || (a2 != NULL)) && ((b1 != NULL) || (b2 != NULL) || (c1 != NULL) || (c2 != NULL))) { // check for invalid
         return -ERRM2;                                                          // invalid code, error
     }
 
+    if ((d1 != NULL) && (d2 != NULL)) return -ERRM2;                            // invalid code, error
+
     for (int j = 0; j < code->len; j++) {
         if (strncasecmp((const char *) &code->buf[j], "p", 1) && strncasecmp((const char *) &code->buf[j], "t", 1) &&
-          (code->buf[j] != ',') && (code->buf[j] != '+') && (code->buf[j] != '-')) {
+          (code->buf[j] != ',') && (code->buf[j] != '.') && (code->buf[j] != '+') && (code->buf[j] != '-')) {
             return -ERRM2;                                                      // invalid code, error
         }
     }
@@ -218,7 +222,7 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     dest->len = numexp->len - z;
     memcpy(dest->buf, &numexp->buf[z], numexp->len);
 
-    if (d1 != NULL) {                                                           // add in commas
+    if ((d1 != NULL) || (d2 != NULL)) {                                         // add in commas or periods
         int    ndlen;
         int    nlen;
         int    nc;
@@ -233,52 +237,67 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
             }
 
             ndlen = i;                                                          // save this pos
-            if (numexp->buf[0] == '-') ndlen -= 1;                              // dont count "-"
+            if (numexp->buf[0] == '-') ndlen--;                                 // dont count "-"
             nc = ndlen / 3;                                                     // num commas required
-            if (((ndlen % 3) == 0) && (i > 0)) nc -= 1;                         // if *3 need one less,
+            if (((ndlen % 3) == 0) && (i > 0)) nc--;                            // if *3 need one less,
             nlen = dest->len + nc - 1;                                          // orig+num commas-idx
             tempc->len = nlen + 1;
             ptr1 = &dest->buf[dest->len - 1];                                   // copy all including
 
             while (*ptr1 != '.') {                                              // the NULL term, up to
                 memcpy(&tempc->buf[nlen], ptr1, 1);                             // the decimal point
-                nlen -= 1;                                                      // but not including
-                ptr1 -= 1;                                                      // the decimal point
+                nlen--;                                                         // but not including
+                ptr1--;                                                         // the decimal point
             }
 
-            memcpy(&tempc->buf[nlen], ptr1, 1);                                 // now copy over
-            nlen -= 1;                                                          // the decimal
-            ptr1 -= 1;                                                          // point only
+            if (d2 != NULL) {                                                   // change to comma
+                memcpy(&tempc->buf[nlen], ",", 1);                              // now copy over
+            } else {
+                memcpy(&tempc->buf[nlen], ptr1, 1);                             // now copy over
+            }
+
+            nlen--;                                                             // the decimal
+            ptr1--;                                                             // point only
 
             while (nlen >= 0) {                                                 // copy the rest
-                cd += 1;                                                        // of the string
+                cd++;                                                           // of the string
                 memcpy(&tempc->buf[nlen], ptr1, 1);                             // to the destination
-                nlen -= 1;                                                      // and every
-                ptr1 -= 1;                                                      // third position
+                nlen--;                                                         // and every
+                ptr1--;                                                         // third position
 
                 if (((cd % 3) == 0) && (nlen > 0)) {                            // copy over
-                    tempc->buf[nlen] = ',';                                     // a comma
-                    nlen -= 1;
+                    if (d2 != NULL) {
+                        tempc->buf[nlen] = '.';                                 // a period
+                    } else {
+                        tempc->buf[nlen] = ',';                                 // a comma
+                    }
+
+                    nlen--;
                 }
             }
         } else {                                                                // no decimal point
             ndlen = numexp->len;                                                // save this start pos
-            if (numexp->buf[0] == '-') ndlen -= 1;                              // dont count "-"
+            if (numexp->buf[0] == '-') ndlen--;                                 // dont count "-"
             nc = ndlen / 3;                                                     // num commas required
-            if ((ndlen % 3) == 0) nc -= 1;                                      // if *3 need one less,
+            if ((ndlen % 3) == 0) nc--;                                         // if *3 need one less,
             nlen = numexp->len + nc - 1;                                        // orig+num commas-idx
             tempc->len = nlen + 1;
             ptr1 = &dest->buf[dest->len - 1];
 
             while (nlen >= 0) {                                                 // copy the rest
-                cd += 1;                                                        // of the string
+                cd++;                                                           // of the string
                 memcpy(&tempc->buf[nlen], ptr1, 1);                             // to the destination
-                nlen -= 1;                                                      // and every
-                ptr1 -= 1;                                                      // third position
+                nlen--;                                                         // and every
+                ptr1--;                                                         // third position
 
                 if (((cd % 3) == 0) && (nlen > 0)) {                            // copy over
-                    tempc->buf[nlen] = ',';                                     // a comma
-                    nlen -= 1;
+                    if (d2 != NULL) {
+                        tempc->buf[nlen] = '.';                                 // a period
+                    } else {
+                        tempc->buf[nlen] = ',';                                 // a comma
+                    }
+
+                    nlen--;
                 }
             }
         }
@@ -374,11 +393,12 @@ int Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
     return dlen;
 }                                                                               // end function $FNUMBER
 
-int Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
+int Dfnumber3(u_char *ret_buffer, cstring *numexp, const cstring *code, int rnd)
 {
     cstring *change;
     int     t;
 
+    if (rnd > MAX_NUM_BYTES) return -ERRM92;                                    // if too big error
     t = Djustify3(ret_buffer, numexp, 0, rnd);
     if (t < 0) return t;
     change = malloc(sizeof(short) + t + 1);
@@ -522,6 +542,7 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 
     if (round < 0) return -ERRM28;                                              // that's an error
     if (size > MAX_STR_LEN) return -ERRM75;                                     // complain if too long
+    if (round > MAX_NUM_BYTES) return -ERRM92;                                  // if too big error
     if (size < 0) size = 0;                                                     // if negative size then make it zero
     len = expr->len;
 
@@ -616,7 +637,7 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 }
 
 // $LENGTH(expr1[,expr2])
-short Dlength1(u_char *ret_buffer, cstring *expr)
+short Dlength1(u_char *ret_buffer, const cstring *expr)
 {
     return (short) ultocstring(ret_buffer, expr->len);                          // just do it
 }
@@ -638,7 +659,7 @@ int Dlength2x(cstring *expr, cstring *delim)
         for (j = 0; j != (int) delim->len; j++) {
             if (expr->buf[i + j] != delim->buf[j]) break;                       // quit if not the same
 
-            if ((j + 1) == (int) delim->len) {                                  // if at end of delim
+            if ((int) delim->len == (j + 1)) {                                  // if at end of delim
                 pce++;                                                          // count a piece
                 i += j;                                                         // move i on a bit
             }                                                                   // end 'piece matches'
@@ -705,17 +726,17 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
 }
 
 // $PIECE(expr1,expr2[,int1[,int2]])
-int Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim)
+int Dpiece2(u_char *ret_buffer, cstring *expr, const cstring *delim)
 {
     return Dpiece4(ret_buffer, expr, delim, 1, 1);                              // use Dpiece4()
 }
 
-int Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1)
+int Dpiece3(u_char *ret_buffer, cstring *expr, const cstring *delim, int i1)
 {
     return Dpiece4(ret_buffer, expr, delim, i1, i1);                            // use Dpiece4()
 }
 
-int Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
+int Dpiece4(u_char *ret_buffer, cstring *expr, const cstring *delim, int i1, int i2)
 {
     int beg = 0;                                                                // start copy from
     int end;                                                                    // copy to
@@ -879,15 +900,15 @@ int Dstack2(u_char *ret_buffer, int level, cstring *code)
 
 int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
 {
-    int     arg2 = 0;                                                           // arg 2 - 1 = ECODE, 2 = MCODE, 3 = PLACE
-    var_u   *rounam;                                                            // routine name
-    int     line;                                                               // line number
-    int     i;                                                                  // a handy int
-    u_char  *p;                                                                 // a handy pointer
-    mvar    *var;                                                               // for ^$ROUTINE()
-    u_char  temp[VAR_LEN + 4];                                                  // ditto
-    cstring *cptr;                                                              // ditto
-    int     t;                                                                  // ditto
+    int          arg2 = 0;                                                      // arg 2 - 1 = ECODE, 2 = MCODE, 3 = PLACE
+    var_u        *rounam;                                                       // routine name
+    int          line;                                                          // line number
+    int          i;                                                             // a handy int
+    const u_char *p;                                                            // a handy pointer
+    mvar         *var;                                                          // for ^$ROUTINE()
+    u_char       temp[VAR_LEN + 4];                                             // ditto
+    cstring      *cptr;                                                         // ditto
+    int          t;                                                             // ditto
 
     ret_buffer[0] = '\0';                                                       // null terminate
     if (level < 0) return 0;                                                    // junk
@@ -1164,14 +1185,14 @@ ENABLE_WARN
 }
 
 // $TRANSLATE(expr1,expr2[,expr3])
-int Dtranslate2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
+int Dtranslate2(u_char *ret_buffer, cstring *expr1, const cstring *expr2)
 {
     u_short us = 0;                                                             // arg 3
 
     return Dtranslate3(ret_buffer, expr1, expr2, (cstring *) &us);
 }
 
-int Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *expr3)
+int Dtranslate3(u_char *ret_buffer, cstring *expr1, const cstring *expr2, cstring *expr3)
 {
     u_int i1;                                                                   // for expr1
     u_int i2;                                                                   // for expr2
@@ -1198,23 +1219,34 @@ int Dtranslate3(u_char *ret_buffer, cstring *expr1, cstring *expr2, cstring *exp
 // $VIEW(channel#,location[,size[,value]])
 int Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
 {
-    u_char *vb;                                                                 // view buffer address
+    u_char  *vb;                                                                // view buffer address
 
     if ((chan > -1) || (chan < -MAX_VOL)) return -(ERRZ63 + ERRMLAST);          // must be negative for now
     chan = (-chan) - 1;                                                         // negate it and 0 base
     if (partab.jobtab->view[chan] == NULL) return -(ERRZ63 + ERRMLAST);         // got a block? no - die
-    vb = (u_char *) SOA(SOA(partab.jobtab->view[chan])->mem);                   // get block memory address
 
     if ((loc < 0) || (size < 1) || ((loc + size) > (int) SOA(partab.vol[chan]->vollab)->block_size)) {
         return -(ERRZ63 + ERRMLAST);                                            // out of range - die
     }
 
+    vb = (u_char *) SOA(SOA(partab.jobtab->view[chan])->mem);                   // get block memory address
     vb += loc;                                                                  // offset to location
 
     if (value == NULL) {                                                        // a read?
-        if (size == 1) return ultocstring(ret_buffer, *vb);                     // one byte
-        if (size == 2) return ultocstring(ret_buffer, *((u_short *) vb));       // two bytes
-        if (size == 4) return ultocstring(ret_buffer, *((u_int *) vb));         // four bytes
+        if (size == 1) {                                                        // one byte
+            return ultocstring(ret_buffer, *vb);
+        } else if (size == 2) {                                                 // two bytes
+            u_short vbs;
+
+            memcpy(&vbs, vb, sizeof(u_short));
+            return ultocstring(ret_buffer, vbs);
+        } else if (size == 4) {                                                 // four bytes
+            u_int vbi;
+
+            memcpy(&vbi, vb, sizeof(u_int));
+            return ultocstring(ret_buffer, vbi);
+        }
+
         return mcopy(vb, ret_buffer, size);                                     // return the string
     }
 
@@ -1228,9 +1260,9 @@ int Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
         if (size == 1) {
             *vb = (u_char) i;
         } else if (size == 2) {
-            *((u_short *) vb) = (u_short) i;
+            memcpy(vb, &i, sizeof(u_short));
         } else {
-            *((u_int *) vb) = i;                                                // set some int type
+            memcpy(vb, &i, sizeof(u_int));
         }
     } else {
         if (size != value->len) return -(ERRZ63 + ERRMLAST);                    // junk

@@ -252,7 +252,7 @@ short UTIL_String_Key(u_char *key, u_char *str, int max_subs)
     return (short) clen;                                                        // and return the length
 }
 
-int UTIL_Key_Last(mvar *var)                                                    // point at last subs in mvar
+int UTIL_Key_Last(const mvar *var)                                              // point at last subs in mvar
 {
     int last = -1;                                                              // return value
     int i = 0;                                                                  // idx into var->key[]
@@ -278,10 +278,10 @@ int UTIL_Key_Last(mvar *var)                                                    
  */
 short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs)
 {
-    int    i;                                                                   // for loops
-    int    p = 0;                                                               // string pointer
-    var_u  *vt;                                                                 // var table pointer
-    u_char *ptr;                                                                // string ptr
+    int          i;                                                             // for loops
+    int          p = 0;                                                         // string pointer
+    var_u        *vt;                                                           // var table pointer
+    const u_char *ptr;                                                          // string ptr
 
     if (var->uci != UCI_IS_LOCALVAR) {                                          // if it's a global var
         str[p++] = '^';                                                         // lead off with the caret
@@ -489,12 +489,14 @@ ENABLE_WARN
 
 /*
  * Function:      UTIL_Key_KeyCmp
- * Description:   Compares the keys
- * Return Values: K2_LESSER, K2_GREATER, KEQUAL.
+ * Description:   Compares the keys, taking key length in to account
+ * Return Values: K2_LESSER, K2_GREATER, KEQUAL
  */
-int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2)
+int UTIL_Key_KeyCmp(const u_char *key1, const u_char *key2, int kleng1, int kleng2)
 {
-    int cmpvar = memcmp(key1, key2, ((kleng1 < kleng2) ? kleng1 : kleng2));     // compare keys
+    int cmpvar;
+
+    cmpvar = memcmp(key1, key2, ((kleng1 < kleng2) ? kleng1 : kleng2));         // compare keys
 
     if (!cmpvar) {                                                              // if start of keys is same
         if (kleng1 == kleng2) return KEQUAL;                                    // and lengths are = keys are the same
@@ -502,6 +504,21 @@ int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2)
         return K2_GREATER;                                                      // key2 sorts after key1
     }
 
+    if (cmpvar > 0) return K2_LESSER;                                           // if value of key1 is > key1 sorts after key2
+    return K2_GREATER;                                                          // key2 sorts after key1
+}
+
+/*
+ * Function:      UTIL_Key_Cmp
+ * Description:   Compares the keys, up to the shortest key length
+ * Return Values: K2_LESSER, K2_GREATER, KEQUAL
+ */
+int UTIL_Key_Cmp(const u_char *key1, const u_char *key2, int kleng1, int kleng2)
+{
+    int cmpvar;
+
+    cmpvar = memcmp(key1, key2, ((kleng1 < kleng2) ? kleng1 : kleng2));         // compare keys
+    if (!cmpvar) return KEQUAL;                                                 // if start of keys is same
     if (cmpvar > 0) return K2_LESSER;                                           // if value of key1 is > key1 sorts after key2
     return K2_GREATER;                                                          // key2 sorts after key1
 }
@@ -522,7 +539,9 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *
     i = 0;                                                                      // these two
 
     while ((i < keylen) && (cnt < maxsubs)) {                                   // while still in key
-        if ((Key[i] & 128) || (Key[i] & 64)) {                                  // if +ve no. or string
+        if ((Key[i] == '\0') && (Key[i + 1] == '\0')) {                         // empty string
+            i += 2;                                                             // skip extra NULL for empty
+        } else if ((Key[i] & 128) || (Key[i] & 64)) {                           // if +ve no. or string
             for (i++; Key[i]; i++) continue;                                    // loop til find NULL
             i++;                                                                // skip NULL char
         } else {                                                                // else if -ve

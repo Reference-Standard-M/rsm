@@ -337,7 +337,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
         if (isdata) {                                                           // if data
             if (c->len == NODE_UNDEFINED) continue;                             // junk record? then ignore it
         } else {                                                                // if a pointer
-            if ((long) c & 3) c = (cstring *) &c->buf[2 - ((long) c & 3)];      // if not aligned then align
+            if ((long) c & 3) c = (cstring *) ((long) c + (4 - ((long) c & 3))); // if not aligned then align
             if ((*(int *) c) == PTR_UNDEFINED) continue;                        // see if that's junk then ignore it
         }
 
@@ -400,7 +400,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
 void Align_record(void)                                                         // align record (u_int)
 {
     if ((long) record & 3) {                                                    // if not aligned
-        record = (cstring *) &record->buf[2 - ((long) record & 3)];             // align
+        record = (cstring *) ((long) record + (4 - ((long) record & 3)));       // align
     }
 
     return;                                                                     // exit
@@ -572,11 +572,8 @@ void ClearJournal(int vol)                                                      
     int         jfd;                                                            // file descriptor
     label_block *vol_label;                                                     // current volume label
     char        fullpathvol[MAXPATHLEN];                                        // full pathname of vol file
-
-    struct __attribute__ ((__packed__)) {
-        u_int magic;
-        off_t free;
-    }           tmp;
+    u_int       magic;
+    off_t       free;
 
     vol_label = SOA(partab.vol[vol]->vollab);
     umask(0);                                                                   // set umask to 0000
@@ -598,14 +595,19 @@ void ClearJournal(int vol)                                                      
             }                                                                   // end length testing
         }
 
-        tmp.magic = RSM_MAGIC - 1;
+        magic = RSM_MAGIC - 1;
+
+        if (write(jfd, (u_char *) &magic, sizeof(magic)) < (long) sizeof(magic)) { // write the journal header magic
+            fprintf(stderr, "Journal %s write error: %d - %s\n", vol_label->journal_file, errno, strerror(errno));
+        }
+
 #if RSM_DBVER == 1
-        tmp.free = 20;                                                          // next free byte
+        free = 20;                                                              // next free byte
 #else
-        tmp.free = 24;                                                          // next free byte
+        free = 24;                                                              // next free byte
 #endif
 
-        if (write(jfd, (u_char *) &tmp, 12) < 12) {                             // write the journal header
+        if (write(jfd, (u_char *) &free, sizeof(free)) < (long) sizeof(free)) { // write the journal header free
             fprintf(stderr, "Journal %s write error: %d - %s\n", vol_label->journal_file, errno, strerror(errno));
         }
 
@@ -624,7 +626,7 @@ void ClearJournal(int vol)                                                      
         }
 
         close(jfd);                                                             // and close it
-        partab.vol[vol]->jrn_next = (off_t) tmp.free;                           // where it's upto
+        partab.vol[vol]->jrn_next = (off_t) free;                               // where it's upto
     }
 
     return;                                                                     // done
@@ -694,11 +696,11 @@ void Dump_gbd(void)                                                             
 
     for (i = 0; i < partab.vol[partab.jobtab->vol - 1]->num_gbd; i++) {         // for all
         if (!p[i].block) continue;                                              // skip empty buffers
-        cnt += 1;
+        cnt++;
     }
 
     f = SOA(partab.vol[partab.jobtab->vol - 1]->gbd_hash[GBD_HASH]);
-    printf("Global Buffers Free at %p --> %p\r\n", f, (f == NULL) ? NULL : SOA(f->mem));
+    printf("Global Buffers Free at %p --> %p\r\n", (void *) f, (f == NULL) ? NULL : (void *) SOA(f->mem));
     printf("Using %u of %u Global Buffers\r\n\r\n", cnt, partab.vol[partab.jobtab->vol - 1]->num_gbd);
     printf("       Address   Global Buffer       Block  Right Link  Block Type  Last Access  VOL  UCI  Global Name\r\n");
 
@@ -713,13 +715,14 @@ void Dump_gbd(void)                                                             
 
         tmp[j] = '\0';                                                          // null terminate name
 
-        len = sprintf(type, "%s", (!strncmp(tmp, "$GLOBAL\0", 8)) ? "Directory" :
+        len = snprintf(type, 10, "%s", (!strncmp(tmp, "$GLOBAL\0", 8)) ? "Directory" :
               (SOA(p[i].mem)->type > UCIS) ? "Data" : "Pointer");
 
         type[len] = '\0';
         uci = SOA(p[i].mem)->type % 64;
 
-        printf("%14p %15p %11u %11u %11s %12lld %4d %4d  %s\r\n", &p[i], SOA(p[i].mem), p[i].block, SOA(p[i].mem)->right_ptr,
+        printf("%14p %15p %11u %11u %11s %12lld %4d %4d  %s\r\n",
+               (void *) &p[i], (void *) SOA(p[i].mem), p[i].block, SOA(p[i].mem)->right_ptr,
                type, (long long) p[i].last_accessed, partab.jobtab->vol, uci, tmp);
     }
 

@@ -63,19 +63,19 @@
  */
 short routine(int runtime)                                                      // parse routine ref
 {
-    char    c;                                                                  // current character
-    int     i = 0;                                                              // a useful int
-    u_short us;                                                                 // for tag offsets
-    u_char *ptr;                                                                // a handy pointer
-    int     j;                                                                  // and another
-    int     dp = 0;                                                             // dp in offset - blah
-    var_u   tag;                                                                // to hold the tag
-    var_u   rou;                                                                // to hold the rou
-    int     ntag;                                                               // numeric tag flag
-    int     isinder = 0;                                                        // indirect flag
-    int     offset = 0;                                                         // tag offset
-    int     gotplus = 0;                                                        // Flag for offset
-    int     p1indirect = 0;                                                     // Piece one is indirected
+    char         c;                                                             // current character
+    int          i = 0;                                                         // a useful int
+    u_short      us;                                                            // for tag offsets
+    const u_char *ptr;                                                          // a handy pointer
+    int          j;                                                             // and another
+    int          dp = 0;                                                        // dp in offset - blah
+    var_u        tag;                                                           // to hold the tag
+    var_u        rou;                                                           // to hold the rou
+    int          ntag;                                                          // numeric tag flag
+    int          isinder = 0;                                                   // indirect flag
+    int          offset = 0;                                                    // tag offset
+    int          gotplus = 0;                                                   // Flag for offset
+    int          p1indirect = 0;                                                // Piece one is indirected
 
     VAR_CLEAR(tag);                                                             // clear the tag
     VAR_CLEAR(rou);                                                             // and the routine
@@ -87,8 +87,11 @@ short routine(int runtime)                                                      
         if (runtime == -2) ptr = comp_ptr;                                      // save compile pointer if $TEXT compile
         atom();                                                                 // stack it
 
-        if ((runtime == -2) && (*ptr == OPSTR) && (*((u_short *) (ptr + 1)) == 0)) { // check for empty indirection string
-            return -(ERRZ12 + ERRMLAST);                                        // not allowed, so pass compiler error
+        if ((runtime == -2) && (*ptr == OPSTR)) {                               // check for empty indirection string
+            u_short size;
+
+            memcpy(&size, ptr + 1, sizeof(u_short));
+            if (size == 0) return -(ERRZ12 + ERRMLAST);                         // not allowed, so pass compiler error
         }
 
         p1indirect = 1;                                                         // piece 1 is indirect... make sure to concat later
@@ -414,9 +417,9 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
         }
 
 #if RSM_DBVER != 1
-        if (memcmp(src->name.var_cu, "$ROUTINE\0", 9)) {                        // a routine? then junk
+        if (memcmp(src->name.var_cu, "$ROUTINE\0", 9) != 0) {                   // a routine? then junk
 #else
-        if (memcmp(src->name.var_cu, "$ROUTINE", 8)) {                          // a routine? then junk
+        if (memcmp(src->name.var_cu, "$ROUTINE", 8) != 0) {                     // a routine? then junk
 #endif
             partab.checkonly = 0;                                               // reset to avoid buffer bugs in comperror
             return -ERRM38;
@@ -671,7 +674,9 @@ ENABLE_WARN
             *comp_ptr++ = ENDLIN;                                               // end of null line
         }
 
-        *((u_short *) p) = (u_short) (comp_ptr - p - 1);                        // offset to ENDLIN
+        us = (u_short) (comp_ptr - p - 1);
+        assert(sizeof(us) == sizeof(u_short));
+        memcpy(p, &us, sizeof(u_short));                                        // offset to ENDLIN
     }                                                                           // end main compile loop
 
     *comp_ptr++ = CMQUIT;                                                       // mark end of routine

@@ -54,7 +54,7 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK {                         
 #define STORAGE ST_MAX                                                          // $STORAGE uses this to calculate free slots
 
 // Structures for symbol table data
-#define SIZE_KEY_DATA (MAX_KEY_SIZE + MAX_STR_LEN + 5)                          // for the following
+#define SIZE_KEY_DATA   (MAX_KEY_SIZE + MAX_STR_LEN + 5)                        // for the following
 
 typedef struct __attribute__ ((__packed__)) ST_DEPEND {                         // symbol dependent block
     struct ST_DEPEND *deplnk;                                                   // dependents link
@@ -70,14 +70,14 @@ typedef struct __attribute__ ((__packed__)) ST_DATA {                           
     u_char    data[MAX_STR_LEN + 1];                                            // data bytes
 } ST_data;                                                                      // end st_data structure
 
-#define ST_DEPEND_NULL (ST_depend *) NULL                                       // define null pointer
-#define ST_DATA_NULL   (ST_data *) NULL                                         // define null pointer
+#define ST_DEPEND_NULL  (ST_depend *) NULL                                      // define null pointer
+#define ST_DATA_NULL    (ST_data *) NULL                                        // define null pointer
 
 typedef struct __attribute__ ((__packed__)) SYMTAB {                            // define symtab structure
     short          fwd_link;                                                    // link to next entry
     short          usage;                                                       // usage count
     struct ST_DATA *data;                                                       // data block pointer
-    var_u          varnam;                                                      // variable name union
+    var_u           varnam;                                                     // variable name union
 } symtab_struct;                                                                // end symtab structure
 
 extern short         st_hash[];                                                 // allocate hashing table

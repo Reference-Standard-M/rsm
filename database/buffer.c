@@ -178,10 +178,10 @@ exit:
  */
 short New_block(void)                                                           // get new block
 {
-    int    i;                                                                   // a handy int
-    u_int  blknum;                                                              // the block#
-    u_char *c;                                                                  // character ptr
-    u_char *end;                                                                // end of map
+    int          i;                                                             // a handy int
+    u_int        blknum;                                                        // the block#
+    u_char       *c;                                                            // character ptr
+    const u_char *end;                                                          // end of map
 
     // Need to add a check for a dirty map scan in progress here
     Get_GBD();                                                                  // get a GBD

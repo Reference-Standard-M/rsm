@@ -105,25 +105,25 @@ ENABLE_WARN
 *   -e environment (UCI)    (1 to VAR_LEN)        Opt *
 *   -x xecute command       (1 to MAX_STR_LEN)    Opt *
 \*****************************************************/
-int INIT_Run(char *file, char *env, char *cmd)
+int INIT_Run(char *file, const char *env, char *cmd)
 {
-    int         i;                                                              // an int
-    int         t;                                                              // for functions
-    int         pid;                                                            // job number
-    int         dbfd = 0;                                                       // database file descriptor
-    int         ret = 0;                                                        // return value
-    int         env_num = 1;                                                    // startup environment number
-    int         ssp = 0;                                                        // string stack pointer
-    int         asp = 0;                                                        // address stack pointer
-    var_u       tmp;                                                            // temp descriptor
-    u_char      *volnam;                                                        // for volume name
-    mvar        *var;                                                           // a variable pointer
-    uci_tab     *uci_ptr;                                                       // for UCI search
-    cstring     *cptr = NULL;                                                   // a handy pointer
-    cstring     *sptr = NULL;                                                   // cstring pointer
-    u_char      start_type = TYPE_RUN;                                          // how we started
-    gid_t       gidset[MAX_GROUPS];                                             // for getgroups()
-    label_block *vol_label;                                                     // current volume label
+    int          i;                                                             // an int
+    int          t;                                                             // for functions
+    int          pid;                                                           // job number
+    int          dbfd = 0;                                                      // database file descriptor
+    int          ret = 0;                                                       // return value
+    int          env_num = 1;                                                   // startup environment number
+    int          ssp = 0;                                                       // string stack pointer
+    int          asp = 0;                                                       // address stack pointer
+    var_u        tmp;                                                           // temp descriptor
+    const u_char *volnam;                                                       // for volume name
+    mvar         *var;                                                          // a variable pointer
+    uci_tab      *uci_ptr;                                                      // for UCI search
+    cstring      *cptr = NULL;                                                  // a handy pointer
+    cstring      *sptr = NULL;                                                  // cstring pointer
+    u_char       start_type = TYPE_RUN;                                         // how we started
+    gid_t        gidset[MAX_GROUPS];                                            // for getgroups()
+    label_block  *vol_label;                                                    // current volume label
 
 start:
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -510,6 +510,7 @@ start:
         memcpy(cptr->buf, "$ECODE=", 7);
         t = ST_Get(var, &cptr->buf[7]);
         if (t < 1) continue;                                                    // ignore if nothing there
+        if ((t + 7) > MAX_STR_LEN) ser(-ERRM75);                                // $ECODE buffer overflow
         cptr->len = t + 7;
         t = SQ_Write(cptr);                                                     // write the prompt
         if (t < 0) ser(t);                                                      // check for error

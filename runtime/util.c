@@ -189,25 +189,58 @@ u_short ultocstring(u_char *buf, u_long n)                                      
  */
 int Set_Error(int err, cstring *user, cstring *space)
 {
-    int  t;                                                                     // for function calls
-    int  flag;                                                                  // to remember
-    mvar *var;                                                                  // a handy mvar
+    int     t;                                                                  // for function calls
+    int     j;                                                                  // a handy int
+    int     flag;                                                               // to remember
+    mvar    *var;                                                               // a handy mvar
+    cstring *tmp;                                                               // spare cstring ptr
+    char    temp[16];                                                           // and some space
 
     var = &partab.src_var;                                                      // a spare mvar
     var->slen = 0;                                                              // no subs
-    // Note - the UCI and volset were setup by the caller
-
     VAR_CLEAR(var->name);
+
+    // Note - the UCI and volset were setup by the caller
     memcpy(&var->name.var_cu[0], "$ECODE", 6);                                  // get the name
     t = ST_Get(var, space->buf);                                                // get it
     if (t < 0) t = 0;                                                           // ignore undefined
     flag = t;                                                                   // remember if some there
 
-    if (t < MAX_ECODE) {                                                        // if not too big
-        int     j;                                                              // a handy int
-        cstring *tmp;                                                           // spare cstring ptr
-        char    temp[16];                                                       // and some space
+    if ((t > MAX_ECODE) || ((err == USRERR) && (user->len > MAX_ECODE))) {      // if too big
+        err = -ERRM101;                                                         // general $ECODE error
+    }
 
+    if ((t == 0) || (space->buf[t - 1] != ',')) space->buf[t++] = ',';          // for new $ECODE
+    j = -err;                                                                   // copy the error (-ve)
+
+    if (err == USRERR) {                                                        // was it a SET $ECODE
+        memmove(&space->buf[t], user->buf, user->len);                          // copy the error
+        t += user->len;                                                         // add the length
+    } else {                                                                    // not user error
+        if (j > ERRMLAST) {                                                     // implementation error?
+            space->buf[t++] = 'Z';                                              // yes, Z type
+            j -= ERRMLAST;                                                      // subtract it
+        } else {
+            space->buf[t++] = 'M';                                              // MDC error
+        }
+
+        t += ltocstring(&space->buf[t], j);                                     // convert the number
+    }                                                                           // end 'not user error'
+
+    space->buf[t++] = ',';                                                      // trailing comma
+    space->buf[t] = '\0';                                                       // null terminate
+    space->len = t;
+    ST_Set(var, space);                                                         // set it
+    tmp = (cstring *) temp;                                                     // temp space
+DISABLE_WARN(-Warray-bounds)
+    tmp->len = ltocstring(tmp->buf, partab.jobtab->cur_do);
+ENABLE_WARN
+    var->slen = (u_char) UTIL_Key_Build(tmp, var->key);
+
+    if (flag) {                                                                 // if not first one
+        t = ST_Get(var, space->buf);                                            // get it
+        if (t < 0) t = 0;                                                       // ignore undefined
+        flag = t;                                                               // remember for the return
         if ((t == 0) || (space->buf[t - 1] != ',')) space->buf[t++] = ',';      // for new $ECODE
         j = -err;                                                               // copy the error (-ve)
 
@@ -223,46 +256,14 @@ int Set_Error(int err, cstring *user, cstring *space)
             }
 
             t += ltocstring(&space->buf[t], j);                                 // convert the number
-        }                                                                       // end 'not user error'
+        }
 
         space->buf[t++] = ',';                                                  // trailing comma
         space->buf[t] = '\0';                                                   // null terminate
         space->len = t;
-        ST_Set(var, space);                                                     // set it
-        tmp = (cstring *) temp;                                                 // temp space
-DISABLE_WARN(-Warray-bounds)
-        tmp->len = ltocstring(tmp->buf, partab.jobtab->cur_do);
-ENABLE_WARN
-        var->slen = (u_char) UTIL_Key_Build(tmp, var->key);
+    }
 
-        if (flag) {                                                             // if not first one
-            t = ST_Get(var, space->buf);                                        // get it
-            if (t < 0) t = 0;                                                   // ignore undefined
-            flag = t;                                                           // remember for the return
-            if ((t == 0) || (space->buf[t - 1] != ',')) space->buf[t++] = ',';  // for new $EC
-            j = -err;                                                           // copy the error (-ve)
-
-            if (err == USRERR) {                                                // was it a SET $EC
-                memmove(&space->buf[t], user->buf, user->len);                  // copy the error
-                t += user->len;                                                 // add the length
-            } else {                                                            // not user error
-                if (j > ERRMLAST) {                                             // implementation error?
-                    space->buf[t++] = 'Z';                                      // yes, Z type
-                    j -= ERRMLAST;                                              // subtract it
-                } else {
-                    space->buf[t++] = 'M';                                      // MDC error
-                }
-
-                t += ltocstring(&space->buf[t], j);                             // convert the number
-            }
-
-            space->buf[t++] = ',';                                              // trailing comma
-            space->buf[t] = '\0';                                               // null terminate
-            space->len = t;
-        }
-
-        ST_Set(var, space);                                                     // set it
-    }                                                                           // end "TOO BIG" test
+    ST_Set(var, space);                                                         // set it
 
     return flag;                                                                // done
 }
@@ -308,13 +309,17 @@ time_t current_time(short local)                                                
     sec = time(NULL);                                                           // get secs from 1 Jan 1970 UTC
 
     if (local) {
+#if !defined(_HPUX_SOURCE) && !defined(_AIX) && !defined(__sun__) && !defined(__CYGWIN__)
+        const struct tm *buf;                                                   // struct for localtime() [UTC]
+#else
         struct tm *buf;                                                         // struct for localtime() [UTC]
+#endif
 
         tzset();                                                                // pick up $TZ overrides
         buf = localtime(&sec);                                                  // return broken-down time
 #if defined(_HPUX_SOURCE) || defined(_AIX) || defined(__sun__) || defined(__CYGWIN__)
         buf->tm_sec -= timezone;                                                // adjust to local
-        if (daylight && buf->tm_isdst) buf->tm_hour += 1;                       // adjust for daylight-savings time
+        if (daylight && buf->tm_isdst) buf->tm_hour++;                          // adjust for daylight-savings time
         sec = mktime(buf);                                                      // return seconds from broken-down time
 #else
         sec += buf->tm_gmtoff;                                                  // adjust to local

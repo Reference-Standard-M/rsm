@@ -141,8 +141,8 @@ void info(char *file)                                                           
 #if RSM_DBVER != 1
         time_t      time;
 #endif
-        gbd         *p;                                                         // a pointer
-        u_short     bcnt = 0;                                                   // count free global blocks
+        const gbd   *p;                                                         // a pointer
+        u_int       bcnt = 0;                                                   // count free global blocks
         rbd         *rtn_free;                                                  // loop through routine free space
         u_int       rtn_size = 0;                                               // actual size of free routine space
         label_block *vol_label;                                                 // current volume label
@@ -162,27 +162,30 @@ void info(char *file)                                                           
         printf("Volume Creation Time:\t%s\n", strtok(asctime(gmtime(&time)), "\n"));
 #endif
 
-        printf("Journal File Path:\t%s [%s]\n",
-               ((vol_label->journal_file[0] != '\0') ?  vol_label->journal_file : "--"),
+        printf("Journal File Path:\t%s [%s]\n", ((vol_label->journal_file[0] != '\0') ? vol_label->journal_file : "--"),
                (vol_label->journal_available ? "ON" : "OFF"));
 
         printf("Label/Map Block Size:\t%-12uKiB\n", vol_label->header_bytes / 1024);
         printf("Volume Block Size:\t%-12uKiB\n", vol_label->block_size / 1024);
         printf("Volume Size:\t\t%-12uBlocks\n", vol_label->max_block);
         printf("Volume Free:\t\t%-12dBlocks\n", DB_Free(i + 1));
+        if (vol_label->journal_file[0] != '\0') printf("Journal Size:\t\t%-12lldBytes\n", (long long) partab.vol[i]->jrn_next);
 
-        printf("Global Buffers:\t\t%-12dMiB (%u Buffers)\n",
-               (int) ((SOA(partab.vol[i]->zero_block) - SOA(partab.vol[i]->global_buf)) / MBYTE), partab.vol[i]->num_gbd);
+        printf("Global Buffers:\t\t%-12dMiB (%u Buffers)\n", (int) (((u_char *) SOA(partab.vol[i]->zero_block) -
+               (u_char *) SOA(partab.vol[i]->global_buf)) / MBYTE), partab.vol[i]->num_gbd);
 
         p = SOA(partab.vol[i]->gbd_head);                                       // get listhead
 
         for (u_int j = 0; j < partab.vol[i]->num_gbd; j++) {                    // for all
             if (p[j].block) continue;                                           // skip used buffers
-            bcnt += 1;
+            bcnt++;
         }
 
         printf("Free Global Buffers:\t%-12uBuffer%s\n", bcnt, (bcnt == 1) ? "" : "s");
-        printf("Routine Buffer Space:\t%-12uMiB\n", (u_int) ((SOA(partab.vol[i]->rbd_end) - SOA(partab.vol[i]->rbd_head)) / MBYTE));
+
+        printf("Routine Buffer Space:\t%-12uMiB\n", (u_int) (((u_char *) SOA(partab.vol[i]->rbd_end) -
+               (u_char *) SOA(partab.vol[i]->rbd_head)) / MBYTE));
+
         rtn_free = (rbd *) SOA(partab.vol[i]->rbd_hash[RBD_HASH]);
 
         while (rtn_free != NULL) {
