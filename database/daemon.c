@@ -90,7 +90,7 @@ void do_write(void)                                                             
     gbd   *lastptr = NULL;                                                      // for the GBD
 
     gbdptr = partab.vol[volnum - 1]->wd_tab[myslot].currmsg.gbddata;            // get the gbdptr from daemon table
-    if (!gbdptr) panic("Daemon: write message GBD is NULL");                    // check for null
+    if (!gbdptr) panic("do_write: write message GBD is NULL");                  // check for null
     if (curr_lock == 0) SemOp(SEM_GLOBAL, SEM_READ);                            // if we need a lock then take a read lock
 
     while (TRUE) {                                                              // until we break
@@ -106,14 +106,14 @@ void do_write(void)                                                             
 
             if (file_off < 1) {
                 partab.vol[volnum - 1]->stats.diskerrors++;                     // count an error
-                panic("lseek failed in Write_Chain()!!");                       // die on error
+                panic("lseek failed in do_write()!!");                          // die on error
             }
 
             i = write(dbfd, gbdptr->mem, partab.vol[volnum - 1]->vollab->block_size); // write it
 
             if (i < 0) {
                 partab.vol[volnum - 1]->stats.diskerrors++;                     // count an error
-                panic("write failed in Write_Chain()!!");
+                panic("write failed in do_write()!!");                          // die on error
             }
 
             partab.vol[volnum - 1]->stats.phywt++;                              // count a write

@@ -31,7 +31,7 @@
 #ifndef RSM_INIT_H
 #define RSM_INIT_H
 
-#define MAX_GROUPS 32                                                           // max number of UNIX groups
+#define MAX_GROUPS  32                                                          // max number of UNIX groups
 
 /*
  * @function {public} INIT_Create_File
@@ -62,11 +62,11 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb);
  * @function {public} INIT_Run
  * @summary Start a job
  * @param {char *} file (1-VOL_FILENAME_MAX) - The database file path
- * @param {char *} env (1-32 alpha) - The name of job's initial UCI (default is UCI 1)
+ * @param {const char *} env (1-32 alpha) - The name of job's initial UCI (default is UCI 1)
  * @param {char *} cmd (1-ARG_MAX) - A string of M commands to be Xecuted
  * @returns {int} (0|-1|errno) - The return code representing success or failure
  */
-int INIT_Run(char *file, char *env, char *cmd);
+int INIT_Run(char *file, const char *env, char *cmd);
 
 // Initialize the symbol table
 void ST_Init(void);                                                             // empty symbol table

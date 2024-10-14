@@ -57,28 +57,28 @@
 // database, number of jobs, MiB of global buffers, MiB of routine buffers, MiB of additional buffers (for volumes)
 int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 {
-    int             dbfd;                                                       // database file descriptor
-    int             hbuf[sizeof(label_block) / 4];                              // header buffer
-    int             i;                                                          // useful int
-    u_int           n_gbd;                                                      // number of GBD
-    long long       addoff;                                                     // offset for add buff
-    key_t           shar_mem_key;                                               // memory key
-    int             shar_mem_id;                                                // memory id
-    int             sem_id;                                                     // semaphore id
-    u_short         sem_val[SEM_MAX];                                           // to init them
-    semun_t         semvals;                                                    // for a pointer to sem_val
-    long long       share_size;                                                 // size of share (bytes)
-    int             locksize;                                                   // size of locktab
-    int             size;                                                       // used to calculate real locksize
-    long            sjlt_size;                                                  // size of systab + jobtab + locktab
-    long long       volset_size;                                                // size of volset struct (bytes)
-    long            pagesize;                                                   // system pagesize (bytes)
-    struct shmid_ds sbuf;                                                       // for shmctl
-    char            fullpathvol[MAXPATHLEN];                                    // full pathname of vol file
-    gbd             *gptr;                                                      // a GBD pointer
-    u_char          *ptr;                                                       // and a byte one
-    label_block     *labelblock;                                                // label block pointer
-    char            version[120];                                               // a string
+    int               dbfd;                                                     // database file descriptor
+    int               hbuf[sizeof(label_block) / 4];                            // header buffer
+    int               i;                                                        // useful int
+    u_int             n_gbd;                                                    // number of GBD
+    long long         addoff;                                                   // offset for add buff
+    key_t             shar_mem_key;                                             // memory key
+    int               shar_mem_id;                                              // memory id
+    int               sem_id;                                                   // semaphore id
+    u_short           sem_val[SEM_MAX];                                         // to init them
+    semun_t           semvals;                                                  // for a pointer to sem_val
+    long long         share_size;                                               // size of share (bytes)
+    int               locksize;                                                 // size of locktab
+    int               size;                                                     // used to calculate real locksize
+    long              sjlt_size;                                                // size of systab + jobtab + locktab
+    long long         volset_size;                                              // size of volset struct (bytes)
+    long              pagesize;                                                 // system pagesize (bytes)
+    struct shmid_ds   sbuf;                                                     // for shmctl
+    char              fullpathvol[MAXPATHLEN];                                  // full pathname of vol file
+    gbd               *gptr;                                                    // a GBD pointer
+    u_char            *ptr;                                                     // and a byte one
+    const label_block *labelblock;                                              // label block pointer
+    char              version[120];                                             // a string
 
     rsm_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string

@@ -29,7 +29,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 CC       := gcc
-CFLAGS   := -std=gnu99 -Wall -Wextra -fsigned-char -fwrapv
+CFLAGS   += -std=gnu99 -Wall -Wextra -pedantic -fsigned-char -fwrapv
 CPPFLAGS := -Iinclude
 LDLIBS   := -lcrypt -lm
 PROG     := rsm
@@ -56,10 +56,10 @@ GIT_SHA  != git rev-parse --short=10 HEAD 2>/dev/null; true
 .       if ($(options) == profile)
             CFLAGS  += -pg
             LDLIBS  += -lc
-            LDFLAGS := -pg
+            LDFLAGS += -pg
 .       elif ($(options) == sanitize)
             CFLAGS  += -fsanitize=address,undefined
-            LDFLAGS := -fsanitize=address,undefined
+            LDFLAGS += -fsanitize=address,undefined
 .       endif
 .   endif
 .else
@@ -96,64 +96,44 @@ clean:
 
 .PHONY: install
 install: $(PROG)
-	@if [ "$${USER}" != "root" ]; then \
-	    echo "You must install $(PROG) and $(UTILS) as root"; \
-	    exit 1; \
-	else \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/bin; \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/bin; \
-	    echo install -o 0 -g 0 -m 755 -s $(PROG) $(PREFIX)/bin; \
-	    install -o 0 -g 0 -m 755 -s $(PROG) $(PREFIX)/bin; \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/share/rsm; \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/share/rsm; \
-	    echo install -o 0 -g 0 -m 644 $(UTILS) $(PREFIX)/share/rsm; \
-	    install -o 0 -g 0 -m 644 $(UTILS) $(PREFIX)/share/rsm; \
-	fi
+	@echo install -d -m 755 $(PREFIX)/bin; \
+	install -d -m 755 $(PREFIX)/bin; \
+	echo install -m 755 -s $(PROG) $(PREFIX)/bin; \
+	install -m 755 -s $(PROG) $(PREFIX)/bin; \
+	echo install -d -m 755 $(PREFIX)/share/rsm; \
+	install -d -m 755 $(PREFIX)/share/rsm; \
+	echo install -m 644 $(UTILS) $(PREFIX)/share/rsm; \
+	install -m 644 $(UTILS) $(PREFIX)/share/rsm
 
 .PHONY: uninstall
 uninstall:
-	@if [ "$${USER}" != "root" ]; then \
-	    echo "You must uninstall $(PROG) and $(UTILS) as root"; \
-	    exit 1; \
-	else \
-	    echo $(RM) -r $(PREFIX)/share/rsm; \
-	    $(RM) -r $(PREFIX)/share/rsm; \
-	    echo $(RM) $(PREFIX)/bin/$(PROG); \
-	    $(RM) $(PREFIX)/bin/$(PROG); \
-	fi
+	@echo $(RM) -r $(PREFIX)/share/rsm; \
+	$(RM) -r $(PREFIX)/share/rsm; \
+	echo $(RM) $(PREFIX)/bin/$(PROG); \
+	$(RM) $(PREFIX)/bin/$(PROG)
 
 .PHONY: install-docs
 install-docs:
-	@if [ "$${USER}" != "root" ]; then \
-	    echo "You must install documentation as root"; \
-	    exit 1; \
-	else \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/share/doc/rsm; \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/share/doc/rsm; \
-	    echo install -o 0 -g 0 -m 644 $(DOCS) $(PREFIX)/share/doc/rsm; \
-	    install -o 0 -g 0 -m 644 $(DOCS) $(PREFIX)/share/doc/rsm; \
-	    echo $(GZIP) -r $(PREFIX)/share/doc/rsm; \
-	    $(GZIP) -r $(PREFIX)/share/doc/rsm; \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/man/man1; \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/man/man1; \
-	    echo install -o 0 -g 0 -m 644 $(MAN) $(PREFIX)/man/man1; \
-	    install -o 0 -g 0 -m 644 $(MAN) $(PREFIX)/man/man1; \
-	    echo $(GZIP) $(PREFIX)/man/man1/rsm.1; \
-	    $(GZIP) $(PREFIX)/man/man1/rsm.1; \
-	    if command -v makewhatis >/dev/null; then \
-	        echo makewhatis; \
-	        makewhatis; \
-	    fi \
+	@echo install -d -m 755 $(PREFIX)/share/doc/rsm; \
+	install -d -m 755 $(PREFIX)/share/doc/rsm; \
+	echo install -m 644 $(DOCS) $(PREFIX)/share/doc/rsm; \
+	install -m 644 $(DOCS) $(PREFIX)/share/doc/rsm; \
+	echo $(GZIP) -r $(PREFIX)/share/doc/rsm; \
+	$(GZIP) -r $(PREFIX)/share/doc/rsm; \
+	echo install -d -m 755 $(PREFIX)/share/man/man1; \
+	install -d -m 755 $(PREFIX)/share/man/man1; \
+	echo install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
+	install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
+	echo $(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
+	$(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
+	if command -v makewhatis >/dev/null; then \
+	    echo makewhatis; \
+	    makewhatis; \
 	fi
 
 .PHONY: uninstall-docs
 uninstall-docs:
-	@if [ "$${USER}" != "root" ]; then \
-	    echo "You must uninstall documentation as root"; \
-	    exit 1; \
-	else \
-	    echo $(RM) $(PREFIX)/man/man1/rsm.1*; \
-	    $(RM) $(PREFIX)/man/man1/rsm.1*; \
-	    echo $(RM) -r $(PREFIX)/share/doc/rsm; \
-	    $(RM) -r $(PREFIX)/share/doc/rsm; \
-	fi
+	@echo $(RM) $(PREFIX)/share/man/man1/rsm.1*; \
+	$(RM) $(PREFIX)/share/man/man1/rsm.1*; \
+	echo $(RM) -r $(PREFIX)/share/doc/rsm; \
+	$(RM) -r $(PREFIX)/share/doc/rsm

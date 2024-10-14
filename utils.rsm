@@ -167,7 +167,7 @@ UNKEY() new c,t,x
  set ^%C("CD",1)="Change directory (UCI)"
  set ^%C("CLEAR")="write $char(27)_""[H""_$char(27)_""[J"""
  set ^%C("CLEAR",1)="Clear the screen"
- set ^%C("COPY")="merge ^$routine($piece(ccl,"" "",2))=^$routine($piece(ccl,"" ""))"
+ set ^%C("COPY")="merge:ccl?1(1""%"",1A).A1"" ""1(1""%"",1A).A ^$routine($piece(ccl,"" "",2))=^$routine($piece(ccl,"" ""))"
  set ^%C("COPY",1)="Copy from routine to routine"
  set ^%C("DCHANGE")="do INT^%DED(ccl)"
  set ^%C("DCHANGE",1)="Edit a document using your favorite editor"
@@ -1870,7 +1870,7 @@ BLK if 'blk do HELP^FIX2 quit
  write "Block Number: ",blk,"  Type: ",$select('d(0):"Unused",k="$GLOBAL":"Global Directory",dtyp:"Data",1:"Pointer")
  if 'd(0) write ! quit
  write "  Last Index: ",$view(vol,8,2),"  Last Free: ",$view(vol,10,2),"  Free: ",$view(vol,10,2)*2-$view(vol,8,2)*2+2,!
- write ", UCI# ",$view(vol,0,1)#64," ["_^$system("vol",-vol,"uci",$view(vol,0,1)#64)_"]  Right -> ",rl,! set %=$order(k(""),-1)
+ write "UCI# ",$view(vol,0,1)#64," ["_^$system("vol",-vol,"uci",$view(vol,0,1)#64)_"]  Right -> ",rl,! set %=$order(k(""),-1)
  write "First Node: ^",k,$select($length($get(k(idx))):"("_$$FULLUNK^FIX1(k(idx))_")",1:""),!
  write:$get(%) "Last  Node: ^",k,"(",$$FULLUNK^FIX1(k(%)),")",!
  if rl write "Right Link: "_rl1,!

@@ -50,12 +50,12 @@ extern u_char *jmp_eoc;                                                         
 
 void comperror(short err)                                                       // compile error
 {
-    int     t;                                                                  // for functions
-    u_short us;                                                                 // for functions
-    cstring *line;                                                              // line of code
-    u_char  *src;                                                               // current src ptr
-    int     i;                                                                  // a handy int
-    u_char  tmp[128];                                                           // some space
+    int          t;                                                             // for functions
+    u_short      us;                                                            // for functions
+    cstring      *line;                                                         // line of code
+    const u_char *src;                                                          // current src ptr
+    int          i;                                                             // a handy int
+    u_char       tmp[128];                                                      // some space
 
     if (jmp_eoc) {
         comp_ptr = jmp_eoc - 1;                                                 // back comp_ptr up to JMP0 instruction
@@ -161,14 +161,15 @@ void atom(void)                                                                 
           return;                                                               // and exit
         }
 
-        *((u_short *) comp_ptr) = s;                                            // store string count
+        memcpy(comp_ptr, (u_short *) &s, sizeof(u_short));                      // store string count
         comp_ptr += sizeof(u_short) + s + 1;                                    // allow for null byte
         return;
     }                                                                           // end numeric parse
 
     if (c == '"') {                                                             // rabbit ear
-        int    i = sizeof(u_short);                                             // point at p->buf[0]
-        u_char *p;                                                              // a pointer
+        int     i = sizeof(u_short);                                            // point at p->buf[0]
+        u_char  *p;                                                             // a pointer
+        u_short us;
 
         *comp_ptr++ = OPSTR;                                                    // say string following
         p = comp_ptr;                                                           // possible destination
@@ -190,7 +191,9 @@ void atom(void)                                                                 
             if ((*(source_ptr - 1) == '"') && (*source_ptr == '"')) source_ptr++; // got rabbit ears? then point past the second one
         }                                                                       // end of copy loop
 
-        *((u_short *) p) = (u_short) (i - sizeof(u_short));                     // store cstring count
+        us = (u_short) (i - sizeof(u_short));
+        assert(sizeof(us) == sizeof(u_short));
+        memcpy(p, &us, sizeof(u_short));                                        // store cstring count
         comp_ptr += i + 1;                                                      // point past str and null
         return;
     }                                                                           // end string literal

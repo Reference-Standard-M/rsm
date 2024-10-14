@@ -32,8 +32,8 @@
 #define RSM_DATABASE_H
 
 // Defines
-#define NODE_UNDEFINED VAR_UNDEFINED                                            // junk record (was -1 now MAX_STR_LEN + 1)
-#define PTR_UNDEFINED  0                                                        // junk pointer
+#define NODE_UNDEFINED  VAR_UNDEFINED                                           // junk record (was -1 now MAX_STR_LEN + 1)
+#define PTR_UNDEFINED   0                                                       // junk pointer
 
 /*
  * Below is the maximum depth that the database code will search down to.
@@ -47,14 +47,14 @@
 #define GBD_EXPIRED     60                                                      // seconds to expire
 
 // DB_Block flags
-#define BLOCK_DIRTY 1                                                           // block needs tidying
+#define BLOCK_DIRTY     1                                                       // block needs tidying
 
 // Write Daemon defines
-#define DOING_NOTHING  0                                                        // nothing
-#define DOING_MAP      1                                                        // cleaning the map
-#define DOING_WRITE    2                                                        // writing
-#define DOING_GARB     3                                                        // garbage collect
-#define DOING_DISMOUNT 4                                                        // dismounting
+#define DOING_NOTHING   0                                                       // nothing
+#define DOING_MAP       1                                                       // cleaning the map
+#define DOING_WRITE     2                                                       // writing
+#define DOING_GARB      3                                                       // garbage collect
+#define DOING_DISMOUNT  4                                                       // dismounting
 
 // Structures
 typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK {                  // database block layout
@@ -93,12 +93,12 @@ typedef struct __attribute__ ((__packed__)) JRNREC {                            
     //u_char  data[MAX_STR_LEN];                                                  // bytes to MAX_STR_LEN
 } jrnrec;                                                                       // end jrnrec struct
 
-#define JRN_CREATE 0                                                            // create file
-#define JRN_START  1                                                            // start/mount environ
-#define JRN_STOP   2                                                            // stop journaling
-#define JRN_ESTOP  3                                                            // stop/dism environ
-#define JRN_SET    4                                                            // Set global
-#define JRN_KILL   5                                                            // Kill global
+#define JRN_CREATE  0                                                           // create file
+#define JRN_START   1                                                           // start/mount environ
+#define JRN_STOP    2                                                           // stop journaling
+#define JRN_ESTOP   3                                                           // stop/dism environ
+#define JRN_SET     4                                                           // Set global
+#define JRN_KILL    5                                                           // Kill global
 
 /*
  * NOTE: The first 4 bytes (u_int) = (RSM_MAGIC - 1).

@@ -21,11 +21,12 @@
 #
 # SPDX-FileCopyrightText:  © 2022 David Wicksell <dlw@linux.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
+#
+#
 # syntax=docker/dockerfile:1
 
 # LTS release
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 MAINTAINER David Wicksell <dlw@linux.com>
 USER root
 

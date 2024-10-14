@@ -29,10 +29,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 CC       := gcc
-CFLAGS   := -std=gnu99 -Wall -Wextra -fsigned-char -fwrapv
+CFLAGS   += -std=gnu99 -Wall -Wextra -pedantic -fsigned-char -fwrapv
 CPPFLAGS := -Iinclude -D_FILE_OFFSET_BITS=64
 LDLIBS   := -lcrypt -lm
-LDFLAGS  :=
 PROG     := rsm
 SRCS     := $(wildcard */*.c)
 OBJS     := $(SRCS:.c=.o)
@@ -51,7 +50,7 @@ INSTDOC  := install-docs-default
 ifeq ($(OS),Darwin)
     CFLAGS  += -Wno-deprecated-declarations
     LDLIBS  := -lm
-    LDFLAGS := -framework CoreServices -framework DirectoryService -framework Security
+    LDFLAGS += -framework CoreServices -framework DirectoryService -framework Security
 endif
 
 ifeq ($(OS),AIX)
@@ -65,7 +64,7 @@ ifeq ($(OS),HP-UX)
 endif
 
 ifeq ($(OS),SunOS)
-    LDLIBS  += -lnsl -lsocket -lrt
+    LDLIBS += -lnsl -lsocket -lrt
 endif
 
 ifeq ($(MAKECMDGOALS),debug)
@@ -78,8 +77,13 @@ ifeq ($(MAKECMDGOALS),debug)
             LDFLAGS += -pg
         else
             ifeq ($(options),sanitize)
-                CFLAGS  += -fsanitize=address,undefined
-                LDFLAGS += -fsanitize=address,undefined
+                ifeq ($(OS),Linux)
+                    CFLAGS  += -fsanitize=address,undefined,leak
+                    LDFLAGS += -fsanitize=address,undefined,leak
+                else
+                    CFLAGS  += -fsanitize=address,undefined
+                    LDFLAGS += -fsanitize=address,undefined
+                endif
             endif
         endif
     endif
@@ -120,109 +124,79 @@ install: $(INSTALL)
 
 .PHONY: install-default
 install-default: $(PROG)
-	@if [ "${USER}" != "root" ]; then \
-	    echo "You must install $(PROG) and $(UTILS) as root"; \
-	    exit 1; \
-	else \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/bin; \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/bin; \
-	    echo install -o 0 -g 0 -m 755 -s $(PROG) $(PREFIX)/bin; \
-	    install -o 0 -g 0 -m 755 -s $(PROG) $(PREFIX)/bin; \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/share/$(PROG); \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/share/$(PROG); \
-	    echo install -o 0 -g 0 -m 644 $(UTILS) $(PREFIX)/share/$(PROG); \
-	    install -o 0 -g 0 -m 644 $(UTILS) $(PREFIX)/share/$(PROG); \
-	fi
+	@echo install -d -m 755 $(PREFIX)/bin; \
+	install -d -m 755 $(PREFIX)/bin; \
+	echo install -m 755 -s $(PROG) $(PREFIX)/bin; \
+	install -m 755 -s $(PROG) $(PREFIX)/bin; \
+	echo install -d -m 755 $(PREFIX)/share/$(PROG); \
+	install -d -m 755 $(PREFIX)/share/$(PROG); \
+	echo install -m 644 $(UTILS) $(PREFIX)/share/$(PROG); \
+	install -m 644 $(UTILS) $(PREFIX)/share/$(PROG)
 
 .PHONY: install-aix
 install-aix: $(PROG)
-	@if [ "${USER}" != "root" ]; then \
-	    echo "You must install $(PROG) and $(UTILS) as root"; \
-	    exit 1; \
-	else \
-	    echo mkdir -p $(PREFIX)/bin; \
-	    mkdir -p $(PREFIX)/bin; \
-	    echo install -O 0 -G 0 -M 755 -S -f $(PREFIX)/bin $(PROG); \
-	    install -O 0 -G 0 -M 755 -S -f $(PREFIX)/bin $(PROG); \
-	    echo mkdir -p $(PREFIX)/share/$(PROG); \
-	    mkdir -p $(PREFIX)/share/$(PROG); \
-	    echo install -O 0 -G 0 -M 644 -f $(PREFIX)/share/$(PROG) $(UTILS); \
-	    install -O 0 -G 0 -M 644 -f $(PREFIX)/share/$(PROG) $(UTILS); \
-	fi
+	@echo mkdir -p $(PREFIX)/bin; \
+	mkdir -p $(PREFIX)/bin; \
+	echo install -M 755 -S -f $(PREFIX)/bin $(PROG); \
+	install -M 755 -S -f $(PREFIX)/bin $(PROG); \
+	echo mkdir -p $(PREFIX)/share/$(PROG); \
+	mkdir -p $(PREFIX)/share/$(PROG); \
+	echo install -M 644 -f $(PREFIX)/share/$(PROG) $(UTILS); \
+	install -M 644 -f $(PREFIX)/share/$(PROG) $(UTILS)
 
 .PHONY: uninstall
 uninstall:
-	@if [ "${USER}" != "root" ]; then \
-	    echo "You must uninstall $(PROG) and $(UTILS) as root"; \
-	    exit 1; \
-	else \
-	    echo $(RM) -r $(PREFIX)/share/$(PROG); \
-	    $(RM) -r $(PREFIX)/share/$(PROG); \
-	    echo $(RM) $(PREFIX)/bin/$(PROG); \
-	    $(RM) $(PREFIX)/bin/$(PROG); \
-	fi
+	@echo $(RM) -r $(PREFIX)/share/$(PROG); \
+	$(RM) -r $(PREFIX)/share/$(PROG); \
+	echo $(RM) $(PREFIX)/bin/$(PROG); \
+	$(RM) $(PREFIX)/bin/$(PROG)
 
 .PHONY: install-docs
 install-docs: $(INSTDOC)
 
 .PHONY: install-docs-default
 install-docs-default:
-	@if [ "${USER}" != "root" ]; then \
-	    echo "You must install documentation as root"; \
-	    exit 1; \
-	else \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/share/doc/$(PROG); \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/share/doc/$(PROG); \
-	    echo install -o 0 -g 0 -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
-	    install -o 0 -g 0 -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
-	    echo $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
-	    $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
-	    echo install -d -o 0 -g 0 -m 755 $(PREFIX)/man/man1; \
-	    install -d -o 0 -g 0 -m 755 $(PREFIX)/man/man1; \
-	    echo install -o 0 -g 0 -m 644 $(MAN) $(PREFIX)/man/man1; \
-	    install -o 0 -g 0 -m 644 $(MAN) $(PREFIX)/man/man1; \
-	    if [ "$(OS)" != "SunOS" ]; then \
-	        echo $(GZIP) $(PREFIX)/man/man1/rsm.1; \
-	        $(GZIP) $(PREFIX)/man/man1/rsm.1; \
-	    fi; \
-	    if command -v mandb >/dev/null; then \
-	        echo mandb -q; \
-	        mandb -q; \
-	    fi \
+	@echo install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
+	install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
+	echo install -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
+	install -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
+	echo $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
+	$(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
+	echo install -d -m 755 $(PREFIX)/share/man/man1; \
+	install -d -m 755 $(PREFIX)/share/man/man1; \
+	echo install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
+	install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
+	if [ "$(OS)" != "SunOS" ]; then \
+	    echo $(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
+	    $(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
+	fi; \
+	if command -v mandb >/dev/null; then \
+	    echo mandb -q; \
+	    mandb -q; \
 	fi
 
 .PHONY: install-docs-aix
 install-docs-aix:
-	@if [ "${USER}" != "root" ]; then \
-	    echo "You must install documentation as root"; \
-	    exit 1; \
-	else \
-	    echo mkdir -p $(PREFIX)/share/doc/$(PROG); \
-	    mkdir -p $(PREFIX)/share/doc/$(PROG); \
-	    for doc in $(DOCS); do \
-	        echo install -O 0 -G 0 -M 644 -f $(PREFIX)/share/doc/$(PROG) $${doc}; \
-	        install -O 0 -G 0 -M 644 -f $(PREFIX)/share/doc/$(PROG) $${doc}; \
-	    done; \
-	    echo $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
-	    $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
-	    echo mkdir -p $(PREFIX)/man/man1; \
-	    mkdir -p $(PREFIX)/man/man1; \
-	    echo install -O 0 -G 0 -M 644 -f $(PREFIX)/man/man1 $(MAN); \
-	    install -O 0 -G 0 -M 644 -f $(PREFIX)/man/man1 $(MAN); \
-	fi
+	@echo mkdir -p $(PREFIX)/share/doc/$(PROG); \
+	mkdir -p $(PREFIX)/share/doc/$(PROG); \
+	for doc in $(DOCS); do \
+	    echo install -M 644 -f $(PREFIX)/share/doc/$(PROG) $${doc}; \
+	    install -M 644 -f $(PREFIX)/share/doc/$(PROG) $${doc}; \
+	done; \
+	echo $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
+	$(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
+	echo mkdir -p $(PREFIX)/share/man/man1; \
+	mkdir -p $(PREFIX)/share/man/man1; \
+	echo install -M 644 -f $(PREFIX)/share/man/man1 $(MAN); \
+	install -M 644 -f $(PREFIX)/share/man/man1 $(MAN)
 
 .PHONY: uninstall-docs
 uninstall-docs:
-	@if [ "${USER}" != "root" ]; then \
-	    echo "You must uninstall documentation as root"; \
-	    exit 1; \
-	else \
-	    echo $(RM) $(PREFIX)/man/man1/rsm.1*; \
-	    $(RM) $(PREFIX)/man/man1/rsm.1*; \
-	    if command -v mandb >/dev/null; then \
-	        echo mandb -q; \
-	        mandb -q; \
-	    fi; \
-	    echo $(RM) -r $(PREFIX)/share/doc/$(PROG); \
-	    $(RM) -r $(PREFIX)/share/doc/$(PROG); \
-	fi
+	@echo $(RM) $(PREFIX)/share/man/man1/rsm.1*; \
+	$(RM) $(PREFIX)/share/man/man1/rsm.1*; \
+	if command -v mandb >/dev/null; then \
+	    echo mandb -q; \
+	    mandb -q; \
+	fi; \
+	echo $(RM) -r $(PREFIX)/share/doc/$(PROG); \
+	$(RM) -r $(PREFIX)/share/doc/$(PROG)

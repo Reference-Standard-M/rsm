@@ -26,9 +26,8 @@
  *
  * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
  * SPDX-License-Identifier: AGPL-3.0-or-later
- */
-
-/*
+ *
+ *
  * Extended Summary:
  *
  * This module implements the following sequential input/output (i.e., IO)

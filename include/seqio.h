@@ -38,32 +38,32 @@
 // Global constants
 
 // IO operations
-#define PRINCIPAL 0                                                             // Write/Read $PRINCIPAL only
-#define WRITE     1                                                             // Write only
-#define READ      2                                                             // Read only
-#define APPEND    3                                                             // Append
-#define IO        4                                                             // Write/Read
-#define TCPIP     5                                                             // Client socket
-#define SERVER    6                                                             // Forking server socket
-#define NOFORK    7                                                             // Non-forking server socket
-#define FORKED    8                                                             // Forked server socket client
-#define PIPE      9                                                             // Named pipe (writing)
-#define NEWPIPE   10                                                            // Named pipe (reading)
+#define PRINCIPAL   0                                                           // Write/Read $PRINCIPAL only
+#define WRITE       1                                                           // Write only
+#define READ        2                                                           // Read only
+#define APPEND      3                                                           // Append
+#define IO          4                                                           // Write/Read
+#define TCPIP       5                                                           // Client socket
+#define SERVER      6                                                           // Forking server socket
+#define NOFORK      7                                                           // Non-forking server socket
+#define FORKED      8                                                           // Forked server socket client
+#define PIPE        9                                                           // Named pipe (writing)
+#define NEWPIPE     10                                                          // Named pipe (reading)
 
 // Signal operations
-#define CATCH  0                                                                // Catch signal
-#define IGNORE 1                                                                // Ignore signal
+#define CATCH   0                                                               // Catch signal
+#define IGNORE  1                                                               // Ignore signal
 
 // Types of errors
-#define SYS 0                                                                   // System error
-#define INT 1                                                                   // Internal error
+#define SYS     0                                                               // System error
+#define INT     1                                                               // Internal error
 
 // File/Pipe permissions
-#define MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define MODE    (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 // Select operations
-#define FDRD 0                                                                  // Ready to read on object
-#define FDWR 1                                                                  // Ready to write on object
+#define FDRD    0                                                               // Ready to read on object
+#define FDWR    1                                                               // Ready to write on object
 
 // Global function declarations
 void setSignalBitMask(int sig);
@@ -83,7 +83,7 @@ int  SQ_Pipe_Open(char *pipe, int op);
 int  SQ_Pipe_Close(int pid, char *pipe);
 int  SQ_Pipe_Read(int pid, u_char *readbuf, int tout);
 int  SQ_Pipe_Write(int pid, u_char *writebuf, int nbytes);
-int  SQ_Tcpip_Open(char *bind, int op);
+int  SQ_Tcpip_Open(const char *bind, int op);
 int  SQ_Tcpip_Write(int sid, u_char *writebuf, int nbytes);
 int  SQ_Tcpip_Accept(int sid, int tout);
 int  SQ_Tcpip_Read(int sid, u_char *readbuf, int tout);

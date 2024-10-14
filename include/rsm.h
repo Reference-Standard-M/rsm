@@ -32,20 +32,20 @@
 #define RSM_RSM_H
 
 // General constant definitions
-#define RSM_STRING(num)    RSM_STRINGIFY(num)
-#define RSM_STRINGIFY(num) #num
+#define RSM_STRING(num)     RSM_STRINGIFY(num)
+#define RSM_STRINGIFY(num)  #num
 
-#define FALSE 0                                                                 // nicer than using 0
-#define TRUE  1                                                                 // or 1
-#define OFF   -1                                                                // Buffer history is turned off
+#define FALSE   0                                                               // nicer than using 0
+#define TRUE    1                                                               // or 1
+#define OFF     -1                                                              // Buffer history is turned off
 
 #define RSM_MAGIC           4155766917U                                         // Seems unique
 #define RSM_SYSTEM          50                                                  // MDC assigned number
 #define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
 #define MAX_BLOCK_SIZE      256U                                                // Maximum block size in KiB
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       81                                                  // Minor version number
-#define VERSION_PATCH       1                                                   // Patch version number
+#define VERSION_MINOR       82                                                  // Minor version number
+#define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -57,90 +57,90 @@
 #define MAX_ROUTINE_BUFFERS 4095                                                // Maximum routine buffers in MiB
 
 #ifdef  __APPLE__
-#   define PRVGRP 80                                                            // admin in macOS
+#   define PRVGRP   80                                                          // admin in macOS
 #else
-#   define PRVGRP 0                                                             // Priv group FreeBSD and Linux
+#   define PRVGRP   0                                                           // Priv group FreeBSD and Linux
 #endif                                                                          // Darwin
 
 //#define MAX_INT_DIGITS 10                                                     // can be an int at 10 - not currently used
-#define DEFAULT_PREC   18                                                       // default number of decimal places
-#define MAX_PREC       128                                                      // max number of decimal places
-#define MAX_NUM_BYTES  256                                                      // max size of a number
-#define MAX_STR_LEN    65534                                                    // max size of a string (65535 VAR/NODE_UNDEFINED)
-#define MAX_KEY_SIZE   255                                                      // max size of a key
-#define MAX_SUB_LEN    127                                                      // max size of a subscript
-#define MAX_NUM_SUBS   63                                                       // max number of subscripts
-#define MAX_NUM_ARGS   (127 - 1)                                                // max number of arguments
-#define MAX_NUM_TAGS   256                                                      // max number of tags/labels
-#define MAX_NUM_VARS   255                                                      // max number of routine variables
+#define DEFAULT_PREC    18                                                      // default number of decimal places
+#define MAX_PREC        128                                                     // max number of decimal places
+#define MAX_NUM_BYTES   256                                                     // max size of a number
+#define MAX_STR_LEN     65534                                                   // max size of a string (65535 VAR/NODE_UNDEFINED)
+#define MAX_KEY_SIZE    255                                                     // max size of a key
+#define MAX_SUB_LEN     127                                                     // max size of a subscript
+#define MAX_NUM_SUBS    63                                                      // max number of subscripts
+#define MAX_NUM_ARGS    (127 - 1)                                               // max number of arguments
+#define MAX_NUM_TAGS    256                                                     // max number of tags/labels
+#define MAX_NUM_VARS    255                                                     // max number of routine variables
 
 #if RSM_DBVER == 1
-#   define VAR_LEN 8                                                            // length of var_u - must be multiple of 8
+#   define VAR_LEN  8                                                           // length of var_u - must be multiple of 8
 #else
-#   define VAR_LEN 32                                                           // length of var_u - must be multiple of 8
+#   define VAR_LEN  32                                                          // length of var_u - must be multiple of 8
 #endif
 
-#define MAX_ECODE 1024                                                          // max len for $ECODE
+#define MAX_ECODE   1024                                                        // max len for $ECODE
 
-#define SECDAY 86400                                                            // seconds per day ($HOROLOG)
-#define YRADJ  47117                                                            // days from 1 Jan 1841 to 1970
+#define SECDAY  86400                                                           // seconds per day ($HOROLOG)
+#define YRADJ   47117                                                           // days from 1 Jan 1841 to 1970
 
 #define MAX_VOL 1                                                               // max number of vols
 #define UCIS    64                                                              // always 64
 
 // KeyCmp outputs
-#define KEQUAL     0                                                            // outputs for..
-#define K2_LESSER  1                                                            // .. KeyCmp function
-#define K2_GREATER -1                                                           // ***
+#define KEQUAL      0                                                           // outputs for..
+#define K2_LESSER   1                                                           // .. KeyCmp function
+#define K2_GREATER  -1                                                          // ***
 
-#define MAX_DO_FRAMES 127                                                       // maximum permitted do_frame (0 - 126)
-#define STM1_FRAME    MAX_DO_FRAMES                                             // where $STACK(-1) data goes
+#define MAX_DO_FRAMES   127                                                     // maximum permitted do_frame (0 - 126)
+#define STM1_FRAME      MAX_DO_FRAMES                                           // where $STACK(-1) data goes
 
-#define UNLIMITED -1                                                            // unlimited timeout for sequential IO
+#define UNLIMITED   -1                                                          // unlimited timeout for sequential IO
 
-#define MIN_SEQ_IO   0                                                         // Minimum sequential IO channel
-#define MAX_SEQ_IO   64                                                        // maximum sequential IO channel
-#define MAX_SEQ_NAME 256                                                       // max file name size
-#define MAX_SEQ_OUT  6                                                         // max output terminator size
-#define MAX_DKEY_LEN 16                                                        // max $KEY seq stored
-#define SQ_FREE      0                                                         // SQ_Chan->type - free
-#define SQ_FILE      1                                                         // SQ_Chan->type - disk file
-#define SQ_SOCK      2                                                         // SQ_Chan->type - socket
-#define SQ_PIPE      3                                                         // SQ_Chan->type - named pipe
-#define SQ_TERM      4                                                         // SQ_Chan->type - terminal/character device
-#define SQ_LF        -1                                                        // WRITE !
-#define SQ_FF        -2                                                        // WRITE #
+#define MIN_SEQ_IO      0                                                       // Minimum sequential IO channel
+#define MAX_SEQ_IO      64                                                      // maximum sequential IO channel
+#define MAX_SEQ_NAME    256                                                     // max file name size
+#define MAX_SEQ_OUT     6                                                       // max output terminator size
+#define MAX_DKEY_LEN    16                                                      // max $KEY seq stored
+#define SQ_FREE         0                                                       // SQ_Chan->type - free
+#define SQ_FILE         1                                                       // SQ_Chan->type - disk file
+#define SQ_SOCK         2                                                       // SQ_Chan->type - socket
+#define SQ_PIPE         3                                                       // SQ_Chan->type - named pipe
+#define SQ_TERM         4                                                       // SQ_Chan->type - terminal/character device
+#define SQ_LF           -1                                                      // WRITE !
+#define SQ_FF           -2                                                      // WRITE #
 
-#define SQ_USE_ECHO        1                                                    // turn echo on
-#define SQ_USE_NOECHO      2                                                    // turn echo off
-#define SQ_USE_ESCAPE      4                                                    // turn escape on
-#define SQ_USE_NOESCAPE    8                                                    // turn escape off
-#define SQ_USE_TYPEAHEAD   16                                                   // turn type-ahead on
-#define SQ_USE_NOTYPEAHEAD 32                                                   // turn type-ahead off
-#define SQ_USE_DISCON      128                                                  // disconnect client from socket
-#define SQ_USE_DELNONE     256                                                  // no delete function
-#define SQ_USE_DEL8        512                                                  // use backspace as delete
-#define SQ_USE_DEL127      1024                                                 // use delete as delete
-#define SQ_USE_DELBOTH     2048                                                 // use both as delete
-#define SQ_CONTROLC        4096                                                 // enable <Control-C> trapping
-#define SQ_NOCONTROLC      8192                                                 // no <Control-C> trap, ignore it
-#define SQ_CONTROLT        16384                                                // enable <Control-T> status
-#define SQ_NOCONTROLT      32768                                                // disable <Control-T> status
+#define SQ_USE_ECHO         1                                                   // turn echo on
+#define SQ_USE_NOECHO       2                                                   // turn echo off
+#define SQ_USE_ESCAPE       4                                                   // turn escape on
+#define SQ_USE_NOESCAPE     8                                                   // turn escape off
+#define SQ_USE_TYPEAHEAD    16                                                  // turn type-ahead on
+#define SQ_USE_NOTYPEAHEAD  32                                                  // turn type-ahead off
+#define SQ_USE_DISCON       128                                                 // disconnect client from socket
+#define SQ_USE_DELNONE      256                                                 // no delete function
+#define SQ_USE_DEL8         512                                                 // use backspace as delete
+#define SQ_USE_DEL127       1024                                                // use delete as delete
+#define SQ_USE_DELBOTH      2048                                                // use both as delete
+#define SQ_CONTROLC         4096                                                // enable <Control-C> trapping
+#define SQ_NOCONTROLC       8192                                                // no <Control-C> trap, ignore it
+#define SQ_CONTROLT         16384                                               // enable <Control-T> status
+#define SQ_NOCONTROLT       32768                                               // disable <Control-T> status
 
-#define SHMAT_SEED NULL
+#define SHMAT_SEED  NULL
 
-#define MIN_GBD 64                                                              // minumum number GBDs
+#define MIN_GBD     64                                                          // minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
-#define GBD_HASH  1024                                                          // hash size for global buffers
-#define NUM_DIRTY 1024                                                          // max queued dirty chains
-#define NUM_GARB  8192                                                          // max queued garbage blocks
-#define RBD_HASH  1023                                                          // hash size for routine names
-#define GBD_FREE  GBD_HASH                                                      // head of GBD free list
+#define GBD_HASH    1024                                                        // hash size for global buffers
+#define NUM_DIRTY   1024                                                        // max queued dirty chains
+#define NUM_GARB    8192                                                        // max queued garbage blocks
+#define RBD_HASH    1023                                                        // hash size for routine names
+#define GBD_FREE    GBD_HASH                                                    // head of GBD free list
 
-#define AVROUSIZE  3072                                                         // average compiled routine size
-#define MAXROUSIZE MAX_STR_LEN                                                  // max compiled rou size
-#define MAXROULINE MAX_STR_LEN                                                  // max rou lines
+#define AVROUSIZE   3072                                                        // average compiled routine size
+#define MAXROUSIZE  MAX_STR_LEN                                                 // max compiled rou size
+#define MAXROULINE  MAX_STR_LEN                                                 // max rou lines
 
 #if RSM_DBVER == 1
 #   define DB_VER   1                                                           // database version
@@ -151,50 +151,51 @@
 #endif
 
 // Global flags (from Global Directory) follow
-#define GL_JOURNAL     1                                                        // Journal global flag
-#define GL_TOP_DEFINED 2                                                        // Top node of global defined
+#define GL_JOURNAL      1                                                       // Journal global flag
+#define GL_TOP_DEFINED  2                                                       // Top node of global defined
 
 #define LOCKTAB_SIZE    32768                                                   // 32 KiB per job
 #define UCI_IS_LOCALVAR 255                                                     // for struct mvar
 #define VAR_UNDEFINED   (MAX_STR_LEN + 1)                                       // undefined variable (also NODE_UNDEFINED)
+#define ROOT_UNDEFINED  VAR_UNDEFINED                                           // undefined root of variable
 
-#define MAX_ASTK 1024                                                           // max depth of addstk
-#define MAX_SSTK (MBYTE * 2)                                                    // max string stack (2 MiB)
-#define MAX_ISTK 65536                                                          // max indirect stack
+#define MAX_ASTK    1024                                                        // max depth of addstk
+#define MAX_SSTK    (MBYTE * 2)                                                 // max string stack (2 MiB)
+#define MAX_ISTK    65536                                                       // max indirect stack
 
 #define MAX_HISTORY 128                                                         // max size of history recall buffer
 
 // Do frame types - negative numbers are error codes
-#define TYPE_RUN       1                                                        // normal RSM startup
-#define TYPE_JOB       2                                                        // got jobbed [0] only
-#define TYPE_DO        3                                                        // DO
-#define TYPE_EXTRINSIC 4                                                        // Extrinsic
-#define TYPE_XECUTE    5                                                        // eXecute
+#define TYPE_RUN        1                                                       // normal RSM startup
+#define TYPE_JOB        2                                                       // got jobbed [0] only
+#define TYPE_DO         3                                                       // DO
+#define TYPE_EXTRINSIC  4                                                       // Extrinsic
+#define TYPE_XECUTE     5                                                       // eXecute
 
-#define DO_FLAG_TEST  1                                                         // $TEST value (0/1)
-#define DO_FLAG_ATT   2                                                         // sym attach done
-#define DO_FLAG_FOR   4                                                         // called from a FOR (infor)
-#define DO_FLAG_ERROR 8                                                         // this is an error frame
+#define DO_FLAG_TEST    1                                                       // $TEST value (0/1)
+#define DO_FLAG_ATT     2                                                       // sym attach done
+#define DO_FLAG_FOR     4                                                       // called from a FOR (infor)
+#define DO_FLAG_ERROR   8                                                       // this is an error frame
 
 // Signals we do something with (see jobtab->trap). (add as required)
-#define SIG_HUP  1                                                              // SIGHUP (ERR Z66)
-#define SIG_CC   (1U << 2)                                                      // <Control-C> signal (SIGINT)
-#define SIG_QUIT (1U << 3)                                                      // SIGQUIT (HALT)
-#define SIG_TERM (1U << 15)                                                     // SIGTERM (HALT)
-#define SIG_STOP (1U << 17)                                                     // SIGSTOP (HALT)
-#define SIG_WS   (1U << 28)                                                     // window size changes (ignore)
-#define SIG_CT   (1U << 29)                                                     // <Control-T> signal (SIGINFO)
-#define SIG_U1   (1U << 30)                                                     // user signal 1 (ERR Z67)
-#define SIG_U2   (1U << 31)                                                     // user signal 2 (ERR Z68)
+#define SIG_HUP     1                                                           // SIGHUP (ERR Z66)
+#define SIG_CC      (1U << 2)                                                   // <Control-C> signal (SIGINT)
+#define SIG_QUIT    (1U << 3)                                                   // SIGQUIT (HALT)
+#define SIG_TERM    (1U << 15)                                                  // SIGTERM (HALT)
+#define SIG_STOP    (1U << 17)                                                  // SIGSTOP (HALT)
+#define SIG_WS      (1U << 28)                                                  // window size changes (ignore)
+#define SIG_CT      (1U << 29)                                                  // <Control-T> signal (SIGINFO)
+#define SIG_U1      (1U << 30)                                                  // user signal 1 (ERR Z67)
+#define SIG_U2      (1U << 31)                                                  // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define VOL_FILENAME_MAX 255                                                    // max chars in stored filename
-#define JNL_FILENAME_MAX 226                                                    // max chars in journal filename
+#define VOL_FILENAME_MAX    255                                                 // max characters in stored filename
+#define JNL_FILENAME_MAX    226                                                 // max characters in journal filename
 
 // systab->historic bit flag meanings
-#define HISTORIC_EOK   1                                                        // E number syntax OK
-#define HISTORIC_OFFOK 2                                                        // GO/DO with offset OK
-#define HISTORIC_DNOK  4                                                        // $NEXT OK
+#define HISTORIC_EOK    1                                                       // E number syntax OK
+#define HISTORIC_OFFOK  2                                                       // GO/DO with offset OK
+#define HISTORIC_DNOK   4                                                       // $NEXT OK
 
 /*
  * Semaphore defines
@@ -203,19 +204,19 @@
  * A write takes systab->maxjob units
  * A SEM_ATOMIC only takes a SEM_WRITE and also sets the atomic flag
  */
-#define SEM_SYS    0                                                            // System table Semaphore
-#define SEM_LOCK   1                                                            // Lock table Semaphore
-#define SEM_GLOBAL 2                                                            // Global database module
-#define SEM_ROU    3                                                            // Routine buffers
-#define SEM_WD     4                                                            // Write daemons
-#define SEM_ATOMIC 5                                                            // Atomic operations
-#define SEM_MAX    6                                                            // total number of these
+#define SEM_SYS     0                                                           // System table Semaphore
+#define SEM_LOCK    1                                                           // Lock table Semaphore
+#define SEM_GLOBAL  2                                                           // Global database module
+#define SEM_ROU     3                                                           // Routine buffers
+#define SEM_WD      4                                                           // Write daemons
+#define SEM_ATOMIC  5                                                           // Atomic operations
+#define SEM_MAX     6                                                           // total number of these
 
 // Semaphore operations
-#define SEM_READ     ((int) -1)                                                 // a read lock (shared)
-#define SEM_WRITE    ((int) -systab->maxjob)                                    // a write lock (exclusive)
-//#define SEM_R_TO_WR  (-(systab->maxjob - 1))                                    // from read to write
-#define SEM_WR_TO_R  (systab->maxjob - 1)                                       // from write to read
+#define SEM_READ    ((int) -1)                                                  // a read lock (shared)
+#define SEM_WRITE   ((int) -systab->maxjob)                                     // a write lock (exclusive)
+//#define SEM_R_TO_WR (-(systab->maxjob - 1))                                   // from read to write
+#define SEM_WR_TO_R (systab->maxjob - 1)                                        // from write to read
 
 #define MAX_TRANTAB 64                                                          // total number of entries
 
@@ -254,8 +255,8 @@ typedef struct __attribute__ ((__packed__)) MVAR {                              
 } mvar;                                                                         // end M subs var
 
 // Common memory structures
-struct GBD;                                                                     // defined in rsm/include/database.h
-struct RBD;                                                                     // defined in rsm/include/compile.h
+struct  GBD;                                                                    // defined in rsm/include/database.h
+struct  RBD;                                                                    // defined in rsm/include/compile.h
 
 typedef struct __attribute__ ((__packed__)) UCI_TAB {
     var_u name;                                                                 // UCI name
@@ -473,7 +474,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     u_int   last_blk_used[MAX_VOL];                                             // actually setup for real jobs for all volumes
 } systab_struct;                                                                // end of systab
 
-extern systab_struct *systab;                                                   // make its pointer external
+extern systab_struct   *systab;                                                 // make its pointer external
 
 // Process memory structures
 
@@ -504,11 +505,11 @@ extern u_char        *rsmpc;                                                    
 extern int           restricted;                                                // whether RSM is in restricted mode or not
 
 // Compiler warning suppression
-#define PRAGMA(x) _Pragma(#x)
+#define PRAGMA(x)   _Pragma(#x)
 
 #if __GNUC__ >= 11
-#   define ENABLE_WARN _Pragma("GCC diagnostic pop")
-#   define DISABLE_WARN(name) _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
+#   define ENABLE_WARN          _Pragma("GCC diagnostic pop")
+#   define DISABLE_WARN(name)   _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
 #else
 #   define ENABLE_WARN
 #   define DISABLE_WARN(name)
@@ -537,12 +538,12 @@ static inline u_int var_empty(var_u var)
 }
 
 // Last block used multi-volume job offset (last_block_used[job][volume])
-#define LBU_OFF(vol) ((partab.jobtab - partab.job_table) * MAX_VOL + (vol))
+#define LBU_OFF(vol)    ((partab.jobtab - partab.job_table) * MAX_VOL + (vol))
 
 // Adjust systab pointer for reading/writing when the address layout changes (Systab Offset/Base Address/Memory)
-#define SOM(ptr) ((typeof(ptr)) ((char *) (ptr) + ((char *) systab - (char *) systab->address)))
-#define SBM(ptr) ((typeof(ptr)) ((char *) (ptr) - ((char *) systab - (char *) systab->address)))
-#define SOA(ptr) ((ptr == NULL) ? NULL : SOM(ptr))
-#define SBA(ptr) ((ptr == NULL) ? NULL : SBM(ptr))
+#define SOM(ptr)    ((__typeof__(ptr)) ((char *) (ptr) + ((char *) systab - (char *) systab->address)))
+#define SBM(ptr)    ((__typeof__(ptr)) ((char *) (ptr) - ((char *) systab - (char *) systab->address)))
+#define SOA(ptr)    ((ptr == NULL) ? NULL : SOM(ptr))
+#define SBA(ptr)    ((ptr == NULL) ? NULL : SBM(ptr))
 
 #endif

@@ -142,7 +142,7 @@ alternation:
                 if (ch == ',' && i1 == 1) i1--;
             }
 
-            *(--tcur) = DELIM;
+            *--tcur = DELIM;
 DISABLE_WARN(-Warray-bounds)
             tmp->len = tcur - tmp->buf + 1;
 ENABLE_WARN
@@ -171,17 +171,17 @@ short pattern(cstring *a, cstring *b)
     short  levels;                                                              // depth of stack
     int    patx = 0;                                                            // match stack pointer
     short  notpatclass = FALSE;                                                 // pattern class negation
-    short  ptrpcd[PATDEPTH];
-    short  position[PATDEPTH];
+    short  ptrpcd[PATDEPTH] = {0};
+    short  position[PATDEPTH] = {0};
     short  mincnt[PATDEPTH] = {0};                                              // minimum number of matches
     short  maxcnt[PATDEPTH] = {0};                                              // maximum number of matches
-    short  actcnt[PATDEPTH];                                                    // actual count of matches
+    short  actcnt[PATDEPTH] = {0};                                              // actual count of matches
     short  Pflag = FALSE;
     short  Pchar = EOL;                                                         // status in alternation
     short  altc;                                                                // alternation counter
-    short  altcnt[PATDEPTH];                                                    // gr.pat.alternation counters
-    u_char gpmin[PATDEPTH][PATDEPTH][255];                                      // grpd pattern min length's
-    short  gp_position[PATDEPTH][PATDEPTH];                                     // grpd patt.pos.of substr
+    short  altcnt[PATDEPTH] = {0};                                              // gr.pat.alternation counters
+    u_char gpmin[PATDEPTH][PATDEPTH][255] = {{{0}}};                            // grpd pattern min length's
+    short  gp_position[PATDEPTH][PATDEPTH] = {{0}};                             // grpd patt.pos.of substr
     u_char *ptrtom;                                                             // pointer to match code
     u_char patcode;
     int    ch;
@@ -356,7 +356,7 @@ short pattern(cstring *a, cstring *b)
                         break;
 
                     case 'e':                                                   // any char and
-                        if ((ch > 0) != notpatclass) goto match;                // not negation
+                        if (!notpatclass) goto match;                           // not negation
                         break;
 
                     case '"':                                                   // literal

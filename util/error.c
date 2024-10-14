@@ -1,7 +1,7 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/util/strerror.c
- * Summary: module RSM strerror - return full name of error
+ * File:    rsm/util/error.c
+ * Summary: module RSM error - return full name of error
  *
  * David Wicksell <dlw@linux.com>
  * Copyright © 2020-2024 Fourth Watch Software LC
@@ -26,9 +26,8 @@
  *
  * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
  * SPDX-License-Identifier: AGPL-3.0-or-later
- */
-
-/*
+ *
+ *
  * Extended Summary:
  *
  * Errors returned by functions internally are minus one of the following
@@ -189,8 +188,9 @@ static struct {
 
 u_short UTIL_strerror(int err, u_char *buf)                                     // return string form
 {
-    u_char none[] = {"No such error number"};                                   // invalid
-    u_char *ptr;                                                                // pointer to msg
+    u_char       none[] = {"No such error number"};                             // invalid
+    const u_char *ptr;                                                          // pointer to msg
+
     ptr = none;                                                                 // default to none
     if (err < 0) err = -err;                                                    // ensure err +ve
 
@@ -209,11 +209,11 @@ u_short UTIL_strerror(int err, u_char *buf)                                     
     return (u_short) strlen((char *) ptr);                                      // and return length
 }
 
-void panic(char *msg)                                                           // print msg and exit
+void panic(const char *msg)                                                     // print msg and exit
 {
-    FILE   *a;                                                                  // for freopen
-    char   tmp[512];                                                            // some string space
-    time_t t;                                                                   // for time
+    const FILE *a;                                                              // for freopen
+    char       tmp[512];                                                        // some string space
+    time_t     t;                                                               // for time
 
     fprintf(stderr, "\r\nFATAL RSM ERROR occurred!!\r\n%s\r\n", msg);           // print
     if (errno) fprintf(stderr, "errno = %d - %s\r\n", errno, strerror(errno));

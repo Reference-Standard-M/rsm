@@ -57,24 +57,25 @@
 #define RBD_OVERHEAD  (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
                       + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))
 
-#define RESERVE_TIME (20 * 60)                                                  // 20 minutes
-#define SIZE_CLOSE   1024                                                       // routine size match
 
-#define FOR_TYP_0  0                                                            // no args
-#define FOR_TYP_1  1                                                            // one arg
-#define FOR_TYP_2  2                                                            // two args
-#define FOR_TYP_3  3                                                            // three args
-#define FOR_NESTED 16                                                           // we are not an outside for
+#define RESERVE_TIME    (20 * 60)                                               // 20 minutes
+#define SIZE_CLOSE      1024                                                    // routine size match
+
+#define FOR_TYP_0       0                                                       // no args
+#define FOR_TYP_1       1                                                       // one arg
+#define FOR_TYP_2       2                                                       // two args
+#define FOR_TYP_3       3                                                       // three args
+#define FOR_NESTED      16                                                      // we are not an outside for
 
 // BREAK control
-#define BREAK_OFF     0                                                         // BREAK off but ready (default)
-#define BREAK_ON      -1                                                        // BREAK hit or set
-#define BREAK_DISABLE -2                                                        // disable BREAK
+#define BREAK_OFF       0                                                       // BREAK off but ready (default)
+#define BREAK_ON        -1                                                      // BREAK hit or set
+#define BREAK_DISABLE   -2                                                      // disable BREAK
 
 // Funny opcode stuff
-#define BREAK_NOW 256                                                           // BREAK at breakpoint (not really an opcode)
-#define JOBIT     512                                                           // JOB (not really an opcode)
-#define BREAK_QN  1073741824                                                    // return a QUIT n (BREAK in n commands)
+#define BREAK_NOW       256                                                     // BREAK at breakpoint (not really an opcode)
+#define JOBIT           512                                                     // JOB (not really an opcode)
+#define BREAK_QN        1073741824                                              // return a QUIT n (BREAK in n commands)
 
 // Variable types follow
 #define TYPMAXSUB       63                                                      // max subscripts

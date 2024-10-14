@@ -56,7 +56,7 @@
 \*******************************************************************/
 
 // number of blocks, block size in bytes, map size in bytes (may be 0), volume name, UCI name, file name
-int INIT_Create_File(u_int blocks, u_int bsize, u_int map, char  *volnam, char  *env, char  *file)
+int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file)
 {
     int         namlen;                                                         // length of volume name
     int         envlen;                                                         // length of UCI name

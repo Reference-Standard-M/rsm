@@ -24,7 +24,8 @@
 #
 # SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
+#
+#
 # Copy this file to /etc/systemd/system/ making sure to change <USER> and
 # <GROUP> templates to the user and group you want to use when running the
 # service.

@@ -24,7 +24,8 @@
 #
 # SPDX-FileCopyrightText:  © 2023 David Wicksell <dlw@linux.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
+#
+#
 # Copy this file to $HOME/.config/systemd/user/.
 #
 # Then reload the systemd daemon:

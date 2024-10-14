@@ -107,12 +107,12 @@ short attention(void)                                                           
 // DoInfo() - look after a <Control-T>
 void DoInfo(void)
 {
-    int    i;                                                                   // a handy int
-    int    j;                                                                   // and another
-    char   ct[400];                                                             // some space for control t
-    char   *p;                                                                  // a handy pointer
-    mvar   *var;                                                                // and another
-    struct winsize w;                                                           // for ioctl
+    int         i;                                                              // a handy int
+    int         j;                                                              // and another
+    char        ct[400];                                                        // some space for control t
+    const char *p;                                                              // a handy pointer
+    mvar        *var;                                                           // and another
+    struct      winsize w;                                                      // for ioctl
 
     memcpy(ct, "\033\067\033[99;1H", 9);                                        // start off
     i = 9;                                                                      // next char
@@ -154,7 +154,7 @@ int ForkIt(int cft)                                                             
     int          i;                                                             // a handy int
     int          ret;                                                           // and another
     volatile int mid = -1;                                                      // for the M id
-    void         *j;                                                            // a handy pointer
+    const void   *j;                                                            // a handy pointer
 
     for (u_int k = 0; k < systab->maxjob; k++) {                                // scan the slots
         ret = partab.job_table[k].pid;                                          // get pid
@@ -237,7 +237,7 @@ int ForkIt(int cft)                                                             
 
     for (i = 0; i < 1000; i++) {                                                // wait for the above to happen
         if (getpid() == partab.jobtab->pid) break;                              // done yet? if yes - exit
-        SchedYield(TRUE);                                                       // give up slice
+        SchedYield(TRUE);                                                       // give up slice (or sleep)
     }
 
     if (i > 999) {                                                              // if that didn't work

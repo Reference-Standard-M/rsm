@@ -37,7 +37,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 == ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 [.lead]
-*Version 1.81.1 - 2024 Jun 22*
+*Version 1.82.0 - 2024 Oct 14*
 
 === Copyright and License
 
@@ -94,15 +94,13 @@ been tested, and/or known (or suspected) to build and run RSM, are:
 * OpenBSD on amd64
 * macOS 10.4 and newer on ILP32 and LP64 Intel (Clang or GCC)
 * macOS 11.0 and newer on 64-bit M1 ARMv8 (Clang or GCC)
-* Solaris on i86pc
+* Solaris on i86pc and Sun-4v (SPARC)
 * AIX on ppc32be and ppc64be
 * HP-UX on IA-64
-* Windows XP, 7, and 10, under Cygwin and/or Windows Subsystem for Linux 1 and 2
+* Windows XP, 7, 10, and 11, under Cygwin
+* Windows 10 and 11, under Windows Subsystem for Linux (WSL) 1 and 2
 * Raspberry Pi on armv6l and armv7l running Raspbian
 * Mobian (Mobile Debian Linux) on aarch64
-
-WARNING: RSM will not run on SPARC, and may not run on PA-RISC, due to memory
-alignment requirements
 
 Thanks to https://gitlab.com/jpwillis[John Willis] for providing access to the
 build farm, and to https://github.com/racingmars[Matthew Wilson], Terry

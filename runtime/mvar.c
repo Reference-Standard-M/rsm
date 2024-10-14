@@ -1,6 +1,6 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/buildmvar.c
+ * File:    rsm/runtime/mvar.c
  * Summary: module runtime - build an mvar
  *
  * David Wicksell <dlw@linux.com>
@@ -82,7 +82,7 @@ short getuci(const cstring *uci, int vol)                                       
 /*
  * This module is the runtime code to build an mvar.
  * It is passed the address of the mvar and reads from *rsmpc++.
- * See comments in rsm/compile/localvar.c for more info.
+ * See comments in rsm/compile/var.c for more info.
  * If nul_ok is true, a null subscript as the last is OK.
  * Returns new asp or -err
  */
@@ -144,7 +144,7 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
 
         s = UTIL_Key_Build(ptr, &var->key[var->slen]);                          // get one subscript
         if (s < 0) return s;                                                    // die on error
-        if ((s + var->slen) > MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);         // check how big and complain on error
+        if ((var->slen + s) > MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);         // check how big and complain on error
         var->slen += s;                                                         // add it in
     }
 

@@ -673,7 +673,7 @@ void parse_merge(void)                                                          
 
             if (*(comp_ptr - 1) == INDEVAL) {                                   // if it was indirect
                 if (*source_ptr != '=') SYNTX;                                  // stuffed up
-                *(comp_ptr - 1) = INDMVARF;                                     // else ind full size mvar
+                *(comp_ptr - 1) = INDMVARF;                                     // else indirect full size mvar
             } else if (*(comp_ptr - 3) == OPVAR) {
                 *(comp_ptr - 3) = OPMVARF;                                      // change to OPMVARF
             }
@@ -1527,7 +1527,7 @@ void parse(void)                                                                
         case 'D':                                                               // DO
             if (isalpha(*source_ptr) != 0) {                                    // if the next is alpha
                 if (strncasecmp((char *) source_ptr, "o", 1) != 0) SYNTX;
-                source_ptr += 1;                                                // point past the "o"
+                source_ptr++;                                                   // point past the "o"
             }
 
             c = *source_ptr++;                                                  // get next char
@@ -1587,7 +1587,9 @@ void parse(void)                                                                
                 memcpy(comp_ptr, &s, sizeof(short));
                 comp_ptr += sizeof(short);
                 *comp_ptr++ = OPNOP;                                            // add the NOP
-                *((short *) ptr) = (short) (comp_ptr - ptr - sizeof(short) - 1);
+                s = (short) (comp_ptr - ptr - sizeof(short) - 1);
+                assert(sizeof(s) == sizeof(short));
+                memcpy(ptr, &s, sizeof(short));
                 break;                                                          // and give up
             }
 
@@ -1639,7 +1641,9 @@ void parse(void)                                                                
             comp_ptr--;                                                         // backup over ENDLIN
             *comp_ptr++ = CMFOREND;                                             // do end of for processing
             *comp_ptr++ = OPNOP;                                                // add the NOP
-            *((short *) ptr) = (short) (comp_ptr - ptr - sizeof(short) - 1);
+            s = (short) (comp_ptr - ptr - sizeof(short) - 1);
+            assert(sizeof(s) == sizeof(short));
+            memcpy(ptr, &s, sizeof(short));
             break;                                                              // end of FOR
 
         case 'G':                                                               // GOTO
@@ -1707,7 +1711,7 @@ void parse(void)                                                                
         case 'I':                                                               // IF
             if (isalpha(*source_ptr) != 0) {                                    // if the next is alpha
                 if (strncasecmp((char *) source_ptr, "f", 1) != 0) SYNTX;
-                source_ptr += 1;                                                // point past the "f"
+                source_ptr++;                                                   // point past the "f"
             }
 
             c = *source_ptr++;                                                  // get next char
@@ -2046,7 +2050,9 @@ void parse(void)                                                                
         }                                                                       // end of switch
 
         if (jmp_eoc != NULL) {                                                  // was there a postcond
-            *((short *) jmp_eoc) = (short) (comp_ptr - jmp_eoc - sizeof(short)); // save the jump offset
+            s = (short) (comp_ptr - jmp_eoc - sizeof(short));
+            assert(sizeof(s) == sizeof(short));
+            memcpy(jmp_eoc, &s, sizeof(short));                                 // save the jump offset
         }
 
         *comp_ptr++ = OPENDC;                                                   // flag end of command

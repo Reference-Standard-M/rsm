@@ -119,8 +119,9 @@ int run(int savasp, int savssp)                                                 
                 if (t == -(ERRZ51 + ERRMLAST)) partab.jobtab->io = 0;           // if it's a <Control-C> then $IO = 0
                 partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;         // save pc
 
-                if ((t == USRERR) && (&strstk[ssp] == (u_char *) ptr1)) {       // if SET $ECODE
-                    ssp += ptr1->len + sizeof(u_short) + 1;                     // point past it for Set_Error with a var
+                if (t == USRERR) {                                              // if SET $ECODE
+                    j = (u_char *) ptr1 - &strstk[ssp];                         // calculate how far $ECODE value is from the top
+                    ssp += j + ptr1->len + sizeof(u_short) + 1;                 // point past it for Set_Error with a var
                 }
 
                 cptr = (cstring *) &strstk[ssp];                                // where we will put it
@@ -140,7 +141,7 @@ int run(int savasp, int savssp)                                                 
                 p = &strstk[ssp];                                               // some space
                 comp_ptr = p;                                                   // call it a compile ptr
 
-                if (cptr->len && !flag) {                                       // if something there and no prev err at this lev
+                if (cptr->len && !flag) {                                       // if something there & no previous error at level
                     source_ptr = cptr->buf;                                     // where the data is
                     parse();                                                    // compile it
                     partab.jobtab->etrap_at = partab.jobtab->cur_do;            // remember current
@@ -583,7 +584,7 @@ int run(int savasp, int savssp)                                                 
             i = cstringtoi((cstring *) addstk[--asp]);                          // get the arg
 
             if (i < 1) {                                                        // zero value
-                SchedYield(FALSE);                                              // give up slice or do nothing
+                SchedYield(FALSE);                                              // give up slice (or do nothing)
                 break;                                                          // done
             }
 
@@ -1127,7 +1128,7 @@ int run(int savasp, int savssp)                                                 
             if (opc == OPMVARF) {                                               // if required
                 ssp += sizeof(mvar);                                            // allow maximum size
             } else {                                                            // else 'normal' mvar
-                ssp += var->slen + sizeof(var_u) + (5 * sizeof(u_char));
+                ssp += sizeof(var_u) + var->slen + (5 * sizeof(u_char));
             }
 
             break;
@@ -1979,7 +1980,9 @@ int run(int savasp, int savssp)                                                 
             if (var2->name.var_cu[0] == '$') {                                  // source is SSVN/ISV
                 if (var2->uci == UCI_IS_LOCALVAR) ERROR(-ERRM8);                // must be ^$ROUTINE()
                 if (toupper(var2->name.var_cu[1]) != 'R') ERROR(-ERRM29);       // must be ^$ROUTINE()
-                UTIL_Key_Chars_In_Subs((char *) var2->key, (int) var2->slen, 255, &pieces, (char *) NULL); // find subscript count
+
+                // find subscript count
+                UTIL_Key_Chars_In_Subs((char *) var2->key, (int) var2->slen, MAX_NUM_SUBS, &pieces, (char *) NULL);
                 if (pieces != 1) ERROR(-ERRM38);                                // must be 1 subscript, the routine name
             }
 
@@ -2034,7 +2037,7 @@ int run(int savasp, int savssp)                                                 
                     continue;
                 }
 
-                if (memcmp(var2->key, temp, j)) break;                          // all done
+                if (memcmp(var2->key, temp, j) != 0) break;                     // all done
                 cptr->len = t;                                                  // save the length
                 memmove(&var->key[i], &var2->key[j], var2->slen - j);           // from end of src key to end of dest key
                 if ((i + var2->slen - j) > MAX_KEY_SIZE) ERROR(-(ERRZ2 + ERRMLAST)); // complain if too big
@@ -2070,7 +2073,7 @@ int run(int savasp, int savssp)                                                 
                     assert(sizeof(rou) == VAR_LEN);
 
                     if (*rsmpc == OPERROR) {
-                        s = *(short *) ++rsmpc;                                 // get the routine name error
+                        memcpy(&s, ++rsmpc, sizeof(short));                     // get the routine name error
                         ERROR(s);
                     }
 
@@ -2087,7 +2090,7 @@ int run(int savasp, int savssp)                                                 
                 assert(sizeof(tag) == VAR_LEN);
 
                 if (*rsmpc == OPERROR) {
-                    s = *(short *) ++rsmpc;                                     // get the tag error
+                    memcpy(&s, ++rsmpc, sizeof(short));                         // get the tag error
                     ERROR(s);
                 }
 
@@ -2139,7 +2142,6 @@ int run(int savasp, int savssp)                                                 
 
             if (rouadd == NULL) {                                               // if the above failed
                 rouadd = Routine_Attach(rou);                                   // attach to it
-                rouadd = SOA(rouadd);                                           // shift memory
 
                 if (rouadd == NULL) {                                           // check for no such
                     partab.jobtab->cur_do--;                                    // back to original frame
@@ -2198,7 +2200,7 @@ int run(int savasp, int savssp)                                                 
                     }
 
                     curframe->pc = &curframe->pc[i + 3];                        // point at offset
-                    i = *(u_short *) curframe->pc;                              // get it
+                    memcpy(&i, curframe->pc, sizeof(u_short));                  // get it
                     curframe->pc = &curframe->pc[i + 1];                        // point at next line
                     offset--;                                                   // decrement the offset
                 }                                                               // end offset junk
@@ -2242,7 +2244,7 @@ int run(int savasp, int savssp)                                                 
 
                     if (*--rsmpc == OPERROR) {                                  // if an error there
                         rsmpc++;                                                // point back at error
-                        s = *(short *) rsmpc;                                   // get it
+                        memcpy(&s, rsmpc, sizeof(short));                       // get it
                     }
 
                     ERROR(s);                                                   // complain
@@ -2298,7 +2300,7 @@ int run(int savasp, int savssp)                                                 
 
             p = rsmpc;                                                          // the new pc
             if (!*p) p++;                                                       // skip possible eol
-            if (*p++ == LINENUM) curframe->line_num = *(u_short *) p;           // store the line number
+            if (*p++ == LINENUM) memcpy(&curframe->line_num, p, sizeof(u_short)); // store the line number
             //if (partab.jobtab->dostk[partab.jobtab->cur_do].level) ERROR(-ERRM14); // can't DO to line level above 1
             curframe->savasp = savasp;                                          // save
             curframe->savssp = savssp;                                          // save
@@ -2499,7 +2501,6 @@ int run(int savasp, int savssp)                                                 
 
             if (rouadd == NULL) {                                               // if the above failed
                 rouadd = Routine_Attach(rou);                                   // attach to it
-                rouadd = SOA(rouadd);                                           // shift memory
 
                 if (rouadd == NULL) ERROR(-ERRM13);                             // check for no such and give up
                 if (rouadd == (rbd *) -1) ERROR(-(ERRZ52 + ERRMLAST));          // no space so give up
@@ -2539,7 +2540,7 @@ int run(int savasp, int savssp)                                                 
                     if (*curframe->pc == LOADARG) i = curframe->pc[1] + 2;      // if args then point at LINENUM
                     if (curframe->pc[i] != LINENUM) ERROR(-ERRM13);             // check this and fail if they don't match
                     curframe->pc = &curframe->pc[i + 3];                        // point at offset
-                    i = *(u_short *) curframe->pc;                              // get it
+                    memcpy(&i, curframe->pc, sizeof(u_short));                  // get it
                     curframe->pc = &curframe->pc[i + 1];                        // point at next line
                     offset--;                                                   // decrement the offset
                 }                                                               // end offset junk
@@ -2723,7 +2724,7 @@ int run(int savasp, int savssp)                                                 
             for (i = 0; i < args; i++) {                                        // for each arg
                 s = UTIL_mvartolock((mvar *) addstk[--asp], p + sizeof(u_short));
                 if (s < 0) ERROR(s);                                            // check for error
-                *((u_short *) p) = s;                                           // save the size
+                memcpy(p, &s, sizeof(short));                                   // save the size
                 p += s + sizeof(u_short);                                       // add the length
                 if ((u_long) p & 1) p++;                                        // ensure even
             }
@@ -2867,8 +2868,8 @@ int run(int savasp, int savssp)                                                 
             t = ST_Create(var->name);                                           // get its index
             if (t < 0) ERROR(t);                                                // die on error
 
-            if (symtab[t].data == ST_DATA_NULL) {                               // if data block undef
-                symtab[t].data = malloc(DTMINSIZE);                             // allocate some mem
+            if (symtab[t].data == ST_DATA_NULL) {                               // if data block undefined
+                symtab[t].data = malloc(DTMINSIZE);                             // allocate some memory
                 if (symtab[t].data == NULL) ERROR(-(ERRZ56 + ERRMLAST));        // no memory
                 memset(symtab[t].data, 0, DTMINSIZE);                           // clear it
 DISABLE_WARN(-Warray-bounds)

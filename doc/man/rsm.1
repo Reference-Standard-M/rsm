@@ -16,7 +16,8 @@
 .\"
 .\" SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
 .\" SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
-
+.\"
+.\"
 .\" If you want to install this for a single user, copy this file to
 .\" $HOME/.local/share/man/man1/, and run these commands:
 .\"   gzip -f9 $HOME/.local/share/man/man1/rsm.1 && mandb -q
@@ -24,10 +25,10 @@
 .\"   gzip -f9 $HOME/man/man1/rsm.1 && mandb -q
 .\"
 .\" If you want to install this for every user, copy this file to
-.\" /usr/local/man/man1/, and run these commands:
-.\"   sudo gzip -f9 /usr/local/man/man1/rsm.1 && sudo mandb -q
+.\" /usr/local/share/man/man1/, and run these commands:
+.\"   sudo gzip -f9 /usr/local/share/man/man1/rsm.1 && sudo mandb -q
 
-.TH RSM 1 "2024 Jun 10" V1.81.0 "Reference Standard M User Manual"
+.TH RSM 1 "2024 Oct 14" V1.82.0 "Reference Standard M User Manual"
 
 .SH NAME
 rsm - an implementation of the M programming language and database
@@ -112,7 +113,7 @@ Defaults to \fImax-jobs\fP / 2 (min: 1 MiB or 64 buffers).
 .TP
 [\fB-r\fP \fIroutine-buffers\fP]
 Size of the routine buffers (1-4095 MiB).
-Defaults to \fImax-jobs\fP / 8 (min: 1 MiB)
+Defaults to \fImax-jobs\fP / 8 (min: 1 MiB).
 
 .TP
 .SH Start a job and attach to the environment:

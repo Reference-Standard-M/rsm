@@ -111,7 +111,6 @@ int Set_data(cstring *data)                                                     
 {
     int      t;                                                                 // for returns
     u_int    i;                                                                 // a handy unsigned int
-    u_int    *ui;                                                               // an int pointer
     u_char   tmp[VAR_LEN + 4];                                                  // spare string
     u_char   cstr[8];                                                           // and another
     u_char   fk[MAX_KEY_SIZE + 5];                                              // for keys
@@ -163,8 +162,7 @@ int Set_data(cstring *data)                                                     
 DISABLE_WARN(-Warray-bounds)
         ptr->len = 4;                                                           // one int
 ENABLE_WARN
-        ui = (u_int *) ptr->buf;                                                // point the int here
-        *ui = blk[level + 1]->block;                                            // get the block#
+        memcpy((u_int *) ptr->buf, &blk[level + 1]->block, sizeof(u_int));      // point the int here, get the block#
         t = Insert(tmp, ptr);                                                   // insert a node
 
         if (t < 0) {                                                            // if that failed
