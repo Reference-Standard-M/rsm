@@ -30,6 +30,14 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 == Release Changelog
 
+=== v1.82.1 -- 2024 Oct 19
+
+* Improve the lock table optimization performance across more scenarios
+* Change timestamps to consistently use local offsets on available platforms
+* Fix lock table optimization bug when forcing a lock removal with `^$LOCK`
+* Fix bug that allows acquiring locks in conflict with ones owned by other jobs
+* Fix regression caused by the reverse `$QUERY` local variable root bug fix
+
 === v1.82.0 -- 2024 Oct 14
 
 * Add `.` format code to `$FNUMBER` for other locales

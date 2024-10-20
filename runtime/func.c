@@ -962,7 +962,7 @@ ENABLE_WARN
                 return 0;
             }
 
-            if (job != (partab.jobtab - partab.job_table)) return 0;            // can't find
+            if (job != (partab.jobtab - partab.job_table)) return 0;            // can't find in private memory of another job
             p = (u_char *) SOA(partab.job_table[job].dostk[level].routine);
             if (p == NULL) return 0;                                            // nothing there
             for (i = 0; (ret_buffer[i] = p[i]); i++) continue;                  // copy it

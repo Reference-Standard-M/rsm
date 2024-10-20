@@ -62,8 +62,6 @@ void Routine_Init(int vol)                                                      
 int Routine_Hash(var_u routine)                                                 // return hash code
 {
     int hash = 0;                                                               // for the return
-    int i;                                                                      // a handy int
-    int j;                                                                      // another handy int
 
     int p[4][8] = {
         {3, 5, 7, 11, 13, 17, 19, 23},
@@ -72,17 +70,17 @@ int Routine_Hash(var_u routine)                                                 
         {101, 103, 107, 109, 113, 127, 131, 137}
     };                                                                          // odd primes
 
-    for (i = 0; i < (VAR_LEN / 8); i++) {
+    for (int i = 0; i < (VAR_LEN / 8); i++) {
         if (routine.var_qu[i] == 0) break;
 
-        for (j = 0; j < 8; j++) {                                               // for each character
+        for (int j = 0; j < 8; j++) {                                           // for each character
             if (routine.var_qu[i] == 0) break;
-            hash = (((routine.var_qu[i] & 0xFF) * p[i][j]) + hash);             // add that char
-            routine.var_qu[i] = (routine.var_qu[i] >> 8);                       // right shift one byte
+            hash += (routine.var_qu[i] & 0xFF) * p[i][j];                       // add that character
+            routine.var_qu[i] >>= 8;                                            // right shift one byte
         }                                                                       // end hash loop
     }
 
-    return (hash % RBD_HASH);                                                   // return the code
+    return hash % RBD_HASH;                                                     // return the code
 }
 
 void Routine_Combine(rbd *pointer)                                              // combine with following block
@@ -441,7 +439,7 @@ void Dump_rbd(void)                                                             
     s = SemOp(SEM_ROU, SEM_WRITE);                                              // write lock the RBDs
     if (s < 0) return;                                                          // exit on error
     p = (rbd *) SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_head);             // get the start
-    t = current_time(FALSE);
+    t = current_time(TRUE);
     printf("Dump of all Routine Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) t);
     free = SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]);
     printf("Routine Buffer Space Free at %p\r\n", (void *) free);
