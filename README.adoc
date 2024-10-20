@@ -37,7 +37,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 == ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 [.lead]
-*Version 1.82.0 - 2024 Oct 14*
+*Version 1.82.1 - 2024 Oct 19*
 
 === Copyright and License
 
@@ -95,6 +95,7 @@ been tested, and/or known (or suspected) to build and run RSM, are:
 * macOS 10.4 and newer on ILP32 and LP64 Intel (Clang or GCC)
 * macOS 11.0 and newer on 64-bit M1 ARMv8 (Clang or GCC)
 * Solaris on i86pc and Sun-4v (SPARC)
+* Tru64 on Alpha
 * AIX on ppc32be and ppc64be
 * HP-UX on IA-64
 * Windows XP, 7, 10, and 11, under Cygwin

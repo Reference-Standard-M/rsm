@@ -391,7 +391,7 @@ void do_dismount(void)                                                          
     }                                                                           // end wait for daemons
 
     pid = partab.vol[volnum - 1]->wd_tab[myslot].pid;
-    t = current_time(FALSE);                                                    // for ctime()
+    t = current_time(TRUE);                                                     // for ctime()
 
     fprintf(stderr, "%s [%7d]: Daemon %2d writing out clean flag as clean\n", strtok(ctime(&t), "\n"), pid, myslot); // operation
 
@@ -415,7 +415,7 @@ void do_dismount(void)                                                          
         }
     }
 
-    t = current_time(FALSE);                                                    // for ctime()
+    t = current_time(TRUE);                                                     // for ctime()
 
     fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
             strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum - 1]->file_name); // stopping
@@ -505,7 +505,7 @@ start:
         if (partab.vol[volnum - 1]->dismount_flag) {                            // dismounting?
             if (myslot) {                                                       // first?
                 partab.vol[volnum - 1]->wd_tab[myslot].pid = 0;                 // say gone
-                t = current_time(FALSE);                                        // for ctime()
+                t = current_time(TRUE);                                         // for ctime()
 
                 fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
                         strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum - 1]->file_name); // stopping
@@ -588,7 +588,7 @@ int DB_Daemon(int slot, int vol)                                                
     if (freopen(logfile, "a", stderr) == NULL) return errno;                    // stderr to logfile
     pid = partab.vol[volnum - 1]->wd_tab[slot].pid;                             // get current PID
     dbfd = open(partab.vol[volnum - 1]->file_name, O_RDWR);                     // open database RW
-    t = current_time(FALSE);                                                    // for ctime()
+    t = current_time(TRUE);                                                     // for ctime()
 
     if (dbfd < 0) {
         fprintf(stderr, "%s [%7d]: Daemon %2d failed to attach to %s - exiting \n",

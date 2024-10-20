@@ -691,7 +691,7 @@ void Dump_gbd(void)                                                             
     s = SemOp(SEM_GLOBAL, SEM_WRITE);                                           // write lock the globals
     if (s < 0) return;                                                          // exit on error
     p = SOA(partab.vol[partab.jobtab->vol - 1]->gbd_head);                      // get listhead
-    t = current_time(FALSE);
+    t = current_time(TRUE);
     printf("Dump of all Global Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) t);
 
     for (i = 0; i < partab.vol[partab.jobtab->vol - 1]->num_gbd; i++) {         // for all

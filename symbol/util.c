@@ -60,7 +60,7 @@ short ST_Hash(var_u var)                                                        
 
     for (int i = 0; i < VAR_LEN; i++) {                                         // for each character
         if (var.var_cu[i] == 0) break;
-        ret = ((var.var_cu[i] * p[i]) + ret);
+        ret += var.var_cu[i] * p[i];
     }
 
     return (short) (ret % ST_HASH);                                             // return mod hash value
@@ -738,7 +738,9 @@ short ST_Query(mvar *var, u_char *buf, int dir)
 
     if (current == ST_DEPEND_NULL) {                                            // not found
         if (dir == 1) return 0;
-        if (symtab[ptr1].data->dbc == ROOT_UNDEFINED) return 0;                 // reverse order and root undefined
+
+        // reverse order and root undefined or reverse order and is the root
+        if ((symtab[ptr1].data->dbc == ROOT_UNDEFINED) || (var->slen == 0)) return 0;
         return UTIL_String_Mvar(&outputVar, buf, 0);                            // convert mvar and return length of key
     }
 

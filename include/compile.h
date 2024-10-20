@@ -31,63 +31,73 @@
 #ifndef RSM_COMPILE_H
 #define RSM_COMPILE_H
 
+// Compile undefined special variable error
 #define UNVAR { \
     comperror(-ERRM8); \
     return; \
-}                                                                               // compile undef spec var
+}
 
+// Compile expression error
 #define EXPRE { \
     comperror(-(ERRZ12 + ERRMLAST)); \
     return; \
-}                                                                               // compile expr error
+}
 
+// Compile syntax error
 #define SYNTX { \
     comperror(-(ERRZ13 + ERRMLAST)); \
     return; \
-}                                                                               // compile syntax error
+}
 
-#define ERROR(E) { \
-    partab.jobtab->async_error = E; \
+// Report an asynchronous error
+#define ERROR(err) { \
+    partab.jobtab->async_error = err; \
     partab.jobtab->attention = 1; \
     break; \
-}                                                                               // report an error
+}
 
-#define INDSNOK(size) (((size * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)       // For testing indirection size - a guess
-#define INDANOK(addr) ((addr + (sizeof(long) * 2) + 1) >= &indstk[MAX_ISTK])    // For testing the address of compiled indirection
-#define RBD_OVERHEAD  (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
-                      + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))
+// Test indirection size - a guess
+#define INDSNOK(size)   (((size * 2) + (sizeof(int) * 2) + isp) > MAX_ISTK)
 
+// Test the address of compiled indirection
+#define INDANOK(addr)   ((addr + (sizeof(long) * 2) + 1) >= &indstk[MAX_ISTK])
 
+// Size of the routine buffer descriptor (RBD)
+#define RBD_OVERHEAD    (sizeof(rbd *) + (sizeof(u_int) * 2) + sizeof(time_t) \
+                        + sizeof(var_u) + (sizeof(u_char) * 2) + sizeof(u_short))
+
+// Routine constants
 #define RESERVE_TIME    (20 * 60)                                               // 20 minutes
 #define SIZE_CLOSE      1024                                                    // routine size match
 
+// FOR types
 #define FOR_TYP_0       0                                                       // no args
 #define FOR_TYP_1       1                                                       // one arg
 #define FOR_TYP_2       2                                                       // two args
 #define FOR_TYP_3       3                                                       // three args
-#define FOR_NESTED      16                                                      // we are not an outside for
+#define FOR_NESTED      16                                                      // for loop nested inside one or more for loops
 
 // BREAK control
-#define BREAK_OFF       0                                                       // BREAK off but ready (default)
-#define BREAK_ON        -1                                                      // BREAK hit or set
-#define BREAK_DISABLE   -2                                                      // disable BREAK
+#define BREAK_OFF       0                                                       // BREAK is off but ready (default)
+#define BREAK_ON        -1                                                      // BREAK was hit or set
+#define BREAK_DISABLE   -2                                                      // BREAK is disabled
 
 // Funny opcode stuff
 #define BREAK_NOW       256                                                     // BREAK at breakpoint (not really an opcode)
 #define JOBIT           512                                                     // JOB (not really an opcode)
 #define BREAK_QN        1073741824                                              // return a QUIT n (BREAK in n commands)
 
-// Variable types follow
+// Variable types
 #define TYPMAXSUB       63                                                      // max subscripts
 #define TYPVARNAM       0                                                       // name only (NAME_LEN bytes)
 #define TYPVARLOCMAX    (TYPVARNAM + TYPMAXSUB)                                 // local is 1->63 subs
 #define TYPVARIDX       64                                                      // 1 byte index (+ #subs)
 #define TYPVARGBL       128                                                     // first global
-#define TYPVARGBLMAX    (TYPVARGBL + TYPMAXSUB)                                 // global 128->191 subs
+#define TYPVARGBLMAX    (TYPVARGBL + TYPMAXSUB)                                 // global 128->191 (#subs)
 #define TYPVARNAKED     252                                                     // global naked reference
 #define TYPVARGBLUCI    253                                                     // global with UCI
 #define TYPVARGBLUCIENV 254                                                     // global with UCI and env
-#define TYPVARIND       255                                                     // indirect
+#define TYPVARIND       255                                                     // indirection
 
 extern u_char *source_ptr;                                                      // pointer to source code
 extern u_char *comp_ptr;                                                        // pointer to compiled code
