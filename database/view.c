@@ -54,12 +54,12 @@ gbd *DB_ViewGet(u_int vol, u_int block)                                         
     if ((vol < 1) || (vol > MAX_VOL) || systab->vol[vol - 1] == NULL) return NULL; // validate volume
     if ((block < 1) || (block > SOA(partab.vol[vol - 1]->vollab)->max_block)) return NULL; // validate block
     level = 0;                                                                  // where it goes
-    volnum = vol;                                                               // need this
+    volnum = vol - 1;                                                           // need this
     writing = 0;                                                                // clear this
     s = SemOp(SEM_GLOBAL, SEM_READ);                                            // write lock
     if (s < 0) return NULL;                                                     // check error then quit if so
     s = Get_block(block);                                                       // get it
-    if (s >= 0) blk[level]->last_accessed = current_time(TRUE) + 86400;         // push last access
+    if (s >= 0) blk[level]->last_accessed = current_time(FALSE) + 86400;        // push last access
     if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                               // unlock the globals
     return ((s < 0) ? NULL : blk[level]);                                       // return whatever
 }
@@ -74,11 +74,11 @@ void DB_ViewPut(u_int vol, gbd *ptr)                                            
 {
     short s;                                                                    // for funcs
 
-    volnum = vol;                                                               // for ron
+    volnum = vol - 1;                                                           // for ron
     writing = 0;                                                                // clear this
     s = SemOp(SEM_GLOBAL, SEM_WRITE);                                           // write lock
     if (s < 0) return;                                                          // check error then quit if so
-    ptr->last_accessed = current_time(TRUE);                                    // reset access
+    ptr->last_accessed = current_time(FALSE);                                   // reset access
 
     if (SOA(ptr->mem)->type) {                                                  // if used
         Used_block(ptr->block);                                                 // mark it so
@@ -108,8 +108,8 @@ void DB_ViewPut(u_int vol, gbd *ptr)                                            
 void DB_ViewRel(u_int vol, gbd *ptr)                                            // release block, GBD
 {
     writing = 0;                                                                // clear this
-    volnum = vol;                                                               // need this
-    ptr->last_accessed = current_time(TRUE);                                    // reset access
+    volnum = vol - 1;                                                           // need this
+    ptr->last_accessed = current_time(FALSE);                                   // reset access
 
     if (ptr->dirty != NULL) {                                                   // not owned elsewhere
         short s;

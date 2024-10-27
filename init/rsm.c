@@ -53,8 +53,8 @@ int main(int argc, char **argv)                                                 
     char       *env = NULL;                                                     // start environment name
     int        jobs = 0;                                                        // max jobs
     int        map = 0;                                                         // header/map block bytes
-    u_int      gmb = 0;                                                         // global buf MiB
-    u_int      rmb = 0;                                                         // routine buf MiB
+    u_int      gmb = 0;                                                         // global buffer MiB
+    u_int      rmb = 0;                                                         // routine buffer MiB
     u_int      addmb = 0;                                                       // additional buffer in MiB
     int        blocks = 0;                                                      // number of data blocks
     char       *volnam = NULL;                                                  // volume name

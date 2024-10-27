@@ -528,7 +528,7 @@ start:
     }                                                                           // end command level loop
 
 exit:                                                                           // general exit code
-    if (partab.jobtab != NULL) CleanJob(0);                                     // if we have a jobtab then remove all locks etc.
+    if (partab.jobtab != NULL) CleanJob(0);                                     // if we have a jobtab, remove locks, detach symbols
     shmdt(systab);                                                              // detach the shared memory
 
     for (i = 0; i < MAX_VOL; i++) {

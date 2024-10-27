@@ -955,6 +955,8 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
 ;---
  ; Type routine rou
 0(rou) new %,%1,f,l,w,s,stop,e set stop=0,e=$char(27)
+ ; See if we need a continue - setup for a ^C
+ new $etrap set $etrap="set $ecode="""",stop=1"
  if $get(rou)="" goto ^%TYP
  ; Check it
  if '$data(^$routine(rou)) write "?No such routine as "_rou,! quit
@@ -975,8 +977,6 @@ PRT write $&v(1,1),"System Statistics - ",$$T^%T($piece($horolog,",",2))
  . set:$extract(f)'=";" %1=$piece($piece(f," "),"("),f=%1_$justify("",9-$length(%1))_$piece(f,$select($length(%1):%1,1:" "),2,9999)
  . ; For each bit
  . for  quit:$extract(f,2,99)?." "  do:$y'<l  quit:stop  write $extract(f,1,w),! set f="_"_$extract(f,w+1,9999)
- . . ; See if we need a continue - setup for a ^C
- . . new $etrap set $etrap="set $ecode="""",stop=1"
  . . ; Do a fancy prompt and get a response
  . . write e_"[7m"_rou_" ("_$justify(%/s*100,0,0)_"%)"_e_"[0m" read *%1
  . . ; Check for a return
@@ -1107,6 +1107,8 @@ REMP(f) new %,x,zr set zr="REMP^%WWW",x=""
 ;---
 ; Convert Hex to Character
 CC(h) new %,zr set zr="CC^%WWW",h=$&e(h)
+ ; Make sure there are at least 2
+ set:$length(h)<2 h=$extract("00",1,2-$length(h))_h
  ; Setup the 'HEX' array 0 -> F
  for %=0:1:15 set %(%)=% set:%>9 %($char(55+%))=%
  ; Quit with decimal value

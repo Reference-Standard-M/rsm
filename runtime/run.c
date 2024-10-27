@@ -178,7 +178,7 @@ int run(int savasp, int savssp)                                                 
             break;                                                              // go for more
 
         case OPHALT:                                                            // HALT
-            CleanJob(0);                                                        // remove all locks etc.
+            CleanJob(0);                                                        // remove all locks, detach symbols, etc.
             return OPHALT;                                                      // all done
 
         case OPERROR:                                                           // ERROR
@@ -732,7 +732,7 @@ int run(int savasp, int savssp)                                                 
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
-        case CMSET:                                                             // SET from within ()
+        case CMSET:                                                             // SET
             partab.jobtab->commands++;                                          // count a command
             var = (mvar *) addstk[--asp];                                       // the destination
             ptr1 = (cstring *) addstk[asp - 1];                                 // source - leave asp alone

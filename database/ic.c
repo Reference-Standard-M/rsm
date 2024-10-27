@@ -139,7 +139,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
     u_int   lb;                                                                 // last block
     u_int   max_block;                                                          // max block for volume
 
-    max_block = SOA(partab.vol[volnum - 1]->vollab)->max_block;
+    max_block = SOA(partab.vol[volnum]->vollab)->max_block;
 
     if (block > max_block) {                                                    // if block is larger than max
         outc->len = snprintf((char *) &outc->buf[0], WRT_LEN, "%10u is larger than max block (%u)", block, max_block); // error msg
@@ -175,7 +175,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         return 0;                                                               // and exit
     }
 
-    eob = (u_char *) SOA(blk[level]->mem) + SOA(partab.vol[volnum - 1]->vollab)->block_size;
+    eob = (u_char *) SOA(blk[level]->mem) + SOA(partab.vol[volnum]->vollab)->block_size;
     if (blk[level]->dirty == NULL) blk[level]->dirty = (gbd *) 3;               // reserve it
     isdata = ((SOA(blk[level]->mem)->type > 64) && level);                      // blk type
     Llevel = level;                                                             // save this
@@ -408,7 +408,7 @@ void ic_full(void)                                                              
     dlnk[0] = 1;                                                                // say blk 0 used
 
     for (uci = 0; uci < UCIS; uci++) {                                          // scan UCI table
-        b1 = SOA(partab.vol[volnum - 1]->vollab)->uci[uci].global;              // get global directory
+        b1 = SOA(partab.vol[volnum]->vollab)->uci[uci].global;                  // get global directory
         if (b1 == 0) continue;                                                  // if none then ignore it
 
         if ((used[b1 / 8] & (1U << (b1 & 7))) == 0) {                           // if marked free
@@ -480,19 +480,19 @@ void ic_map(int flag)                                                           
     u_char       emsg[30];                                                      // for errors
 
     lock = (flag == -1) ? SEM_READ : SEM_WRITE;                                 // what we need
-    c = (u_char *) SOA(partab.vol[volnum - 1]->map);                            // point at it
-    e = &c[SOA(partab.vol[volnum - 1]->vollab)->max_block >> 3];                // and the end
+    c = (u_char *) SOA(partab.vol[volnum]->map);                                // point at it
+    e = &c[SOA(partab.vol[volnum]->vollab)->max_block >> 3];                    // and the end
     off = 1;                                                                    // start at 1
 
     while (c <= e) {                                                            // scan the map
-        u_int base = ((u_int) (c - (u_char *) SOA(partab.vol[volnum - 1]->map))) << 3; // base block number
+        u_int base = ((u_int) (c - (u_char *) SOA(partab.vol[volnum]->map))) << 3; // base block number
         while (SemOp(SEM_GLOBAL, lock)) continue;                               // grab a lock
 
         for (; off < 8; off++) {                                                // scan the byte
             block = base + off;                                                 // the block#
             status = -1;                                                        // not yet known
-            if (block > SOA(partab.vol[volnum - 1]->vollab)->max_block) continue;
-            ptr = SOA(partab.vol[volnum - 1]->gbd_hash[block & (GBD_HASH - 1)]);
+            if (block > SOA(partab.vol[volnum]->vollab)->max_block) continue;
+            ptr = SOA(partab.vol[volnum]->gbd_hash[block & (GBD_HASH - 1)]);
 
             while (ptr != NULL) {                                               // scan for block
                 if (ptr->block == block) {                                      // if found
@@ -511,10 +511,8 @@ void ic_map(int flag)                                                           
             }                                                                   // end memory check
 
             if (status == -1) {                                                 // if not found
-                file_off = (off_t) block - 1;                                   // block#
-
-                file_off = (file_off * (off_t) SOA(partab.vol[volnum - 1]->vollab)->block_size)
-                         + (off_t) SOA(partab.vol[volnum - 1]->vollab)->header_bytes;
+                file_off = ((off_t) (block - 1) * (off_t) SOA(partab.vol[volnum]->vollab)->block_size)
+                         + (off_t) SOA(partab.vol[volnum]->vollab)->header_bytes;
 
                 file_off = lseek(dbfd, file_off, SEEK_SET);                     // Seek to block
                 if (file_off < 1) panic("ic_map: lseek() failed!!");            // die on error
@@ -543,13 +541,13 @@ void ic_map(int flag)                                                           
                 *c &= (u_char) ~(1U << off);                                    // clear it
             }
 
-            partab.vol[volnum - 1]->map_dirty_flag = 1;                         // map needs writing
+            partab.vol[volnum]->map_dirty_flag = 1;                             // map needs writing
         }                                                                       // end byte scan
 
         SemOp(SEM_GLOBAL, -curr_lock);                                          // free lock
         c++;                                                                    // point at next
         off = 0;                                                                // now start at 0
-        if (flag == -3) partab.vol[volnum - 1]->upto = ((u_int) (e - c)) << 3;  // daemon?
+        if (flag == -3) partab.vol[volnum]->upto = ((u_int) (e - c)) << 3;      // daemon?
     }                                                                           // end main while
 
     if ((flag == -2) && icerr) {                                                // report how many repairs were done
@@ -563,7 +561,7 @@ void ic_map(int flag)                                                           
         icerr = 0;
     }
 
-    if (flag == -3) partab.vol[volnum - 1]->upto = 0;                           // daemon? then clear this
+    if (flag == -3) partab.vol[volnum]->upto = 0;                               // daemon? then clear this
     return;                                                                     // done
 }
 
@@ -581,14 +579,14 @@ int DB_ic(int vol, int block)                                                   
 
     if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? if not - error
     if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // is it mounted? if not - error
-    volnum = vol;                                                               // save this
+    volnum = vol - 1;                                                           // save this
     curr_lock = 0;                                                              // ensure this is clear
     writing = 0;                                                                // clear this
     icerr = 0;                                                                  // clear errors
     doing_full = 0;                                                             // and this
     outc = (cstring *) wrt_buf;                                                 // for reporting
-    used = (u_char *) SOA(partab.vol[volnum - 1]->map);                         // point at map
-    volsiz = SOA(partab.vol[volnum - 1]->vollab)->max_block;                    // number of blocks
+    used = (u_char *) SOA(partab.vol[volnum]->map);                             // point at map
+    volsiz = SOA(partab.vol[volnum]->vollab)->max_block;                        // number of blocks
     gbd_expired = 0;                                                            // clear this
     for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL) continue;
 
@@ -601,7 +599,7 @@ int DB_ic(int vol, int block)                                                   
         level = 1;
 
         for (uci = 0; uci < UCIS; uci++) {                                      // scan UCI table
-            b1 = SOA(partab.vol[volnum - 1]->vollab)->uci[uci].global;          // get global directory
+            b1 = SOA(partab.vol[volnum]->vollab)->uci[uci].global;              // get global directory
 
             if (b1 == block) {                                                  // if block is global directory
                 level = 0;
@@ -614,7 +612,7 @@ int DB_ic(int vol, int block)                                                   
         return icerr;                                                           // and return
     }
 
-    dbfd = partab.vol_fds[volnum - 1];                                          // set this up
+    dbfd = partab.vol_fds[volnum];                                              // set this up
     ic_map(block);                                                              // map check
     return icerr;                                                               // and return
 }

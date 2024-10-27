@@ -30,6 +30,13 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 == Release Changelog
 
+=== v1.82.2 -- 2024 Oct 26
+
+* Fix memory leak when using `KILL ^$JOB`
+* Change database and routine timestamps to consistently use UTC internally
+* Fix timestamp local timezone conversion when displaying timestamps/datetimes
+* Fix bug in the hex to character converter in `CC^%WWW`
+
 === v1.82.1 -- 2024 Oct 19
 
 * Improve the lock table optimization performance across more scenarios

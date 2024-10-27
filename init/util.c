@@ -159,7 +159,7 @@ void info(char *file)                                                           
         printf("Volume Name:\t\t%s\n", vol_label->volnam.var_cu);
         printf("Manager UCI Name:\t%s\n", vol_label->uci[0].name.var_cu);
 #if RSM_DBVER != 1
-        printf("Volume Creation Time:\t%s\n", strtok(asctime(gmtime(&time)), "\n"));
+        printf("Volume Creation Time:\t%s\n", strtok(ctime(&time), "\n"));
 #endif
 
         printf("Journal File Path:\t%s [%s]\n", ((vol_label->journal_file[0] != '\0') ? vol_label->journal_file : "--"),

@@ -136,7 +136,7 @@ int Set_data(cstring *data)                                                     
         Index = IDX_START;                                                      // first one
         SOA(blk[level]->mem)->type = db_var.uci + 64;                           // data block
         SOA(blk[level]->mem)->last_idx = Index;                                 // first Index
-        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 3; // use 2 words
+        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 3; // use 2 words
         memcpy(&SOA(blk[level]->mem)->global, &db_var.name.var_cu[0], VAR_LEN); // name
         idx[Index] = SOA(blk[level]->mem)->last_free + 1;                       // the data
         chunk = (cstring *) &iidx[idx[Index]];                                  // point at it
@@ -147,7 +147,7 @@ int Set_data(cstring *data)                                                     
         record->len = 0;                                                        // no data
         level = 0;                                                              // clear level
         t = Get_data(0);                                                        // try the get again
-        if ((t != -ERRM7) || level) panic("Set_data: Get_data() on non-ex global wrong!"); // must be this
+        if ((t != -ERRM7) || level) panic("Set_data: Get_data() on non-existent global wrong!"); // must be this
         tmp[1] = 128;                                                           // start string key
 
         for (i = 0; i < VAR_LEN; i++) {                                         // for each char
@@ -189,8 +189,8 @@ ENABLE_WARN
         t = -ERRM7;                                                             // new node undefined
     }                                                                           // end of create global code
 
-    if ((SOA(partab.vol[volnum - 1]->vollab)->journal_available) &&
-      (SOA(partab.vol[volnum - 1]->vollab)->journal_requested) &&
+    if ((SOA(partab.vol[volnum]->vollab)->journal_available) &&
+      (SOA(partab.vol[volnum]->vollab)->journal_requested) &&
       (partab.jobtab->last_block_flags & GL_JOURNAL)) {                         // if journaling
         jrnrec jj;                                                              // jrn structure
         jj.action = JRN_SET;                                                    // doing set
@@ -207,7 +207,7 @@ ENABLE_WARN
                 if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;   // if we reserved it then clear that
                 blk[level] = NULL;                                              // clear that
                 level = 0;                                                      // reset level
-                systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                 // clear last
+                systab->last_blk_used[LBU_OFF(volnum)] = 0;                     // clear last
                 Get_data(0);                                                    // try to find that
             }
 
@@ -299,7 +299,7 @@ ENABLE_WARN
                 if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;   // if we reserved it then clear that
                 blk[level] = NULL;                                              // clear that
                 level = 0;                                                      // reset level
-                systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                 // clear last
+                systab->last_blk_used[LBU_OFF(volnum)] = 0;                     // clear last
                 t = Get_data(0);                                                // try to find that
                 if (t < 0) return -(ERRZ61 + ERRMLAST);                         // if error then database stuffed
             }
@@ -333,7 +333,7 @@ ENABLE_WARN
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if we reserved it then clear that
         blk[level] = NULL;                                                      // clear that
         level = 0;                                                              // reset level
-        systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                         // clear last
+        systab->last_blk_used[LBU_OFF(volnum)] = 0;                             // clear last
         t = Get_data(0);                                                        // try to find that
         if (t != -ERRM7) return -(ERRZ61 + ERRMLAST);                           // must be undefined or database stuffed
     }
@@ -391,12 +391,12 @@ ENABLE_WARN
     if ((ts < rls) && ts) {                                                     // if trailings -> RL
         Un_key();                                                               // un key RL
         Get_GBD();                                                              // get another
-        memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum - 1]->vollab)->block_size); // zot
+        memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum]->vollab)->block_size); // zot
         SOA(blk[level]->mem)->type = SOA(cblk[3]->mem)->type;                   // copy type
         SOA(blk[level]->mem)->right_ptr = SOA(cblk[3]->mem)->right_ptr;         // copy RL
         VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[3]->mem)->global);      // copy global name
         SOA(blk[level]->mem)->last_idx = IDX_START - 1;                         // unused block
-        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
         keybuf[0] = 0;                                                          // clear this
 
         if (((ts + rs) < rls) && (trailings != IDX_START)) {                    // if new record fits
@@ -438,7 +438,7 @@ ENABLE_WARN
         SOA(blk[level]->mem)->right_ptr = SOA(cblk[0]->mem)->right_ptr;         // copy RL
         VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[0]->mem)->global);      // copy global name
         SOA(blk[level]->mem)->last_idx = IDX_START - 1;                         // unused block
-        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
         keybuf[0] = 0;                                                          // clear this
         SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                       // point at it
         t = Insert(&db_var.slen, data);                                         // insert it
@@ -462,7 +462,7 @@ ENABLE_WARN
     SOA(blk[level]->mem)->right_ptr = SOA(cblk[0]->mem)->right_ptr;             // copy RL
     VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[0]->mem)->global);          // copy global name
     SOA(blk[level]->mem)->last_idx = IDX_START - 1;                             // unused block
-    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;                                                              // clear this
     SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                           // point at it
     Copy_data(cblk[0], trailings);                                              // copy trailings
@@ -502,7 +502,7 @@ ENABLE_WARN
     SOA(blk[level]->mem)->right_ptr = SOA(cblk[0]->mem)->right_ptr;             // copy RL
     VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[0]->mem)->global);          // copy global name
     SOA(blk[level]->mem)->last_idx = IDX_START - 1;                             // unused block
-    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;                                                              // clear this
     SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                           // point at it
     cblk[1] = blk[level];                                                       // remember it

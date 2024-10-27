@@ -89,7 +89,7 @@ except when using the *-V* or *-h* options.
   (min: 1 MiB or 64 buffers).
 [*-r* _routine-buffers_]::
   Size of the routine buffers (1-4095 MiB). Defaults to _max-jobs_ / 8
-  (min: 1 MiB)
+  (min: 1 MiB).
 
 === Start a job and attach to the environment:
 

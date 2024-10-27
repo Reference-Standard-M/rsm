@@ -78,8 +78,8 @@ short Insert(u_char *key, const cstring *data)                                  
         iidx = (int *) SOA(blk[level]->mem);                                    // point at the block
     }
 
-    if (!level) {                                                               // insert in GD
-        chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at $G chunk
+    if (!level) {                                                               // insert in global directory
+        chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at $GLOBAL chunk
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];
         Align_record();                                                         // align it
         flags = ((u_int *) record)[1];                                          // get default flags
@@ -88,7 +88,7 @@ short Insert(u_char *key, const cstring *data)                                  
 
     keybuf[0] = 0;                                                              // clear keybuf
 
-    for (u_int i = IDX_START; i < Index; i++) {                                 // for all previous Indexes
+    for (u_int i = IDX_START; i < Index; i++) {                                 // for all previous Indexes (key compression)
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
@@ -104,11 +104,11 @@ short Insert(u_char *key, const cstring *data)                                  
     }
 
     ucc = key[0] - ccc;                                                         // and this
-    rs = sizeof(u_short) + 2 + ucc + data->len;                                 // chunksize + ccc + ucc + key + data
+    rs = sizeof(u_short) + 2 + ucc + data->len;                                 // chunk + ccc/ucc + key + data
 
     if (isdata) {                                                               // if it's a data block
         rs += sizeof(u_short);                                                  // add the dbc size
-    } else if (!level) {                                                        // if GD
+    } else if (!level) {                                                        // if global directory
         rs += 4;                                                                // allow for flags
     }
 
@@ -141,7 +141,7 @@ short Insert(u_char *key, const cstring *data)                                  
     } else {                                                                    // it's a pointer
         Align_record();                                                         // align it
         memcpy(record, data->buf, sizeof(int));                                 // the block number
-        if (!level) ((u_int *) record)[1] = flags;                              // if GD then set/clear the flags
+        if (!level) ((u_int *) record)[1] = flags;                              // if global directory then set/clear the flags
     }
 
     SOA(blk[level]->mem)->last_free -= (rs / 4);                                // redo last_free
@@ -163,21 +163,21 @@ void Queit(void)                                                                
     gbd *ptr;                                                                   // a handy pointer
 
     ptr = blk[level];                                                           // point at the block
-    partab.vol[volnum - 1]->stats.logwt++;                                      // increment logical
+    partab.vol[volnum]->stats.logwt++;                                          // increment logical
 
     while (SOA(ptr->dirty) != ptr) {                                            // check it
         ptr = SOA(ptr->dirty);                                                  // point at next
-        partab.vol[volnum - 1]->stats.logwt++;                                  // increment logical
+        partab.vol[volnum]->stats.logwt++;                                      // increment logical
     }
 
-    i = partab.vol[volnum - 1]->dirtyQw;                                        // where to put it
+    i = partab.vol[volnum]->dirtyQw;                                            // where to put it
 
-    while (partab.vol[volnum - 1]->dirtyQ[i] != NULL) {                         // if slot not available
+    while (partab.vol[volnum]->dirtyQ[i] != NULL) {                             // if slot not available
         sleep(1);                                                               // wait a bit
     }                                                                           // NOTE: The above CAN'T work!!!
 
-    partab.vol[volnum - 1]->dirtyQ[i] = SBA(blk[level]);                        // stuff it in
-    partab.vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);                // reset pointer
+    partab.vol[volnum]->dirtyQ[i] = SBA(blk[level]);                            // stuff it in
+    partab.vol[volnum]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);                    // reset pointer
     return;                                                                     // and exit
 }
 
@@ -192,16 +192,16 @@ void Garbit(u_int blknum)                                                       
 {
     int i;                                                                      // a handy int
 
-    i = partab.vol[volnum - 1]->garbQw;                                         // where to put it
+    i = partab.vol[volnum]->garbQw;                                             // where to put it
 
     for (int j = 0; ; j++) {
-        if (partab.vol[volnum - 1]->garbQ[i] == 0) break;                       // if slot available then exit
+        if (partab.vol[volnum]->garbQ[i] == 0) break;                           // if slot available then exit
         if (j == 9) panic("Garbit: could not get a garbage slot after 10 seconds");
         sleep(1);                                                               // wait a bit
     }                                                                           // NOTE: I don't think this can work either
 
-    partab.vol[volnum - 1]->garbQ[i] = blknum;                                  // stuff it in
-    partab.vol[volnum - 1]->garbQw = (i + 1) & (NUM_GARB - 1);                  // reset ptr
+    partab.vol[volnum]->garbQ[i] = blknum;                                      // stuff it in
+    partab.vol[volnum]->garbQw = (i + 1) & (NUM_GARB - 1);                      // reset pointer
     return;                                                                     // and exit
 }
 
@@ -218,19 +218,19 @@ void Free_block(u_int blknum)                                                   
     int    off;                                                                 // and another
     u_char *map;                                                                // map pointer
 
-    map = (u_char *) SOA(partab.vol[volnum - 1]->map);                          // point at it
+    map = (u_char *) SOA(partab.vol[volnum]->map);                              // point at it
     i = blknum >> 3;                                                            // map byte
     off = blknum & 7;                                                           // bit number
     off = 1U << off;                                                            // convert to mask
     if ((map[i] & off) == 0) return;                                            // if it's already free then just exit
     map[i] &= ~off;                                                             // clear the bit
 
-    if (SOA(partab.vol[volnum - 1]->first_free) > (void *) &map[i]) {           // if earlier
-        partab.vol[volnum - 1]->first_free = &SBA(map)[i];                      // reset first free
+    if (SOA(partab.vol[volnum]->first_free) > (void *) &map[i]) {               // if earlier
+        partab.vol[volnum]->first_free = &SBA(map)[i];                          // reset first free
     }
 
-    partab.vol[volnum - 1]->stats.blkdeall++;                                   // update stats
-    partab.vol[volnum - 1]->map_dirty_flag++;                                   // mark map dirty
+    partab.vol[volnum]->stats.blkdeall++;                                       // update stats
+    partab.vol[volnum]->map_dirty_flag++;                                       // mark map dirty
     return;                                                                     // and exit
 }
 
@@ -250,14 +250,14 @@ void Used_block(u_int blknum)                                                   
     int    off;                                                                 // and another
     u_char *map;                                                                // map pointer
 
-    map = (u_char *) SOA(partab.vol[volnum - 1]->map);                          // point at it
+    map = (u_char *) SOA(partab.vol[volnum]->map);                              // point at it
     i = blknum >> 3;                                                            // map byte
     off = blknum & 7;                                                           // bit number
     off = 1U << off;                                                            // convert to mask
     if (map[i] & off) return;                                                   // if it's already used then just exit
     map[i] |= off;                                                              // set the bit
-    partab.vol[volnum - 1]->stats.blkalloc++;                                   // update stats
-    partab.vol[volnum - 1]->map_dirty_flag++;                                   // mark map dirty
+    partab.vol[volnum]->stats.blkalloc++;                                       // update stats
+    partab.vol[volnum]->map_dirty_flag++;                                       // mark map dirty
     return;                                                                     // and exit
 }
 
@@ -277,13 +277,13 @@ void Tidy_block(void)                                                           
 
     ptr = blk[level];                                                           // remember current
     Get_GBD();                                                                  // get another
-    memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum - 1]->vollab)->block_size); // zot
+    memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum]->vollab)->block_size); // zot
     SOA(blk[level]->mem)->type = SOA(ptr->mem)->type;                           // copy type
-    if (!level) SOA(blk[level]->mem)->type |= 64;                               // if it's a GD then ensure it's data
+    if (!level) SOA(blk[level]->mem)->type |= 64;                               // if it's a global directory then ensure it's data
     SOA(blk[level]->mem)->right_ptr = SOA(ptr->mem)->right_ptr;                 // copy RL
     VAR_COPY(SOA(blk[level]->mem)->global, SOA(ptr->mem)->global);              // copy global name
     SOA(blk[level]->mem)->last_idx = IDX_START - 1;                             // unused block
-    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
     Copy_data(ptr, IDX_START);                                                  // copy entire block
     btmp = blk[level]->mem;                                                     // save this
     blk[level]->mem = ptr->mem;                                                 // copy in this
@@ -352,7 +352,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
 
         ucc = fk[0] - ccc;                                                      // get the ucc
         cs = 4 + ucc + (isdata ? (c->len + 2) : 4);                             // chunk size = this
-        if (!level) cs += 4;                                                    // if GD then allow for flags
+        if (!level) cs += 4;                                                    // if global directory then allow for flags
         if (cs & 3) cs += (4 - (cs & 3));                                       // but, round up
 
         if (cs >= ((SOA(blk[level]->mem)->last_free * 2 + 1 - SOA(blk[level]->mem)->last_idx) * 2)) {
@@ -378,7 +378,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
             *(u_int *) record = *(u_int *) c;                                   // copy pointer
             if (fidx == -1) *(int *) c = PTR_UNDEFINED;
 
-            if (!level) {                                                       // if GD
+            if (!level) {                                                       // if global directory
                 ((u_int *) record)[1] = ((u_int *) c)[1] & 3;                   // copy flags
                 // NOTE: ABOVE ALL FLAGS EXCEPT (3) CLEARED !!!!!!!!
             }
@@ -439,7 +439,7 @@ short Compress1(void)
         if ((level == 2) && !db_var.slen) {                                     // and block 1 on level 2
             u_char gtmp[VAR_LEN + 4];                                           // to find glob
 
-            level = 0;                                                          // look at the GD
+            level = 0;                                                          // look at the global directory
             gtmp[1] = 128;                                                      // start string key
 
             for (i = 0; i < VAR_LEN; i++) {                                     // for each char
@@ -462,7 +462,7 @@ short Compress1(void)
 
             // Now, we totally release the block at level 1 for this global
             SOA(blk[1]->mem)->type = 65;                                        // pretend it's data
-            blk[1]->last_accessed = current_time(TRUE);                         // clear last access
+            blk[1]->last_accessed = current_time(FALSE);                        // clear last access
             Garbit(blk[1]->block);                                              // queue for freeing
             memset(&partab.jobtab->last_ref, 0, sizeof(mvar));                  // clear last ref
             return 0;                                                           // and exit
@@ -512,7 +512,7 @@ short Compress1(void)
 
     if (SOA(blk[level]->mem)->last_idx < IDX_START) {                           // if it's empty
         SOA(blk[level]->mem)->type = 65;                                        // pretend it's data
-        blk[level]->last_accessed = current_time(TRUE);                         // clear last access
+        blk[level]->last_accessed = current_time(FALSE);                        // clear last access
         SOA(blk[level + 1]->mem)->right_ptr = SOA(blk[level]->mem)->right_ptr;  // copy RL
         Garbit(blk[level]->block);                                              // queue for freeing
         blk[level] = NULL;                                                      // ignore
@@ -645,7 +645,7 @@ void DoJournal(jrnrec *jj, cstring *data)                                       
     int i;
 
     // address to location
-    if (lseek(partab.jnl_fds[volnum - 1], partab.vol[volnum - 1]->jrn_next, SEEK_SET) != partab.vol[volnum - 1]->jrn_next) {
+    if (lseek(partab.jnl_fds[volnum], partab.vol[volnum]->jrn_next, SEEK_SET) != partab.vol[volnum]->jrn_next) {
         goto fail;                                                              // if failed
     }
 
@@ -654,22 +654,22 @@ void DoJournal(jrnrec *jj, cstring *data)                                       
     i = jj->size;                                                               // store full size, but data is written below
     if (jj->action == JRN_SET) jj->size += (sizeof(short) + data->len);
     jj->time = (u_int64) current_time(TRUE);                                    // store the time
-    if (write(partab.jnl_fds[volnum - 1], jj, i) != i) goto fail;               // write header
+    if (write(partab.jnl_fds[volnum], jj, i) != i) goto fail;                   // write header
 
     if (jj->action == JRN_SET) {
         i = sizeof(short) + data->len;                                          // data size
-        if (write(partab.jnl_fds[volnum - 1], data, i) != i) goto fail;         // write data
+        if (write(partab.jnl_fds[volnum], data, i) != i) goto fail;             // write data
     }
 
     if (jj->size & 3) jj->size += (4 - (jj->size & 3));                         // round it
-    partab.vol[volnum - 1]->jrn_next += jj->size;                               // update next
-    if (lseek(partab.jnl_fds[volnum - 1], 4, SEEK_SET) != 4) goto fail;
-    if (write(partab.jnl_fds[volnum - 1], &partab.vol[volnum - 1]->jrn_next, sizeof(off_t)) == -1) goto fail; // write next
+    partab.vol[volnum]->jrn_next += jj->size;                                   // update next
+    if (lseek(partab.jnl_fds[volnum], 4, SEEK_SET) != 4) goto fail;
+    if (write(partab.jnl_fds[volnum], &partab.vol[volnum]->jrn_next, sizeof(off_t)) == -1) goto fail; // write next
     return;
 
 fail:
-    SOA(partab.vol[volnum - 1]->vollab)->journal_available = 0;                 // turn it off
-    close(partab.jnl_fds[volnum - 1]);                                          // close the file
+    SOA(partab.vol[volnum]->vollab)->journal_available = 0;                     // turn it off
+    close(partab.jnl_fds[volnum]);                                              // close the file
     return;                                                                     // and exit
 }
 
@@ -691,8 +691,8 @@ void Dump_gbd(void)                                                             
     s = SemOp(SEM_GLOBAL, SEM_WRITE);                                           // write lock the globals
     if (s < 0) return;                                                          // exit on error
     p = SOA(partab.vol[partab.jobtab->vol - 1]->gbd_head);                      // get listhead
-    t = current_time(TRUE);
-    printf("Dump of all Global Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) t);
+    t = current_time(FALSE);
+    printf("Dump of all Global Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) mktime(gmtime(&t)));
 
     for (i = 0; i < partab.vol[partab.jobtab->vol - 1]->num_gbd; i++) {         // for all
         if (!p[i].block) continue;                                              // skip empty buffers
@@ -720,10 +720,11 @@ void Dump_gbd(void)                                                             
 
         type[len] = '\0';
         uci = SOA(p[i].mem)->type % 64;
+        t = p[i].last_accessed;
+        if (t > 0) t = mktime(gmtime(&t));
 
-        printf("%14p %15p %11u %11u %11s %12lld %4d %4d  %s\r\n",
-               (void *) &p[i], (void *) SOA(p[i].mem), p[i].block, SOA(p[i].mem)->right_ptr,
-               type, (long long) p[i].last_accessed, partab.jobtab->vol, uci, tmp);
+        printf("%14p %15p %11u %11u %11s %12lld %4d %4d  %s\r\n", (void *) &p[i], (void *) SOA(p[i].mem),
+               p[i].block, SOA(p[i].mem)->right_ptr, type, (long long) t, partab.jobtab->vol, uci, tmp);
     }
 
     SemOp(SEM_GLOBAL, -SEM_WRITE);                                              // unlock the globals

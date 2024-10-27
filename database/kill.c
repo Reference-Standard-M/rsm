@@ -63,14 +63,14 @@ short Kill_data(void)                                                           
     memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
     memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     SemOp(SEM_GLOBAL, -curr_lock);                                              // release read lock
-    systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                             // clear last
+    systab->last_blk_used[LBU_OFF(volnum)] = 0;                                 // clear last
 
 start:
     Get_GBDs(MAXTREEDEPTH * 2);                                                 // ensure this many
     j = 0;                                                                      // clear counter
 
     for (i = 0; i < NUM_GARB; i++) {
-        if (partab.vol[volnum - 1]->garbQ[i] == 0) {
+        if (partab.vol[volnum]->garbQ[i] == 0) {
             if (j++ >= (NUM_GARB / 2)) goto cont;                               // ensure we have 1/2 table
         }
     }
@@ -85,8 +85,8 @@ cont:
     t = Get_data(0);                                                            // attempt to get it
     if ((t < 0) && (t != -ERRM7)) return (short) t;                             // error, not undef then return it
 
-    if ((SOA(partab.vol[volnum - 1]->vollab)->journal_available) &&
-      (SOA(partab.vol[volnum - 1]->vollab)->journal_requested) &&
+    if ((SOA(partab.vol[volnum]->vollab)->journal_available) &&
+      (SOA(partab.vol[volnum]->vollab)->journal_requested) &&
       (partab.jobtab->last_block_flags & GL_JOURNAL)) {                         // if journaling
         jrnrec jj;                                                              // jrn structure
         jj.action = JRN_KILL;                                                   // doing kill
@@ -136,7 +136,7 @@ cont:
         return 0;                                                               // and exit
     }                                                                           // end full kill
 
-    systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                             // clear last
+    systab->last_blk_used[LBU_OFF(volnum)] = 0;                                 // clear last
 
     while (level >= 0) {                                                        // what we just got
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if reserved then clear it
@@ -150,7 +150,7 @@ cont:
     rlevel = level;                                                             // number in right side
     for (i = 0; i <= level; i++) rblk[i] = blk[i];                              // for each level, copy GBD
     level = 0;                                                                  // reset level
-    systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                             // clear last
+    systab->last_blk_used[LBU_OFF(volnum)] = 0;                                 // clear last
     t = Get_data(-1);                                                           // get left side
 
     if ((t < 0) && (t != -ERRM7)) {                                             // error, not undef
@@ -310,7 +310,7 @@ ENABLE_WARN
 
         if ((((u_long) ((SOA(leftblk->mem)->last_free * 2 + 1 - SOA(leftblk->mem)->last_idx) * 2)
           + ((SOA(blk[level]->mem)->last_free * 2 + 1 - SOA(blk[level]->mem)->last_idx) * 2))
-          > (SOA(partab.vol[volnum - 1]->vollab)->block_size - sizeof(DB_Block))) // if will fit in 1
+          > (SOA(partab.vol[volnum]->vollab)->block_size - sizeof(DB_Block)))   // if will fit in 1
           || (SOA(blk[level]->mem)->last_idx < IDX_START)) {                    // or empty block
             ptr = blk[level];                                                   // right edge
             blk[level] = leftblk;                                               // left edge
@@ -319,7 +319,7 @@ ENABLE_WARN
             if (SOA(ptr->mem)->last_idx > (IDX_START - 1)) Copy_data(ptr, IDX_START); // if any data then copy to left edge
             SOA(blk[level]->mem)->right_ptr = SOA(ptr->mem)->right_ptr;         // copy right pointer
             SOA(ptr->mem)->type = 65;                                           // say type = data!!
-            ptr->last_accessed = current_time(TRUE);                            // clear last access
+            ptr->last_accessed = current_time(FALSE);                           // clear last access
             Garbit(ptr->block);                                                 // dump the block
             rblk[level] = NULL;                                                 // mark gone
         }                                                                       // end move to one

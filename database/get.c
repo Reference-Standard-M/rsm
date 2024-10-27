@@ -68,17 +68,15 @@ int Get_data(int dir)                                                           
         if (t < 0) return t;                                                    // if we got an error then return it
     }
 
-    if (systab->vol[volnum - 1] == NULL) return -ERRM26;                        // vol still mounted? if not - error
+    if (systab->vol[volnum] == NULL) return -ERRM26;                            // vol still mounted? if not - error
 
-    if ((memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) == 0) || (dir != 0) ||  // if ^$GLOBAL or level or backward
-      (SOA(partab.vol[volnum - 1]->vollab)->journal_available && writing)) {    // or journaling and writing
-        systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                         // zot this
-    } else {
-        block = systab->last_blk_used[LBU_OFF(volnum - 1)];                     // get last used
+    if ((memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) != 0) && (dir == 0) &&  // if not ^$GLOBAL and going forward not to level
+      !(SOA(partab.vol[volnum]->vollab)->journal_available && writing)) {       // and not journaling and writing together
+        block = systab->last_blk_used[LBU_OFF(volnum)];                         // get last used
 
-        if (block && ((((u_char *) SOA(partab.vol[volnum - 1]->map))[block >> 3]) & (1U << (block & 7)))) { // if one there
-            partab.vol[volnum - 1]->stats.lasttry++;                            // count a try
-            ptr = SOA(partab.vol[volnum - 1]->gbd_hash[block & (GBD_HASH - 1)]); // get listhead
+        if (block && ((((u_char *) SOA(partab.vol[volnum]->map))[block >> 3]) & (1U << (block & 7)))) { // if one there
+            partab.vol[volnum]->stats.lasttry++;                                // count a try
+            ptr = SOA(partab.vol[volnum]->gbd_hash[block & (GBD_HASH - 1)]);    // get listhead
 
             while (ptr != NULL) {                                               // for each in list
                 if (ptr->block == block) {                                      // found it
@@ -94,8 +92,8 @@ int Get_data(int dir)                                                           
 
                     // if found OR not found AND still in block AND not at beginning
                     if ((t >= 0) || ((t = -ERRM7) && (Index <= SOA(blk[level]->mem)->last_idx) && (Index > IDX_START))) {
-                        partab.vol[volnum - 1]->stats.lastok++;                 // count success
-                        blk[level]->last_accessed = current_time(TRUE);         // accessed
+                        partab.vol[volnum]->stats.lastok++;                     // count success
+                        blk[level]->last_accessed = current_time(FALSE);        // accessed
                         for (i = 0; i < level; blk[i++] = NULL) continue;       // zot these
                         if (!t) t = record->len;                                // if ok then get the dbc
                         if (writing && (blk[level]->dirty == NULL)) blk[level]->dirty = (gbd *) 1; // if writing then reserve it
@@ -116,10 +114,9 @@ int Get_data(int dir)                                                           
                 ptr = SOA(ptr->next);                                           // get next
             }                                                                   // end while ptr
         }                                                                       // end last used stuff
-
-        systab->last_blk_used[LBU_OFF(volnum - 1)] = 0;                         // zot it
     }
 
+    systab->last_blk_used[LBU_OFF(volnum)] = 0;                                 // zot it
     block = SOA(partab.vol[db_var.volset - 1]->vollab)->uci[db_var.uci - 1].global;
 
     // get directory blk#
@@ -177,7 +174,7 @@ int Get_data(int dir)                                                           
         chunk = (cstring *) &iidx[idx[Index]];                                  // point at the chunk
         record = (cstring *) &chunk->buf[chunk->buf[1] + 2];                    // point at the dbc
         Align_record();                                                         // if not aligned
-        if (level == dir) return t;                                             // stop here? if so - return result
+        if (dir == level) return t;                                             // stop here? if so - return result
         block = *(u_int *) record;                                              // get block#
         level++;                                                                // where it goes
         t = Get_block(block);                                                   // get the block
@@ -188,7 +185,7 @@ int Get_data(int dir)                                                           
     t = Locate(&db_var.slen);                                                   // locate key in data
 
     // if not a pointer then set last used
-    if (dir < 1) systab->last_blk_used[LBU_OFF(volnum - 1)] = block;
+    if (dir < 1) systab->last_blk_used[LBU_OFF(volnum)] = block;
 
     if (!db_var.slen && !t && ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)) { // check for top node
         if (!record->len) t = -ERRM7;
