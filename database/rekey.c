@@ -92,7 +92,7 @@ ENABLE_WARN
         if (t < 0) return (short) t;                                            // if that failed then return error
         SOA(blk[level]->mem)->type = db_var.uci;                                // pointer block
         SOA(blk[level]->mem)->last_idx = IDX_START;                             // first Index
-        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 3; // use 2 words
+        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 3; // use 2 words
         memcpy(&SOA(blk[level]->mem)->global, &db_var.name.var_cu[0], VAR_LEN);
         idx[IDX_START] = SOA(blk[level]->mem)->last_free + 1;                   // the data
         chunk = (cstring *) &iidx[idx[IDX_START]];                              // point at it
@@ -181,12 +181,12 @@ ENABLE_WARN
     if ((ts < rls) && ts) {                                                     // if trailings -> RL
         Un_key();                                                               // unlink RL key
         Get_GBD();                                                              // get another GBD
-        memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum - 1]->vollab)->block_size); // zot
+        memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum]->vollab)->block_size); // zot
         SOA(blk[level]->mem)->type = SOA(cblk[2]->mem)->type;                   // copy type
         SOA(blk[level]->mem)->right_ptr = SOA(cblk[2]->mem)->right_ptr;         // copy RL
         VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[2]->mem)->global);      // copy global name
         SOA(blk[level]->mem)->last_idx = IDX_START - 1;                         // unused block
-        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
         keybuf[0] = 0;                                                          // clear this
 
         if ((ts + rs) < rls) {                                                  // if new record fits
@@ -228,7 +228,7 @@ ENABLE_WARN
         SOA(blk[level]->mem)->right_ptr = SOA(cblk[0]->mem)->right_ptr;         // copy RL
         VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[0]->mem)->global);      // copy global name
         SOA(blk[level]->mem)->last_idx = IDX_START - 1;                              // unused block
-        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+        SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
         keybuf[0] = 0;                                                          // clear this
         SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                       // point at it
         t = Insert(&db_var.slen, ptr);                                          // insert it
@@ -258,7 +258,7 @@ ENABLE_WARN
     SOA(blk[level]->mem)->right_ptr = SOA(cblk[0]->mem)->right_ptr;             // copy RL
     VAR_COPY(SOA(blk[level]->mem)->global, SOA(cblk[0]->mem)->global);          // copy global name
     SOA(blk[level]->mem)->last_idx = IDX_START - 1;                             // unused block
-    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum - 1]->vollab)->block_size >> 2) - 1; // set this up
+    SOA(blk[level]->mem)->last_free = (SOA(partab.vol[volnum]->vollab)->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;                                                              // clear this
     SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                           // point at it
     cblk[1] = blk[level];                                                       // save this one
@@ -383,7 +383,7 @@ short Re_key(void)                                                              
         }
 
         if (low_index == -1) return 0;                                          // if none found then all done
-        partab.vol[volnum - 1]->stats.blkreorg++;                               // update stats
+        partab.vol[volnum]->stats.blkreorg++;                                   // update stats
         level = 0;                                                              // clear level
         s = Get_block(rekey_blk[low_index]);                                    // get the block
         if (s < 0) return -(ERRZ61 + ERRMLAST);                                 // database stuffed

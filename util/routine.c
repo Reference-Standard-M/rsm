@@ -186,7 +186,7 @@ void Routine_Collect(time_t off)                                                
 {
     rbd *ptr;                                                                   // a pointer
 
-    off = current_time(TRUE) - off;                                             // get compare time
+    off = current_time(FALSE) - off;                                            // get compare time
     ptr = (rbd *) SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_head);           // head of RBDs
 
     while (TRUE) {                                                              // scan whole list
@@ -368,7 +368,7 @@ ENABLE_WARN
 
     ptr->fwd_link = NULL;                                                       // ensure this is null
     ptr->attached = 1;                                                          // count the attach
-    ptr->last_access = current_time(TRUE);                                      // and the current time
+    ptr->last_access = current_time(FALSE);                                     // and the current time
     VAR_COPY(ptr->rnam, routine);                                               // the routine name
     ptr->uci = uci;                                                             // the UCI
     ptr->vol = vol;                                                             // current volume
@@ -439,8 +439,8 @@ void Dump_rbd(void)                                                             
     s = SemOp(SEM_ROU, SEM_WRITE);                                              // write lock the RBDs
     if (s < 0) return;                                                          // exit on error
     p = (rbd *) SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_head);             // get the start
-    t = current_time(TRUE);
-    printf("Dump of all Routine Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) t);
+    t = current_time(FALSE);
+    printf("Dump of all Routine Buffer Descriptors on %s [%lld]\r\n\r\n", strtok(ctime(&t), "\n"), (long long) mktime(gmtime(&t)));
     free = SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_hash[RBD_HASH]);
     printf("Routine Buffer Space Free at %p\r\n", (void *) free);
 
@@ -464,9 +464,11 @@ void Dump_rbd(void)                                                             
         }
 
         tmp[i] = '\0';                                                          // null terminate name
+        t = p->last_access;
+        if (t > 0) t = mktime(gmtime(&t));
 
         printf("%14p %15p %11u %11u %12lld %4d %4d %13d  %s\r\n", (void *) p, (void *) SOA(p->fwd_link), p->chunk_size,
-               p->attached, (long long) p->last_access, p->vol, p->uci, p->rou_size, tmp);
+               p->attached, (long long) t, p->vol, p->uci, p->rou_size, tmp);
 
         p = (rbd *) ((u_char *) p + p->chunk_size);                             // point at next
         if (p >= (rbd *) SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_end)) break; // quit when done

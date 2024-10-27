@@ -63,7 +63,7 @@ static int failed(lck_add *pctx)                                                
     if (pctx->to == 0) pctx->tryagain = 0;                                      // if no timeout then flag as if timeout expired
 
     if (pctx->to > 0) {                                                         // if timeout value specified
-        pctx->currtime = current_time(TRUE);                                    // get current time
+        pctx->currtime = current_time(FALSE);                                   // get current time
         if ((pctx->strttime + pctx->to) < pctx->currtime) pctx->tryagain = 0;   // flag if time expired
     }                                                                           // end if timeout specified
 
@@ -536,7 +536,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
     pctx->to = p_to;
     pctx->done = 0;
     pctx->tryagain = 1;
-    pctx->strttime = current_time(TRUE);                                        // save op start time
+    pctx->strttime = current_time(FALSE);                                       // save op start time
 
     while (pctx->tryagain) {                                                    // while we should give it a go
         u_int size;                                                             // size of entry count
@@ -963,7 +963,7 @@ void Dump_ltd(void)
     x = SemOp(SEM_LOCK, SEM_WRITE);                                             // write lock SEM_LOCK
     if (x < 0) return;                                                          // return the error
     lptr = (locktab *) SOA(systab->lockstart);
-    t = current_time(TRUE);
+    t = current_time(FALSE);
     printf("Dump of all Lock Table Descriptors on %s\r\n", ctime(&t));
     printf("Lock Head starts at %p\r\n", (void *) SOA(systab->lockhead));
     printf("Lock Free starts at %p\r\n", (void *) SOA(systab->lockfree));

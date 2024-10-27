@@ -39,7 +39,7 @@
  * Below is the maximum depth that the database code will search down to.
  *
  * NOTE: With a block size of 4 KiB a depth of 12 allows for
- *       potentially about 8.649e+012 data blocks available.
+ *       potentially about 8.649E12 data blocks available.
  */
 #define MAXTREEDEPTH    12                                                      // max level down
 #define LAST_USED_LEVEL 3                                                       // when last used works

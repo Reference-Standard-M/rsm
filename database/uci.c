@@ -78,7 +78,7 @@ short DB_UCISet(int vol, int uci, var_u name)                                   
         return -ERRM26;                                                         // no - error
     }
 
-    volnum = vol;                                                               // set this
+    volnum = vol - 1;                                                           // set this
     writing = 1;                                                                // writing
     level = 0;                                                                  // clear this
 
@@ -152,7 +152,7 @@ short DB_UCIKill(int vol, int uci)                                              
         return 0;                                                               // no - just return
     }
 
-    volnum = vol;                                                               // set this
+    volnum = vol - 1;                                                           // set this
     writing = 1;                                                                // writing
     level = 0;                                                                  // clear this
     gb = SOA(partab.vol[vol - 1]->vollab)->uci[uci - 1].global;                 // get global directory

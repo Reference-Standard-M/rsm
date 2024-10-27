@@ -45,7 +45,7 @@
 #define MAX_BLOCK_SIZE      256U                                                // Maximum block size in KiB
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       82                                                  // Minor version number
-#define VERSION_PATCH       1                                                   // Patch version number
+#define VERSION_PATCH       2                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024

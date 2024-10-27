@@ -1355,6 +1355,7 @@ ENABLE_WARN
 
         if (!priv()) return -ERRM29;                                            // KILL on SSVN not on
         systab->start_user = -1;                                                // Say 'shutting down'
+        CleanJob(0);                                                            // remove all locks, detach symbols, etc.
 
         for (i = (MAX_VOL - 1); i >= 0; i--) {
             if (systab->vol[i] == NULL) continue;

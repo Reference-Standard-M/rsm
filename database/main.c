@@ -102,7 +102,7 @@ short Copy2local(const mvar *var)
     }
 
     if ((db_var.name.var_cu[0] == '%') && (db_var.uci != 1)) return -ERRM26;    // if a %global AND UCI is not 1 then error
-    volnum = db_var.volset;                                                     // save this for ron
+    volnum = db_var.volset - 1;                                                 // save this for ron
     return 0;                                                                   // else return ok
 }
 
@@ -132,7 +132,7 @@ int DB_Get(const mvar *var, u_char *buf)                                        
     }
     */
 
-    partab.vol[volnum - 1]->stats.dbget++;                                      // update stats
+    partab.vol[volnum]->stats.dbget++;                                          // update stats
     t = Get_data(0);                                                            // attempt to get it
 
     if (t >= 0) {                                                               // if worked
@@ -168,26 +168,26 @@ int DB_Set(const mvar *var, cstring *data)                                      
     }
     */
 
-    i = 4 + db_var.slen + 2 + data->len;                                        // space required
+    i = 4 + db_var.slen + 2 + data->len;                                        // space required (chunk/ucc/ccc + slen + dbc + len)
     if (i & 3) i += (4 - (i & 3));                                              // if required then round up
     i += 4;                                                                     // add Index
 
-    if (i > (int) (SOA(partab.vol[volnum - 1]->vollab)->block_size - sizeof(DB_Block))) {
+    if (i > (int) (SOA(partab.vol[volnum]->vollab)->block_size - sizeof(DB_Block))) {
         return -ERRM75;                                                         // if too big then return an error
     }
 
-    partab.vol[volnum - 1]->stats.dbset++;                                      // update stats
+    partab.vol[volnum]->stats.dbset++;                                          // update stats
     writing = 1;                                                                // say we are writing
 
-    while (partab.vol[volnum - 1]->writelock) {                                 // check for write lock
+    while (partab.vol[volnum]->writelock) {                                     // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
 
-    i = SOA(partab.vol[volnum - 1]->vollab)->max_block >> 3;                    // last map byte necessary for current database size
+    i = SOA(partab.vol[volnum]->vollab)->max_block >> 3;                        // last map byte necessary for current database size
 
     while (i) {                                                                 // check from the end
-        if ((((u_char *) SOA(partab.vol[volnum - 1]->map))[i--]) == 0) break;   // OK if byte is free
+        if ((((u_char *) SOA(partab.vol[volnum]->map))[i--]) == 0) break;       // OK if byte is free
     }
 
     if (!i) return -(ERRZ11 + ERRZLAST);                                        // complain if failed
@@ -217,7 +217,7 @@ short DB_Data(const mvar *var, u_char *buf)                                     
     }
     */
 
-    partab.vol[volnum - 1]->stats.dbdat++;                                      // update stats
+    partab.vol[volnum]->stats.dbdat++;                                          // update stats
     t = Get_data(0);                                                            // attempt to get it
     i = 1;                                                                      // assume data found
 
@@ -285,9 +285,9 @@ short DB_Kill(const mvar *var)                                                  
     }
     */
 
-    partab.vol[volnum - 1]->stats.dbkil++;                                      // update stats
+    partab.vol[volnum]->stats.dbkil++;                                          // update stats
 
-    while (partab.vol[volnum - 1]->writelock) {                                 // check for write lock
+    while (partab.vol[volnum]->writelock) {                                     // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
@@ -351,7 +351,7 @@ short DB_Order(const mvar *var, u_char *buf, int dir)                           
     }
     */
 
-    partab.vol[volnum - 1]->stats.dbord++;                                      // update stats
+    partab.vol[volnum]->stats.dbord++;                                          // update stats
     last_key = UTIL_Key_Last(&db_var);                                          // get start of last
     buf[0] = '\0';                                                              // null terminate ret
 
@@ -429,7 +429,7 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
     }
     */
 
-    partab.vol[volnum - 1]->stats.dbqry++;                                      // update stats
+    partab.vol[volnum]->stats.dbqry++;                                          // update stats
 
     if (dir < 0) {                                                              // if it's backward
         t = Get_data(-1);                                                       // get the previous
@@ -722,7 +722,7 @@ void DB_StopJournal(int vol, u_char action)                                     
 {
     jrnrec jj;
 
-    volnum = vol;                                                               // set common var
+    volnum = vol - 1;                                                           // set common var
     if (!SOA(partab.vol[vol - 1]->vollab)->journal_available) return;           // if no journal then just exit
     while (SemOp(SEM_GLOBAL, SEM_WRITE)) sleep(1);
     jj.action = action;
@@ -794,10 +794,10 @@ int DB_SetFlags(const mvar *var, int flags)                                     
     }
     */
 
-    partab.vol[volnum - 1]->stats.dbset++;                                      // update stats
+    partab.vol[volnum]->stats.dbset++;                                          // update stats
     writing = 1;                                                                // say we are writing
 
-    while (partab.vol[volnum - 1]->writelock) {                                 // check for write lock
+    while (partab.vol[volnum]->writelock) {                                     // check for write lock
         sleep(1);                                                               // wait a bit
         if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);              // for <Control-C>
     }                                                                           // end writelock check
@@ -870,7 +870,7 @@ short DB_Compress(mvar *var, int flags)                                         
         memcpy(&db_var, var, sizeof(mvar));                                     // get next key
         writing = 0;                                                            // flag we are reading
 
-        while (partab.vol[volnum - 1]->writelock) {                             // check for write lock
+        while (partab.vol[volnum]->writelock) {                                 // check for write lock
             sleep(1);                                                           // wait a bit
             if (partab.jobtab->attention) return -(ERRZ51 + ERRZLAST);          // for <Control-C>
         }                                                                       // end writelock check

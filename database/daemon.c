@@ -47,7 +47,7 @@
 #include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // error strings
 
-int  dbfd;                                                                      // global db file desc
+int  dbfd;                                                                      // global DB file descriptor
 int  myslot;                                                                    // my slot in WD table
 void ic_map(int flag);                                                          // check the map
 
@@ -63,11 +63,11 @@ void daemon_check(void)                                                         
 
     while (SemOp(SEM_WD, SEM_WRITE)) continue;                                  // lock WD
 
-    for (i = 0; i < partab.vol[volnum - 1]->num_of_daemons; i++) {
+    for (i = 0; i < partab.vol[volnum]->num_of_daemons; i++) {
         if (i != myslot) {                                                      // don't check self
-            if (kill(partab.vol[volnum - 1]->wd_tab[i].pid, 0) == -1) {         // if gone
-                if (errno == ESRCH) DB_Daemon(i, volnum);                       // restart the daemon
-                // SHOULD LOG THIS SUCCESS OR FAIL
+            if (kill(partab.vol[volnum]->wd_tab[i].pid, 0) == -1) {             // if gone
+                if (errno == ESRCH) DB_Daemon(i, volnum + 1);                   // restart the daemon
+                // NOTE: Should log this success or fail
             }
         }
     }                                                                           // end daemon check
@@ -89,7 +89,7 @@ void do_write(void)                                                             
     gbd   *gbdptr;                                                              // for the GBD
     gbd   *lastptr = NULL;                                                      // for the GBD
 
-    gbdptr = partab.vol[volnum - 1]->wd_tab[myslot].currmsg.gbddata;            // get the gbdptr from daemon table
+    gbdptr = partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata;                // get the gbdptr from daemon table
     if (!gbdptr) panic("do_write: write message GBD is NULL");                  // check for null
     if (curr_lock == 0) SemOp(SEM_GLOBAL, SEM_READ);                            // if we need a lock then take a read lock
 
@@ -99,29 +99,29 @@ void do_write(void)                                                             
         } else {                                                                // do a write
             file_off = (off_t) gbdptr->block - 1;                               // block#
 
-            file_off = (file_off * (off_t) partab.vol[volnum - 1]->vollab->block_size)
-                     + (off_t) partab.vol[volnum - 1]->vollab->header_bytes;
+            file_off = (file_off * (off_t) partab.vol[volnum]->vollab->block_size)
+                     + (off_t) partab.vol[volnum]->vollab->header_bytes;
 
             file_off = lseek(dbfd, file_off, SEEK_SET);                         // seek to block
 
             if (file_off < 1) {
-                partab.vol[volnum - 1]->stats.diskerrors++;                     // count an error
+                partab.vol[volnum]->stats.diskerrors++;                         // count an error
                 panic("lseek failed in do_write()!!");                          // die on error
             }
 
-            i = write(dbfd, gbdptr->mem, partab.vol[volnum - 1]->vollab->block_size); // write it
+            i = write(dbfd, gbdptr->mem, partab.vol[volnum]->vollab->block_size); // write it
 
             if (i < 0) {
-                partab.vol[volnum - 1]->stats.diskerrors++;                     // count an error
+                partab.vol[volnum]->stats.diskerrors++;                         // count an error
                 panic("write failed in do_write()!!");                          // die on error
             }
 
-            partab.vol[volnum - 1]->stats.phywt++;                              // count a write
+            partab.vol[volnum]->stats.phywt++;                                  // count a write
         }                                                                       // end write code
 
         if (gbdptr->dirty == NULL) {
-            partab.vol[volnum - 1]->wd_tab[myslot].currmsg.gbddata = NULL;      // update the daemon table JIC I vanish
-            partab.vol[volnum - 1]->wd_tab[myslot].doing = DOING_NOTHING;       // and here
+            partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata = NULL;          // update the daemon table JIC I vanish
+            partab.vol[volnum]->wd_tab[myslot].doing = DOING_NOTHING;           // and here
             break;                                                              // break from while
         }
 
@@ -129,10 +129,10 @@ void do_write(void)                                                             
         gbdptr = gbdptr->dirty;                                                 // get next in list
 
         if (lastptr != gbdptr) {                                                // if not at end
-            partab.vol[volnum - 1]->wd_tab[myslot].currmsg.gbddata = gbdptr;    // update the daemon table JIC I vanish
+            partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata = gbdptr;        // update the daemon table JIC I vanish
         } else {
-            partab.vol[volnum - 1]->wd_tab[myslot].currmsg.gbddata = NULL;      // update the daemon table JIC I vanish
-            partab.vol[volnum - 1]->wd_tab[myslot].doing = DOING_NOTHING;       // and here
+            partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata = NULL;          // update the daemon table JIC I vanish
+            partab.vol[volnum]->wd_tab[myslot].doing = DOING_NOTHING;           // and here
         }
 
         lastptr->dirty = NULL;                                                  // clear old dirty ptr
@@ -160,7 +160,7 @@ void do_free(u_int gb)                                                          
     }
 
     Free_block(gb);                                                             // free the block
-    ptr = partab.vol[volnum - 1]->gbd_hash[gb & (GBD_HASH - 1)];                // get listhead
+    ptr = partab.vol[volnum]->gbd_hash[gb & (GBD_HASH - 1)];                    // get listhead
 
     while (ptr != NULL) {                                                       // for each in list
         if (ptr->block == gb) {                                                 // found it
@@ -197,21 +197,21 @@ int do_zot(u_int gb)                                                            
     int      zot_data = FALSE;                                                  // bottom level flag
     gbd      *ptr;                                                              // a handy pointer
 
-    if ((bptr = malloc(partab.vol[volnum - 1]->vollab->block_size)) == NULL) {  // get some memory
+    if ((bptr = malloc(partab.vol[volnum]->vollab->block_size)) == NULL) {      // get some memory
         fprintf(stderr, "do_zot: malloc() for block %u failed\n", gb);
         fflush(stderr);                                                         // flush to the file
         return errno;                                                           // return fail
     }
 
     // file offset of block to zot
-    file_off = (off_t) (gb - 1) * partab.vol[volnum - 1]->vollab->block_size + partab.vol[volnum - 1]->vollab->header_bytes;
+    file_off = (off_t) (gb - 1) * partab.vol[volnum]->vollab->block_size + partab.vol[volnum]->vollab->header_bytes;
 
     while(SemOp(SEM_GLOBAL, SEM_READ)) continue;                                // take a global lock
-    ptr = partab.vol[volnum - 1]->gbd_hash[gb & (GBD_HASH - 1)];                // get the head
+    ptr = partab.vol[volnum]->gbd_hash[gb & (GBD_HASH - 1)];                    // get the head
 
     while (ptr != NULL) {                                                       // for entire list
         if (ptr->block == gb) {                                                 // found it?
-            memcpy(bptr, ptr->mem, partab.vol[volnum - 1]->vollab->block_size);
+            memcpy(bptr, ptr->mem, partab.vol[volnum]->vollab->block_size);
             ptr->last_accessed = (time_t) 0;                                    // mark as zotted
             break;                                                              // exit
         }
@@ -229,9 +229,9 @@ int do_zot(u_int gb)                                                            
             return errno;                                                       // return error
         }
 
-        ret = read(dbfd, bptr, partab.vol[volnum - 1]->vollab->block_size);     // read it
+        ret = read(dbfd, bptr, partab.vol[volnum]->vollab->block_size);         // read it
 
-        if (ret < (int) partab.vol[volnum - 1]->vollab->block_size) {
+        if (ret < (int) partab.vol[volnum]->vollab->block_size) {
             free(bptr);                                                         // free memory
             fprintf(stderr, "do_zot: read() of block %u failed\n", gb);
             fflush(stderr);                                                     // flush to the file
@@ -255,20 +255,20 @@ int do_zot(u_int gb)                                                            
             off_t off;                                                          // for lseek() for each entry
 
             // block#
-            off = (off_t) (u - 1) * partab.vol[volnum - 1]->vollab->block_size + partab.vol[volnum - 1]->vollab->header_bytes;
+            off = (off_t) (u - 1) * partab.vol[volnum]->vollab->block_size + partab.vol[volnum]->vollab->header_bytes;
 
             if (lseek(dbfd, off, SEEK_SET) == (off_t) -1) {                     // seek to block
                 fprintf(stderr, "do_zot: seek() to block %u failed\n", u);
                 fflush(stderr);                                                 // flush to the file
             } else {                                                            // looks ok
                 // write zeroes
-                if (write(dbfd, partab.vol[volnum - 1]->zero_block, partab.vol[volnum - 1]->vollab->block_size) == -1) {
+                if (write(dbfd, partab.vol[volnum]->zero_block, partab.vol[volnum]->vollab->block_size) == -1) {
                     fprintf(stderr, "do_zot: write() zero of block %u failed\n", u);
                     fflush(stderr);                                             // flush to the file
                 }
 
-                partab.vol[volnum - 1]->stats.phywt++;                          // count a write
-                partab.vol[volnum - 1]->stats.logwt++;                          // and a logical
+                partab.vol[volnum]->stats.phywt++;                              // count a write
+                partab.vol[volnum]->stats.logwt++;                              // and a logical
                 do_free(u);                                                     // free the block
             }
         } else {                                                                // end zotting - give to lower level
@@ -284,14 +284,14 @@ zotit:
         return errno;                                                           // return error
     }
 
-    if (write(dbfd, partab.vol[volnum - 1]->zero_block, partab.vol[volnum - 1]->vollab->block_size) == -1) { // write zeroes
+    if (write(dbfd, partab.vol[volnum]->zero_block, partab.vol[volnum]->vollab->block_size) == -1) { // write zeroes
         type = -1;                                                              // flag fail
         fprintf(stderr, "do_zot: write() zero of block %u failed\n", gb);
         fflush(stderr);                                                         // flush to the file
     }
 
-    partab.vol[volnum - 1]->stats.phywt++;                                      // count a write
-    partab.vol[volnum - 1]->stats.logwt++;                                      // and a logical
+    partab.vol[volnum]->stats.phywt++;                                          // count a write
+    partab.vol[volnum]->stats.logwt++;                                          // and a logical
     free(bptr);                                                                 // free memory
     do_free(gb);                                                                // and the block
     return type;                                                                // return the type
@@ -308,15 +308,15 @@ void do_garb(void)                                                              
 {
     u_int gb;                                                                   // block being garbed
 
-    if (partab.vol[volnum - 1]->wd_tab[myslot].currmsg.intdata == 0) {          // done?
-        partab.vol[volnum - 1]->wd_tab[myslot].doing = DOING_NOTHING;           // yes
+    if (partab.vol[volnum]->wd_tab[myslot].currmsg.intdata == 0) {              // done?
+        partab.vol[volnum]->wd_tab[myslot].doing = DOING_NOTHING;               // yes
         return;                                                                 // and exit
     }
 
-    gb = partab.vol[volnum - 1]->wd_tab[myslot].currmsg.intdata;                // get block
-    partab.vol[volnum - 1]->wd_tab[myslot].currmsg.intdata = 0;                 // clear slot
+    gb = partab.vol[volnum]->wd_tab[myslot].currmsg.intdata;                    // get block
+    partab.vol[volnum]->wd_tab[myslot].currmsg.intdata = 0;                     // clear slot
     do_zot(gb);                                                                 // do it
-    partab.vol[volnum - 1]->wd_tab[myslot].doing = DOING_NOTHING;               // flag done
+    partab.vol[volnum]->wd_tab[myslot].doing = DOING_NOTHING;                   // flag done
     return;                                                                     // and exit
 }
 
@@ -338,12 +338,12 @@ void do_dismount(void)                                                          
     semun_t semvals = {.val = 0};                                               // dummy for semctl IPC_RMID
 #endif
 
-    if (shmctl(partab.vol[volnum - 1]->shm_id, IPC_RMID, &sbuf) == -1) {        // remove share
+    if (shmctl(partab.vol[volnum]->shm_id, IPC_RMID, &sbuf) == -1) {            // remove share
         fprintf(stderr, "do_dismount: shmctl() error: %d - %s\n", errno, strerror(errno));
         fflush(stderr);                                                         // flush to the file
     }
 
-    if (volnum == 1) {
+    if (volnum == 0) {
         for (u_int u = 0; u < systab->maxjob; u++) {                            // for each job
             pid = partab.job_table[u].pid;                                      // get pid
 
@@ -356,12 +356,12 @@ void do_dismount(void)                                                          
         }
     }
 
-    for (u_int u = 0; u < partab.vol[volnum - 1]->num_gbd; u++) {               // look for unwritten
-        if ((partab.vol[volnum - 1]->gbd_head[u].block) &&                      // if there is a block
-          (partab.vol[volnum - 1]->gbd_head[u].last_accessed != (time_t) 0) &&
-          (partab.vol[volnum - 1]->gbd_head[u].dirty)) {
-            partab.vol[volnum - 1]->gbd_head[u].dirty = &partab.vol[volnum - 1]->gbd_head[u]; // point at self
-            partab.vol[volnum - 1]->wd_tab[0].currmsg.gbddata = &partab.vol[volnum - 1]->gbd_head[u]; // add to our struct
+    for (u_int u = 0; u < partab.vol[volnum]->num_gbd; u++) {                   // look for unwritten
+        if ((partab.vol[volnum]->gbd_head[u].block) &&                          // if there is a block
+          (partab.vol[volnum]->gbd_head[u].last_accessed != (time_t) 0) &&
+          (partab.vol[volnum]->gbd_head[u].dirty)) {
+            partab.vol[volnum]->gbd_head[u].dirty = &partab.vol[volnum]->gbd_head[u]; // point at self
+            partab.vol[volnum]->wd_tab[0].currmsg.gbddata = &partab.vol[volnum]->gbd_head[u]; // add to our struct
             do_write();                                                         // write it
         }                                                                       // end GBD has block
     }                                                                           // end block search
@@ -372,11 +372,11 @@ void do_dismount(void)                                                          
         cnt = FALSE;                                                            // reset pid counter
         SemOp(SEM_WD, SEM_WRITE);                                               // lock daemon table
 
-        for (int j = 1; j < partab.vol[volnum - 1]->num_of_daemons; j++) {      // search
-            if (partab.vol[volnum - 1]->wd_tab[j].pid) {
-                if (kill(partab.vol[volnum - 1]->wd_tab[j].pid, 0) == -1) {
+        for (int j = 1; j < partab.vol[volnum]->num_of_daemons; j++) {          // search
+            if (partab.vol[volnum]->wd_tab[j].pid) {
+                if (kill(partab.vol[volnum]->wd_tab[j].pid, 0) == -1) {
                     if (errno == ESRCH) {                                       // if no such
-                        partab.vol[volnum - 1]->wd_tab[j].pid = 0;              // clear it
+                        partab.vol[volnum]->wd_tab[j].pid = 0;                  // clear it
                     } else {
                         cnt = TRUE;                                             // remember still there
                     }
@@ -390,35 +390,35 @@ void do_dismount(void)                                                          
         if (cnt) sleep(1);                                                      // if pids still around then wait a second...
     }                                                                           // end wait for daemons
 
-    pid = partab.vol[volnum - 1]->wd_tab[myslot].pid;
-    t = current_time(TRUE);                                                     // for ctime()
+    pid = partab.vol[volnum]->wd_tab[myslot].pid;
+    t = current_time(FALSE);                                                    // for ctime()
 
     fprintf(stderr, "%s [%7d]: Daemon %2d writing out clean flag as clean\n", strtok(ctime(&t), "\n"), pid, myslot); // operation
 
     fflush(stderr);                                                             // flush to the file
-    partab.vol[volnum - 1]->vollab->clean = 1;                                  // set database as clean
+    partab.vol[volnum]->vollab->clean = 1;                                      // set database as clean
 
     if (lseek(dbfd, 0, SEEK_SET) == (off_t) -1) {                               // seek to start of file
         fprintf(stderr, "do_dismount lseek() error: %d - %s\n", errno, strerror(errno));
         fflush(stderr);                                                         // flush to the file
     }
 
-    if (write(dbfd, partab.vol[volnum - 1]->vollab, partab.vol[volnum - 1]->vollab->header_bytes) == -1) { // write label/clean flag
+    if (write(dbfd, partab.vol[volnum]->vollab, partab.vol[volnum]->vollab->header_bytes) == -1) { // write label/clean flag
         fprintf(stderr, "do_dismount write() error: %d - %s\n", errno, strerror(errno));
         fflush(stderr);                                                         // flush to the file
     }
 
-    if (volnum == 1) {
+    if (volnum == 0) {
         if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {               // remove the semaphores
             fprintf(stderr, "do_dismount semctl() error: %d - %s\n", errno, strerror(errno));
             fflush(stderr);                                                     // flush to the file
         }
     }
 
-    t = current_time(TRUE);                                                     // for ctime()
+    t = current_time(FALSE);                                                    // for ctime()
 
     fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
-            strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum - 1]->file_name); // stopping
+            strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum]->file_name); // stopping
 
     fflush(stderr);                                                             // flush to the file
     return;                                                                     // done
@@ -440,30 +440,30 @@ void do_daemon(void)                                                            
 start:
     daemon_check();                                                             // ensure all running
 
-    if (partab.vol[volnum - 1]->wd_tab[myslot].doing == DOING_NOTHING) {
-        if (!myslot && partab.vol[volnum - 1]->map_dirty_flag) {                // first daemon
+    if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_NOTHING) {
+        if (!myslot && partab.vol[volnum]->map_dirty_flag) {                    // first daemon
             if (lseek(dbfd, 0, SEEK_SET) == (off_t) -1) {                       // move to start of file
-                partab.vol[volnum - 1]->stats.diskerrors++;                     // count an error
+                partab.vol[volnum]->stats.diskerrors++;                         // count an error
                 panic("do_daemon: lseek() to start of file failed");
             }
 
             // label/map
-            if (write(dbfd, partab.vol[volnum - 1]->vollab, partab.vol[volnum - 1]->vollab->header_bytes) == -1) {
-                partab.vol[volnum - 1]->stats.diskerrors++;                     // count an error
+            if (write(dbfd, partab.vol[volnum]->vollab, partab.vol[volnum]->vollab->header_bytes) == -1) {
+                partab.vol[volnum]->stats.diskerrors++;                         // count an error
                 panic("do_daemon: write() map block failed");
             }
 
-            partab.vol[volnum - 1]->stats.phywt++;                              // count a write
-            partab.vol[volnum - 1]->map_dirty_flag = 0;                         // unset dirty flag
+            partab.vol[volnum]->stats.phywt++;                                  // count a write
+            partab.vol[volnum]->map_dirty_flag = 0;                             // unset dirty flag
         }                                                                       // end map write
 
-        if (!myslot && (partab.vol[volnum - 1]->writelock < 0)) {               // check writelock
+        if (!myslot && (partab.vol[volnum]->writelock < 0)) {                   // check writelock
             while (TRUE) {                                                      // loop
-                i = (partab.vol[volnum - 1]->dirtyQ[partab.vol[volnum - 1]->dirtyQr] != NULL); // check dirty queue
-                i = (i || (partab.vol[volnum - 1]->garbQ[partab.vol[volnum - 1]->garbQr] != 0)); // and garbQ
+                i = (partab.vol[volnum]->dirtyQ[partab.vol[volnum]->dirtyQr] != NULL); // check dirty queue
+                i = (i || (partab.vol[volnum]->garbQ[partab.vol[volnum]->garbQr] != 0)); // and garbQ
 
-                for (j = 1; j < partab.vol[volnum - 1]->num_of_daemons; j++) {  // each one
-                    i = (i || (partab.vol[volnum - 1]->wd_tab[myslot].doing != DOING_NOTHING));
+                for (j = 1; j < partab.vol[volnum]->num_of_daemons; j++) {      // each one
+                    i = (i || (partab.vol[volnum]->wd_tab[myslot].doing != DOING_NOTHING));
                 }
 
                 if (!i) break;                                                  // if all clear then leave loop
@@ -474,59 +474,57 @@ start:
             sleep(1);                                                           // just a bit more
 
             // Set the writelock to a positive value when all quiet
-            partab.vol[volnum - 1]->writelock = abs(partab.vol[volnum - 1]->writelock);
-        }                                                                       // end wrtlock
+            partab.vol[volnum]->writelock = abs(partab.vol[volnum]->writelock);
+        }                                                                       // end write lock
 
         while (SemOp(SEM_WD, SEM_WRITE)) continue;                              // lock WD
 
-        if (partab.vol[volnum - 1]->dirtyQ[partab.vol[volnum - 1]->dirtyQr] != NULL) { // any writes?
-            partab.vol[volnum - 1]->wd_tab[myslot].currmsg.gbddata =
-              partab.vol[volnum - 1]->dirtyQ[partab.vol[volnum - 1]->dirtyQr];  // get
-
-            partab.vol[volnum - 1]->wd_tab[myslot].doing = DOING_WRITE;
-            partab.vol[volnum - 1]->dirtyQ[partab.vol[volnum - 1]->dirtyQr] = NULL;
-            partab.vol[volnum - 1]->dirtyQr++;                                  // increment index
-            partab.vol[volnum - 1]->dirtyQr &= (NUM_DIRTY - 1);                 // do wrap
-        } else if (partab.vol[volnum - 1]->garbQ[partab.vol[volnum - 1]->garbQr]) { // any garbage?
-            // get
-            partab.vol[volnum - 1]->wd_tab[myslot].currmsg.intdata = partab.vol[volnum - 1]->garbQ[partab.vol[volnum - 1]->garbQr];
-            partab.vol[volnum - 1]->wd_tab[myslot].doing = DOING_GARB;
-            partab.vol[volnum - 1]->garbQ[partab.vol[volnum - 1]->garbQr] = 0;
-            partab.vol[volnum - 1]->garbQr++;                                   // increment index
-            partab.vol[volnum - 1]->garbQr &= (NUM_GARB - 1);                   // do wrap
+        if (partab.vol[volnum]->dirtyQ[partab.vol[volnum]->dirtyQr] != NULL) {  // any writes?
+            partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata = partab.vol[volnum]->dirtyQ[partab.vol[volnum]->dirtyQr]; // get
+            partab.vol[volnum]->wd_tab[myslot].doing = DOING_WRITE;
+            partab.vol[volnum]->dirtyQ[partab.vol[volnum]->dirtyQr] = NULL;
+            partab.vol[volnum]->dirtyQr++;                                      // increment index
+            partab.vol[volnum]->dirtyQr &= (NUM_DIRTY - 1);                     // do wrap
+        } else if (partab.vol[volnum]->garbQ[partab.vol[volnum]->garbQr]) {     // any garbage?
+            partab.vol[volnum]->wd_tab[myslot].currmsg.intdata = partab.vol[volnum]->garbQ[partab.vol[volnum]->garbQr]; // get
+            partab.vol[volnum]->wd_tab[myslot].doing = DOING_GARB;
+            partab.vol[volnum]->garbQ[partab.vol[volnum]->garbQr] = 0;
+            partab.vol[volnum]->garbQr++;                                       // increment index
+            partab.vol[volnum]->garbQr &= (NUM_GARB - 1);                       // do wrap
         }
 
         SemOp(SEM_WD, -SEM_WRITE);                                              // release WD lock
     }                                                                           // end looking for work
 
-    pid = partab.vol[volnum - 1]->wd_tab[myslot].pid;
+    pid = partab.vol[volnum]->wd_tab[myslot].pid;
 
-    if (partab.vol[volnum - 1]->wd_tab[myslot].doing == DOING_NOTHING) {
-        if (partab.vol[volnum - 1]->dismount_flag) {                            // dismounting?
+    if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_NOTHING) {
+        if (partab.vol[volnum]->dismount_flag) {                                // dismounting?
             if (myslot) {                                                       // first?
-                partab.vol[volnum - 1]->wd_tab[myslot].pid = 0;                 // say gone
-                t = current_time(TRUE);                                         // for ctime()
+                partab.vol[volnum]->wd_tab[myslot].pid = 0;                     // say gone
+                t = current_time(FALSE);                                        // for ctime()
 
                 fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
-                        strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum - 1]->file_name); // stopping
+                        strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum]->file_name); // stopping
 
                 fflush(stderr);                                                 // flush to the file
                 exit(EXIT_SUCCESS);                                             // and exit
             }
 
             do_dismount();                                                      // dismount it
-            partab.vol[volnum - 1]->wd_tab[myslot].pid = 0;                     // say gone
+            partab.vol[volnum]->wd_tab[myslot].pid = 0;                         // say gone
             exit(EXIT_SUCCESS);                                                 // and exit
         } else {                                                                // end dismount code
             return;                                                             // nothing to do
         }
     }
 
-    if (partab.vol[volnum - 1]->wd_tab[myslot].doing == DOING_WRITE) {
+    if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_WRITE) {
         do_write();                                                             // do it
         goto start;                                                             // try again
     }
-    if (partab.vol[volnum - 1]->wd_tab[myslot].doing == DOING_GARB) {
+
+    if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_GARB) {
         do_garb();                                                              // or this
         goto start;                                                             // try again
     }
@@ -549,11 +547,11 @@ int DB_Daemon(int slot, int vol)                                                
     char   logfile[VOL_FILENAME_MAX + 22];                                      // daemon log file name
     time_t t;                                                                   // for ctime()
 
-    volnum = vol;                                                               // save vol# here
+    volnum = vol - 1;                                                           // save vol# here
     fit = ForkIt(-1);                                                           // start a daemon
 
     if (fit > 0) {                                                              // check for ok (parent)
-        partab.vol[volnum - 1]->wd_tab[slot].pid = fit;                         // put in childs pid
+        partab.vol[volnum]->wd_tab[slot].pid = fit;                             // put in childs pid
         return 0;                                                               // return (am parent)
     }                                                                           // end parent code
 
@@ -561,9 +559,9 @@ int DB_Daemon(int slot, int vol)                                                
     curr_lock = 0;                                                              // clear lock flag
 
     // -- Create log file name --
-    k = strlen(partab.vol[volnum - 1]->file_name);                              // get len of filename
-    for (i = (k - 1); (partab.vol[volnum - 1]->file_name[i] != '/') && (i > -1); i--) continue; // find last '/'
-    strncpy(logfile, partab.vol[volnum - 1]->file_name, i + 1);                 // copy to log filename
+    k = strlen(partab.vol[volnum]->file_name);                                  // get len of filename
+    for (i = (k - 1); (partab.vol[volnum]->file_name[i] != '/') && (i > -1); i--) continue; // find last '/'
+    strncpy(logfile, partab.vol[volnum]->file_name, i + 1);                     // copy to log filename
     logfile[i + 1] = (char) '\0';                                               // terminate for strlen
     sprintf(&logfile[strlen(logfile)], "log/");                                 // add the log directory to the file path
     umask(0);                                                                   // set umask to 0000
@@ -574,42 +572,42 @@ int DB_Daemon(int slot, int vol)                                                
     }
 
     umask(S_IWGRP | S_IROTH | S_IWOTH);                                         // set umask to 0026
-    sprintf(&logfile[strlen(logfile)], "rsm-daemon-%d.log", volnum);            // create daemon log file path
+    sprintf(&logfile[strlen(logfile)], "rsm-daemon-%d.log", volnum + 1);        // create daemon log file path
     myslot = slot;                                                              // remember my slot
 
 #ifndef __FreeBSD__
     // --- Close original FD to database file inherited from parent ---
-    if (close(partab.vol_fds[volnum - 1]) == -1) return errno;
+    if (close(partab.vol_fds[volnum]) == -1) return errno;
 #endif
 
     // --- Reopen stdin, stdout, and stderr (logfile) ---
     if (freopen("/dev/null", "r", stdin) == NULL) return errno;                 // stdin to bitbucket
     if (freopen("/dev/null", "w", stdout) == NULL) return errno;                // stdout to bitbucket
     if (freopen(logfile, "a", stderr) == NULL) return errno;                    // stderr to logfile
-    pid = partab.vol[volnum - 1]->wd_tab[slot].pid;                             // get current PID
-    dbfd = open(partab.vol[volnum - 1]->file_name, O_RDWR);                     // open database RW
-    t = current_time(TRUE);                                                     // for ctime()
+    pid = partab.vol[volnum]->wd_tab[slot].pid;                                 // get current PID
+    dbfd = open(partab.vol[volnum]->file_name, O_RDWR);                         // open database RW
+    t = current_time(FALSE);                                                    // for ctime()
 
     if (dbfd < 0) {
         fprintf(stderr, "%s [%7d]: Daemon %2d failed to attach to %s - exiting \n",
-                strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum - 1]->file_name); // failure
+                strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum]->file_name); // failure
 
         fflush(stderr);                                                         // flush to the file
         return errno;                                                           // check for error
     }
 
     fprintf(stderr, "%s [%7d]: Daemon %2d started and attached to %s\n",
-            strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum - 1]->file_name); // success
+            strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum]->file_name); // success
 
     fflush(stderr);                                                             // flush to the file
-    if (partab.vol[volnum - 1]->upto && !myslot) ic_map(-3);                    // if map needs check then do it
+    if (partab.vol[volnum]->upto && !myslot) ic_map(-3);                        // if map needs check then do it
     i = sleep(2);                                                               // wait a bit
     if (i != 0) sleep(i);                                                       // if interrupted, sleep the rest
 
     while (TRUE) {                                                              // forever
         do_daemon();                                                            // do something
         sleep(1);                                                               // rest
-        //sleep(partab.vol[volnum - 1]->num_of_daemons);                        // rest
+        //sleep(partab.vol[volnum]->num_of_daemons);                            // rest
     }
 
     return 0;                                                                   // never gets here

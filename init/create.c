@@ -158,7 +158,7 @@ int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, c
     labelblock->header_bytes = map;                                             // bytes in label/map
     labelblock->block_size = bsize;                                             // bytes per data block
 #if RSM_DBVER != 1
-    labelblock->creation_time = (u_int64) current_time(TRUE);                   // when database file was created
+    labelblock->creation_time = (u_int64) current_time(FALSE);                  // when database file was created
 #endif
     memcpy(labelblock->volnam.var_cu, volnam, namlen);                          // copy vol name to label block
     labelblock->db_ver = DB_VER;                                                // database version

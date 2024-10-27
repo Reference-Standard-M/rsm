@@ -224,7 +224,7 @@ void panic(const char *msg)                                                     
     a = freopen("RSM_CRASH", "a", stderr);                                      // redirect stderr
 
     if (a != NULL) {                                                            // if that worked
-        t = current_time(TRUE);                                                 // current time
+        t = current_time(FALSE);                                                // current time
         fprintf(stderr, "RSM CRASH OCCURRED on %s", ctime(&t));                 // output the time
         rsm_version((u_char *) tmp);
         fprintf(stderr, "%s", tmp);

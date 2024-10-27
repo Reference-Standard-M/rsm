@@ -89,8 +89,8 @@ short Get_block(u_int blknum)                                                   
     off_t file_off;                                                             // for lseek()
     gbd   *ptr;                                                                 // a handy pointer
 
-    partab.vol[volnum - 1]->stats.logrd++;                                      // update stats
-    ptr = SOA(partab.vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)]);       // get head
+    partab.vol[volnum]->stats.logrd++;                                          // update stats
+    ptr = SOA(partab.vol[volnum]->gbd_hash[blknum & (GBD_HASH - 1)]);           // get head
 
     while (ptr != NULL) {                                                       // for entire list
         if (ptr->block == blknum) {                                             // found it?
@@ -106,7 +106,7 @@ short Get_block(u_int blknum)                                                   
         SemOp(SEM_GLOBAL, -curr_lock);                                          // release read lock
         s = SemOp(SEM_GLOBAL, SEM_WRITE);                                       // get write lock
         if (s < 0) return s;                                                    // on error just return it
-        ptr = SOA(partab.vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)]);   // get head
+        ptr = SOA(partab.vol[volnum]->gbd_hash[blknum & (GBD_HASH - 1)]);       // get head
 
         while (ptr != NULL) {                                                   // for entire list
             if (ptr->block == blknum) {                                         // found it?
@@ -120,43 +120,42 @@ short Get_block(u_int blknum)                                                   
         }                                                                       // end memory search
     }                                                                           // now have a write lck
 
-    partab.vol[volnum - 1]->stats.phyrd++;                                      // update stats
+    partab.vol[volnum]->stats.phyrd++;                                          // update stats
     Get_GBD();                                                                  // get a GBD
     blk[level]->block = blknum;                                                 // set block number
     blk[level]->last_accessed = (time_t) 0;                                     // clear last access
     i = blknum & (GBD_HASH - 1);                                                // get hash entry
-    blk[level]->next = partab.vol[volnum - 1]->gbd_hash[i];                     // link it in
-    partab.vol[volnum - 1]->gbd_hash[i] = SBA(blk[level]);
+    blk[level]->next = partab.vol[volnum]->gbd_hash[i];                         // link it in
+    partab.vol[volnum]->gbd_hash[i] = SBA(blk[level]);
     if (!writing) SemOp(SEM_GLOBAL, SEM_WR_TO_R);                               // if reading then drop to read lock
-    file_off = (off_t) blknum - 1;                                              // block#
 
-    file_off = (file_off * (off_t) SOA(partab.vol[volnum - 1]->vollab)->block_size)
-             + (off_t) SOA(partab.vol[volnum - 1]->vollab)->header_bytes;
+    if (volnum > 0) {
+        if (volnum >= MAX_VOL) return -ERRM26;                                  // Must be in range
 
-    if (volnum > 1) {
-        if (volnum > MAX_VOL) return -ERRM26;                                   // Must be in range
-
-        if (partab.vol_fds[volnum - 1] == 0) {                                  // if not open
-            if (partab.vol[volnum - 1]->file_name[0] == 0) return -(ERRZ72 + ERRMLAST); // need a filename
-            i = open(partab.vol[volnum - 1]->file_name, O_RDONLY);              // Open the volume
+        if (partab.vol_fds[volnum] == 0) {                                      // if not open
+            if (partab.vol[volnum]->file_name[0] == 0) return -(ERRZ72 + ERRMLAST); // need a filename
+            i = open(partab.vol[volnum]->file_name, O_RDONLY);                  // Open the volume
             if (i < 0) return -(ERRMLAST + ERRZLAST + errno);                   // Give up on error
-            partab.vol_fds[volnum - 1] = i;                                     // make sure fd right
+            partab.vol_fds[volnum] = i;                                         // make sure fd right
         } else {                                                                // check still there
-            if (partab.vol[volnum - 1]->file_name[0] == 0) {
-                close(partab.vol_fds[volnum - 1]);                              // close the file
-                partab.vol_fds[volnum - 1] = 0;                                 // flag not there
+            if (partab.vol[volnum]->file_name[0] == 0) {
+                close(partab.vol_fds[volnum]);                                  // close the file
+                partab.vol_fds[volnum] = 0;                                     // flag not there
                 return -(ERRZ72 + ERRMLAST);                                    // exit complaining
             }
         }
     }
 
-    file_off = lseek(partab.vol_fds[volnum - 1], file_off, SEEK_SET);           // Seek to blk
+    file_off = ((off_t) (blknum - 1) * (off_t) SOA(partab.vol[volnum]->vollab)->block_size)
+             + (off_t) SOA(partab.vol[volnum]->vollab)->header_bytes;
+
+    file_off = lseek(partab.vol_fds[volnum], file_off, SEEK_SET);               // Seek to block
     if (file_off < 1) panic("Get_block: lseek() failed!");                      // if that failed then die
-    i = read(partab.vol_fds[volnum - 1], SOA(blk[level]->mem), SOA(partab.vol[volnum - 1]->vollab)->block_size);
+    i = read(partab.vol_fds[volnum], SOA(blk[level]->mem), SOA(partab.vol[volnum]->vollab)->block_size);
     if (i < 0) panic("Get_block: read() failed!");                              // if read failed then die
 
 exit:
-    blk[level]->last_accessed = current_time(TRUE);                             // set access time
+    blk[level]->last_accessed = current_time(FALSE);                            // set access time
     if (writing && (blk[level]->dirty <= (gbd *) 3)) blk[level]->dirty = (gbd *) 1; // if writing then reserve it
     Index = IDX_START;                                                          // first one
     idx = (u_short *) SOA(blk[level]->mem);                                     // point at the block
@@ -186,28 +185,28 @@ short New_block(void)                                                           
     // Need to add a check for a dirty map scan in progress here
     Get_GBD();                                                                  // get a GBD
     Index = IDX_START;                                                          // first one
-    c = (u_char *) SOA(partab.vol[volnum - 1]->first_free);                     // look at first_free
+    c = (u_char *) SOA(partab.vol[volnum]->first_free);                         // look at first_free
 
     // start plus bits
-    end = ((u_char *) SOA(partab.vol[volnum - 1]->map)) + (SOA(partab.vol[volnum - 1]->vollab)->max_block >> 3);
+    end = ((u_char *) SOA(partab.vol[volnum]->map)) + (SOA(partab.vol[volnum]->vollab)->max_block >> 3);
 
     while (c <= end) {                                                          // scan map
         if (*c != 255) {                                                        // is there space
-            blknum = (c - ((u_char *) SOA(partab.vol[volnum - 1]->map))) * 8;   // base number
+            blknum = (c - ((u_char *) SOA(partab.vol[volnum]->map))) * 8;       // base number
             for (i = 0; ((1U << i) & *c); i++) continue;                        // find first free bit
             blknum += i;                                                        // add the little bit
 
-            if (blknum <= SOA(partab.vol[volnum - 1]->vollab)->max_block) {
+            if (blknum <= SOA(partab.vol[volnum]->vollab)->max_block) {
                 *c |= (1U << i);                                                // mark block as used
-                partab.vol[volnum - 1]->stats.blkalloc++;                       // update stats
-                partab.vol[volnum - 1]->map_dirty_flag++;                       // mark map dirty
+                partab.vol[volnum]->stats.blkalloc++;                           // update stats
+                partab.vol[volnum]->map_dirty_flag++;                           // mark map dirty
                 blk[level]->block = blknum;                                     // save in structure
-                blk[level]->next = partab.vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)];
-                partab.vol[volnum - 1]->gbd_hash[blknum & (GBD_HASH - 1)] = SBA(blk[level]); // link it in
-                memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum - 1]->vollab)->block_size);
+                blk[level]->next = partab.vol[volnum]->gbd_hash[blknum & (GBD_HASH - 1)];
+                partab.vol[volnum]->gbd_hash[blknum & (GBD_HASH - 1)] = SBA(blk[level]); // link it in
+                memset(SOM(blk[level]->mem), 0, SOA(partab.vol[volnum]->vollab)->block_size);
                 blk[level]->dirty = (gbd *) 1;                                  // reserve it
-                blk[level]->last_accessed = current_time(TRUE);                 // accessed
-                partab.vol[volnum - 1]->first_free = SBA(c);                    // save this
+                blk[level]->last_accessed = current_time(FALSE);                // accessed
+                partab.vol[volnum]->first_free = SBA(c);                        // save this
                 return 0;                                                       // return success
             }
         }
@@ -238,7 +237,7 @@ void Get_GBDs(int greqd)                                                        
 
 start:
     while (SemOp(SEM_GLOBAL, SEM_WRITE)) continue;                              // get write semaphore lock
-    ptr = SOA(partab.vol[volnum - 1]->gbd_hash[GBD_HASH]);                      // head of free list
+    ptr = SOA(partab.vol[volnum]->gbd_hash[GBD_HASH]);                          // head of free list
     curr = 0;                                                                   // clear current
 
     while (ptr != NULL) {                                                       // while some there
@@ -247,30 +246,30 @@ start:
         ptr = SOA(ptr->next);                                                   // point at next
     }                                                                           // end while
 
-    now = current_time(TRUE) + 1;                                               // get current time + 1
+    now = current_time(FALSE) + 1;                                              // get current time + 1
     i = (hash_start + 1) & (GBD_HASH - 1);                                      // where to start
 
     while (TRUE) {                                                              // loop
-        ptr = SOA(partab.vol[volnum - 1]->gbd_hash[i]);                         // get first entry
+        ptr = SOA(partab.vol[volnum]->gbd_hash[i]);                             // get first entry
         last = NULL;                                                            // clear last
 
         while (ptr != NULL) {                                                   // while we have some
             if (ptr->block == 0) {                                              // if no block
                 if (last == NULL) {                                             // if first one
-                    partab.vol[volnum - 1]->gbd_hash[i] = ptr->next;            // hook it here
+                    partab.vol[volnum]->gbd_hash[i] = ptr->next;                // hook it here
                 } else {                                                        // not first one
                     last->next = ptr->next;                                     // then hook it here
                 }
 
-                ptr->next = partab.vol[volnum - 1]->gbd_hash[GBD_HASH];         // hook to free
-                partab.vol[volnum - 1]->gbd_hash[GBD_HASH] = SBA(ptr);          // and this
+                ptr->next = partab.vol[volnum]->gbd_hash[GBD_HASH];             // hook to free
+                partab.vol[volnum]->gbd_hash[GBD_HASH] = SBA(ptr);              // and this
                 ptr->dirty = NULL;                                              // ensure clear
                 ptr->last_accessed = (time_t) 0;                                // and this
                 curr++;                                                         // count this
                 if (curr >= greqd) return;                                      // if enough there then just exit
 
                 if (last == NULL) {                                             // if first one
-                    ptr = SOA(partab.vol[volnum - 1]->gbd_hash[i]);             // get next in list
+                    ptr = SOA(partab.vol[volnum]->gbd_hash[i]);                 // get next in list
                 } else {
                     ptr = SOA(last->next);                                      // to allow for loop
                 }
@@ -321,26 +320,26 @@ void Get_GBD(void)                                                              
     gbd    *last;                                                               // points to ptr
 
 start:
-    if (SOA(partab.vol[volnum - 1]->gbd_hash[GBD_HASH])) {                      // any free?
-        blk[level] = SOA(partab.vol[volnum - 1]->gbd_hash[GBD_HASH]);           // get one
-        partab.vol[volnum - 1]->gbd_hash[GBD_HASH] = blk[level]->next;          // unlink it
+    if (SOA(partab.vol[volnum]->gbd_hash[GBD_HASH])) {                          // any free?
+        blk[level] = SOA(partab.vol[volnum]->gbd_hash[GBD_HASH]);               // get one
+        partab.vol[volnum]->gbd_hash[GBD_HASH] = blk[level]->next;              // unlink it
         goto exit;                                                              // common exit code
     }
 
-    now = current_time(TRUE);                                                   // get current time
+    now = current_time(FALSE);                                                  // get current time
     old = now + 1;                                                              // remember oldest
     exp = now - gbd_expired;                                                    // expired time
     i = (hash_start + 1) & (GBD_HASH - 1);                                      // where to start
 
     while (TRUE) {                                                              // loop
-        ptr = SOA(partab.vol[volnum - 1]->gbd_hash[i]);                         // get first entry
+        ptr = SOA(partab.vol[volnum]->gbd_hash[i]);                             // get first entry
         last = NULL;                                                            // clear last
 
         while (ptr != NULL) {                                                   // while we have some
             // if no block OR if free AND time expired AND there is a time
             if ((ptr->block == 0) || ((ptr->dirty == NULL) && (ptr->last_accessed < exp) && (ptr->last_accessed > 0))) {
                 if (last == NULL) {                                             // first one?
-                    partab.vol[volnum - 1]->gbd_hash[i] = ptr->next;            // unlink from hash
+                    partab.vol[volnum]->gbd_hash[i] = ptr->next;                // unlink from hash
                 } else {                                                        // subsequent
                     last->next = ptr->next;                                     // unlink
                 }
@@ -373,10 +372,10 @@ start:
         goto start;                                                             // and try again
     }
 
-    ptr = SOA(partab.vol[volnum - 1]->gbd_hash[hash]);                          // get the list
+    ptr = SOA(partab.vol[volnum]->gbd_hash[hash]);                              // get the list
 
     if (ptr == oldptr) {                                                        // is this it
-        partab.vol[volnum - 1]->gbd_hash[hash] = ptr->next;                     // unlink it
+        partab.vol[volnum]->gbd_hash[hash] = ptr->next;                         // unlink it
     } else {                                                                    // we gota look for it
         while (SOA(ptr->next) != oldptr) ptr = SOA(ptr->next);                  // until we do we get the next
         ptr->next = oldptr->next;                                               // unlink it
@@ -406,18 +405,18 @@ void Free_GBD(gbd *free)                                                        
     if (free->block) {                                                          // if there is a block #
         gbd *ptr;                                                               // copy of the current GBD
 
-        ptr = SOA(partab.vol[volnum - 1]->gbd_hash[free->block & (GBD_HASH - 1)]);
+        ptr = SOA(partab.vol[volnum]->gbd_hash[free->block & (GBD_HASH - 1)]);
 
         if (ptr == free) {                                                      // if this one
-            partab.vol[volnum - 1]->gbd_hash[free->block & (GBD_HASH - 1)] = free->next; // unlink it
+            partab.vol[volnum]->gbd_hash[free->block & (GBD_HASH - 1)] = free->next; // unlink it
         } else {                                                                // look for it
             while (SOA(ptr->next) != free) ptr = SOA(ptr->next);                // until it's found get the next
             ptr->next = free->next;                                             // unlink it
         }
     }
 
-    free->next = partab.vol[volnum - 1]->gbd_hash[GBD_HASH];                    // get free list
-    partab.vol[volnum - 1]->gbd_hash[GBD_HASH] = SBA(free);                     // link it in
+    free->next = partab.vol[volnum]->gbd_hash[GBD_HASH];                        // get free list
+    partab.vol[volnum]->gbd_hash[GBD_HASH] = SBA(free);                         // link it in
     free->block = 0;                                                            // clear this
     free->dirty = NULL;                                                         // and this
     free->last_accessed = (time_t) 0;                                           // and this
