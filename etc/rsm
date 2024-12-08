@@ -33,14 +33,14 @@ __rsm_option()
 {
     local IFS=$'\n'
     local rsm_args=(-V -h -i -k -v -b -s -m -e -j -g -r -x -R)
-    local rsm_words=(${COMP_WORDS[@]}) rsm_cword="${COMP_CWORD}"
+    local rsm_words=("${COMP_WORDS[@]}") rsm_cword="${COMP_CWORD}"
     local rsm_current="${rsm_words[${rsm_cword}]}" rsm_word=""
     local rsm_cflag="" rsm_mflag="" rsm_bflag="" rsm_jflag=""
 
     case ${rsm_words[${rsm_cword}-1]} in
     *rsm)
         COMPREPLY=($(compgen -W "${rsm_args[*]}" -- "${rsm_current}"))
-        COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort))
+        COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort || true))
         return
         ;;
 
@@ -50,7 +50,7 @@ __rsm_option()
         ;;
 
     -i|-k)
-        COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort))
+        COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort || true))
         return
         ;;
 
@@ -100,63 +100,63 @@ __rsm_option()
         ;;
 
     -R)
-        rsm_args=(${rsm_args[@]/-V})
-        rsm_args=(${rsm_args[@]/-h})
-        rsm_args=(${rsm_args[@]/-i})
-        rsm_args=(${rsm_args[@]/-k})
-        rsm_args=(${rsm_args[@]/-v})
-        rsm_args=(${rsm_args[@]/-b})
-        rsm_args=(${rsm_args[@]/-s})
-        rsm_args=(${rsm_args[@]/-m})
-        rsm_args=(${rsm_args[@]/-j})
-        rsm_args=(${rsm_args[@]/-g})
-        rsm_args=(${rsm_args[@]/-r})
-        rsm_args=(${rsm_args[@]/-R})
+        rsm_args=("${rsm_args[@]/-V}")
+        rsm_args=("${rsm_args[@]/-h}")
+        rsm_args=("${rsm_args[@]/-i}")
+        rsm_args=("${rsm_args[@]/-k}")
+        rsm_args=("${rsm_args[@]/-v}")
+        rsm_args=("${rsm_args[@]/-b}")
+        rsm_args=("${rsm_args[@]/-s}")
+        rsm_args=("${rsm_args[@]/-m}")
+        rsm_args=("${rsm_args[@]/-j}")
+        rsm_args=("${rsm_args[@]/-g}")
+        rsm_args=("${rsm_args[@]/-r}")
+        rsm_args=("${rsm_args[@]/-R}")
         ;;
 
     *)
-        rsm_args=(${rsm_args[@]/-V})
-        rsm_args=(${rsm_args[@]/-h})
-        rsm_args=(${rsm_args[@]/-i})
-        rsm_args=(${rsm_args[@]/-k})
+        rsm_args=("${rsm_args[@]/-V}")
+        rsm_args=("${rsm_args[@]/-h}")
+        rsm_args=("${rsm_args[@]/-i}")
+        rsm_args=("${rsm_args[@]/-k}")
 
         case ${rsm_words[${rsm_cword}-2]} in
         -v|-b|-s|-m)
-            rsm_args=(${rsm_args[@]/-j})
-            rsm_args=(${rsm_args[@]/-g})
-            rsm_args=(${rsm_args[@]/-r})
-            rsm_args=(${rsm_args[@]/-x})
-            rsm_args=(${rsm_args[@]/-R})
+            rsm_args=("${rsm_args[@]/-j}")
+            rsm_args=("${rsm_args[@]/-g}")
+            rsm_args=("${rsm_args[@]/-r}")
+            rsm_args=("${rsm_args[@]/-x}")
+            rsm_args=("${rsm_args[@]/-R}")
             ;;
 
         -j|-g|-r)
-            rsm_args=(${rsm_args[@]/-v})
-            rsm_args=(${rsm_args[@]/-b})
-            rsm_args=(${rsm_args[@]/-s})
-            rsm_args=(${rsm_args[@]/-m})
-            rsm_args=(${rsm_args[@]/-e})
-            rsm_args=(${rsm_args[@]/-x})
-            rsm_args=(${rsm_args[@]/-R})
+            rsm_args=("${rsm_args[@]/-v}")
+            rsm_args=("${rsm_args[@]/-b}")
+            rsm_args=("${rsm_args[@]/-s}")
+            rsm_args=("${rsm_args[@]/-m}")
+            rsm_args=("${rsm_args[@]/-e}")
+            rsm_args=("${rsm_args[@]/-x}")
+            rsm_args=("${rsm_args[@]/-R}")
             ;;
 
         -e)
-            rsm_args=(${rsm_args[@]/-j})
-            rsm_args=(${rsm_args[@]/-g})
-            rsm_args=(${rsm_args[@]/-r})
+            rsm_args=("${rsm_args[@]/-j}")
+            rsm_args=("${rsm_args[@]/-g}")
+            rsm_args=("${rsm_args[@]/-r}")
 
             for rsm_word in "${rsm_words[@]}"
             do
                 case ${rsm_word} in
                 -v|-b|-s|-m)
-                    rsm_args=(${rsm_args[@]/-x})
-                    rsm_args=(${rsm_args[@]/-R})
+                    rsm_args=("${rsm_args[@]/-x}")
+                    rsm_args=("${rsm_args[@]/-R}")
                     ;;
 
                 -x|-R)
-                    rsm_args=(${rsm_args[@]/-v})
-                    rsm_args=(${rsm_args[@]/-b})
-                    rsm_args=(${rsm_args[@]/-s})
-                    rsm_args=(${rsm_args[@]/-m})
+                    rsm_args=("${rsm_args[@]/-v}")
+                    rsm_args=("${rsm_args[@]/-b}")
+                    rsm_args=("${rsm_args[@]/-s}")
+                    rsm_args=("${rsm_args[@]/-m}")
                     ;;
 
                 *)
@@ -168,13 +168,13 @@ __rsm_option()
             ;;
 
         -x)
-            rsm_args=(${rsm_args[@]/-v})
-            rsm_args=(${rsm_args[@]/-b})
-            rsm_args=(${rsm_args[@]/-s})
-            rsm_args=(${rsm_args[@]/-m})
-            rsm_args=(${rsm_args[@]/-j})
-            rsm_args=(${rsm_args[@]/-g})
-            rsm_args=(${rsm_args[@]/-r})
+            rsm_args=("${rsm_args[@]/-v}")
+            rsm_args=("${rsm_args[@]/-b}")
+            rsm_args=("${rsm_args[@]/-s}")
+            rsm_args=("${rsm_args[@]/-m}")
+            rsm_args=("${rsm_args[@]/-j}")
+            rsm_args=("${rsm_args[@]/-g}")
+            rsm_args=("${rsm_args[@]/-r}")
             ;;
 
         *)
@@ -189,7 +189,7 @@ __rsm_option()
 
     for rsm_word in "${rsm_words[@]:1:${#rsm_words[@]}-2}"
     do
-        rsm_args=(${rsm_args[@]/${rsm_word}})
+        rsm_args=("${rsm_args[@]/${rsm_word}}")
     done
 
     for rsm_word in "${rsm_words[@]}"
@@ -224,15 +224,15 @@ __rsm_option()
     then
         if [[ ${rsm_mflag} == 1 ]]
         then
-            [[ ${rsm_cflag} == 3 ]] && COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort))
+            [[ ${rsm_cflag} == 3 ]] && COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort || true))
         elif [[ ${rsm_bflag} -gt 0 ]]
         then
-            [[ ${rsm_jflag} == 1 ]] && COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort))
+            [[ ${rsm_jflag} == 1 ]] && COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort || true))
         else
-            [[ ${rsm_cflag:-3} == 3 ]] && COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort))
+            [[ ${rsm_cflag:-3} == 3 ]] && COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort || true))
         fi
     else
-        COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort))
+        COMPREPLY+=($(compgen -f -- "${rsm_current}" | sort || true))
     fi
 }
 

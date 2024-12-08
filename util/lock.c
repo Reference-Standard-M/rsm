@@ -28,19 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "compile.h"                                                            // for RBD definition
+#include "error.h"                                                              // errors
+#include "proto.h"                                                              // standard prototypes
+#include <limits.h>                                                             // for SHRT_MAX
 #include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy/memcmp
 #include <time.h>                                                               // for ctime
-#include <sys/types.h>                                                          // for u_char def
-#include <limits.h>                                                             // for SHRT_MAX
-#include <unistd.h>                                                             // for sleep
-#include <sys/ipc.h>                                                            // semaphore stuff
-#include <sys/sem.h>                                                            // semaphore stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // errors
-#include "compile.h"                                                            // for RBD definition
 
 static locktab *luptr = NULL;                                                   // last used pointer
 static short   lujob = 0;                                                       // last used job
@@ -205,12 +199,12 @@ short UTIL_mvartolock(mvar *var, u_char *buf)                                   
     return s;                                                                   // return the length
 }
 
-short LCK_Combine(locktab *ptr)
+static short LCK_Combine(locktab *ptr)
 {
     locktab *next;                                                              // a handy pointer
 
     if (ptr == NULL) {
-        panic("Null pointer passed to LCK_Combine()");
+        panic("LCK_Combine: Null pointer passed");
     } else {
         while (TRUE) {
             next = (locktab *) (((u_char *) ptr) + ptr->size);                  // where next
@@ -222,7 +216,7 @@ short LCK_Combine(locktab *ptr)
 
             if (((char *) next) >= (((char *) SOA(systab->lockstart)) + systab->locksize)) break; // quit when done
             if (next != SOA(ptr->fwd_link)) break;                              // quit if next not free
-            if (next->job > -1) panic("Attempt to combine non-free in LCK_Combine()");
+            if (next->job > -1) panic("LCK_Combine: Attempt to combine non-free locks");
             ptr->size += next->size;                                            // increment the new free space
             ptr->fwd_link = next->fwd_link;                                     // new block now points correct
         }                                                                       // prev block/this block merge
@@ -232,12 +226,12 @@ short LCK_Combine(locktab *ptr)
 }                                                                               // end function LCK_Combine()
 
 // Note, ptr has been removed from the lockhead list when we get here
-short LCK_Free(locktab *ptr)
+static short LCK_Free(locktab *ptr)
 {
     locktab *currptr;
     locktab *prevptr = NULL;                                                    // handy pointer
 
-    if (ptr == NULL) panic("Null pointer passed to LCK_Free()");                // die
+    if (ptr == NULL) panic("LCK_Free: Null pointer passed");                    // die
 
     if (luptr == ptr) {
         luptr = NULL;                                                           // reset last used pointer
@@ -263,7 +257,7 @@ short LCK_Free(locktab *ptr)
 }
 
 // returns pointer to free space
-locktab *LCK_Insert(int size)                                                   // go through share section for chunk of size
+static locktab *LCK_Insert(int size)                                            // go through share section for chunk of size
 {
     locktab *free_curr = NULL;                                                  // locktab traverse pointer
     locktab *free_prev = NULL;                                                  // previous locktab pointer

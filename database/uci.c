@@ -28,18 +28,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
+#include "database.h"                                                           // database protos
+#include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
 #include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
 
 /*
  * Function: DB_UCISet

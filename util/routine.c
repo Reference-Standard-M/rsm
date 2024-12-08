@@ -28,38 +28,14 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <errno.h>                                                              // error stuff
-#include <string.h>                                                             // for memcpy
-#include <time.h>                                                               // for ctime
-#include <sys/types.h>                                                          // for u_char def
-#include "rsm.h"                                                                // standard includes
 #include "compile.h"                                                            // RBD structures
 #include "proto.h"                                                              // the prototypes
+#include <errno.h>                                                              // error stuff
+#include <stdio.h>                                                              // always include
+#include <string.h>                                                             // for memcpy
+#include <time.h>                                                               // for ctime
 
-// The following is called ONLY from rsm/init/start.c and rsm/database/mount.c
-void Routine_Init(int vol)                                                      // setup rbd for this vol
-{
-    rbd   *rou;                                                                 // a routine pointer
-    u_int i;                                                                    // an int
-
-    for (i = 0; i < RBD_HASH; i++) partab.vol[vol]->rbd_hash[i] = NULL;         // the hash table, need to clear it out
-    rou = (rbd *) SOA(partab.vol[vol]->rbd_head);                               // free space entry
-    partab.vol[vol]->rbd_hash[RBD_HASH] = SBA(rou);                             // head of free list
-    i = (char *) SOA(partab.vol[vol]->rbd_end) - (char *) SOA(partab.vol[vol]->rbd_head); // memory available
-    rou->fwd_link = NULL;                                                       // no forward link
-    rou->chunk_size = i;                                                        // size of this bit of free
-    rou->attached = 0;                                                          // nothing attached
-    rou->last_access = 0;                                                       // not used
-    VAR_CLEAR(rou->rnam);                                                       // no routine
-    rou->uci = 0;                                                               // no UCI
-    rou->vol = 0;                                                               // no vol
-    rou->rou_size = 0;                                                          // no routine here
-    return;                                                                     // done
-}
-
-int Routine_Hash(var_u routine)                                                 // return hash code
+static int Routine_Hash(var_u routine)                                          // return hash code
 {
     int hash = 0;                                                               // for the return
 
@@ -83,7 +59,7 @@ int Routine_Hash(var_u routine)                                                 
     return hash % RBD_HASH;                                                     // return the code
 }
 
-void Routine_Combine(rbd *pointer)                                              // combine with following block
+static void Routine_Combine(rbd *pointer)                                       // combine with following block
 {
     rbd *ptr;                                                                   // a handy pointer
     rbd *p;                                                                     // and another
@@ -102,7 +78,7 @@ void Routine_Combine(rbd *pointer)                                              
     return;                                                                     // and exit
 }
 
-void Routine_Free(rbd *pointer)                                                 // call internally, RBD locked
+static void Routine_Free(rbd *pointer)                                          // call internally, RBD locked
 {
     rbd *ptr;                                                                   // a handy pointer
     rbd *p;                                                                     // and another
@@ -182,7 +158,7 @@ void Routine_Free(rbd *pointer)                                                 
     }
 }
 
-void Routine_Collect(time_t off)                                                // collect based on time
+static void Routine_Collect(time_t off)                                         // collect based on time
 {
     rbd *ptr;                                                                   // a pointer
 
@@ -203,7 +179,7 @@ void Routine_Collect(time_t off)                                                
     return;                                                                     // all done
 }
 
-rbd *Routine_Find(u_int size)                                                   // find int bytes
+static rbd *Routine_Find(u_int size)                                            // find int bytes
 {
     rbd *ptr;                                                                   // a pointer
     rbd *p;                                                                     // and another
@@ -260,6 +236,27 @@ rbd *Routine_Find(u_int size)                                                   
     }
 
     return ptr;                                                                 // return the pointer
+}
+
+// The following is called ONLY from rsm/init/start.c and rsm/database/mount.c
+void Routine_Init(int vol)                                                      // setup rbd for this vol
+{
+    rbd   *rou;                                                                 // a routine pointer
+    u_int i;                                                                    // an int
+
+    for (i = 0; i < RBD_HASH; i++) partab.vol[vol]->rbd_hash[i] = NULL;         // the hash table, need to clear it out
+    rou = (rbd *) SOA(partab.vol[vol]->rbd_head);                               // free space entry
+    partab.vol[vol]->rbd_hash[RBD_HASH] = SBA(rou);                             // head of free list
+    i = (char *) SOA(partab.vol[vol]->rbd_end) - (char *) SOA(partab.vol[vol]->rbd_head); // memory available
+    rou->fwd_link = NULL;                                                       // no forward link
+    rou->chunk_size = i;                                                        // size of this bit of free
+    rou->attached = 0;                                                          // nothing attached
+    rou->last_access = 0;                                                       // not used
+    VAR_CLEAR(rou->rnam);                                                       // no routine
+    rou->uci = 0;                                                               // no UCI
+    rou->vol = 0;                                                               // no vol
+    rou->rou_size = 0;                                                          // no routine here
+    return;                                                                     // done
 }
 
 // The following are called from the general M code
@@ -374,7 +371,7 @@ ENABLE_WARN
     ptr->vol = vol;                                                             // current volume
     ptr->rou_size = (u_short) t;                                                // save the size
     t = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver);                     // get the routine
-    if (t != ptr->rou_size) panic("routine load - size wrong");                 // DOUBLECHECK
+    if (t != ptr->rou_size) panic("Routine_Attach: Error in routine load - size wrong"); // DOUBLECHECK
     ptr->tag_tbl += RBD_OVERHEAD;                                               // adjust for RBD junk
     ptr->var_tbl += RBD_OVERHEAD;                                               // adjust for RBD junk
     ptr->code += RBD_OVERHEAD;                                                  // adjust for RBD junk
@@ -394,7 +391,7 @@ void Routine_Detach(rbd *pointer)                                               
 {
     short s;                                                                    // for SemOp() call
 
-    while (SemOp(SEM_ROU, SEM_WRITE) < 0) continue;                             // lock the RBDs, check error
+    while (SemOp(SEM_ROU, SEM_WRITE) < 0) {}                                    // lock the RBDs, check error
     if (pointer->attached > 0) pointer->attached--;                             // if not lost then decrement the count
     if ((pointer->uci == 0) && (pointer->attached == 0)) Routine_Free(pointer); // if invalid and nothing attached, free the space
     s = SemOp(SEM_ROU, -SEM_WRITE);                                             // release the lock

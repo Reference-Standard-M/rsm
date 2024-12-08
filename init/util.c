@@ -24,34 +24,28 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <sys/shm.h>                                                            // shared memory
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include <string.h>
-#include <errno.h>                                                              // error stuff
-#include <signal.h>
-
-#if RSM_DBVER != 1
-#   include <time.h>
-#endif
-
-#include <fcntl.h>                                                              // file stuff
-#include <unistd.h>                                                             // for getopt
-#include <math.h>                                                               // math prototypes
-#include "rsm.h"                                                                // standard includes
+#include "init.h"                                                               // init prototypes
 #include "compile.h"                                                            // for rbd*
 #include "database.h"                                                           // database protos
 #include "proto.h"                                                              // function prototypes
+#include <errno.h>                                                              // error stuff
+#include <fcntl.h>                                                              // file stuff
+#include <math.h>                                                               // math prototypes
+#include <signal.h>
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
+#include <string.h>
+#include <time.h>
+#include <unistd.h>                                                             // for getopt
+#include <sys/sem.h>                                                            // for semaphores
+#include <sys/shm.h>                                                            // shared memory
 
 // *** Give help if they entered -h or need help ***
 void help(void)                                                                 // give some help
 {
     char version[120];                                                          // a string
 
-    rsm_version((u_char *) version);                                            // get version into version[]
+    sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
     printf("Copyright © 2020-2024 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
@@ -93,7 +87,7 @@ void info(char *file)                                                           
     locktab *lock_free;                                                         // loop through lock free space
     int     lock_size = 0;                                                      // actual size of free lock space
 
-    rsm_version((u_char *) version);                                            // get version into version[]
+    sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
     printf("Copyright © 2020-2024 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n");
@@ -101,11 +95,11 @@ void info(char *file)                                                           
     printf("Database Volume and Environment Configuration Information:\n");
 
     if (file == NULL) {
-        fprintf(stderr, "\nPlease pass database file path or set RSM_DBFILE.\n");
+        fprintf(stderr, "\nPlease pass database file path or set RSM_DBFILE\n");
         exit(EXIT_FAILURE);
     }
 
-    i = UTIL_Share(file);                                                       // attach to shared memory
+    i = UTIL_Share(file, SHM_RDONLY);                                           // attach to shared memory
 
     if ((i != 0) || (systab == NULL) || (systab->vol[0] == NULL)) {             // if that failed
         if (i != 0) {
@@ -113,7 +107,7 @@ void info(char *file)                                                           
             exit(i);
         }
 
-        fprintf(stderr, "\nCannot connect to RSM environment.\n");
+        fprintf(stderr, "\nCannot connect to RSM environment\n");
         exit(EXIT_FAILURE);
     }
 
@@ -229,7 +223,7 @@ void info(char *file)                                                           
 void shutdown(char *file)                                                       // give some info
 {
     int             i = 0;                                                      // an int
-    int             no_daemon = FALSE;                                          // for daemon info
+    int             daemon = TRUE;                                              // for daemon info
     int             user;                                                       // for user number
     char            version[120];                                               // a string
     struct shmid_ds sbuf;                                                       // for shmctl (shutdown)
@@ -239,7 +233,7 @@ void shutdown(char *file)                                                       
     semun_t         semvals = {.val = 0};                                       // dummy for semctl IPC_RMID
 #endif
 
-    rsm_version((u_char *) version);                                            // get version into version[]
+    sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
 
     if (file == NULL) {
@@ -247,7 +241,7 @@ void shutdown(char *file)                                                       
         exit(EXIT_FAILURE);
     }
 
-    i = UTIL_Share(file);                                                       // attach to shared memory
+    i = UTIL_Share(file, 0);                                                    // attach to shared memory
 
     if (i != 0) {                                                               // quit on error
         fprintf(stderr, "RSM environment is not initialized - %s\n", strerror(errno));
@@ -286,37 +280,35 @@ void shutdown(char *file)                                                       
         }
     }
 
-    printf("Shutting down RSM environment at 0x%lx.\n", (u_long) systab->address);
+    printf("[Instance] Shutting down the environment at 0x%lx\n", (u_long) systab->address);
     systab->start_user = -1;                                                    // Say 'shutting down'
 
     for (i = (MAX_VOL - 1); i >= 0; i--) {
         if (systab->vol[i] == NULL) continue;
-        printf("Sending the daemons the signal to sync dirty queues.\n");
+        printf("[Volume %d] Sending the daemons the signal to sync dirty queues\n", i + 1);
         partab.vol[i]->writelock = -(MAX_JOBS + 1);                             // write lock the database (system job)
 
-        if (i == 0) {                                                           // only in volume 1
-            no_daemon = TRUE;                                                   // assume no daemon for volume 1
-
-            while (partab.vol[i]->writelock < 0) {
-                sleep(1);
-
-                if (!kill(partab.vol[i]->wd_tab[0].pid, 0)) {                   // if the main one exists
-                    no_daemon = FALSE;
-                    break;
-                }
-
-                if (no_daemon) break;                                           // if the daemon is gone, don't wait forever
-            }
-        }
-
-        printf("Marking the shared memory segment for destruction [shmid: %d].\n", partab.vol[i]->shm_id);
+        printf("[Volume %d] Marking the shared memory segment for destruction [shmid: %d]\n", i + 1, partab.vol[i]->shm_id);
 
         if (shmctl(partab.vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {             // remove the shares
             fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
         }
 
         if (i == 0) {                                                           // only in volume 1
-            printf("Sending the shutdown signal to all running RSM jobs.\n");
+            daemon = FALSE;                                                     // assume no daemon for volume 1
+
+            while (partab.vol[i]->writelock < 0) {
+                sleep(1);
+
+                if (kill(partab.vol[i]->wd_tab[0].pid, 0) == 0) {               // if the main one exists
+                    daemon = TRUE;
+                    break;
+                }
+
+                if (daemon == FALSE) break;                                     // if the daemon is gone, don't wait forever
+            }
+
+            printf("[Instance] Sending the shutdown signal to all running jobs\n");
 
             for (u_int j = 0; j < systab->maxjob; j++) {                        // for each job
                 int cnt;
@@ -332,16 +324,16 @@ void shutdown(char *file)                                                       
             }
         }
 
-        printf("Stopping journaling and dismounting the database.\n");
+        printf("[Volume %d] Stopping journaling and dismounting the database\n", i + 1);
 
         if (i == 0) {
-            printf("Sending the signal to the daemons to remove the semaphore set [semid: %d].\n", systab->sem_id);
+            printf("[Instance] Sending the signal to the daemons to remove the semaphore set [semid: %d]\n", systab->sem_id);
         }
 
         DB_Dismount(i + 1);                                                     // dismount the volume
 
-        if (no_daemon) {
-            printf("Removing the semaphore set more forcefully [semid: %d].\n", systab->sem_id);
+        if (daemon == FALSE) {
+            printf("[Instance] Removing the semaphore set more forcefully [semid: %d]\n", systab->sem_id);
 
             if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {           // remove the semaphores
                 fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
@@ -349,6 +341,6 @@ void shutdown(char *file)                                                       
         }
     }
 
-    printf("RSM environment shut down.\n");                                     // success
+    printf("[Instance] Environment is shut down and removed\n");                // success
     exit(EXIT_SUCCESS);                                                         // and exit
 }

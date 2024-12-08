@@ -31,6 +31,8 @@
 #ifndef RSM_SYMBOL_H
 #define RSM_SYMBOL_H
 
+#include "rsm.h"                                                                // standard RSM includes
+
 #define DTBLKSIZE (sizeof(short) + sizeof(u_short) + sizeof(u_char) + (sizeof(ST_depend *) * 2)) // ST_data - empty data
 #define DTMINSIZE (sizeof(short) + sizeof(u_short) + (sizeof(u_char) * 20) + (sizeof(ST_depend *) * 2)) // ST_data - 20 for data
 #define DPBLKSIZE ((sizeof(u_char) * 2) + sizeof(u_short) + sizeof(ST_depend *)) // ST_depend - empty bytes

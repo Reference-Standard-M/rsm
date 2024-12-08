@@ -45,19 +45,13 @@
  *     seqioSelect      - Waits until an object is ready for reading or writing
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <errno.h>
-#include <sys/types.h>                                                          // for u_char def
-#include <sys/time.h>
-//#include <sys/wait.h>
-#include <signal.h>
-#include <string.h>
-#include <unistd.h>
-#include "rsm.h"
+#include "seqio.h"
 #include "error.h"
 #include "proto.h"
-#include "seqio.h"
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
+//#include <sys/wait.h>
 
 /*
  * This function works as follows:

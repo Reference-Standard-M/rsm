@@ -31,6 +31,9 @@
 #ifndef RSM_RSM_H
 #define RSM_RSM_H
 
+#include <inttypes.h>                                                           // for portable bit types
+#include <sys/types.h>                                                          // for portable C types
+
 // General constant definitions
 #define RSM_STRING(num)     RSM_STRINGIFY(num)
 #define RSM_STRINGIFY(num)  #num
@@ -45,7 +48,7 @@
 #define MAX_BLOCK_SIZE      256U                                                // Maximum block size in KiB
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       82                                                  // Minor version number
-#define VERSION_PATCH       2                                                   // Patch version number
+#define VERSION_PATCH       3                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
@@ -175,18 +178,18 @@
 #define DO_FLAG_TEST    1                                                       // $TEST value (0/1)
 #define DO_FLAG_ATT     2                                                       // sym attach done
 #define DO_FLAG_FOR     4                                                       // called from a FOR (infor)
-#define DO_FLAG_ERROR   8                                                       // this is an error frame
+//#define DO_FLAG_ERROR   8                                                       // this is an error frame
 
 // Signals we do something with (see jobtab->trap). (add as required)
-#define SIG_HUP     1                                                           // SIGHUP (ERR Z66)
-#define SIG_CC      (1U << 2)                                                   // <Control-C> signal (SIGINT)
+#define SIG_HUP     1                                                           // SIGHUP (ERRZ66)
+#define SIG_CC      (1U << 2)                                                   // <Control-C> signal (SIGINT - ERRZ51)
 #define SIG_QUIT    (1U << 3)                                                   // SIGQUIT (HALT)
 #define SIG_TERM    (1U << 15)                                                  // SIGTERM (HALT)
 #define SIG_STOP    (1U << 17)                                                  // SIGSTOP (HALT)
-#define SIG_WS      (1U << 28)                                                  // window size changes (ignore)
+#define SIG_WS      (1U << 28)                                                  // Window size changes (SIGWINCH - ignore)
 #define SIG_CT      (1U << 29)                                                  // <Control-T> signal (SIGINFO)
-#define SIG_U1      (1U << 30)                                                  // user signal 1 (ERR Z67)
-#define SIG_U2      (1U << 31)                                                  // user signal 2 (ERR Z68)
+#define SIG_U1      (1U << 30)                                                  // User signal 1 (ERRZ67)
+#define SIG_U2      (1U << 31)                                                  // User signal 2 (ERRZ68)
 // Unknown signals generate error Z69
 
 #define VOL_FILENAME_MAX    255                                                 // max characters in stored filename
@@ -215,7 +218,7 @@
 // Semaphore operations
 #define SEM_READ    ((int) -1)                                                  // a read lock (shared)
 #define SEM_WRITE   ((int) -systab->maxjob)                                     // a write lock (exclusive)
-//#define SEM_R_TO_WR (-(systab->maxjob - 1))                                   // from read to write
+#define SEM_R_TO_WR (-(systab->maxjob - 1))                                     // from read to write
 #define SEM_WR_TO_R (systab->maxjob - 1)                                        // from write to read
 
 #define MAX_TRANTAB 64                                                          // total number of entries
@@ -225,7 +228,7 @@ typedef union semun {
     int             val;                                                        // value for SETVAL
     struct semid_ds *buf;                                                       // buffer for IPC_STAT, IPC_SET
     u_short         *array;                                                     // array for GETALL, SETALL
-#   if defined(linux) || defined(_AIX) || defined(__CYGWIN__)
+#   if defined(__linux__) || defined(_AIX) || defined(__CYGWIN__)
     struct seminfo  *__buf;                                                     // buffer for IPC_INFO
 #   endif
 } semun_t;

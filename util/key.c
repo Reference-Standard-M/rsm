@@ -28,14 +28,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memcpy/memcmp
-#include <sys/types.h>                                                          // for u_char def
-#include "rsm.h"                                                                // standard includes
 #include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // errors
 #include "compile.h"                                                            // for RBD definition
+#include "error.h"                                                              // errors
+#include <string.h>                                                             // for memcpy/memcmp
 
 /*
  * Function: UTIL_Key_Build - Build a key from an ASCII source
@@ -261,9 +257,9 @@ int UTIL_Key_Last(const mvar *var)                                              
         last = i;                                                               // save beginning
 
         if (var->key[i++] < 64) {                                               // negative number
-            while ((var->key[i++] != 255) && (i < var->slen)) continue;         // scan to end
+            while ((var->key[i++] != 255) && (i < var->slen)) {}                // scan to end
         } else {                                                                // positive or string
-            while ((var->key[i++] != 0) && (i < var->slen)) continue;           // scan to end
+            while ((var->key[i++] != 0) && (i < var->slen)) {}                  // scan to end
         }
     }
 
@@ -542,10 +538,10 @@ int UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char *
         if ((Key[i] == '\0') && (Key[i + 1] == '\0')) {                         // empty string
             i += 2;                                                             // skip extra NULL for empty
         } else if ((Key[i] & 128) || (Key[i] & 64)) {                           // if +ve no. or string
-            for (i++; Key[i]; i++) continue;                                    // loop til find NULL
+            for (i++; Key[i]; i++) {}                                           // loop til find NULL
             i++;                                                                // skip NULL char
         } else {                                                                // else if -ve
-            for (i++; Key[i] != -1; i++) continue;                              // loop til find $CHAR(255)
+            for (i++; Key[i] != -1; i++) {}                                     // loop til find $CHAR(255)
             i++;                                                                // skip past 255
         }
 

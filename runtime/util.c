@@ -28,19 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "error.h"                                                              // standard includes
+#include "proto.h"                                                              // standard includes
+#include <limits.h>
 #include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
 #include <time.h>                                                               // for current_time()
 #include <sys/utsname.h>                                                        // defines struct utsname
-#include <limits.h>
-#include <math.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard includes
-#include "error.h"                                                              // standard includes
 
 int cstringtoi(cstring *str)                                                    // convert cstring to int
 {
@@ -116,13 +110,13 @@ int cstringtoi(cstring *str)                                                    
     return (int) ret;                                                           // return the value
 }                                                                               // end cstringtoi()
 
-int cstringtob(cstring *str)                                                    // convert cstring to boolean
+int cstringtob(const cstring *str)                                              // convert cstring to boolean
 {
     int ret = 0;                                                                // return value
     int i;                                                                      // for loops
     int dp = 0;                                                                 // decimal place flag
 
-    for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++) continue; // check leading characters
+    for (i = 0; (i < (int) str->len) && ((str->buf[i] == '-') || (str->buf[i] == '+')); i++) {} // check leading characters
 
     for (; i < (int) str->len; i++) {                                           // for each character
         if (str->buf[i] == '0') continue;                                       // ignore zeroes
@@ -279,7 +273,7 @@ int short_version(u_char *ret_buffer, int i)
     return i;
 }
 
-int rsm_version(u_char *ret_buffer)                                             // return version string
+int sys_version(u_char *ret_buffer)                                             // return version string
 {
     int    i;                                                                   // to copy value
     int    j = 0;                                                               // for returned strings
@@ -293,10 +287,10 @@ int rsm_version(u_char *ret_buffer)                                             
     memcpy(&ret_buffer[i], " for ", 5);                                         // copy in for
     i += 5;
     j = 0;                                                                      // clear src ptr
-    while ((ret_buffer[i++] = uts.sysname[j++])) continue;                      // copy name
+    while ((ret_buffer[i++] = uts.sysname[j++])) {}                             // copy name
     ret_buffer[i - 1] = ' ';                                                    // and a space over the null
     j = 0;                                                                      // clear src ptr
-    while ((ret_buffer[i++] = uts.machine[j++])) continue;                      // copy hardware
+    while ((ret_buffer[i++] = uts.machine[j++])) {}                             // copy hardware
     ret_buffer[i - 1] = ' ';                                                    // and a space over the null
     i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__, __TIME__); // Build information
     return i;                                                                   // and return count

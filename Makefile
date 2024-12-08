@@ -29,21 +29,26 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 CC       := gcc
-CFLAGS   += -std=gnu99 -Wall -Wextra -pedantic -fsigned-char -fwrapv
+CFLAGS   += -std=c99 -Wall -Wextra -Wmissing-prototypes -pedantic -fsigned-char -fwrapv
 CPPFLAGS := -Iinclude
 LDLIBS   := -lcrypt -lm
 PROG     := rsm
 SRCS     != ls */*.c
 OBJS     := $(SRCS:.c=.o)
-DEPS     := include/*.h
+DEPS     != ls include/*.h
 UTILS    := utils.rsm
-DOCS     := doc/adoc/*.adoc
-MAN      := doc/man/rsm.1
+DOCS     != ls doc/adoc/*.adoc
+MAN      := doc/man/$(PROG).1
 RM       := rm -f
 GZIP     := gzip -f9
-PREFIX   := /usr/local
 OS       != uname
 GIT_SHA  != git rev-parse --short=10 HEAD 2>/dev/null; true
+
+.ifdef prefix
+    PREFIX := $(prefix)
+.else
+    PREFIX := /usr/local
+.endif
 
 .if ($(OS) == OpenBSD)
     LDLIBS := -lm
@@ -100,32 +105,32 @@ install: $(PROG)
 	install -d -m 755 $(PREFIX)/bin; \
 	echo install -m 755 -s $(PROG) $(PREFIX)/bin; \
 	install -m 755 -s $(PROG) $(PREFIX)/bin; \
-	echo install -d -m 755 $(PREFIX)/share/rsm; \
-	install -d -m 755 $(PREFIX)/share/rsm; \
-	echo install -m 644 $(UTILS) $(PREFIX)/share/rsm; \
-	install -m 644 $(UTILS) $(PREFIX)/share/rsm
+	echo install -d -m 755 $(PREFIX)/share/$(PROG); \
+	install -d -m 755 $(PREFIX)/share/$(PROG); \
+	echo install -m 644 $(UTILS) $(PREFIX)/share/$(PROG); \
+	install -m 644 $(UTILS) $(PREFIX)/share/$(PROG)
 
 .PHONY: uninstall
 uninstall:
-	@echo $(RM) -r $(PREFIX)/share/rsm; \
-	$(RM) -r $(PREFIX)/share/rsm; \
+	@echo $(RM) -r $(PREFIX)/share/$(PROG); \
+	$(RM) -r $(PREFIX)/share/$(PROG); \
 	echo $(RM) $(PREFIX)/bin/$(PROG); \
 	$(RM) $(PREFIX)/bin/$(PROG)
 
 .PHONY: install-docs
 install-docs:
-	@echo install -d -m 755 $(PREFIX)/share/doc/rsm; \
-	install -d -m 755 $(PREFIX)/share/doc/rsm; \
-	echo install -m 644 $(DOCS) $(PREFIX)/share/doc/rsm; \
-	install -m 644 $(DOCS) $(PREFIX)/share/doc/rsm; \
-	echo $(GZIP) -r $(PREFIX)/share/doc/rsm; \
-	$(GZIP) -r $(PREFIX)/share/doc/rsm; \
+	@echo install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
+	install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
+	echo install -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
+	install -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
+	echo $(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
+	$(GZIP) -r $(PREFIX)/share/doc/$(PROG); \
 	echo install -d -m 755 $(PREFIX)/share/man/man1; \
 	install -d -m 755 $(PREFIX)/share/man/man1; \
 	echo install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
 	install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
-	echo $(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
-	$(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
+	echo $(GZIP) $(PREFIX)/share/man/man1/$(PROG).1; \
+	$(GZIP) $(PREFIX)/share/man/man1/$(PROG).1; \
 	if command -v makewhatis >/dev/null; then \
 	    echo makewhatis; \
 	    makewhatis; \
@@ -133,7 +138,7 @@ install-docs:
 
 .PHONY: uninstall-docs
 uninstall-docs:
-	@echo $(RM) $(PREFIX)/share/man/man1/rsm.1*; \
-	$(RM) $(PREFIX)/share/man/man1/rsm.1*; \
-	echo $(RM) -r $(PREFIX)/share/doc/rsm; \
-	$(RM) -r $(PREFIX)/share/doc/rsm
+	@echo $(RM) $(PREFIX)/share/man/man1/$(PROG).1*; \
+	$(RM) $(PREFIX)/share/man/man1/$(PROG).1*; \
+	echo $(RM) -r $(PREFIX)/share/doc/$(PROG); \
+	$(RM) -r $(PREFIX)/share/doc/$(PROG)

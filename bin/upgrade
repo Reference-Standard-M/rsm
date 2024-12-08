@@ -62,7 +62,7 @@ dbfile="$(pwd)/${dbfile/\~\//~/}"
 [[ ! -f ${dbfile} ]] && echo -e "\n${err}File does not exist or is not a regular file, aborting${def}" && exit 2
 
 cwd="$(pwd)"
-repo="$(dirname "$(readlink -f "${cwd}"/"$(dirname "$0")")")"
+repo="$(dirname "$(readlink -f "${cwd}"/"$(dirname "$0")" || true)")"
 dbbkup="${dbfile}-$(date "+%Y%m%d%H%M%S").bkup"
 version="$(file -bm "${repo}"/etc/magic "${dbfile}")"
 
@@ -145,7 +145,7 @@ do
 
     rtnmax=$("${repo}"/rsm -x "set rou=\"\",max=0 for  set rou=\$order(^\$routine(rou)) write:rou=\"\" max,! quit:rou=\"\"  \
       set cmp=^\$routine(rou,0),len=\$length(cmp),tag=\$ascii(cmp,16)*256+\$ascii(cmp,15),var=\$ascii(cmp,20)*256+\$ascii(cmp,19) \
-      set max=\$select(tag+var*24+len>max:tag+var*24+len,1:max)" "${dbfile}" | tr -d '\r')
+      set max=\$select(tag+var*24+len>max:tag+var*24+len,1:max)" "${dbfile}" | tr -d '\r' || true)
 
     if [[ -n ${prevrtnmax} ]]
     then

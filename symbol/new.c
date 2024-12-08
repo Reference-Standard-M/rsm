@@ -28,16 +28,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>                                                             // for string ops
-#include <unistd.h>
-#include "rsm.h"                                                                // standard includes
 #include "symbol.h"                                                             // our definitions
 #include "error.h"                                                              // errors
-#include "init.h"                                                               // init prototypes
 #include "proto.h"                                                              // standard prototypes
+#include <stdlib.h>                                                             // always include
 
 /*
  * Function: ST_New(int count, var_u *list) - new one or more vars

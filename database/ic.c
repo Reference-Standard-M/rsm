@@ -28,18 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "database.h"                                                           // database protos
+#include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
 
 #define WRT_LEN 100                                                             // write error buffer size
 
@@ -63,7 +58,7 @@ extern int dbfd;                                                                
  *           Block that points at this block (if any)
  * Return:   None
  */
-void ic_bits(u_int block, int flag, u_int points_at)                            // check bits
+static void ic_bits(u_int block, int flag, u_int points_at)                     // check bits
 {
     u_int  u;                                                                   // a handy int
     u_char off;                                                                 // bit offset
@@ -118,7 +113,7 @@ void ic_bits(u_int block, int flag, u_int points_at)                            
  *           Name of global from pointer block (if any)
  * Return:   Right pointer (if any)
  */
-u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         // check block
+static u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)  // check block
 {
     short   s;                                                                  // for funct
     int     left_edge;                                                          // a flag
@@ -149,7 +144,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
         return 0;                                                               // give up
     }
 
-    while (SemOp(SEM_GLOBAL, SEM_READ)) continue;                               // get a read lock
+    while (SemOp(SEM_GLOBAL, SEM_READ)) {}                                      // get a read lock
     s = Get_block(block);                                                       // get it
 
     if (s < 0) {                                                                // if that failed
@@ -388,7 +383,7 @@ u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)         
  * Input(s): None
  * Return:   None
  */
-void ic_full(void)                                                              // full check
+static void ic_full(void)                                                       // full check
 {
     u_int  size;                                                                // a handy unsigned int
     int    uci;                                                                 // UCI#
@@ -399,9 +394,9 @@ void ic_full(void)                                                              
     doing_full = 1;                                                             // set this
     size = volsiz / 8 + 1;                                                      // number of bytes
     rlnk = malloc(size);                                                        // for right links
-    if (rlnk == NULL) panic("ic_full: can't get memory for rlnk");              // if failed then die
+    if (rlnk == NULL) panic("ic_full: Can't get memory for rlnk");              // if failed then die
     dlnk = malloc(size);                                                        // for down links
-    if (dlnk == NULL) panic("ic_full: can't get memory for dlnk");              // if failed then die
+    if (dlnk == NULL) panic("ic_full: Can't get memory for dlnk");              // if failed then die
     memset(rlnk, 0, size);                                                      // clear this
     memset(dlnk, 0, size);                                                      // and this
     rlnk[0] = 1;                                                                // say blk 0 used
@@ -486,7 +481,7 @@ void ic_map(int flag)                                                           
 
     while (c <= e) {                                                            // scan the map
         u_int base = ((u_int) (c - (u_char *) SOA(partab.vol[volnum]->map))) << 3; // base block number
-        while (SemOp(SEM_GLOBAL, lock)) continue;                               // grab a lock
+        while (SemOp(SEM_GLOBAL, lock)) {}                                      // grab a lock
 
         for (; off < 8; off++) {                                                // scan the byte
             block = base + off;                                                 // the block#
@@ -574,9 +569,6 @@ void ic_map(int flag)                                                           
  */
 int DB_ic(int vol, int block)                                                   // integrity checker
 {
-    int uci;                                                                    // UCI#
-    int b1;                                                                     // a block
-
     if ((vol < 1) || (vol > MAX_VOL)) return -ERRM26;                           // within limits? if not - error
     if (systab->vol[vol - 1] == NULL) return -ERRM26;                           // is it mounted? if not - error
     volnum = vol - 1;                                                           // save this
@@ -588,7 +580,7 @@ int DB_ic(int vol, int block)                                                   
     used = (u_char *) SOA(partab.vol[volnum]->map);                             // point at map
     volsiz = SOA(partab.vol[volnum]->vollab)->max_block;                        // number of blocks
     gbd_expired = 0;                                                            // clear this
-    for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL) continue;
+    for (level = 0; level < MAXTREEDEPTH; blk[level++] = NULL) {}
 
     if (block == 0) {                                                           // full check?
         level = 0;
@@ -598,7 +590,9 @@ int DB_ic(int vol, int block)                                                   
     } else if (block > 0) {
         level = 1;
 
-        for (uci = 0; uci < UCIS; uci++) {                                      // scan UCI table
+        for (int uci = 0; uci < UCIS; uci++) {                                  // scan UCI table
+            int b1;                                                             // a block
+
             b1 = SOA(partab.vol[volnum]->vollab)->uci[uci].global;              // get global directory
 
             if (b1 == block) {                                                  // if block is global directory

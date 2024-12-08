@@ -28,18 +28,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memcpy
-#include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
 #include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
+#include <string.h>                                                             // for memcpy
 
 /*
  *                 DATABASE INSERT DIAGRAM
@@ -189,9 +181,7 @@ ENABLE_WARN
         t = -ERRM7;                                                             // new node undefined
     }                                                                           // end of create global code
 
-    if ((SOA(partab.vol[volnum]->vollab)->journal_available) &&
-      (SOA(partab.vol[volnum]->vollab)->journal_requested) &&
-      (partab.jobtab->last_block_flags & GL_JOURNAL)) {                         // if journaling
+    if ((SOA(partab.vol[volnum]->vollab)->journal_available) && (partab.jobtab->last_block_flags & GL_JOURNAL)) { // if journaling
         jrnrec jj;                                                              // jrn structure
         jj.action = JRN_SET;                                                    // doing set
         jj.uci = db_var.uci;                                                    // copy UCI
@@ -372,7 +362,7 @@ ENABLE_WARN
         }
     }                                                                           // end ts calculate
 
-    for (i = 0; i < 4; cblk[i++] = NULL) continue;                              // clear current level blocks
+    for (i = 0; i < 4; cblk[i++] = NULL) {}                                     // clear current level blocks
     cblk[0] = blk[level];                                                       // save this here
     blk[level] = NULL;                                                          // and zot it
     rls = 0;                                                                    // no RL yet
@@ -442,7 +432,7 @@ ENABLE_WARN
         keybuf[0] = 0;                                                          // clear this
         SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                       // point at it
         t = Insert(&db_var.slen, data);                                         // insert it
-        if (t < 0) panic("Set_data: Insert in new block (insert) failed");      // failed ?
+        if (t < 0) panic("Set_data: Insert in new block insert() failed");      // failed ?
         cblk[1] = blk[level];                                                   // remember this
         goto fix_keys;                                                          // exit **3**
     }                                                                           // end trailings in RL

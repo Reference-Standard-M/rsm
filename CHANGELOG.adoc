@@ -30,6 +30,29 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 == Release Changelog
 
+=== v1.82.3 -- 2024 Dec 8
+
+* Improve last block used optimization to work in more journal scenarios
+* Fix the `$&%WAIT` XCall semantics to work properly with the `$&%FORK` XCall
+* Fix potential memory leak when using `$FNUMBER`
+* Prevent `$VIEW` from creating a global buffer for an unused database block
+* Add read-only flag support to shared memory for the environment info menu
+* Fix bug setting `$ECODE` to user-defined values (`,U...,`)
+* Fix bugs in database supplemental file mounting code
+* Make the shutdown procedure more robust
+* Fix a segfault when running `KILL ^$JOB`
+* Improve I/O and shell redirection support
+* Improve messaging of init/shutdown functions for multi-volume support
+* Remove dead code in the pattern matching module
+* Change the `PREFIX=` option from the Make configuration files to `prefix=`
+* Fix linter warnings in C source and shell scripts
+* Add volume info to the writelock messages of the block repair tool [`^FIX`]
+* Improve input handling in the system status vendor routine [`^%SS`]
+* Improve scoping in many vendor utility routines
+* Update the `README.adoc` file
+* Update the language guide [`language.adoc`]
+* Improve the design of the documentation site design
+
 === v1.82.2 -- 2024 Oct 26
 
 * Fix memory leak when using `KILL ^$JOB`
@@ -551,7 +574,7 @@ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
 * Fix 12 hour mode in the time display vendor routine [`^%T`]
 * Add 24 hour mode option to the time display vendor routine [`^%T`]
 * Fix bug in UCI editor vendor routine [`^UCI`], preventing proper editing
-* Add documentation for the new instrinsic function and the new system variables
+* Add documentation for the new intrinsic function and the new system variables
 * Add missing documentation to the language guide [`language.adoc`]
 * Fix mistake in the documentation for `BREAK` in the language guide
 * Fix description of standard compliance for `SET` in the language guide

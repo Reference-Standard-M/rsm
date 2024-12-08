@@ -28,24 +28,76 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <limits.h>                                                             // for LONG_MAX etc.
-#include <math.h>
-#include <assert.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // compile stuff
 #include "error.h"                                                              // and the error defs
 #include "opcode.h"                                                             // and the opcodes
-#include "compile.h"                                                            // compile stuff
+#include "proto.h"                                                              // standard prototypes
+#include <assert.h>
+#include <ctype.h>
+#include <string.h>
 
 u_char *jmp_eoc = NULL;                                                         // jump to end of cmd required
 
-int parse2eq(const u_char *ptr)                                                 // scan to = or EOS
+static void write_fmt(void)                                                     // called by parse_read/write
+{
+    int    i;                                                                   // a handy int
+    int    args = 0;                                                            // number of args
+    u_char *ptr;                                                                // a handy pointer
+
+    source_ptr++;                                                               // increment source
+    ptr = comp_ptr;                                                             // save compile pointer
+    *comp_ptr++ = CMDOWRT;                                                      // must be one of these
+    i = routine(0);                                                             // parse the rouref
+
+    if (i != -1) {                                                              // must be just tag
+        comp_ptr = ptr;                                                         // point to begining
+        SYNTX;                                                                  // and complain
+    }
+
+    if (*source_ptr == '(') {                                                   // any args?
+        int savecount = comp_ptr - ptr;                                         // bytes that got compiled
+        u_char save[1024];                                                      // a useful save area
+
+        memcpy(save, ptr, savecount);                                           // save that lot
+        comp_ptr = ptr;                                                         // back where we started
+        source_ptr++;                                                           // skip the (
+
+        while (TRUE) {                                                          // while we have args
+            if (args > MAX_NUM_ARGS) SYNTX;                                     // too many
+            args++;                                                             // count an argument
+
+            if (*source_ptr == ')') {                                           // trailing bracket ?
+                source_ptr++;                                                   // skip the )
+                break;                                                          // and exit
+            }
+
+            if ((*source_ptr == ',') || (*source_ptr == ')')) {                 // if empty argument
+                *comp_ptr++ = VARUNDF;                                          // flag it
+            } else if ((*source_ptr == '.') && (isdigit(source_ptr[1]) == 0)) { // by-reference? and not .numeric
+                SYNTX;                                                          // that's not allowed
+            } else {                                                            // by value
+                eval();                                                         // leave the value on the stack
+            }
+
+            if (*source_ptr == ')') continue;                                   // trailing bracket ? then do it above
+
+            if (*source_ptr == ',') {                                           // a comma ?
+                source_ptr++;                                                   // skip the ,
+                continue;                                                       // go for more
+            }
+
+            SYNTX;                                                              // all else is an error
+        }                                                                       // end of while
+
+        memcpy(comp_ptr, save, savecount);                                      // copy the code back
+        comp_ptr += savecount;                                                  // and add to the pointer
+    }                                                                           // end of argument decode
+
+    *comp_ptr++ = (u_char) args;                                                // store number of args
+    return;                                                                     // and exit
+}
+
+static int parse2eq(const u_char *ptr)                                          // scan to = or EOS
 {
     int i = 0;                                                                  // a handy int
     int b = 0;                                                                  // in brackets
@@ -100,6 +152,92 @@ int parse2eq(const u_char *ptr)                                                 
     }
 
     return i - 1;                                                               // return offset to term
+}
+
+static short parse_read_var(int star)                                           // called below
+{
+    char   c;                                                                   // current character
+    short  s;                                                                   // for functions
+    int    type;                                                                // a handy flag
+    u_char *ptr;                                                                // a handy pointer
+
+    c = *source_ptr;                                                            // get first char
+
+    if (c == '@') {                                                             // indirection ?
+        source_ptr++;                                                           // skip the @
+        atom();                                                                 // eval the indirect bit
+
+        if ((*source_ptr == '@') || star) {                                     // another one?
+            *comp_ptr++ = INDMVAR;                                              // make an mvar out of it
+            ptr = comp_ptr;                                                     // save for opcode insert
+
+            if (*source_ptr == '@') {
+                s = localvar();                                                 // parse the rest of it
+
+                if (s < 0) {                                                    // if we got an error
+                    comperror(s);                                               // compile it
+                    return s;                                                   // and exit
+                }
+
+                ptr[s] = OPMVAR;                                                // make an mvar of it
+            }
+
+            type = (star ? CMREADS : CMREAD);                                   // the default opcode
+
+            if (!star && (*source_ptr == '#')) {                                // read count ?
+                source_ptr++;                                                   // skip the #
+                eval();                                                         // eval argument
+                type = CMREADC;                                                 // now a read with count
+            }
+
+            if (*source_ptr == ':') {                                           // timeout ?
+                source_ptr++;                                                   // skip the :
+                eval();                                                         // eval argument
+
+                if (star) {
+                    type = CMREADST;
+                } else {
+                    type = ((type == CMREAD) ? CMREADT : CMREADCT);             // replace op code
+                }
+            }
+
+            *comp_ptr++ = (u_char) type;                                        // this opcode
+        } else {                                                                // end READ @x@(...)
+            *comp_ptr++ = INDREAD;                                              // do a full indirection
+        }
+    } else {                                                                    // end indirection - must be a variable
+        ptr = comp_ptr;                                                         // remember where we are
+        s = localvar();                                                         // parse the variable
+
+        if (s < 0) {                                                            // if we got an error
+            comperror(s);                                                       // compile it
+            return s;                                                           // and exit
+        }
+
+        ptr[s] = OPMVAR;                                                        // get an mvar on the addstk[]
+        type = (star ? CMREADS : CMREAD);                                       // the default opcode
+
+        if (!star && (*source_ptr == '#')) {                                    // read count ?
+            source_ptr++;                                                       // skip the #
+            eval();                                                             // eval argument
+            type = CMREADC;                                                     // now a read with count
+        }
+
+        if (*source_ptr == ':') {                                               // timeout ?
+            source_ptr++;                                                       // skip the :
+            eval();                                                             // eval argument
+
+            if (star) {
+                type = CMREADST;
+            } else {
+                type = ((type == CMREAD) ? CMREADT : CMREADCT);                 // replace op code
+            }
+        }
+
+        *comp_ptr++ = (u_char) type;                                            // this opcode
+    }
+
+    return 0;
 }
 
 void parse_close(void)                                                          // CLOSE
@@ -895,151 +1033,6 @@ void parse_open(void)                                                           
     }
 
     return;
-}
-
-void write_fmt(void)                                                            // Called by parse_read/write
-{
-    int    i;                                                                   // a handy int
-    int    args = 0;                                                            // number of args
-    u_char *ptr;                                                                // a handy pointer
-
-    source_ptr++;                                                               // increment source
-    ptr = comp_ptr;                                                             // save compile pointer
-    *comp_ptr++ = CMDOWRT;                                                      // must be one of these
-    i = routine(0);                                                             // parse the rouref
-
-    if (i != -1) {                                                              // must be just tag
-        comp_ptr = ptr;                                                         // point to begining
-        SYNTX;                                                                  // and complain
-    }
-
-    if (*source_ptr == '(') {                                                   // any args?
-        int savecount = comp_ptr - ptr;                                         // bytes that got compiled
-        u_char save[1024];                                                      // a useful save area
-
-        memcpy(save, ptr, savecount);                                           // save that lot
-        comp_ptr = ptr;                                                         // back where we started
-        source_ptr++;                                                           // skip the (
-
-        while (TRUE) {                                                          // while we have args
-            if (args > MAX_NUM_ARGS) SYNTX;                                     // too many
-            args++;                                                             // count an argument
-
-            if (*source_ptr == ')') {                                           // trailing bracket ?
-                source_ptr++;                                                   // skip the )
-                break;                                                          // and exit
-            }
-
-            if ((*source_ptr == ',') || (*source_ptr == ')')) {                 // if empty argument
-                *comp_ptr++ = VARUNDF;                                          // flag it
-            } else if ((*source_ptr == '.') && (isdigit(source_ptr[1]) == 0)) { // by-reference? and not .numeric
-                SYNTX;                                                          // that's not allowed
-            } else {                                                            // by value
-                eval();                                                         // leave the value on the stack
-            }
-
-            if (*source_ptr == ')') continue;                                   // trailing bracket ? then do it above
-
-            if (*source_ptr == ',') {                                           // a comma ?
-                source_ptr++;                                                   // skip the ,
-                continue;                                                       // go for more
-            }
-
-            SYNTX;                                                              // all else is an error
-        }                                                                       // end of while
-
-        memcpy(comp_ptr, save, savecount);                                      // copy the code back
-        comp_ptr += savecount;                                                  // and add to the pointer
-    }                                                                           // end of argument decode
-
-    *comp_ptr++ = (u_char) args;                                                // store number of args
-    return;                                                                     // and exit
-}
-
-short parse_read_var(int star)                                                  // called below
-{
-    char   c;                                                                   // current character
-    short  s;                                                                   // for functions
-    int    type;                                                                // a handy flag
-    u_char *ptr;                                                                // a handy pointer
-
-    c = *source_ptr;                                                            // get first char
-
-    if (c == '@') {                                                             // indirection ?
-        source_ptr++;                                                           // skip the @
-        atom();                                                                 // eval the indirect bit
-
-        if ((*source_ptr == '@') || star) {                                     // another one?
-            *comp_ptr++ = INDMVAR;                                              // make an mvar out of it
-            ptr = comp_ptr;                                                     // save for opcode insert
-
-            if (*source_ptr == '@') {
-                s = localvar();                                                 // parse the rest of it
-
-                if (s < 0) {                                                    // if we got an error
-                    comperror(s);                                               // compile it
-                    return s;                                                   // and exit
-                }
-
-                ptr[s] = OPMVAR;                                                // make an mvar of it
-            }
-
-            type = (star ? CMREADS : CMREAD);                                   // the default opcode
-
-            if (!star && (*source_ptr == '#')) {                                // read count ?
-                source_ptr++;                                                   // skip the #
-                eval();                                                         // eval argument
-                type = CMREADC;                                                 // now a read with count
-            }
-
-            if (*source_ptr == ':') {                                           // timeout ?
-                source_ptr++;                                                   // skip the :
-                eval();                                                         // eval argument
-
-                if (star) {
-                    type = CMREADST;
-                } else {
-                    type = ((type == CMREAD) ? CMREADT : CMREADCT);             // replace op code
-                }
-            }
-
-            *comp_ptr++ = (u_char) type;                                        // this opcode
-        } else {                                                                // end READ @x@(...)
-            *comp_ptr++ = INDREAD;                                              // do a full indirection
-        }
-    } else {                                                                    // end indirection - must be a variable
-        ptr = comp_ptr;                                                         // remember where we are
-        s = localvar();                                                         // parse the variable
-
-        if (s < 0) {                                                            // if we got an error
-            comperror(s);                                                       // compile it
-            return s;                                                           // and exit
-        }
-
-        ptr[s] = OPMVAR;                                                        // get an mvar on the addstk[]
-        type = (star ? CMREADS : CMREAD);                                       // the default opcode
-
-        if (!star && (*source_ptr == '#')) {                                    // read count ?
-            source_ptr++;                                                       // skip the #
-            eval();                                                             // eval argument
-            type = CMREADC;                                                     // now a read with count
-        }
-
-        if (*source_ptr == ':') {                                               // timeout ?
-            source_ptr++;                                                       // skip the :
-            eval();                                                             // eval argument
-
-            if (star) {
-                type = CMREADST;
-            } else {
-                type = ((type == CMREAD) ? CMREADT : CMREADCT);                 // replace op code
-            }
-        }
-
-        *comp_ptr++ = (u_char) type;                                            // this opcode
-    }
-
-    return 0;
 }
 
 void parse_read(void)                                                           // READ

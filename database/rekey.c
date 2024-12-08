@@ -28,18 +28,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memcpy
-#include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
 #include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
+#include <string.h>                                                             // for memcpy
 
 /*
  * Function: Set_key
@@ -48,7 +40,7 @@
  *           Re_key (below) has refreshed blk[] and db_var
  * Return:   0 -> Ok, negative M error
  */
-short Set_key(u_int ptr_blk, int this_level)                                    // set a block#
+static short Set_key(u_int ptr_blk, int this_level)                             // set a block#
 {
     int      t;                                                                 // for returns
     u_char   tmp[8];                                                            // some space
@@ -232,7 +224,7 @@ ENABLE_WARN
         keybuf[0] = 0;                                                          // clear this
         SOA(cblk[0]->mem)->right_ptr = blk[level]->block;                       // point at it
         t = Insert(&db_var.slen, ptr);                                          // insert it
-        if (t < 0) panic("Set_key: Insert in new block (insert) failed");       // failed ?
+        if (t < 0) panic("Set_key: Insert in new block insert() failed");       // failed ?
         cblk[1] = blk[level];                                                   // remember this one
         goto fix_keys;                                                          // exit **3**
     }                                                                           // end trailings in RL

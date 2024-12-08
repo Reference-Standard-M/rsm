@@ -39,16 +39,14 @@
  * Use:  u_short UTIL_strerror(int err, u_char *buf)  to return the error string
  */
 
+#include "error.h"                                                              // M errors
+#include "proto.h"                                                              // standard includes
+#include <errno.h>                                                              // error stuff
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
 #include <string.h>                                                             // for strerror
-#include <unistd.h>
 #include <time.h>                                                               // for ctime
-#include <errno.h>                                                              // error stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard includes
-#include "error.h"                                                              // M errors
+#include <unistd.h>
 
 static struct {
     int                   err;
@@ -223,7 +221,7 @@ void panic(const char *msg)                                                     
     if (a != NULL) {                                                            // if that worked
         t = current_time(FALSE);                                                // current time
         fprintf(stderr, "RSM CRASH OCCURRED on %s", ctime(&t));                 // output the time
-        rsm_version((u_char *) tmp);
+        sys_version((u_char *) tmp);
         fprintf(stderr, "%s", tmp);
         fprintf(stderr, "\nFATAL RSM ERROR occurred - PID %ld!!\n%s\n", (long) getpid(), msg); // print
         if (errno) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));

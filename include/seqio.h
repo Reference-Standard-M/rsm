@@ -32,8 +32,8 @@
 #ifndef RSM_SEQIO_H
 #define RSM_SEQIO_H
 
-#include <sys/types.h>
-#include "rsm.h"
+#include "rsm.h"                                                                // standard RSM includes
+#include <sys/stat.h>                                                           // file stuff
 
 // Global constants
 

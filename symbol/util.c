@@ -28,26 +28,60 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>                                                             // for string ops
-#include <ctype.h>
-#include "rsm.h"                                                                // standard includes
 #include "symbol.h"                                                             // our definitions
+#include "compile.h"                                                            // for routine buffer stuff
 #include "error.h"                                                              // errors
 #include "init.h"                                                               // init prototypes
 #include "proto.h"                                                              // standard prototypes
-#include "compile.h"                                                            // for routine buffer stuff
+#include <ctype.h>
+#include <stdlib.h>                                                             // always include
+#include <string.h>                                                             // for string ops
 
 short         st_hash[ST_HASH + 1];                                             // allocate hashing table
 symtab_struct symtab[ST_MAX + 1];                                               // and symbol table
 
 /*
+ * Function: FixData(ST_data *old, ST_data *new, int count)
+ * When the data pointer changes, this fixes count pointers to it
+ * Only called internally from this file
+ */
+static void FixData(const ST_data *old, ST_data *new, int count)
+{
+    int       i;                                                                // for loops
+    ST_newtab *newtab;                                                          // for NEW tables
+
+    for (i = 0; i < ST_MAX; i++) {                                              // scan symtab[]
+        if (symtab[i].data == old) {                                            // same as our old one
+            symtab[i].data = new;                                               // change to new one
+            count--;                                                            // decrement the count
+            if (count == 0) return;                                             // quit when done
+        }
+    }
+
+    i = partab.jobtab->cur_do;                                                  // get current do level
+
+    while (i) {                                                                 // for each one
+        newtab = (ST_newtab *) partab.jobtab->dostk[i--].newtab;                // get newtab
+
+        while (newtab != NULL) {                                                // for each table
+            for (int c = 0; c < newtab->count_new; c++) {                       // for each variable
+                if (newtab->locdata[c].data == old) {                           // if this is one
+                    newtab->locdata[c].data = new;                              // copy in new value
+                    count--;                                                    // count that
+                    if (count == 0) return;                                     // quit when done
+                }
+            }
+
+            newtab = newtab->fwd_link;                                          // get next
+        }
+    }
+}
+
+/*
  * Function: ST_Hash - Create a hash from a variable name
  * returns hash number
  */
-short ST_Hash(var_u var)                                                        // var name in a quad
+static short ST_Hash(var_u var)                                                 // var name in a quad
 {
     int ret = 0;                                                                // return value
 
@@ -65,6 +99,41 @@ short ST_Hash(var_u var)                                                        
 
     return (short) (ret % ST_HASH);                                             // return mod hash value
 }                                                                               // end of ST_Hash
+
+/*
+ * Function: ST_Free - free varname entry in symbol table
+ * returns nothing - only called when var exists
+ */
+static void ST_Free(var_u var)                                                  // var name in a quad
+{
+    short hash;                                                                 // hash value
+    short fwd;                                                                  // fwd link pointer
+    short last;                                                                 // last entry encountered
+
+    hash = ST_Hash(var);                                                        // get hash value
+    last = -hash;                                                               // save last value
+    fwd = st_hash[hash];                                                        // get pointer (if any)
+
+    while (fwd != -1) {                                                         // while there are links
+        if (var_equal(symtab[fwd].varnam, var)) break;                          // quit if we found it
+        last = fwd;                                                             // save last address
+        fwd = symtab[fwd].fwd_link;                                             // get next pointer (if any)
+    }                                                                           // end search loop
+
+    if (fwd == -1) return;                                                      // symbol wasn't there, nothing to free
+
+    if (last == -hash) {                                                        // if it was top
+        st_hash[hash] = symtab[fwd].fwd_link;                                   // remove this way
+    } else {                                                                    // if it's a symtab entry
+        symtab[last].fwd_link = symtab[fwd].fwd_link;                           // do it this way
+    }
+
+    symtab[fwd].data = ST_DATA_NULL;                                            // in case it hasn't been removed
+    VAR_CLEAR(symtab[fwd].varnam);                                              // clear var name
+    symtab[fwd].fwd_link = st_hash[ST_FREE];                                    // point at next free
+    st_hash[ST_FREE] = fwd;                                                     // point free list at this
+    return;                                                                     // all done
+}                                                                               // end of ST_Free()
 
 /*
  * Function: ST_Init - initialize an empty symbol table
@@ -127,41 +196,6 @@ short ST_LocateIdx(int idx)                                                     
     partab.jobtab->dostk[partab.jobtab->cur_do].symbol[idx] = fwd;              // save idx
     return fwd;                                                                 // return index
 }                                                                               // end of ST_LocateIdx()
-
-/*
- * Function: ST_Free - free varname entry in symbol table
- * returns nothing - only called when var exists
- */
-void ST_Free(var_u var)                                                         // var name in a quad
-{
-    short hash;                                                                 // hash value
-    short fwd;                                                                  // fwd link pointer
-    short last;                                                                 // last entry encountered
-
-    hash = ST_Hash(var);                                                        // get hash value
-    last = -hash;                                                               // save last value
-    fwd = st_hash[hash];                                                        // get pointer (if any)
-
-    while (fwd != -1) {                                                         // while there are links
-        if (var_equal(symtab[fwd].varnam, var)) break;                          // quit if we found it
-        last = fwd;                                                             // save last address
-        fwd = symtab[fwd].fwd_link;                                             // get next pointer (if any)
-    }                                                                           // end search loop
-
-    if (fwd == -1) return;                                                      // symbol wasn't there, nothing to free
-
-    if (last == -hash) {                                                        // if it was top
-        st_hash[hash] = symtab[fwd].fwd_link;                                   // remove this way
-    } else {                                                                    // if it's a symtab entry
-        symtab[last].fwd_link = symtab[fwd].fwd_link;                           // do it this way
-    }
-
-    symtab[fwd].data = ST_DATA_NULL;                                            // in case it hasn't been removed
-    VAR_CLEAR(symtab[fwd].varnam);                                              // clear var name
-    symtab[fwd].fwd_link = st_hash[ST_FREE];                                    // point at next free
-    st_hash[ST_FREE] = fwd;                                                     // point free list at this
-    return;                                                                     // all done
-}                                                                               // end of ST_Free()
 
 /*
  * Function: ST_Create - create/locate varname in symtab
@@ -309,43 +343,6 @@ int ST_Get(mvar *var, u_char *buf)                                              
 }                                                                               // end function ST_Get
 
 /*
- * Function: FixData(ST_data *old, ST_data *new, int count)
- * When the data pointer changes, this fixes count pointers to it
- * Only called internally from this file
- */
-void FixData(const ST_data *old, ST_data *new, int count)
-{
-    int       i;                                                                // for loops
-    ST_newtab *newtab;                                                          // for NEW tables
-
-    for (i = 0; i < ST_MAX; i++) {                                              // scan symtab[]
-        if (symtab[i].data == old) {                                            // same as our old one
-            symtab[i].data = new;                                               // change to new one
-            count--;                                                            // decrement the count
-            if (count == 0) return;                                             // quit when done
-        }
-    }
-
-    i = partab.jobtab->cur_do;                                                  // get current do level
-
-    while (i) {                                                                 // for each one
-        newtab = (ST_newtab *) partab.jobtab->dostk[i--].newtab;                // get newtab
-
-        while (newtab != NULL) {                                                // for each table
-            for (int c = 0; c < newtab->count_new; c++) {                       // for each variable
-                if (newtab->locdata[c].data == old) {                           // if this is one
-                    newtab->locdata[c].data = new;                              // copy in new value
-                    count--;                                                    // count that
-                    if (count == 0) return;                                     // quit when done
-                }
-            }
-
-            newtab = newtab->fwd_link;                                          // get next
-        }
-    }
-}
-
-/*
  * Function: ST_Set - Set a variable in memory, create or replace
  * returns length of data on success, negative otherwise
  */
@@ -373,7 +370,6 @@ int ST_Set(mvar *var, const cstring *data)                                      
         u_int i;
 
         i = DTBLKSIZE + data->len;                                              // required memory
-
         if ((var->slen != 0) || (i < DTMINSIZE)) i = DTMINSIZE;                 // not required or too small so make it min size
         newPtrDt = malloc(i);                                                   // allocate necessary space
         if (newPtrDt == ST_DATA_NULL) return -(ERRZ56 + ERRMLAST);              // no memory available
@@ -789,7 +785,6 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active pointer
     ST_depend *prev = ST_DEPEND_NULL;                                           // pointer to previous element
     int       ptr1;                                                             // position in symtab
-    int       i;                                                                // generic counter
 
     if (var->volset) {                                                          // if by index
         ptr1 = ST_LocateIdx(var->volset - 1);                                   // get it this way
@@ -798,8 +793,10 @@ int ST_GetAdd(mvar *var, cstring **add)                                         
     }
 
     if ((ptr1 > ST_MAX) || (ptr1 < -1)) {
-        panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
+        panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx()");
     } else if (ptr1 >= 0) {                                                     // think we found it
+        int i;                                                                  // generic counter
+
         if (symtab[ptr1].data == ST_DATA_NULL) return -ERRM6;                   // not found
 
         if (var->slen > 0) {                                                    // go to dependents

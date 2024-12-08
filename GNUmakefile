@@ -29,8 +29,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 CC       := gcc
-CFLAGS   += -std=gnu99 -Wall -Wextra -pedantic -fsigned-char -fwrapv
-CPPFLAGS := -Iinclude -D_FILE_OFFSET_BITS=64
+CFLAGS   += -std=c99 -Wall -Wextra -Wmissing-prototypes -pedantic -fsigned-char -fwrapv
+CPPFLAGS := -Iinclude -D_FILE_OFFSET_BITS=64 -D_DEFAULT_SOURCE
 LDLIBS   := -lcrypt -lm
 PROG     := rsm
 SRCS     := $(wildcard */*.c)
@@ -38,14 +38,19 @@ OBJS     := $(SRCS:.c=.o)
 DEPS     := $(wildcard include/*.h)
 UTILS    := utils.rsm
 DOCS     := $(wildcard doc/adoc/*.adoc)
-MAN      := doc/man/rsm.1
+MAN      := doc/man/$(PROG).1
 RM       := rm -f
 GZIP     := gzip -f9
-PREFIX   := /usr/local
 OS       := $(shell uname)
 GIT_SHA  := $(shell git rev-parse --short=10 HEAD 2>/dev/null; true)
 INSTALL  := install-default
 INSTDOC  := install-docs-default
+
+ifdef prefix
+    PREFIX := $(prefix)
+else
+    PREFIX := /usr/local
+endif
 
 ifeq ($(OS),Darwin)
     CFLAGS  += -Wno-deprecated-declarations
@@ -64,7 +69,8 @@ ifeq ($(OS),HP-UX)
 endif
 
 ifeq ($(OS),SunOS)
-    LDLIBS += -lnsl -lsocket -lrt
+    CPPFLAGS += -D__EXTENSIONS__
+    LDLIBS   += -lnsl -lsocket -lrt
 endif
 
 ifeq ($(MAKECMDGOALS),debug)
@@ -167,8 +173,8 @@ install-docs-default:
 	echo install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
 	install -m 644 $(MAN) $(PREFIX)/share/man/man1; \
 	if [ "$(OS)" != "SunOS" ]; then \
-	    echo $(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
-	    $(GZIP) $(PREFIX)/share/man/man1/rsm.1; \
+	    echo $(GZIP) $(PREFIX)/share/man/man1/$(PROG).1; \
+	    $(GZIP) $(PREFIX)/share/man/man1/$(PROG).1; \
 	fi; \
 	if command -v mandb >/dev/null; then \
 	    echo mandb -q; \
@@ -192,8 +198,8 @@ install-docs-aix:
 
 .PHONY: uninstall-docs
 uninstall-docs:
-	@echo $(RM) $(PREFIX)/share/man/man1/rsm.1*; \
-	$(RM) $(PREFIX)/share/man/man1/rsm.1*; \
+	@echo $(RM) $(PREFIX)/share/man/man1/$(PROG).1*; \
+	$(RM) $(PREFIX)/share/man/man1/$(PROG).1*; \
 	if command -v mandb >/dev/null; then \
 	    echo mandb -q; \
 	    mandb -q; \

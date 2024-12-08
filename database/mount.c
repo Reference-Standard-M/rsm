@@ -28,23 +28,18 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>                                                             // string controls always handy
-#include <ctype.h>                                                              // this is handy too
-#include <sys/param.h>                                                          // for realpath() function
-#include <errno.h>                                                              // error stuff
-#include <fcntl.h>                                                              // file stuff
-#include <unistd.h>                                                             // database access
-#include <sys/ipc.h>                                                            // shared memory
-#include <sys/shm.h>                                                            // shared memory
-#include <sys/sem.h>                                                            // semaphores
-#include <sys/stat.h>                                                           // stat
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard includes
 #include "database.h"                                                           // database includes
 #include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard includes
+#include <errno.h>                                                              // error stuff
+#include <fcntl.h>                                                              // file stuff
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
+#include <string.h>                                                             // string controls always handy
+#include <unistd.h>                                                             // database access
+#include <sys/param.h>                                                          // for realpath() function
+#include <sys/shm.h>                                                            // shared memory
+#include <sys/stat.h>                                                           // stat
 
 /*
  * Mount an environment:
@@ -164,7 +159,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     }
 
     systab->vol[vol] = SBA(partab.vol[vol]);
-    partab.vol[vol]->map = (void*) ((u_char *) SBA(partab.vol[vol]->vollab + sizeof(label_block)));// and point to map
+    partab.vol[vol]->map = (void *) ((u_char *) SBA(partab.vol[vol]->vollab + sizeof(label_block))); // and point to map
     partab.vol[vol]->first_free = partab.vol[vol]->map;                         // init first free
     partab.vol[vol]->gbd_head = (gbd *) ((u_char *) partab.vol[vol]->vollab + labelblock->header_bytes); // GBDs
     partab.vol[vol]->num_gbd = n_gbd;                                           // number of GBDs
@@ -193,10 +188,9 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
 
     if (shmctl(shar_mem_id, IPC_STAT, &sbuf) == -1) return -(ERRMLAST + ERRZLAST + errno); // get status for later
     if (lseek(dbfd, 0, SEEK_SET) == -1) return -(ERRMLAST + ERRZLAST + errno);  // re-point at start of file
-    i = read(dbfd, partab.vol[vol]->vollab, labelblock->header_bytes);          // read label & map block
+    i = read(dbfd, SOA(partab.vol[vol]->vollab), labelblock->header_bytes);     // read label & map block
 
     if (i < (int) labelblock->header_bytes) {                                   // in case of error
-        //fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // complain on error
         i = errno;                                                              // save realpath error
         shmdt(systab);                                                          // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
@@ -204,9 +198,8 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     }
 
     if (labelblock->clean == 0) {                                               // if not a clean dismount
-        //fprintf(stderr, "WARNING: Volume was not dismounted properly!\n");
         partab.vol[vol]->upto = 1;                                              // mark for cleaning
-        return -(ERRZ6 + ERRMLAST);                                             // exit with error
+        return -(ERRMLAST + ERRZ6);                                             // exit with error
     } else {
         labelblock->clean = 1;                                                  // mark as mounted
         partab.vol[vol]->map_dirty_flag = 1;                                    // and map needs writing
@@ -216,26 +209,19 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;                                 // minimum of MIN_DAEMONS
     if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;                                 // and the max
     partab.vol[vol]->num_of_daemons = jobs;                                     // initialize this
-    while (SemOp(SEM_WD, SEM_WRITE)) continue;                                  // lock WD
-
-    partab.job_table = systab->jobtab;                                          // so the daemons can start processes
-    partab.vol[vol] = systab->vol[vol];                                         // so the daemons can manage table slots
-    partab.vol_fds[0] = dbfd;                                                   // so the daemons can close inherited FD
+    while (SemOp(SEM_WD, SEM_WRITE)) {}                                         // lock WD
+    partab.vol_fds[vol] = dbfd;                                                 // so the daemons can close inherited FD
     fflush(stdout);                                                             // force a flush before forking
 
     if (systab->addsize) {
         systab->addsize -= volset_size;                                         // reset additional address size
         systab->addoff += volset_size;                                          // reset additional
-        systab->vol[vol] = SBA(partab.vol[vol]);                                // point to the new volume
-    } else {
-        systab->vol[vol] = partab.vol[vol];                                     // point to the new volume
     }
 
     for (indx = 0; indx < jobs; indx++) {                                       // for each required daemon
         i = DB_Daemon(indx, vol + 1);                                           // start each daemon (for mounted volume)
 
         if (i != 0) {                                                           // in case of error
-            fprintf(stderr, "*** Died on error - %s ***\n\n", strerror(i));     // complain
             shmdt(systab);                                                      // detach the shared memory
             return -(ERRMLAST + ERRZLAST + i);                                  // exit with error
         }
@@ -247,18 +233,18 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
         jrnrec jj;                                                              // to write with
         int    jfd;                                                             // file descriptor
 
-        while (SemOp(SEM_GLOBAL, SEM_WRITE)) continue;                          // lock GLOBAL
+        while (SemOp(SEM_GLOBAL, SEM_WRITE)) {}                                 // lock GLOBAL
         labelblock->journal_available = 0;                                      // assume fail
         i = stat(labelblock->journal_file, &sb);                                // check for file
 
         if ((i == -1) && (errno != ENOENT)) {                                   // if that's junk
-            fprintf(stderr, "Failed to access journal file: %s\n", labelblock->journal_file);
+            return -(ERRMLAST + ERRZLAST + errno);                              // exit with error
         } else {                                                                // do something
             if (i == -1) ClearJournal(vol);                                     // if doesn't exist then create it
             jfd = open(labelblock->journal_file, O_RDWR);
 
             if (jfd == -1) {                                                    // on fail
-                fprintf(stderr, "Failed to open journal file: %s\nerrno = %d\n", labelblock->journal_file, errno);
+                return -(ERRMLAST + ERRZLAST + errno);                          // exit with error
             } else {                                                            // if open OK
                 union {
                     u_int magic;
@@ -270,20 +256,23 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
                 i = read(jfd, temp.tmp, 4);                                     // read the magic
 
                 if ((i != 4) || (temp.magic != (RSM_MAGIC - 1))) {
-                    fprintf(stderr, "Failed to open journal file: %s\nWRONG MAGIC\n", labelblock->journal_file);
+                    i = errno;
                     close(jfd);
+                    return -(ERRMLAST + ERRZLAST + i);                          // exit with error
                 } else {
                     i = read(jfd, &partab.vol[vol]->jrn_next, sizeof(off_t));
 
                     if (i != sizeof(off_t)) {
-                        fprintf(stderr, "Failed to use journal file: %s\nRead failed - %d\n", labelblock->journal_file, errno);
+                        i = errno;
                         close(jfd);
+                        return -(ERRMLAST + ERRZLAST + i);                      // exit with error
                     } else {
                         jptr = lseek(jfd, partab.vol[vol]->jrn_next, SEEK_SET);
 
                         if (jptr != partab.vol[vol]->jrn_next) {
-                            fprintf(stderr, "Failed journal file: %s\nlseek failed - %d\n", labelblock->journal_file, errno);
+                            i = errno;
                             close(jfd);
+                            return -(ERRMLAST + ERRZLAST + i);                  // exit with error
                         } else {
                             jj.action = JRN_START;
                             jj.uci = 0;
@@ -303,7 +292,6 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
                             i = close(jfd);                                     // and close it
                             if (i == -1) return -(ERRMLAST + ERRZLAST + errno); // if that failed exit with error
                             labelblock->journal_available = 1;
-                            printf("Journaling started to %s\n", labelblock->journal_file); // it worked
                         }
                     }
                 }

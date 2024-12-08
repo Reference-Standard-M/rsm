@@ -31,6 +31,8 @@
 #ifndef RSM_PROTO_H
 #define RSM_PROTO_H
 
+#include "rsm.h"                                                                // standard RSM includes
+
 // Database
 int    DB_Get(const mvar *var, u_char *buf);                                    // get global data
 int    DB_Set(const mvar *var, cstring *data);                                  // set global data
@@ -88,11 +90,11 @@ short routine(int runtime);                                                     
 
 // Runtime utilities
 int     cstringtoi(cstring *str);                                               // convert cstring to int
-int     cstringtob(cstring *str);                                               // convert cstring to boolean
+int     cstringtob(const cstring *str);                                         // convert cstring to boolean
 u_short ltocstring(u_char *buf, long n);                                        // convert long to string
 u_short ultocstring(u_char *buf, u_long n);                                     // convert u_long to string
 int     short_version(u_char *ret_buffer, int i);                               // return short version string
-int     rsm_version(u_char *ret_buffer);                                        // return version string
+int     sys_version(u_char *ret_buffer);                                        // return version string
 int     Set_Error(int err, cstring *user, cstring *space);                      // Set $ECODE
 time_t  current_time(short local);                                              // get current time with/without local offset
 int     run(int asp, int ssp);                                                  // run compiled code
@@ -118,9 +120,9 @@ short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);
 short Ddata(u_char *ret_buffer, mvar *var, int update);
 int   Dextract(u_char *ret_buffer, cstring *expr, int start, int stop);
-int   Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
-int   Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start);
-int   Dfind3x(cstring *expr1, cstring *expr2, int start);
+int   Dfind2(u_char *ret_buffer, const cstring *expr1, const cstring *expr2);
+int   Dfind3(u_char *ret_buffer, const cstring *expr1, const cstring *expr2, int start);
+int   Dfind3x(const cstring *expr1, const cstring *expr2, int start);
 int   Dfnumber2(u_char *ret_buffer, const cstring *numexp, const cstring *code);
 int   Dfnumber3(u_char *ret_buffer, cstring *numexp, const cstring *code, int rnd);
 int   Dget1(u_char *ret_buffer, mvar *var);
@@ -130,8 +132,8 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr);
 int   Djustify2(u_char *ret_buffer, cstring *expr, int size);
 int   Djustify3(u_char *ret_buffer, cstring *expr, int size, int round);
 short Dlength1(u_char *ret_buffer, const cstring *expr);
-short Dlength2(u_char *ret_buffer, cstring *expr, cstring *delim);
-int   Dlength2x(cstring *expr, cstring *delim);
+short Dlength2(u_char *ret_buffer, const cstring *expr, const cstring *delim);
+int   Dlength2x(const cstring *expr, const cstring *delim);
 short Dname1(u_char *ret_buffer, mvar *var);
 short Dname2(u_char *ret_buffer, mvar *var, int sub);
 short Dorder1(u_char *ret_buffer, mvar *var);
@@ -224,7 +226,7 @@ short UTIL_String_Lock(locktab *var, u_char  *str);                             
 short UTIL_mvartolock(mvar *var, u_char *buf);                                  // convert mvar to string
 
 // Share and semaphore stuff
-int   UTIL_Share(char *dbf);                                                    // attach share and semaphores
+int   UTIL_Share(char *dbfile, int flags);                                      // attach share and semaphores
 short SemOp(int sem_num, int numb);                                             // add/remove semaphore
 short LCK_Order(const cstring *ent, u_char *buf, int dir);
 short LCK_Get(const cstring *ent, u_char *buf);

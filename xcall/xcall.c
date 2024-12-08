@@ -28,88 +28,45 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-// SYSTEM INCLUDE FILES
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <sys/stat.h>                                                           // $&%FILE
-#include <string.h>
-#include <netdb.h>                                                              // $&%HOST
-#include <netinet/in.h>                                                         // $&%HOST
-#include <arpa/inet.h>                                                          // $&%HOST
-#include <sys/socket.h>                                                         // $&%HOST
-#include <signal.h>                                                             // $&%SIGNAL
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <syslog.h>                                                             // for syslog()
-#include <termios.h>                                                            // terminal settings
-#include <dirent.h>
-#include <sys/ipc.h>                                                            // for semctl
-#include <sys/sem.h>                                                            // for semctl
-#include <sys/wait.h>                                                           // $&%WAIT
-
-#ifdef __sun__
-#   include <crypt.h>
-#endif
-
-#include "rsm.h"                                                                // standard includes
-#include "error.h"                                                              // errors
-#include "proto.h"                                                              // standard prototypes
-#include "compile.h"
-#include "database.h"
-#include "symbol.h"
-
-#ifdef __APPLE__
-#   include <DirectoryService/DirectoryService.h>
-#   include <assert.h>
-#endif
-
-#ifdef linux
+#ifdef __linux__
 #   define _XOPEN_SOURCE                                                        // define this
 #   define __USE_XOPEN                                                          // and this
 #   define _USE_BSD
 #endif
 
+// SYSTEM INCLUDE FILES
+#include "compile.h"
+#include "database.h"
+#include "error.h"                                                              // errors
+#include "proto.h"                                                              // standard prototypes
+#include "symbol.h"
+#ifdef __sun__
+#   include <crypt.h>
+#endif
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>                                                              // error stuff
+#include <netdb.h>                                                              // $&%HOST
+#include <signal.h>                                                             // $&%SIGNAL
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
+#include <string.h>
+#include <strings.h>
+#include <syslog.h>                                                             // for syslog()
+#include <termios.h>                                                            // terminal settings
 #include <unistd.h>                                                             // crypt et al
+#include <arpa/inet.h>                                                          // $&%HOST
+#include <netinet/in.h>                                                         // $&%HOST
+#include <sys/sem.h>                                                            // for semctl
+#include <sys/socket.h>                                                         // $&%HOST
+#include <sys/stat.h>                                                           // $&%FILE
+#include <sys/wait.h>                                                           // $&%WAIT
+#ifdef __APPLE__
+#   include <assert.h>
+#   include <DirectoryService/DirectoryService.h>
+#endif
 
-#define TRIM_PARITY      0x1                                                    // 'P'
-#define DISCARD_SPACES   0x2                                                    // 'D'
-#define DISCARD_CONTROLS 0x4                                                    // 'C'
-#define DISCARD_LEADING  0x8                                                    // 'B'
-#define COMPRESS_SPACES  0x10                                                   // 'R'
-#define CONVERT_TO_UPPER 0x20                                                   // 'U'
-#define CONVERT_TO_LOWER 0x40                                                   // 'L'
-#define DISCARD_TRAILING 0x80                                                   // 'T'
-#define PRESERVE_QUOTED  0x100                                                  // 'Q'
-
-static u_long crcTable[256];                                                    // used by CRC functions
-
-void crcgen(void)                                                               // build the crcTable
-{
-    static int blnitDone = FALSE;
-    u_long     poly;
-    int        i;
-    int        j;
-
-    if (blnitDone == TRUE) return;                                              // only do it once
-
-    blnitDone = TRUE;
-    poly = 0xEDB88320L;
-
-    for (i = 0; i < 256; i++) {
-        u_long crc = i;
-
-        for (j = 8; j > 0; j--) {
-            if (crc & 1) {
-                crc = (crc >> 1) ^ poly;
-            } else {
-                crc >>= 1;
-            }
-        }
-
-        crcTable[i] = crc;
-    }
-}
+#define MAXFILENAME 4096                                                        // Maximum filename length (PATH_MAX?)
 
 /*
  *  CALLING RULES
@@ -129,9 +86,281 @@ void crcgen(void)                                                               
 
 // FUNCTION DEFINITIONS
 
-// $&DEBUG() - Dump info on console
-short Xcall_debug(char *ret_buffer, cstring *arg, __attribute__((unused)) cstring *dummy)
+/*
+ * $&%WAIT() - Wait on a child
+ *
+ * Original author: Martin Kula <mkula@users.sourceforge.net>
+ *
+ * Arguments:
+ *   First:
+ *       none - wait's on a pid
+ *       PID  - wait on the PID
+ *   Second:
+ *       "BLOCK"   - blocked waiting
+ *       none or   - non-blocked waiting
+ *       "NOBLOCK"
+ *
+ * Returns:
+ *     <0 - failed
+ *     0  - none pid exit
+ *
+ * num_bytes in ret_buffer which contains "pid number#error_code#terminate signal number"
+ */
+short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
 {
+    int   pid;                                                                  // PID number
+    int   status;                                                               // Exit status
+    short s;                                                                    // length of the returned string
+    int   noblock = WNOHANG;                                                    // noblock flag
+
+    ret_buffer[0] = '\0';
+
+    if (arg2->len) {                                                            // blocked waiting
+        if (strcasecmp((char *) arg2->buf, "block") == 0) {
+            noblock = 0;
+        } else if (strcasecmp((char *) arg2->buf, "noblock") != 0) {
+            return -ERRM99;
+        }
+    }
+
+    if (arg1->len) {                                                            // call with a first argument (PID)
+        pid = cstringtoi(arg1);                                                 // get pid number
+        if (pid < 1) return -ERRM99;
+        pid = waitpid(pid, &status, noblock);
+    } else {                                                                    // call without an arguments
+        pid = waitpid(-1, &status, noblock);
+        if ((pid == -1) && noblock && (errno == ECHILD)) pid = 0;               // no error if non-blocked
+    }
+
+    if (pid < 0) return -(ERRMLAST + ERRZLAST + errno);
+    if (pid == 0) return 0;                                                     // no PID exited
+    s = ltocstring((u_char *) ret_buffer, pid);
+    ret_buffer[s++] = '#';
+    ret_buffer[s++] = '\0';
+    if (WIFEXITED(status)) s += ltocstring((u_char *) &ret_buffer[s], WEXITSTATUS(status));
+    ret_buffer[s++] = '#';
+    ret_buffer[s++] = '\0';
+    if (WIFSIGNALED(status)) s += ltocstring((u_char *) &ret_buffer[s], WTERMSIG(status));
+    return s;
+}
+
+// $&%SIGNAL - Send signal to PID
+short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
+{
+    int i;                                                                      // PID
+    int j;                                                                      // Signal
+
+    i = cstringtoi(pid);                                                        // get pid
+    if (i < 1) return -ERRM99;                                                  // must be positive or error
+    j = cstringtoi(sig);                                                        // get signal#
+    if ((j > 31) || (j < 0)) return -ERRM99;                                    // if out of range then error
+    i = kill(i, j);                                                             // do it
+
+    if (!i || (!j && (errno != ESRCH))) {                                       // if ok
+        ret_buffer[0] = '1';                                                    // say ok
+    } else {
+        ret_buffer[0] = '0';                                                    // say failed
+    }
+
+    ret_buffer[1] = '\0';                                                       // null terminated
+    return 1;                                                                   // and return
+}
+
+/*
+* $&%HOST - Resolves a host's IP address
+*
+* Arguments:
+*     Name  - Name of host to resolve.
+*             "IP" or "IP6" return TCP/IP in IPv4 or IPv6 format
+*         or  "UIP" or "UIP6" return UDP/IP in IPv4 or IPv6 format
+*         or  "NAME" or "NAME6" return name of host in IPv4 or IPv6 format
+*
+* Returns:
+*     Fail    -  < 0
+*     Success - Number of bytes in ret_buffer (which contains
+*               the resolved host's IP address)
+*/
+short Xcall_host(char *ret_buffer, cstring *name, cstring *arg)
+{
+    int  i;
+    char host[1024];
+    char service[20];
+
+    if ((strcasecmp((char *) arg->buf, "ip") == 0) || (strcasecmp((char *) arg->buf, "ip6") == 0) ||
+     (strcasecmp((char *) arg->buf, "uip") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
+        struct addrinfo info;                                                   // info for address match
+        struct addrinfo *addr;                                                  // list of addresses returned
+
+        if (name->len == 0) return 0;                                           // have to have a hostname
+        memset(&info, 0, sizeof(info));                                         // zero out structure
+
+        if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
+            info.ai_family = AF_INET6;                                          // IPv6
+        } else {
+            info.ai_family = AF_INET;                                           // IPv4
+        }
+
+        if ((strcasecmp((char *) arg->buf, "uip") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
+            info.ai_socktype = SOCK_DGRAM;                                      // only datagram sockets
+            info.ai_protocol = IPPROTO_UDP;                                     // only UDP protocol
+        } else {
+            info.ai_socktype = SOCK_STREAM;                                     // only stream sockets
+            info.ai_protocol = IPPROTO_TCP;                                     // only TCP protocol
+        }
+
+        i = getaddrinfo((char *) name->buf, NULL, &info, &addr);
+
+        if (i == 0) {
+            if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
+                char ipstr6[INET6_ADDRSTRLEN];
+
+                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
+                         &((struct sockaddr_in6 *) addr->ai_addr)->sin6_addr, ipstr6, INET6_ADDRSTRLEN));
+            } else {
+                char ipstr[INET_ADDRSTRLEN];
+
+                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
+                         &((struct sockaddr_in *) addr->ai_addr)->sin_addr, ipstr, INET_ADDRSTRLEN));
+            }
+
+            freeaddrinfo(addr);                                                 // free addrinfo allocated in getaddrinfo()
+        } else {
+            strcpy(ret_buffer, gai_strerror(i));
+        }
+
+        return (short) strlen(ret_buffer);
+    } else if (strcasecmp((char *) arg->buf, "name") == 0) {
+        struct sockaddr_in sin;
+
+        if (name->len == 0) {
+            i = gethostname(ret_buffer, 1023);                                  // get it
+            if (i == -1) return -(ERRMLAST + ERRZLAST + errno);                 // die on error
+            ret_buffer[1023] = '\0';                                            // JIC
+            return (short) strlen(ret_buffer);
+        }
+
+        sin.sin_family = AF_INET;
+        i = inet_pton(AF_INET, (char *) name->buf, &sin.sin_addr);
+        if (i == 0) return -(ERRZ48 + ERRMLAST);                                // die on error
+        i = getnameinfo((struct sockaddr *) &sin, sizeof(sin), host, sizeof(host), service, sizeof(service), 0);
+
+        if (i == 0) {
+            strcpy(ret_buffer, host);
+        } else {
+            strcpy(ret_buffer, gai_strerror(i));
+        }
+
+        return (short) strlen(ret_buffer);
+    } else if (strcasecmp((char *) arg->buf, "name6") == 0) {
+        struct sockaddr_in6 sin6;
+
+        if (name->len == 0) {
+            i = gethostname(ret_buffer, 1023);                                  // get it
+            if (i == -1) return -(ERRMLAST + ERRZLAST + errno);                 // die on error
+            ret_buffer[1023] = '\0';                                            // JIC
+            return (short) strlen(ret_buffer);
+        }
+
+        sin6.sin6_family = AF_INET6;
+        i = inet_pton(AF_INET6, (char *) name->buf, &sin6.sin6_addr);
+        if (i == 0) return -(ERRZ48 + ERRMLAST);                                // die on error
+        i = getnameinfo((struct sockaddr *) &sin6, sizeof(sin6), host, sizeof(host), service, sizeof(service), 0);
+
+        if (i == 0) {
+            strcpy(ret_buffer, host);
+        } else {
+            strcpy(ret_buffer, gai_strerror(i));
+        }
+
+        return (short) strlen(ret_buffer);
+    }
+
+    ret_buffer[0] = '\0';
+    return -(ERRZ18 + ERRMLAST);                                                // error
+}
+
+/*
+ * $&%FILE - Obtains information about a file.
+ *
+ * Arguments:
+ *     Filename  - File to obtain information about
+ *     Attribute - File attribute. The following information can
+ *                 be obtained for a file:
+ *
+ *                 EXISTS - 1:true ; 0:false
+ *                 SIZE   - File size, in bytes
+ *                 ATIME  - Last access time
+ *                 CTIME  - Last status change time
+ *                 MTIME  - Last modification time
+ *                 UID    - User ID
+ *                 GID    - Group ID
+ *
+ * Returns:
+ *     Fail    -  < 0
+ *     Success - Number of bytes in ret_buffer (which contains
+ *               the newly acquired information)
+ */
+short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
+{
+    struct stat sb;                                                             // File attributes
+    int         ret;                                                            // Return value
+    int         exists;                                                         // 1:true ; 0:false
+
+    // Get all the file's attributes
+    ret = stat((char *) file->buf, &sb);
+
+    /*
+     * Check if stat() failed. Ignore (at this stage), if the attribute is
+     * EXISTS, and stat() fails with either:
+     *   ENOENT  - The named file does not exist
+     *   ENOTDIR - A component of the path prefix is not a directory
+     */
+    if (ret == -1) {                                                            // stat() failed
+        if ((strcasecmp((char *) attr->buf, "exists") == 0) && ((errno == ENOENT) || (errno == ENOTDIR))) {
+            exists = 0;
+        } else {
+            ret_buffer[0] = '\0';
+            return -(ERRMLAST + ERRZLAST + errno);
+        }
+    } else {
+        exists = 1;
+    }
+
+    // Get desired attribute
+    if (strcasecmp((char *) attr->buf, "exists") == 0) {                        // File exists
+        ret = sprintf(ret_buffer, "%d", exists);
+        return (short) ret;                                                     // Size of ret_buffer (EXISTS)
+    } else if (strcasecmp((char *) attr->buf, "size") == 0) {
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_size);
+        return (short) ret;                                                     // Size of ret_buffer (SIZE)
+    } else if (strcasecmp((char *) attr->buf, "atime") == 0) {                  // Last access time
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_atime);
+        return (short) ret;                                                     // Size of ret_buffer (ATIME)
+    } else if (strcasecmp((char *) attr->buf, "ctime") == 0) {                  // Last status change (inode)
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_ctime);
+        return (short) ret;                                                     // Size of ret_buffer (CTIME)
+    } else if (strcasecmp((char *) attr->buf, "mtime") == 0) {                  // Last modification time
+        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_mtime);
+        return (short) ret;                                                     // Size of ret_buffer (MTIME)
+    } else if (strcasecmp((char *) attr->buf, "uid") == 0) {                    // UID of file
+        ret = sprintf(ret_buffer, "%u", sb.st_uid);
+        return (short) ret;                                                     // Size of ret_buffer (UID)
+    } else if (strcasecmp((char *) attr->buf, "gid") == 0) {                    // GID of file
+        ret = sprintf(ret_buffer, "%u", sb.st_gid);
+        return (short) ret;                                                     // Size of ret_buffer (GID)
+    } else {                                                                    // Invalid attribute name
+        ret_buffer[0] = '\0';
+        return -ERRM46;
+    }
+
+    // Unreachable
+}
+
+// $&DEBUG() - Dump info on console
+short Xcall_debug(char *ret_buffer, cstring *arg, cstring *dummy)
+{
+    (void) dummy;                                                               // unused parameter
+
     if (strcasecmp((char *) arg->buf, "gbd") == 0) {                            // Global Buffer Descriptors
         Dump_gbd();
     } else if (strcasecmp((char *) arg->buf, "rbd") == 0) {                     // Routine Buffer Descriptors
@@ -195,8 +424,7 @@ short Xcall_debug(char *ret_buffer, cstring *arg, __attribute__((unused)) cstrin
     return 0;
 }
 
-// %DIRECTORY() - Perform host directory list
-#define MAXFILENAME 4096                                                        // Maximum filename length (PATH_MAX?)
+// &$%DIRECTORY() - Perform host directory list
 #define PATHSEP     '/'                                                         // Path separator
 
 static DIR  *dirp = NULL;                                                       // Directory pointer
@@ -209,7 +437,7 @@ static char pattern[MAXFILENAME];                                               
  * array "filename". If "ch" is found, a pointer to "ch" in "filename"
  * is returned. Otherwise, a NULL pointer is returned.
  */
-char *findNextChar(char ch, char *filename)
+static char *findNextChar(char ch, char *filename)
 {
     while (*filename != '\0') {
         if (*filename == ch) {
@@ -230,7 +458,7 @@ char *findNextChar(char ch, char *filename)
  *
  * It returns 1 (true) if it does match, otherwise 0.
  */
-int isPatternMatch(char *pattern, char *filename)
+static int isPatternMatch(char *pattern, char *filename)
 {
     int flag;                                                                   // Flag
 
@@ -272,13 +500,15 @@ int isPatternMatch(char *pattern, char *filename)
     return 1;                                                                   // Pattern match
 }
 
-// $&%DIRECTORY - Directory lookup
-short Xcall_directory(char *ret_buffer, const cstring *file, __attribute__((unused)) cstring *dummy)
+// &$%DIRECTORY() - Perform host directory list
+short Xcall_directory(char *ret_buffer, const cstring *file, cstring *dummy)
 {
     struct dirent *dent;                                                        // Directory entry
     char          path[MAXFILENAME];                                            // Directory
     int           ret;                                                          // Return value
     cstring       env;                                                          // Current directory
+
+    (void) dummy;                                                               // unused parameter
 
     // If file is empty, then return the next matching directory entry or NULL
     if (((file == NULL) || (file->buf[0] == '\0')) && (dirp == NULL)) {
@@ -371,9 +601,11 @@ short Xcall_directory(char *ret_buffer, const cstring *file, __attribute__((unus
 }
 
 // $&%ERRMSG - Return error text
-short Xcall_errmsg(char *ret_buffer, cstring *err, __attribute__((unused)) cstring *dummy)
+short Xcall_errmsg(char *ret_buffer, cstring *err, cstring *dummy)
 {
     int errnum = 0;                                                             // init error number
+
+    (void) dummy;                                                               // unused parameter
 
     if (err->len < 1) return -ERRM11;                                           // they gotta pass something
 
@@ -406,28 +638,6 @@ short Xcall_opcom(char *ret_buffer, cstring *msg, const cstring *device)
     }
 
     return SQ_Force(device, msg);                                               // do it in seqio
-}
-
-// $&%SIGNAL - Send signal to PID
-short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
-{
-    int i;                                                                      // PID
-    int j;                                                                      // Signal
-
-    i = cstringtoi(pid);                                                        // get pid
-    if (i < 1) return -ERRM99;                                                  // must be positive or error
-    j = cstringtoi(sig);                                                        // get signal#
-    if ((j > 31) || (j < 0)) return -ERRM99;                                    // if out of range then error
-    i = kill(i, j);                                                             // do it
-
-    if (!i || (!j && (errno != ESRCH))) {                                       // if ok
-        ret_buffer[0] = '1';                                                    // say ok
-    } else {
-        ret_buffer[0] = '0';                                                    // say failed
-    }
-
-    ret_buffer[1] = '\0';                                                       // null terminated
-    return 1;                                                                   // and return
 }
 
 // $&%SPAWN - Create subprocess
@@ -471,7 +681,6 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, const cstring *type)
 
         // Change to sane settings for shell out
         term.c_iflag |= ICRNL;
-        term.c_oflag |= ONLCR;
         term.c_lflag |= (ICANON | ECHO);
         if (tcsetattr(STDIN_FILENO, TCSANOW, &term)  == -1) return -(ERRMLAST + ERRZLAST + errno);
 
@@ -488,11 +697,8 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, const cstring *type)
         if (tcsetattr(STDIN_FILENO, TCSANOW, &save) == -1) return -(ERRMLAST + ERRZLAST + errno);
 
         // Return 0 or error
-        if (ret == -1) {
-            return -(ERRMLAST + ERRZLAST + errno);
-        } else {
-            return 0;
-        }
+        if (ret == -1) return -(ERRMLAST + ERRZLAST + errno);
+        return 0;
     }
 }
 
@@ -500,19 +706,24 @@ short Xcall_spawn(char *ret_buffer, cstring *cmd, const cstring *type)
  * $&%VERSION - Supply version information - arg1 must be "NAME"
  * returns "Reference Standard M V<major.minor.patch[-pre]> [T<test>] for <platform> <datetime> ..."
  */
-short Xcall_version(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
+short Xcall_version(char *ret_buffer, cstring *dummy1, cstring *dummy2)
 {
-    return (short) rsm_version((u_char *) ret_buffer);                          // do it elsewhere
+    (void) dummy1;                                                              // unused parameter
+    (void) dummy2;                                                              // unused parameter
+
+    return (short) sys_version((u_char *) ret_buffer);                          // do it elsewhere
 }
 
 /*
  * $&%ZWRITE - Dump local symbol table (arg1/tmp can be a global reference)
  * returns 0 on success, or negative for errors - sets variables to empty string
  */
-short Xcall_zwrite(char *ret_buffer, cstring *tmp, __attribute__((unused)) cstring *dummy)
+short Xcall_zwrite(char *ret_buffer, cstring *tmp, cstring *dummy)
 {
     mvar  var;                                                                  // JIC
     short s;                                                                    // for functions
+
+    (void) dummy;                                                               // unused parameter
 
     ret_buffer[0] = '\0';                                                       // for returns
     if (tmp->len < 2) return ST_Dump();                                         // 'normal' call? then do it in symbol
@@ -525,6 +736,16 @@ short Xcall_zwrite(char *ret_buffer, cstring *tmp, __attribute__((unused)) cstri
 
     return ST_DumpV(&var);                                                      // do it
 }
+
+#define TRIM_PARITY      0x1                                                    // 'P'
+#define DISCARD_SPACES   0x2                                                    // 'D'
+#define DISCARD_CONTROLS 0x4                                                    // 'C'
+#define DISCARD_LEADING  0x8                                                    // 'B'
+#define COMPRESS_SPACES  0x10                                                   // 'R'
+#define CONVERT_TO_UPPER 0x20                                                   // 'U'
+#define CONVERT_TO_LOWER 0x40                                                   // 'L'
+#define DISCARD_TRAILING 0x80                                                   // 'T'
+#define PRESERVE_QUOTED  0x100                                                  // 'Q'
 
 // $&E - Perform string editing functions (two arguments)
 short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
@@ -639,7 +860,7 @@ short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
     return (short) i;                                                           // return the length
 }
 
-// PASCHK - Perform username, password check
+// $&PASCHK - Perform username, password check
 #ifdef __APPLE__
 
 enum {
@@ -1333,7 +1554,7 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     return err;
 }
 
-// $&PASCHK - Check user/password
+// $&PASCHK - Perform username, password check
 short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 {
     const char *username;
@@ -1370,19 +1591,21 @@ short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 }
 #else
 
-// $&PASCHK - Check user/password
-#ifndef __CYGWIN__
+// $&PASCHK - Perform username, password check
 short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
-#else
-short Xcall_paschk(char *ret_buffer, const cstring *user, __attribute__((unused)) cstring *pwd)
-#endif
 {
     FILE       *fd;                                                             // secure user database
     char       line[256];                                                       // line
     const char *err;                                                            // fgets error
     char       *preptr;                                                         // ':' (i.e., username:)
     char       *postptr;                                                        // ':' (i.e., username:password:)
+#ifndef __CYGWIN__
     char       password[256] = {0};                                             // encrypted password
+#else
+    const char password[256] = {0};                                             // encrypted password
+
+    (void) dummy;                                                               // unused parameter
+#endif
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
     fd = fopen("/etc/master.passwd", "r");
@@ -1418,7 +1641,7 @@ short Xcall_paschk(char *ret_buffer, const cstring *user, __attribute__((unused)
                 postptr = strchr(preptr, ':');
                 *postptr = '\0';
 #ifndef __CYGWIN__
-                strncpy(password, crypt((char *) pwd->buf, preptr), 255);       // WON'T WORK ON CYGWIN
+                strncpy(password, crypt((char *) pwd->buf, preptr), 255);       // Note: Won't work on Cygwin
 #endif
 
                 if (strcmp(password, preptr) == 0) {
@@ -1461,6 +1684,36 @@ int Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
 }
 
 // $&X - Checksum a string of characters (normal)
+static u_long crcTable[256];                                                    // used by CRC functions
+
+static void crcgen(void)                                                        // build the crcTable
+{
+    static int blnitDone = FALSE;
+    u_long     poly;
+    int        i;
+    int        j;
+
+    if (blnitDone == TRUE) return;                                              // only do it once
+
+    blnitDone = TRUE;
+    poly = 0xEDB88320L;
+
+    for (i = 0; i < 256; i++) {
+        u_long crc = i;
+
+        for (j = 8; j > 0; j--) {
+            if (crc & 1) {
+                crc = (crc >> 1) ^ poly;
+            } else {
+                crc >>= 1;
+            }
+        }
+
+        crcTable[i] = crc;
+    }
+}
+
+// $&X - Checksum a string of characters (normal)
 int Xcall_x(char *ret_buffer, cstring *str, const cstring *flag)
 {
     u_long crc;
@@ -1497,11 +1750,13 @@ int Xcall_x(char *ret_buffer, cstring *str, const cstring *flag)
  *        of length "len". Note the magic number 0x1081 (or 010201 octal)
  *        which is required for the algorithm.
  */
-short Xcall_xrsm(char *ret_buffer, cstring *str, __attribute__((unused)) cstring *dummy)
+short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy)
 {
     int     tmp;
     u_char  *chp = &str->buf[0];
     u_short crc = 0;                                                            // CRC result number
+
+    (void) dummy;                                                               // unused parameter
 
     for (tmp = (int) str->len; tmp > 0; tmp--) {
         u_short c = *chp++ & 0xFF;                                              // (or unsigned char)
@@ -1517,17 +1772,6 @@ short Xcall_xrsm(char *ret_buffer, cstring *str, __attribute__((unused)) cstring
     ret_buffer[1] = ((crc & 0x0FC0) >> 6) + 0x20;
     ret_buffer[2] = (crc & 0x003F) + 0x20;
     return 3;                                                                   // return length (always 3)
-}
-
-// $&%GETENV - Returns the value of an environment variable
-int Xcall_getenv(char *ret_buffer, const cstring *env, __attribute__((unused)) cstring *dummy)
-{
-    char *p;                                                                    // ptr for getenv
-
-    p = getenv((char *) env->buf);                                              // get the variable
-    ret_buffer[0] = '\0';                                                       // null terminate return
-    if (p == NULL) return 0;                                                    // nothing there
-    return mcopy((u_char *) p, (u_char *) ret_buffer, strlen(p));               // return it
 }
 
 /*
@@ -1559,263 +1803,32 @@ short Xcall_setenv(char *ret_buffer, cstring *env, const cstring *value)
     return ret;
 }
 
+// $&%GETENV - Returns the value of an environment variable
+int Xcall_getenv(char *ret_buffer, const cstring *env, cstring *dummy)
+{
+    char *p;                                                                    // ptr for getenv
+
+    (void) dummy;                                                               // unused parameter
+
+    p = getenv((char *) env->buf);                                              // get the variable
+    ret_buffer[0] = '\0';                                                       // null terminate return
+    if (p == NULL) return 0;                                                    // nothing there
+    return mcopy((u_char *) p, (u_char *) ret_buffer, strlen(p));               // return it
+}
+
 /*
  * $&%FORK - Create a copy of this process
  * Returns: Fail: 0
  *          Parent: Child M job number
  *          Child:  Minus Parent M job number
  */
-short Xcall_fork(char *ret_buffer, __attribute__((unused)) cstring *dummy1, __attribute__((unused)) cstring *dummy2)
+short Xcall_fork(char *ret_buffer, cstring *dummy1, cstring *dummy2)
 {
     int t;
 
-    t = ForkIt(1);                                                              // fork it, copy file table
+    (void) dummy1;                                                              // unused parameter
+    (void) dummy2;                                                              // unused parameter
+
+    t = ForkIt(2);                                                              // fork it, copy file table
     return ltocstring((u_char *) ret_buffer, t);                                // return result
-}
-
-/*
- * $&%FILE - Obtains information about a file.
- *
- * Arguments:
- *     Filename  - File to obtain information about
- *     Attribute - File attribute. The following information can
- *                 be obtained for a file:
- *
- *                 EXISTS - 1:true ; 0:false
- *                 SIZE   - File size, in bytes
- *                 ATIME  - Last access time
- *                 CTIME  - Last status change time
- *                 MTIME  - Last modification time
- *                 UID    - User ID
- *                 GID    - Group ID
- *
- * Returns:
- *     Fail    -  < 0
- *     Success - Number of bytes in ret_buffer (which contains
- *               the newly acquired information)
- */
-short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
-{
-    struct stat sb;                                                             // File attributes
-    int         ret;                                                            // Return value
-    int         exists;                                                         // 1:true ; 0:false
-
-    // Get all the file's attributes
-    ret = stat((char *) file->buf, &sb);
-
-    /*
-     * Check if stat() failed. Ignore (at this stage), if the attribute is
-     * EXISTS, and stat() fails with either:
-     *   ENOENT  - The named file does not exist
-     *   ENOTDIR - A component of the path prefix is not a directory
-     */
-    if (ret == -1) {                                                            // stat() failed
-        if ((strcasecmp("exists", (char *) attr->buf) == 0) && ((errno == ENOENT) || (errno == ENOTDIR))) {
-            exists = 0;
-        } else {
-            ret_buffer[0] = '\0';
-            return -(ERRMLAST + ERRZLAST + errno);
-        }
-    } else {
-        exists = 1;
-    }
-
-    // Get desired attribute
-    if (strcasecmp("exists", (char *) attr->buf) == 0) {                        // File exists
-        ret = sprintf(ret_buffer, "%d", exists);
-        return (short) ret;                                                     // Size of ret_buffer (EXISTS)
-    } else if (strcasecmp("size", (char *) attr->buf) == 0) {
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_size);
-        return (short) ret;                                                     // Size of ret_buffer (SIZE)
-    } else if (strcasecmp("atime", (char *) attr->buf) == 0) {                  // Last access time
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_atime);
-        return (short) ret;                                                     // Size of ret_buffer (ATIME)
-    } else if (strcasecmp("ctime", (char *) attr->buf) == 0) {                  // Last status change (inode)
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_ctime);
-        return (short) ret;                                                     // Size of ret_buffer (CTIME)
-    } else if (strcasecmp("mtime", (char *) attr->buf) == 0) {                  // Last modification time
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_mtime);
-        return (short) ret;                                                     // Size of ret_buffer (MTIME)
-    } else if (strcasecmp("uid", (char *) attr->buf) == 0) {                    // UID of file
-        ret = sprintf(ret_buffer, "%u", sb.st_uid);
-        return (short) ret;                                                     // Size of ret_buffer (UID)
-    } else if (strcasecmp("gid", (char *) attr->buf) == 0) {                    // GID of file
-        ret = sprintf(ret_buffer, "%u", sb.st_gid);
-        return (short) ret;                                                     // Size of ret_buffer (GID)
-    } else {                                                                    // Invalid attribute name
-        ret_buffer[0] = '\0';
-        return -ERRM46;
-    }
-
-    // Unreachable
-}
-
-/*
-* $&%HOST - Resolves a host's IP address
-*
-* Arguments:
-*     Name  - Name of host to resolve.
-*             "IP" or "IP6" return TCP/IP in IPv4 or IPv6 format
-*         or  "UIP" or "UIP6" return UDP/IP in IPv4 or IPv6 format
-*         or  "NAME" or "NAME6" return name of host in IPv4 or IPv6 format
-*
-* Returns:
-*     Fail    -  < 0
-*     Success - Number of bytes in ret_buffer (which contains
-*               the resolved host's IP address)
-*/
-short Xcall_host(char *ret_buffer, cstring *name, cstring *arg)
-{
-    int  i;
-    char host[1024];
-    char service[20];
-
-    if ((strcasecmp((char *) arg->buf, "ip") == 0) || (strcasecmp((char *) arg->buf, "ip6") == 0) ||
-     (strcasecmp((char *) arg->buf, "uip") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
-        struct addrinfo info;                                                   // info for address match
-        struct addrinfo *addr;                                                  // list of addresses returned
-
-        if (name->len == 0) return 0;                                           // have to have a hostname
-        memset(&info, 0, sizeof(info));                                         // zero out structure
-
-        if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
-            info.ai_family = AF_INET6;                                          // IPv6
-        } else {
-            info.ai_family = AF_INET;                                           // IPv4
-        }
-
-        if ((strcasecmp((char *) arg->buf, "uip") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
-            info.ai_socktype = SOCK_DGRAM;                                      // only datagram sockets
-            info.ai_protocol = IPPROTO_UDP;                                     // only UDP protocol
-        } else {
-            info.ai_socktype = SOCK_STREAM;                                     // only stream sockets
-            info.ai_protocol = IPPROTO_TCP;                                     // only TCP protocol
-        }
-
-        i = getaddrinfo((char *) name->buf, NULL, &info, &addr);
-
-        if (i == 0) {
-            if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
-                char ipstr6[INET6_ADDRSTRLEN];
-
-                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
-                         &((struct sockaddr_in6 *) addr->ai_addr)->sin6_addr, ipstr6, INET6_ADDRSTRLEN));
-            } else {
-                char ipstr[INET_ADDRSTRLEN];
-
-                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
-                         &((struct sockaddr_in *) addr->ai_addr)->sin_addr, ipstr, INET_ADDRSTRLEN));
-            }
-
-            freeaddrinfo(addr);                                                 // free addrinfo allocated in getaddrinfo()
-        } else {
-            strcpy(ret_buffer, gai_strerror(i));
-        }
-
-        return (short) strlen(ret_buffer);
-    } else if (strcasecmp((char *) arg->buf, "name") == 0) {
-        struct sockaddr_in sin;
-
-        if (name->len == 0) {
-            i = gethostname(ret_buffer, 1023);                                  // get it
-            if (i == -1) return -(ERRMLAST + ERRZLAST + errno);                 // die on error
-            ret_buffer[1023] = '\0';                                            // JIC
-            return (short) strlen(ret_buffer);
-        }
-
-        sin.sin_family = AF_INET;
-        i = inet_pton(AF_INET, (char *) name->buf, &sin.sin_addr);
-        if (i == 0) return -(ERRZ48 + ERRMLAST);                                // die on error
-        i = getnameinfo((struct sockaddr *) &sin, sizeof(sin), host, sizeof(host), service, sizeof(service), 0);
-
-        if (i == 0) {
-            strcpy(ret_buffer, host);
-        } else {
-            strcpy(ret_buffer, gai_strerror(i));
-        }
-
-        return (short) strlen(ret_buffer);
-    } else if (strcasecmp((char *) arg->buf, "name6") == 0) {
-        struct sockaddr_in6 sin6;
-
-        if (name->len == 0) {
-            i = gethostname(ret_buffer, 1023);                                  // get it
-            if (i == -1) return -(ERRMLAST + ERRZLAST + errno);                 // die on error
-            ret_buffer[1023] = '\0';                                            // JIC
-            return (short) strlen(ret_buffer);
-        }
-
-        sin6.sin6_family = AF_INET6;
-        i = inet_pton(AF_INET6, (char *) name->buf, &sin6.sin6_addr);
-        if (i == 0) return -(ERRZ48 + ERRMLAST);                                // die on error
-        i = getnameinfo((struct sockaddr *) &sin6, sizeof(sin6), host, sizeof(host), service, sizeof(service), 0);
-
-        if (i == 0) {
-            strcpy(ret_buffer, host);
-        } else {
-            strcpy(ret_buffer, gai_strerror(i));
-        }
-
-        return (short) strlen(ret_buffer);
-    }
-
-    ret_buffer[0] = '\0';
-    return -(ERRZ18 + ERRMLAST);                                                // error
-}
-
-/*
- * $&%WAIT() - Wait on a child
- *
- * Original author: Martin Kula <mkula@users.sourceforge.net>
- *
- * Arguments:
- *   First:
- *       none - wait's on a pid
- *       PID  - wait on the PID
- *   Second:
- *       "BLOCK" - blocked waiting
- *       none    - non blocked waiting
- *
- * Returns:
- *     <0 - failed
- *     0  - none pid exit
- *
- * num_bytes in ret_buffer which contains "pid number#error_code#terminate signal number"
- */
-short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
-{
-    int   pid;                                                                  // PID number
-    int   status;                                                               // Exit status
-    short s;                                                                    // length of the returned string
-    int   blocked = WNOHANG;                                                    // blocked flag
-
-    ret_buffer[0] = '\0';
-
-    if (arg2->len) {                                                            // blocked waiting
-        if (!strncmp((char *) arg2->buf, "BLOCK", 5)) {
-            blocked = 0;
-        } else if (strncmp((char *) arg2->buf, "NOBLOCK", 7)) {
-            return -ERRM99;
-        }
-    }
-
-    if (arg1->len) {                                                            // call with an arguments (PID)
-        pid = cstringtoi(arg1);                                                 // get pid number
-        if (pid < 1) return -ERRM99;
-        pid = waitpid(pid, &status, blocked);
-    } else {                                                                    // call without an arguments
-        pid = waitpid(-1, &status, blocked);
-        if ((pid < 0) && blocked && (errno == ECHILD)) pid = 0;                 // no error if non blocked
-    }
-
-    if (pid < 0) return -(ERRMLAST + ERRZLAST + errno);
-    if (!pid) return 0;                                                         // none pid exit
-    s = ltocstring((u_char *) ret_buffer, pid);
-    ret_buffer[s++] = '#';
-    ret_buffer[s++] = '\0';
-    if (WIFEXITED(status)) s += ltocstring((u_char *) &ret_buffer[s], WEXITSTATUS(status));
-    ret_buffer[s++] = '#';
-    ret_buffer[s++] = '\0';
-    if (WIFSIGNALED(status)) s += ltocstring((u_char *) &ret_buffer[s], WTERMSIG(status));
-    return s;
 }

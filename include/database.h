@@ -31,6 +31,8 @@
 #ifndef RSM_DATABASE_H
 #define RSM_DATABASE_H
 
+#include "rsm.h"                                                                // standard RSM includes
+
 // Defines
 #define NODE_UNDEFINED  VAR_UNDEFINED                                           // junk record (was -1 now MAX_STR_LEN + 1)
 #define PTR_UNDEFINED   0                                                       // junk pointer
@@ -138,6 +140,9 @@ void  Free_GBD(gbd *free);                                                      
 
 // File: rsm/database/get.c
 int Get_data(int dir);                                                          // get db_var node
+
+// File: rsm/database/ic.c
+void ic_map(int flag);                                                          // check the map
 
 // File: rsm/database/kill.c
 short Kill_data(void);                                                          // remove tree

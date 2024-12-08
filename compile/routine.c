@@ -28,20 +28,14 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <limits.h>                                                             // for LONG_MAX etc.
-#include <math.h>
-#include <assert.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // compile stuff
 #include "error.h"                                                              // and the error defs
 #include "opcode.h"                                                             // and the opcodes
-#include "compile.h"                                                            // compile stuff
+#include "proto.h"                                                              // standard prototypes
+#include <assert.h>
+#include <ctype.h>
+#include <stdlib.h>                                                             // always include
+#include <string.h>
 
 /*
  * Function routine entered with source_ptr pointing at the source
@@ -123,7 +117,7 @@ short routine(int runtime)                                                      
             assert(sizeof(us) == sizeof(u_short));
             memcpy(comp_ptr, &us, sizeof(u_short));
             comp_ptr += sizeof(u_short);
-            for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]) continue;         // copy tag
+            for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]) {}                // copy tag
             *comp_ptr++ = '\0';                                                 // and null terminate
         }
 
@@ -148,7 +142,7 @@ short routine(int runtime)                                                      
                 assert(sizeof(us) == sizeof(u_short));
                 memcpy(comp_ptr, &us, sizeof(u_short));
                 comp_ptr += sizeof(u_short);
-                for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]) continue;     // copy tag
+                for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]) {}            // copy tag
                 *comp_ptr++ = '\0';                                             // and null terminate
             }
 
@@ -226,7 +220,7 @@ short routine(int runtime)                                                      
                 memcpy(comp_ptr, &us, sizeof(u_short));                         // store short int
                 comp_ptr += sizeof(u_short);                                    // move past it
                 *comp_ptr++ = '^';                                              // store the caret
-                for (j = 0; j < i; *comp_ptr++ = rou.var_cu[j++]) continue;     // copy rou
+                for (j = 0; j < i; *comp_ptr++ = rou.var_cu[j++]) {}            // copy rou
                 *comp_ptr++ = '\0';                                             // and null terminate
                 if (!var_empty(tag) || gotplus || p1indirect) *comp_ptr++ = OPCAT; // concatenate
             }
@@ -240,7 +234,7 @@ short routine(int runtime)                                                      
                 assert(sizeof(us) == sizeof(u_short));
                 memcpy(comp_ptr, &us, sizeof(u_short));
                 comp_ptr += sizeof(u_short);
-                for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]) continue;     // copy tag
+                for (j = 0; j < i; *comp_ptr++ = tag.var_cu[j++]) {}            // copy tag
                 *comp_ptr++ = '\0';                                             // and null terminate
             }
 
@@ -601,7 +595,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
         partab.ln++;                                                            // count a line
 
         if (!same) {                                                            // write if required
-            for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ') continue; // convert leading tab to space
+            for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ') {}        // convert leading tab to space
 DISABLE_WARN(-Warray-bounds)
             cptr->len = ltocstring(cptr->buf, partab.ln);                       // convert to a cstring
 ENABLE_WARN
@@ -683,7 +677,7 @@ ENABLE_WARN
     *comp_ptr++ = ENDLIN;                                                       // mark end of routine
     *comp_ptr++ = ENDLIN;                                                       // mark end of routine
     partab.varlst = NULL;                                                       // for localvar()
-    for (num_vars = 0; !var_empty(var_tbl[num_vars]); num_vars++) continue;     // count them
+    for (num_vars = 0; !var_empty(var_tbl[num_vars]); num_vars++) {}            // count them
     p = line->buf;                                                              // where we put it now
 DISABLE_WARN(-Warray-bounds)
     cptr->len = Vhorolog(cptr->buf);                                            // get current date/time

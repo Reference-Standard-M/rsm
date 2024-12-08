@@ -28,18 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "init.h"                                                               // init prototypes
+#include "proto.h"                                                              // function prototypes
+#include <errno.h>                                                              // error stuff
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
-#include <sys/shm.h>                                                            // shared memory
-#include <sys/types.h>                                                          // for u_char def
 #include <string.h>
-#include <ctype.h>
-#include <fcntl.h>                                                              // file stuff
 #include <unistd.h>                                                             // for getopt
-#include <errno.h>                                                              // error stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // function prototypes
-#include "init.h"                                                               // init prototypes
 
 int restricted = FALSE;                                                         // whether RSM is in restricted mode or not
 
@@ -50,14 +45,14 @@ int main(int argc, char **argv)                                                 
     int        bsize = 0;                                                       // block size
     char       i = FALSE;                                                       // for info()
     char       k = FALSE;                                                       // for shutdown()
-    char       *env = NULL;                                                     // start environment name
+    const char *env = NULL;                                                     // start environment name
     int        jobs = 0;                                                        // max jobs
     int        map = 0;                                                         // header/map block bytes
     u_int      gmb = 0;                                                         // global buffer MiB
     u_int      rmb = 0;                                                         // routine buffer MiB
     u_int      addmb = 0;                                                       // additional buffer in MiB
     int        blocks = 0;                                                      // number of data blocks
-    char       *volnam = NULL;                                                  // volume name
+    const char *volnam = NULL;                                                  // volume name
     char       *cmd = NULL;                                                     // startup command
     const char *dbfile;                                                         // pass volume in environment
     char       file[VOL_FILENAME_MAX];
@@ -156,15 +151,15 @@ int main(int argc, char **argv)                                                 
 
     if (volnam != NULL) {                                                       // do a create
         // number of blocks, block size in bytes, map size in bytes, volume name, UCI name, file name
-        exit(INIT_Create_File(blocks, bsize * 1024, map * 1024, volnam, env, file));
+        exit(init_create(blocks, bsize * 1024, map * 1024, volnam, env, file));
     }
 
     if (jobs > 0) {                                                             // do an init
         // database, number of jobs, MiB of global buf, MiB of routine buf, MiB of additional buf
-        exit(INIT_Start(file, jobs, gmb, rmb, addmb));
+        exit(init_start(file, jobs, gmb, rmb, addmb));
     }
 
-    c = INIT_Run(file, env, cmd);                                               // run a job
+    c = init_run(file, env, cmd);                                               // run a job
 
     if (c != 0) {
         fprintf(stderr, "Error occurred in process - %s\n", strerror(c));       // what was returned
@@ -172,7 +167,7 @@ int main(int argc, char **argv)                                                 
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
     if (c == ENOENT) {
-        fprintf(stderr, "\tRSM database not loaded\n");
+        fprintf(stderr, "\tRSM database was not loaded\n");
     } else if (c == ENOMEM) {
         fprintf(stderr, "\tRSM job table is full\n");
     }

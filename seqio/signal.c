@@ -38,10 +38,10 @@
  *     setSignals - Sets up the system defined set of signals
  */
 
+#include "seqio.h"
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
-#include "seqio.h"
 
 // Local functions
 
@@ -50,7 +50,7 @@
  *
  * NOTE: Refer to the function "setSignalBitMask" in the file rsm/seqio/util.c
  */
-void signalHandler(int sig)                                                     // Caught signal
+static void signalHandler(int sig)                                              // Caught signal
 {
     setSignalBitMask(sig);
 }
@@ -131,11 +131,11 @@ int setSignals(void)
 #endif
 
     action.sa_handler = signalHandler;
-    if (sigaction(SIGPIPE, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGALRM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGTERM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGURG, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = SIG_DFL;                                                // let UNIX do this one
+    if (sigaction(SIGPIPE, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGTSTP, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGCONT, &action, NULL) == -1) return getError(SYS, errno);
 

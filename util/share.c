@@ -28,39 +28,33 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for strerror
-#include <sys/types.h>                                                          // for u_char def
-#include <errno.h>                                                              // error stuff
-#include <sys/ipc.h>                                                            // shared memory
-#include <sys/shm.h>                                                            // shared memory
-#include <sys/sem.h>                                                            // semaphores
-#include "rsm.h"                                                                // standard includes
 #include "error.h"                                                              // standard includes
 #include "proto.h"                                                              // standard includes
-#include "database.h"                                                           // for semaphore macro
+#include <errno.h>                                                              // error stuff
+#include <stdlib.h>                                                             // always include
+#include <sys/sem.h>                                                            // semaphores
+#include <sys/shm.h>                                                            // shared memory
 
 extern int curr_lock;                                                           // for tracking SEM_GLOBAL
 
 /*
  * Function: UTIL_Share - attach shared memory section
- * Returns addr (or NULL on error)
+ * Returns 0 on success or errno on error
  */
-int UTIL_Share(char *dbf)                                                       // pointer to dbfile name
+int UTIL_Share(char *dbfile, int flags)                                         // pointer to dbfile name
 {
     key_t shar_mem_key;                                                         // memory "key"
     int   shar_mem_id;                                                          // memory id
     int   sem_id;                                                               // semaphore id
 
-    shar_mem_key = ftok(dbf, RSM_SYSTEM);                                       // get a unique key
+    shar_mem_key = ftok(dbfile, RSM_SYSTEM);                                    // get a unique key
     if (shar_mem_key == -1) return errno;                                       // die on error
     shar_mem_id = shmget(shar_mem_key, 0, 0);                                   // attach to existing share
     if (shar_mem_id == -1) return errno;                                        // die on error
-    systab = (systab_struct *) shmat(shar_mem_id, SHMAT_SEED, 0);               // map it
+    systab = (systab_struct *) shmat(shar_mem_id, SHMAT_SEED, flags);           // map it
     if (systab == (void *) -1) return errno;                                    // die on error
     sem_id = semget(shar_mem_key, 0, 0);                                        // attach to semaphores
-    if (sem_id < 0) return errno;                                               // die on error
+    if (sem_id == -1) return errno;                                             // die on error
     return 0;                                                                   // return 0 for OK
 }
 

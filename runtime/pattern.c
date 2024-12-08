@@ -31,23 +31,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>                                                             // for string ops
-#include "rsm.h"                                                                // standard includes
 #include "error.h"                                                              // errors
-#include "init.h"                                                               // init prototypes
 #include "proto.h"                                                              // standard prototypes
-#include "compile.h"                                                            // for routine buffer stuff
 
-#define NOT      '\47'
-#define DELIM    255
-#define PATDEPTH 20
-#define EOL      255
-#define SP       '\40'
-#define NUL      '\0'
-#define DEL      '\177'
+#define NOT         '\47'
+#define DELIM       255
+#define PATDEPTH    20
+#define EOL         255
+#define SP          '\40'
+#define NUL         '\0'
+#define DEL         '\177'
 
 /*
  * Auxiliary function for grouped pattern match
@@ -57,7 +50,7 @@
  *   min:  The minimum possible length
  *   max:  The maximum possible length
  */
-void pminmax(cstring *str, int *min, int *max)
+static void pminmax(cstring *str, int *min, int *max)
 {
     int mininc;
     int maxinc;
@@ -104,17 +97,11 @@ void pminmax(cstring *str, int *min, int *max)
 
         // skip pattern codes
         if (str->buf[i] == '"') {                                               // quoted string
-            int cnt;
+            int cnt = 0;                                                        // init counter
 
-            cnt = 0;                                                            // init counter
             while (str->buf[++i] != DELIM) cnt++;                               // while more to do increment counter
             mininc *= cnt;                                                      // set this minimum
             maxinc *= cnt;                                                      // set this maximum
-        }
-
-        if (str->buf[i] == '"') {
-            while (str->buf[++i] != DELIM) continue;
-            i++;
         } else if (str->buf[i] == '(') {
             u_char  temp[257];
             cstring *tmp;
@@ -136,7 +123,11 @@ alternation:
             while (i1) {
                 ch = str->buf[++i];
                 *tcur++ = ch;
-                if (ch == '"') while ((*tcur++ = str->buf[++i]) != DELIM) continue;
+
+                if (ch == '"') {
+                    while ((*tcur++ = str->buf[++i]) != DELIM) {}
+                }
+
                 if (ch == '(') i1++;
                 if (ch == ')') i1--;
                 if (ch == ',' && i1 == 1) i1--;
@@ -154,7 +145,7 @@ ENABLE_WARN
             mininc *= tmin;
             maxinc *= tmax;
         } else {
-            while (str->buf[++i] >= 'A') continue;
+            while (str->buf[++i] >= 'A') {}
         }
 
         *min += mininc;
@@ -166,7 +157,7 @@ ENABLE_WARN
 }                                                                               // end pminmax()
 
 // Evaluates a ? b
-short pattern(cstring *a, cstring *b)
+static short pattern(cstring *a, cstring *b)
 {
     short  levels;                                                              // depth of stack
     int    patx = 0;                                                            // match stack pointer
@@ -236,7 +227,7 @@ short pattern(cstring *a, cstring *b)
                 continue;                                                       // back to start
             }
 
-            while (b->buf[++x] != DELIM) continue;                              // while more chars in literal
+            while (b->buf[++x] != DELIM) {}                                     // while more chars in literal
             x++;                                                                // move along one pos
         } else if (b->buf[x] == '(') {                                          // not literal, but bracketed
             i = 1;                                                              // init
@@ -248,7 +239,7 @@ short pattern(cstring *a, cstring *b)
                 if (x == b->len) continue;                                      // don't increment if at end
 
                 if (ch == '"') {                                                // literal inside brackets
-                    while (b->buf[++x] != DELIM) continue;                      // go to end of literal
+                    while (b->buf[++x] != DELIM) {}                             // go to end of literal
                 }
 
                 if (ch == '(') {                                                // nested brackets
@@ -262,7 +253,7 @@ short pattern(cstring *a, cstring *b)
                 }
             }
         } else {
-            while ((b->buf[++x] >= 'A') && (b->buf[x] <= 'z')) continue;        //replace code
+            while ((b->buf[++x] >= 'A') && (b->buf[x] <= 'z')) {}               //replace code
         }
 
         if (++patx >= (PATDEPTH - 1)) return -ERRM10;                           // stack overflow
@@ -361,7 +352,7 @@ short pattern(cstring *a, cstring *b)
 
                     case '"':                                                   // literal
                         i = 0;                                                  // position in str
-                        while (a->buf[y + i++] == *ptrtom++) continue;
+                        while (a->buf[y + i++] == *ptrtom++) {}
 
                         // look until mismatch
                         if (*--ptrtom == DELIM) {                               // mismatch was DELIM
@@ -427,7 +418,7 @@ DISABLE_WARN(-Warray-bounds)
                             bb->buf[i] = *ptrtom++;
 
                             if (bb->buf[i] == '"') {
-                                while ((bb->buf[++i] = *ptrtom++) != DELIM) continue;
+                                while ((bb->buf[++i] = *ptrtom++) != DELIM) {}
                             }
 
                             if (bb->buf[i] == '(') i1++;
@@ -535,9 +526,8 @@ nomatch:
 
 match:                                                                          // match
             y++;                                                                // move pointer to next char
-
 match0:                                                                         // no action
-            continue;
+            ;                                                                   // empty statement needs to be here as goto target
         }
 
         position[patx++] = y;                                                   // pos after last match

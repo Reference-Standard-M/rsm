@@ -28,19 +28,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <limits.h>
-#include <math.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // compile stuff
 #include "error.h"                                                              // and the error defs
 #include "opcode.h"                                                             // and the opcodes
-#include "compile.h"                                                            // compile stuff
+#include <ctype.h>
+#include <string.h>
 
 /*
  * Function localvar entered with source_ptr pointing at the source

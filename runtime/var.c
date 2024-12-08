@@ -28,16 +28,12 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // standard errors
 #include "opcode.h"                                                             // for OPNOP
+#include "proto.h"                                                              // standard prototypes
+#include <ctype.h>
+#include <stdio.h>                                                              // always include
+#include <string.h>
 
 /*
  * All variables use the following structure
@@ -105,7 +101,7 @@ short Vhorolog(u_char *ret_buffer)
 // $KEY
 short Vkey(u_char *ret_buffer)
 {
-    SQ_Chan *ioptr;                                                             // ptr to current $IO
+    SQ_Chan *ioptr;                                                             // pointer to current $IO
 
     ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];                     // point at it
     return (short) mcopy(&ioptr->dkey[0], ret_buffer, ioptr->dkey_len);         // return count and $KEY
@@ -116,7 +112,7 @@ short Vreference(u_char *ret_buffer)
 {
     mvar *var;                                                                  // variable pointer
 
-    var = &partab.jobtab->last_ref;                                             // point at $R
+    var = &partab.jobtab->last_ref;                                             // point at $REFERENCE
     ret_buffer[0] = '\0';                                                       // null JIC
     if (var->name.var_cu[0] == '\0') return 0;                                  // return null string if null
     return UTIL_String_Mvar(var, ret_buffer, MAX_NUM_SUBS);                     // do it elsewhere
@@ -128,14 +124,14 @@ short Vsystem(u_char *ret_buffer)
     int i = ultocstring(ret_buffer, RSM_SYSTEM);                                // copy assigned #
 
     ret_buffer[i++] = ',';                                                      // and a comma
-    i += rsm_version(&ret_buffer[i]);                                           // do it elsewhere
+    i += sys_version(&ret_buffer[i]);                                           // do it elsewhere
     return (short) i;                                                           // return the count
 }
 
 // $X
 short Vx(u_char *ret_buffer)
 {
-    const SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];      // ptr to current $IO
+    const SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];      // pointer to current $IO
 
     return (short) ultocstring(ret_buffer, ioptr->dx);                          // return len with data in buf
 }
@@ -143,7 +139,7 @@ short Vx(u_char *ret_buffer)
 // $Y
 short Vy(u_char *ret_buffer)
 {
-    const SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];      // ptr to current $IO
+    const SQ_Chan *ioptr = &partab.jobtab->seqio[(int) partab.jobtab->io];      // pointer to current $IO
 
     return (short) ultocstring(ret_buffer, ioptr->dy);                          // return len with data in buf
 }

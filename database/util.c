@@ -28,23 +28,18 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "database.h"                                                           // database protos
+#include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
+#include <errno.h>                                                              // for errors
+#include <fcntl.h>                                                              // for expand
 #include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy
 #include <time.h>                                                               // for ctime
 #include <unistd.h>                                                             // for file reading
-#include <fcntl.h>                                                              // for expand
-#include <ctype.h>                                                              // for GBD stuff
-#include <errno.h>                                                              // for errors
-#include <sys/param.h>                                                          // for realpath() function
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
+#include <sys/param.h>                                                          // for realpath function
 #include <sys/stat.h>                                                           // for fchmod
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
 
 /*
  * Function: Insert
@@ -196,7 +191,7 @@ void Garbit(u_int blknum)                                                       
 
     for (int j = 0; ; j++) {
         if (partab.vol[volnum]->garbQ[i] == 0) break;                           // if slot available then exit
-        if (j == 9) panic("Garbit: could not get a garbage slot after 10 seconds");
+        if (j == 9) panic("Garbit: Could not get a garbage slot after 10 seconds");
         sleep(1);                                                               // wait a bit
     }                                                                           // NOTE: I don't think this can work either
 
@@ -321,7 +316,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
     fiidx = (int *) SOA(fptr->mem);                                             // point at it
     keybuf[0] = 0;                                                              // clear this
 
-    for (int i = IDX_START; i <= SOA(blk[level]->mem)->last_idx; i++) {         // scan to end to block
+    for (int i = IDX_START; i <= SOA(blk[level]->mem)->last_idx; i++) {         // scan to end to block (key compression)
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
@@ -357,7 +352,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
 
         if (cs >= ((SOA(blk[level]->mem)->last_free * 2 + 1 - SOA(blk[level]->mem)->last_idx) * 2)) {
             if (fidx == -1) return;
-            panic("Copy_data: about to overflow block");
+            panic("Copy_data: About to overflow block");
         }
 
         SOA(blk[level]->mem)->last_free -= (cs / 4);                            // reset free
@@ -715,7 +710,7 @@ void Dump_gbd(void)                                                             
 
         tmp[j] = '\0';                                                          // null terminate name
 
-        len = snprintf(type, 10, "%s", (!strncmp(tmp, "$GLOBAL\0", 8)) ? "Directory" :
+        len = snprintf(type, 10, "%s", (strncmp(tmp, "$GLOBAL\0", 8) == 0) ? "Directory" :
               (SOA(p[i].mem)->type > UCIS) ? "Data" : "Pointer");
 
         type[len] = '\0';

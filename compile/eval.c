@@ -28,25 +28,99 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <limits.h>                                                             // for LONG_MAX etc.
-#include <math.h>
-#include <assert.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // compiler stuff
 #include "error.h"                                                              // and the error defs
 #include "opcode.h"                                                             // and the opcodes
-#include "compile.h"                                                            // compiler stuff
+#include "proto.h"                                                              // standard prototypes
+#include <assert.h>
+#include <ctype.h>
+#include <string.h>
 
 u_char *source_ptr;                                                             // pointer to source code
 u_char *comp_ptr;                                                               // pointer to compiled code
 
 extern u_char *jmp_eoc;                                                         // jump to end of cmd required
+
+static int operator(void)                                                       // extract an operator
+{
+    char c;                                                                     // the character
+    int  not = 0;                                                               // not flag
+
+    c = *source_ptr++;                                                          // get next char
+
+    if (c == '\'') {                                                            // a NOT?
+        not = 1;                                                                // set the not
+        c = *source_ptr++;                                                      // get next char
+    }
+
+    switch (c) {
+    case '+':                                                                   // add
+        if (not) return 0;                                                      // a not here is junk
+        return OPADD;                                                           // save opcode
+
+    case '-':                                                                   // subtract
+        if (not) return 0;                                                      // a not here is junk
+        return OPSUB;                                                           // save opcode
+
+    case '*':                                                                   // multiply (or power)
+        if (not) return 0;                                                      // a not here is junk
+
+        if (*source_ptr == '*') {                                               // if there is another
+            source_ptr++;                                                       // advance the pointer
+            return OPPOW;                                                       // it's a power
+        }
+
+        return OPMUL;                                                           // set as a multiply
+
+    case '/':                                                                   // divide
+        if (not) return 0;                                                      // a not here is junk
+        return OPDIV;                                                           // set the op code
+
+    case '\\':                                                                  // back-slash
+        if (not) return 0;                                                      // a not here is junk
+        return OPINT;                                                           // integer divide
+
+    case '#':                                                                   // hash
+        if (not) return 0;                                                      // a not here is junk
+        return OPMOD;                                                           // modulus
+
+    case '_':                                                                   // underscore
+        if (not) return 0;                                                      // a not here is junk
+        return OPCAT;                                                           // concatenate
+
+    case '=':                                                                   // equal sign
+        return (not ? OPNEQL : OPEQL);                                          // equal or not
+
+    case '<':                                                                   // less than
+        return (not ? OPNLES : OPLES);                                          // less than or not
+
+    case '>':                                                                   // greater than
+        return (not ? OPNGTR : OPGTR);                                          // greater than or not
+
+    case '&':                                                                   // and
+        return (not ? OPNAND : OPAND);                                          // and or nand
+
+    case '!':                                                                   // exclam
+        return (not ? OPNIOR : OPIOR);                                          // or or nor
+
+    case '[':                                                                   // left square bracket
+        return (not ? OPNCON : OPCON);                                          // contains or not
+
+    case ']':                                                                   // right square bracket
+        if (*source_ptr == ']') {                                               // if there is another
+            source_ptr++;                                                       // advance the pointer
+            return (not ? OPNSAF : OPSAF);                                      // sorts after or not
+        }
+
+        return (not ? OPNFOL : OPFOL);                                          // follows or not
+
+    case '?':                                                                   // question
+        return (not ? OPNPAT : OPPAT);                                          // matches or not
+
+    default:                                                                    // stuffed up
+        return 0;                                                               // clear op
+    }                                                                           // end of switch for operators
+}
 
 void comperror(short err)                                                       // compile error
 {
@@ -229,87 +303,6 @@ void atom(void)                                                                 
 
     comperror(-(ERRZ12 + ERRMLAST));                                            // compile an error
     return;                                                                     // and exit
-}
-
-int operator(void)                                                              // extract an operator
-{
-    char c;                                                                     // the character
-    int  not = 0;                                                               // not flag
-
-    c = *source_ptr++;                                                          // get next char
-
-    if (c == '\'') {                                                            // a NOT?
-        not = 1;                                                                // set the not
-        c = *source_ptr++;                                                      // get next char
-    }
-
-    switch (c) {
-    case '+':                                                                   // add
-        if (not) return 0;                                                      // a not here is junk
-        return OPADD;                                                           // save opcode
-
-    case '-':                                                                   // subtract
-        if (not) return 0;                                                      // a not here is junk
-        return OPSUB;                                                           // save opcode
-
-    case '*':                                                                   // multiply (or power)
-        if (not) return 0;                                                      // a not here is junk
-
-        if (*source_ptr == '*') {                                               // if there is another
-            source_ptr++;                                                       // advance the pointer
-            return OPPOW;                                                       // it's a power
-        }
-
-        return OPMUL;                                                           // set as a multiply
-
-    case '/':                                                                   // divide
-        if (not) return 0;                                                      // a not here is junk
-        return OPDIV;                                                           // set the op code
-
-    case '\\':                                                                  // back-slash
-        if (not) return 0;                                                      // a not here is junk
-        return OPINT;                                                           // integer divide
-
-    case '#':                                                                   // hash
-        if (not) return 0;                                                      // a not here is junk
-        return OPMOD;                                                           // modulus
-
-    case '_':                                                                   // underscore
-        if (not) return 0;                                                      // a not here is junk
-        return OPCAT;                                                           // concatenate
-
-    case '=':                                                                   // equal sign
-        return (not ? OPNEQL : OPEQL);                                          // equal or not
-
-    case '<':                                                                   // less than
-        return (not ? OPNLES : OPLES);                                          // less than or not
-
-    case '>':                                                                   // greater than
-        return (not ? OPNGTR : OPGTR);                                          // greater than or not
-
-    case '&':                                                                   // and
-        return (not ? OPNAND : OPAND);                                          // and or nand
-
-    case '!':                                                                   // exclam
-        return (not ? OPNIOR : OPIOR);                                          // or or nor
-
-    case '[':                                                                   // left square bracket
-        return (not ? OPNCON : OPCON);                                          // contains or not
-
-    case ']':                                                                   // right square bracket
-        if (*source_ptr == ']') {                                               // if there is another
-            source_ptr++;                                                       // advance the pointer
-            return (not ? OPNSAF : OPSAF);                                      // sorts after or not
-        }
-
-        return (not ? OPNFOL : OPFOL);                                          // follows or not
-
-    case '?':                                                                   // question
-        return (not ? OPNPAT : OPPAT);                                          // matches or not
-
-    default:                                                                    // stuffed up
-        return 0;                                                               // clear op
-    }                                                                           // end of switch for operators
 }
 
 /*

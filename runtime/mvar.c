@@ -28,17 +28,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // standard errors
-#include "opcode.h"                                                             // the op codes
 #include "compile.h"                                                            // RBD structure
+#include "error.h"                                                              // standard errors
+#include "proto.h"                                                              // standard prototypes
+#include <string.h>
 
 short getvol(const cstring *vol)                                                // get vol number for volume name
 {
@@ -94,8 +87,6 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
     cstring *ptr;                                                               // and a handy pointer
     short   s;                                                                  // for returns
     var_u   *vt;                                                                // var table pointer
-    rbd     *p;                                                                 // a handy pointer
-    mvar    *ind;                                                               // ind mvar ptr
 
     type = *rsmpc++;                                                            // get the type
 
@@ -117,6 +108,8 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
         memcpy(var, &partab.jobtab->last_ref, sizeof(var_u) + 5 + i);           // copy naked reference
         var->slen = (u_char) i;                                                 // stuff in the count
     } else if (type == TYPVARIND) {                                             // it's an indirect
+        mvar *ind;                                                              // ind mvar ptr
+
         ind = (mvar *) addstk[asp - subs - 1];                                  // point at mvar so far
         memmove(var, ind, ind->slen + sizeof(var_u) + 5);                       // copy it in
     } else if ((type & TYPVARIDX) && (type < TYPVARGBL)) {                      // if it's the index type AND it's local
@@ -126,6 +119,8 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
             var->volset = i + 1;                                                // save the index (+ 1)
             VAR_CLEAR(var->name);                                               // clear the name
         } else {
+            rbd *p;                                                             // a handy pointer
+
             p = (rbd *) SOA(partab.jobtab->dostk[partab.jobtab->cur_do].routine);
             vt = (var_u *) (((u_char *) p) + p->var_tbl);                       // point at var table
             VAR_COPY(var->name, vt[i]);                                         // get the var name

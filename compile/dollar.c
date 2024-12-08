@@ -28,20 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <limits.h>                                                             // for LONG_MAX etc.
-#include <math.h>
-#include <assert.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // compiler stuff
 #include "error.h"                                                              // and the error defs
 #include "opcode.h"                                                             // and the opcodes
-#include "compile.h"                                                            // compiler stuff
+#include "proto.h"                                                              // standard prototypes
+#include <assert.h>
+#include <ctype.h>
+#include <string.h>
 
 void dodollar(void)                                                             // parse var, func etc.
 {
@@ -185,18 +178,24 @@ void dodollar(void)                                                             
             *comp_ptr++ = '\0';                                                 // null terminated
         }
 
-        if (strcmp(name, "%DIRECTORY") == 0) {                                  // $&%DIRECTORY()
-            *comp_ptr++ = XCDIR;                                                // save the opcode
+        if (strcmp(name, "%WAIT") == 0) {                                       // $&%WAIT()
+            *comp_ptr++ = XCWAIT;                                               // save the opcode
+        } else if (strcmp(name, "%COMPRESS") == 0) {                            // $&%COMPRESS()
+            *comp_ptr++ = XCCOMP;                                               // save the opcode
+        } else if (strcmp(name, "%SIGNAL") == 0) {                              // $&%SIGNAL()
+            *comp_ptr++ = XCSIG;                                                // save the opcode
         } else if (strcmp(name, "%HOST") == 0) {                                // $&%HOST()
             *comp_ptr++ = XCHOST;                                               // save the opcode
         } else if (strcmp(name, "%FILE") == 0) {                                // $&%FILE()
             *comp_ptr++ = XCFILE;                                               // save the opcode
+        } else if (strcmp(name, "DEBUG") == 0) {                                // $&DEBUG()
+            *comp_ptr++ = XCDEBUG;                                              // save the opcode
+        } else if (strcmp(name, "%DIRECTORY") == 0) {                           // $&%DIRECTORY()
+            *comp_ptr++ = XCDIR;                                                // save the opcode
         } else if (strcmp(name, "%ERRMSG") == 0) {                              // $&%ERRMSG()
             *comp_ptr++ = XCERR;                                                // save the opcode
         } else if (strcmp(name, "%OPCOM") == 0) {                               // $&%OPCOM()
             *comp_ptr++ = XCOPC;                                                // save the opcode
-        } else if (strcmp(name, "%SIGNAL") == 0) {                              // $&%SIGNAL()
-            *comp_ptr++ = XCSIG;                                                // save the opcode
         } else if (strcmp(name, "%SPAWN") == 0) {                               // $&%SPAWN()
             *comp_ptr++ = XCSPA;                                                // save the opcode
         } else if (strcmp(name, "%VERSION") == 0) {                             // $&%VERSION()
@@ -223,12 +222,6 @@ void dodollar(void)                                                             
             *comp_ptr++ = XCFORK;                                               // save the opcode
         } else if (strcmp(name, "%IC") == 0) {                                  // $&%IC()
             *comp_ptr++ = XCIC;                                                 // save the opcode
-        } else if (strcmp(name, "%WAIT") == 0) {                                // $&%WAIT()
-            *comp_ptr++ = XCWAIT;                                               // save the opcode
-        } else if (strcmp(name, "DEBUG") == 0) {                                // $&DEBUG()
-            *comp_ptr++ = XCDEBUG;                                              // save the opcode
-        } else if (strcmp(name, "%COMPRESS") == 0) {                            // $&%COMPRESS()
-            *comp_ptr++ = XCCOMP;                                               // save the opcode
         } else {
             comperror(-(ERRZ18 + ERRMLAST));                                    // junk
         }

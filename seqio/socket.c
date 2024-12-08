@@ -42,19 +42,17 @@
  *     SQ_Socket_Read    - Reads from socket
  */
 
+#include "seqio.h"
+#include "error.h"
 #include <errno.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "error.h"
-#include "seqio.h"
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 #define BACKLOG 20                                                              // Connections to queue (max is SOMAXCONN)
 

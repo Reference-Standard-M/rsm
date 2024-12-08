@@ -49,26 +49,21 @@
  * NOTE: An object is one of a file, device, named pipe or TCP/IP socket
  */
 
-#include <errno.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>                                                          // for ioctl
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "seqio.h"
+#include "error.h"
+#include "proto.h"
 #include <ctype.h>
-#include <netdb.h>
-#include <signal.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include "rsm.h"
-#include "error.h"
-#include "proto.h"
-#include "seqio.h"
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/ioctl.h>                                                          // for ioctl
+#include <sys/socket.h>
 
 // Set bit flags
 #define UNSET -1                                                                // Unset bit
@@ -112,7 +107,7 @@
 #define STDCHAN 0                                                               // stdin, stdout and stderr
 
 // The following required for linux
-#ifdef linux
+#ifdef __linux__
 #   include <sys/ttydefaults.h>
 #endif
 
@@ -143,7 +138,7 @@ extern u_short prompt_len;                                                      
  * If any of the forementioned statements are true, this function returns a
  * negative integer value to indicate the error. Otherwise, a 0 is returned.
  */
-int checkBytestr(const char *bytestr)
+static int checkBytestr(const char *bytestr)
 {
     if (bytestr == NULL) return getError(INT, ERRZ28);
     return 0;
@@ -157,7 +152,7 @@ int checkBytestr(const char *bytestr)
  * If any of the forementioned statements are true, this function returns a
  * negative integer value to indicate the error. Otherwise, a 0 is returned.
  */
-int checkNbytes(int nbytes)
+static int checkNbytes(int nbytes)
 {
     if ((nbytes < 0) || (nbytes > BUFSIZE)) return getError(INT, ERRZ33);
     return 0;
@@ -172,7 +167,7 @@ int checkNbytes(int nbytes)
  * If any of the forementioned statements are true, this function returns a
  * negative integer value to indicate the error. Otherwise, a 0 is returned.
  */
-int checkCstring(const cstring *cstr)
+static int checkCstring(const cstring *cstr)
 {
     int ret;
 
@@ -197,7 +192,7 @@ int checkCstring(const cstring *cstr)
  *       not yet created. Thus, a 0 is returned as opposed to a negative integer
  *       value
  */
-int getObjectType(char *object)
+static int getObjectType(char *object)
 {
     struct stat sb;                                                             // Object status
     int         ret;                                                            // Useful variable
@@ -233,7 +228,7 @@ int getObjectType(char *object)
     }
 }
 
-int getObjectMode(int fd)
+static int getObjectMode(int fd)
 {
     struct stat sb;
     int    ret;
@@ -262,7 +257,7 @@ int getObjectMode(int fd)
     }
 }
 
-int getModeCategory(int mode)
+static int getModeCategory(int mode)
 {
     if (mode == REG) return SQ_FILE;
     if (mode == SOCK) return SQ_SOCK;
@@ -275,7 +270,7 @@ int getModeCategory(int mode)
  * This function checks if "chan" is a valid channel. If "chan" is not valid,
  * then 0 is returned. Otherwise, 1 is returned.
  */
-int isChan(int chan)
+static int isChan(int chan)
 {
     if ((chan < MIN_SEQ_IO) || (chan >= MAX_SEQ_IO)) return 0;
     return 1;
@@ -300,7 +295,7 @@ int isType(int type)
  * This function checks if channel "chan" is free. If "chan" is not free, then
  * 0 is returned. Otherwise, 1 is returned.
  */
-int isChanFree(int chan)
+static int isChanFree(int chan)
 {
     if ((int) partab.jobtab->seqio[chan].type != SQ_FREE) return 0;
     return 1;
@@ -316,7 +311,7 @@ int isChanFree(int chan)
  * If any of the forementioned statements are true, this function returns a
  * negative integer value to indicate the error. Otherwise, a 0 is returned.
  */
-int checkAsciiChars(const cstring *cstr)
+static int checkAsciiChars(const cstring *cstr)
 {
     int index;
     int ret;
@@ -337,7 +332,7 @@ int checkAsciiChars(const cstring *cstr)
  * This function returns an array with two 64-bit integers, which represents
  * a bit mask corresponding to the array of control characters "cstr->buf".
  */
-IN_Term getBitMask(cstring *cstr, IN_Term in_term)
+static IN_Term getBitMask(cstring *cstr, IN_Term in_term)
 {
     int     index;                                                              // Index
     u_int64 chmask;                                                             // Characters bit mask
@@ -358,7 +353,7 @@ IN_Term getBitMask(cstring *cstr, IN_Term in_term)
  * This function sets the bit "bit" in the integer "options" according to the
  * flag "flag".
  */
-int setOptionsBitMask(int options, int bit, int flag)
+static int setOptionsBitMask(int options, int bit, int flag)
 {
     int mask;
 
@@ -374,7 +369,7 @@ int setOptionsBitMask(int options, int bit, int flag)
  * "server[6]/tcpserver[6]", "udpserver[6]", "pipe", or "newpipe". Otherwise,
  * it returns a negative integer to indicate the error that has occurred.
  */
-int getOperation(const cstring *op)
+static int getOperation(const cstring *op)
 {
     char str[OPSIZE];                                                           // Useful buffer
     char *ptr;                                                                  // Pointer to '=' in operation
@@ -479,7 +474,7 @@ int getOperation(const cstring *op)
  *       array "in_term.interm[]" is equal to 1, then this bit has been set
  */
 /*
-int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           // NOTE: should we use this instead of the 4 loops?
+static int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)    // NOTE: should we use this instead of the 4 loops?
 {
     int index;
     int value;
@@ -500,12 +495,12 @@ int isINTERM(char *readbuf, int nbytes, int options, IN_Term in_term)           
  * This function accepts an error number argument "errnum" and returns a pointer
  * to the corresponding message string "errmsg".
  */
-void getErrorMsg(int errnum, char  *errmsg)
+static void getErrorMsg(int errnum, char  *errmsg)
 {
     UTIL_strerror(-errnum, (u_char *) errmsg);
 }
 
-int signalCaught(SQ_Chan *c)
+static int signalCaught(SQ_Chan *c)
 {
     c->dkey_len = 0;
     c->dkey[0] = '\0';
@@ -553,7 +548,7 @@ static int cursor_position(int oid, int *x, int *y)
  * This function initializes the forktab structure. It does not generate
  * any errors.
  */
-void initFORK(forktab *f)
+static void initFORK(forktab *f)
 {
     f->job_no = -1;
     f->pid = -1;
@@ -566,7 +561,7 @@ void initFORK(forktab *f)
  * success. Otherwise, it returns a negative integer value to indicate the
  * error that has occurred.
  */
-int initSERVER(int chan, u_int size)
+static int initSERVER(int chan, u_int size)
 {
     servertab *s;
     forktab   *f = NULL;                                                        // TEMP FIX
@@ -597,7 +592,7 @@ int initSERVER(int chan, u_int size)
  * If successful, this function returns 0. Otherwise, it returns a
  * negative integer value to indicate the error that has occurred.
  */
-int openSERVER(int chan, const char *oper)
+static int openSERVER(int chan, const char *oper)
 {
     SQ_Chan *c;
     char    *ptr;
@@ -646,7 +641,7 @@ int openSERVER(int chan, const char *oper)
  * the current connected client. Otherwise, it will return a negative integer
  * value to indicate the error that has occurred.
  */
-int acceptSERVER(int chan, int tout)
+static int acceptSERVER(int chan, int tout)
 {
     servertab *s;                                                               // Forked process table
     SQ_Chan   *c;                                                               // Server socket
@@ -784,7 +779,7 @@ int acceptSERVER(int chan, int tout)
  * This function closes a connected client. This function will never
  * exit with an error (i.e., will always return 0).
  */
-int closeSERVERClient(int chan)
+static int closeSERVERClient(int chan)
 {
     SQ_Chan *c;                                                                 // Socket channel
 
@@ -816,7 +811,7 @@ int closeSERVERClient(int chan)
  * called whenever a channel of type SQ_SOCK is closed. It will never exit
  * with an error (i.e., will always return 0).
  */
-int closeSERVER(int chan)
+static int closeSERVER(int chan)
 {
     SQ_Chan   *c;                                                               // Socket
     servertab *s;                                                               // Forked process table
@@ -868,7 +863,7 @@ int closeSERVER(int chan)
  * of bytes actually written is returned. Otherwise, a negative integer value
  * is returned to indicate the error that has occurred.
  */
-int objectWrite(int chan, char *writebuf, int nbytes)
+static int objectWrite(int chan, char *writebuf, int nbytes)
 {
     SQ_Chan *c;                                                                 // Channel to write to
     int     oid;                                                                // Channel descriptor
@@ -966,7 +961,7 @@ int objectWrite(int chan, char *writebuf, int nbytes)
  * number of bytes read. Otherwise, it returns a negative integer value to
  * indicate the error that has occurred.
  */
-int readFILE(int chan, u_char *buf, int maxbyt)
+static int readFILE(int chan, u_char *buf, int maxbyt)
 {
     SQ_Chan *c;                                                                 // Current channel
     int     bytesread = 0;                                                      // Bytes read
@@ -1031,7 +1026,7 @@ int readFILE(int chan, u_char *buf, int maxbyt)
  * number of bytes read. Otherwise, it returns a negative integer value to
  * indicate the error that has occurred.
  */
-int readTCP(int chan, u_char *buf, int maxbyt, int tout)
+static int readTCP(int chan, u_char *buf, int maxbyt, int tout)
 {
     SQ_Chan *c;                                                                 // Useful variable
     int     oid;                                                                // Object descriptor
@@ -1140,7 +1135,7 @@ int readTCP(int chan, u_char *buf, int maxbyt, int tout)
  * number of bytes read. Otherwise, it returns a negative integer value to
  * indicate the error that has occurred.
  */
-int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
+static int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
 {
     SQ_Chan *c;                                                                 // Current channel
     int     oid;                                                                // Object descriptor
@@ -1222,7 +1217,7 @@ int readPIPE(int chan, u_char *buf, int maxbyt, int tout)
  * NOTE: Terminal input buffer handling, including editing and history,
  *       conforms to ANSI X3.64-1979 R1990 (ISO 6429:1992 / ECMA-48:1991)
  */
-int readTERM(int chan, u_char *buf, int maxbyt, int tout)
+static int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 {
     SQ_Chan        *c;                                                          // Current channel
     int            oid;                                                         // Object descriptor
@@ -1642,7 +1637,7 @@ int readTERM(int chan, u_char *buf, int maxbyt, int tout)
  * an object of type "type". If successful, it returns 0. Otherwise, it
  * returns a negative integer value to indicate the error that has occurred.
  */
-int initObject(int chan, int type)
+static int initObject(int chan, int type)
 {
     SQ_Chan        *c;                                                          // Channel to initialize
     int            par;                                                         // Channel's options
@@ -1680,11 +1675,10 @@ int initObject(int chan, int type)
     case SQ_TERM:
         c->type = (u_char) SQ_TERM;
 
-        if ((chan == STDCHAN) && isatty(STDCHAN)) {                             // Setup tty settings (if STDCHAN)
+        if ((chan == STDCHAN) && isatty(STDIN_FILENO) && isatty(STDOUT_FILENO)) { // Setup tty settings (if STDCHAN and not a pipe)
             if (tcgetattr(STDCHAN, &settings) == -1) return getError(SYS, errno); // Get parameters
             settings.c_lflag &= ~ICANON;                                        // Non-canonical mode
             settings.c_lflag &= ~ECHO;                                          // Do not echo
-            settings.c_oflag &= ~ONLCR;                                         // Do not map NL to CR-NL out
             settings.c_iflag &= ~ICRNL;                                         // Do not map CR to NL in
             settings.c_cc[VMIN] = 1;                                            // Guarantees one byte is read
             settings.c_cc[VTIME] = 0;                                           //   in at a time
@@ -1835,7 +1829,6 @@ short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
 {
     SQ_Chan *c;                                                                 // Channel to open
     int     oper;                                                               // Operation identifier
-    int     ford;                                                               // File or device identifier
     int     obj;                                                                // Object identifier
     int     oid;                                                                // Object descriptor
     int     ret;                                                                // Return value
@@ -1876,6 +1869,8 @@ short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
     if (oper < 0) {
         return (short) oper;
     } else if ((oper == READ) || (oper == WRITE) || (oper == IO)) {             // Determine object
+        int ford;                                                               // File or device identifier
+
         ford = getObjectType((char *) object->buf);
 
         if (ford < 0) {
@@ -2532,9 +2527,9 @@ short SQ_ReadStar(int *result, int timeout)
  */
 short SQ_Flush(void)
 {
-    int     chan;                                                               // $IO
-    SQ_Chan *c;                                                                 // Pointer to $IO
-    int     what;                                                               // Queue
+    int           chan;                                                         // $IO
+    const SQ_Chan *c;                                                           // Pointer to $IO
+    int           what;                                                         // Queue
 
     chan = (int) partab.jobtab->io;                                             // Determine $IO
     if (isChan(chan) == 0) return (short) getError(INT, ERRZ25);                // $IO out of range

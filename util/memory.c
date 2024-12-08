@@ -28,17 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memmove
-#include <limits.h>                                                             // for INT_MAX
-#include <sys/types.h>                                                          // for u_char def
-#include <ctype.h>                                                              // for isdigit
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // standard errors
 #include "compile.h"                                                            // for rbd def
+#include "error.h"                                                              // standard errors
+#include "proto.h"                                                              // standard prototypes
 #include "symbol.h"                                                             // for NEW stuff
+#include <ctype.h>                                                              // for isdigit
+#include <limits.h>                                                             // for INT_MAX
+#include <string.h>                                                             // for memmove
 
 // This function is used in place of memmove() to trap strstk overflows
 int mcopy(u_char *src, u_char *dst, int bytes)                                  // copy bytes
@@ -130,7 +126,7 @@ short ncopy(u_char **src, u_char *dst)                                          
 
     if (dp) {                                                                   // if there was a dot
         if ((i == 1) && !k) return -(ERRZ12 + ERRMLAST);                        // if just a dp, complain
-        for (k = 0; dst[i - k - 1] == '0'; k++) continue;                       // check for trailing zeroes
+        for (k = 0; dst[i - k - 1] == '0'; k++) {}                              // check for trailing zeroes
         i -= k;                                                                 // remove them (if any)
         if (dst[i - 1] == '.') i--;                                             // ensure last is not dot
     }
@@ -187,7 +183,7 @@ short ncopy(u_char **src, u_char *dst)                                          
 
     if ((exp + i) > MAX_NUM_BYTES) return -ERRM92;                              // if too big error
     memmove(&dst[minus + exp + 1], &dst[minus + 1], i);                         // move right exp places
-    for (k = minus + 1; k <= (minus + exp); dst[k++] = '0') continue;           // zero fill
+    for (k = minus + 1; k <= (minus + exp); dst[k++] = '0') {}                  // zero fill
     i += exp;                                                                   // add to the length
 
 exit:
@@ -210,7 +206,7 @@ exit:
     dp = (dst[0] == '-');                                                       // start point
 
     if (dst[dp] == '0') {                                                       // if leading zeroes
-        for (k = dp; (k < i) && (dst[k] == '0'); k++) continue;                 // find first non-zero
+        for (k = dp; (k < i) && (dst[k] == '0'); k++) {}                        // find first non-zero
         memmove(&dst[dp], &dst[k], i - k);                                      // copy down
         i -= (k - dp);                                                          // adjust size
 
@@ -282,7 +278,7 @@ void CleanJob(int job)                                                          
     partab.job_table[j].cur_do = 0;                                             // in case we get back here
 
     if (!job) {                                                                 // if current job
-        for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) continue;                    // close all io
+        for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) {}                           // close all io
         partab.jobtab = NULL;                                                   // clear jobtab
     }
 

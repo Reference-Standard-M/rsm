@@ -38,15 +38,13 @@
  *     SQ_Device_Read  - Determines the type of device to read from
  */
 
+#include "seqio.h"
+#include "error.h"
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/uio.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
-#include "error.h"
-#include "seqio.h"
 
 #define SIG_ALRM (1U << 14)                                                     // SIGALRM (timeout)
 
@@ -59,7 +57,7 @@
  * completion, the number of bytes actually read is returned. Otherwise, a
  * negative integer is returned to indicate the error that has occurred.
  */
-int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
+static int SQ_Device_Read_TTY(int did, u_char *readbuf, int tout)
 {
     struct termios settings;
     int            ret;
