@@ -38,16 +38,12 @@
  *     SQ_File_Read  - Reads from file
  */
 
+#include "seqio.h"
+#include "error.h"
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/uio.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include "error.h"
-#include "seqio.h"
 
 // File functions
 

@@ -28,20 +28,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>
+#include "init.h"                                                               // init prototypes
+#include "database.h"                                                           // for init manager block
+#include "proto.h"                                                              // standard prototypes
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
 #include <fcntl.h>                                                              // file stuff
+#include <stdio.h>                                                              // always include
+#include <string.h>
 #include <unistd.h>                                                             // database access
-#include <sys/types.h>
-#include <sys/ipc.h>                                                            // shared memory
-#include <sys/shm.h>                                                            // shared memory
 #include <sys/stat.h>                                                           // file stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
-#include "database.h"                                                           // for init manager block
 
 #define BLKLEN (512 * 1024)                                                     // 512 KiB buffer length
 
@@ -56,7 +52,7 @@
 \*******************************************************************/
 
 // number of blocks, block size in bytes, map size in bytes (may be 0), volume name, UCI name, file name
-int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file)
+int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file)
 {
     int         namlen;                                                         // length of volume name
     int         envlen;                                                         // length of UCI name
@@ -73,7 +69,7 @@ int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, c
         char cuff[sizeof(label_block) + 1];                                     // remap for label block + 1 for 1st map block byte
     } label;                                                                    // end of union stuff
 
-    rsm_version((u_char *) version);                                            // get version into version[]
+    sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
     namlen = strlen(volnam);                                                    // get the name length
 
@@ -130,15 +126,15 @@ int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, c
         return -1;                                                              // return an error
     }                                                                           // end map size check
 
-    printf("Creating volume %s in file %s,\n", volnam, file);
+    printf("Creating volume %s in file %s\n", volnam, file);
 
     if (env != NULL) {
-        printf("using %s as the name of the manager environment (UCI),\n", env);
+        printf("Using %s as the name of the manager environment (UCI)\n", env);
     } else {
-        printf("using MGR as the name of the manager environment (UCI),\n");
+        printf("Using MGR as the name of the manager environment (UCI)\n");
     }
 
-    printf("with %u [%u KiB] blocks, and a %u KiB label/map block.\n" , blocks, bsize / 1024, map / 1024); // say what we are doing
+    printf("With %u [%u KiB] blocks, and a %u KiB label/map block\n" , blocks, bsize / 1024, map / 1024); // say what we are doing
     ret = 0;
     errno = 0;                                                                  // clear error flag
     umask(0);                                                                   // set umask to 0000
@@ -147,7 +143,7 @@ int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, c
     fid = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP);
 
     if (fid < 1) {                                                              // if that failed
-        fprintf(stderr, "Create of %s failed - %s\n", file, strerror(errno));   // what was returned
+        fprintf(stderr, "Creation of %s failed - %s\n", file, strerror(errno)); // what was returned
         return errno;                                                           // exit with error
     }                                                                           // end file create test
 
@@ -250,6 +246,6 @@ int INIT_Create_File(u_int blocks, u_int bsize, u_int map, const char *volnam, c
     }                                                                           // end of write code
 
     close(fid);                                                                 // close file
-    printf("Database file %s created.\n", file);                                // say we've done that
+    printf("Database file %s has been created\n", file);                        // say we've done that
     return 0;                                                                   // indicate success
 }

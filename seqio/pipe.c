@@ -39,16 +39,13 @@
  *     SQ_Pipe_Close - Closes (and/or removes) FIFO
  */
 
+#include "seqio.h"
+#include "error.h"
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/uio.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
-#include "error.h"
-#include "seqio.h"
 
 // Local functions
 
@@ -57,7 +54,7 @@
  * successful completion, a value of 0 is returned. Otherwise, a negative
  * integer value is returned to indicate the error that has occurred.
  */
-int createPipe(char *pipe)
+static int createPipe(char *pipe)
 {
     int ret;
 

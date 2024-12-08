@@ -29,7 +29,7 @@
 
 rsm -j "${1:-12}"
 
-echo -e "\nReference Standard M $(rsm -V) Docker Container\n"
+echo -e "\nReference Standard M $(rsm -V || true) Docker Container\n"
 echo "Copyright © 2020-2024 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 

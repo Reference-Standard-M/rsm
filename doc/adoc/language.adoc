@@ -1214,8 +1214,9 @@ Where code is zero or more of the following:
 |Code       |Description
 
 |`P` or `p` |Surround negative numbers with parentheses, positive with spaces
-|`T` or `t` |Format with trailing sign or (if suppressed) space
+|`T` or `t` |Format with trailing sign or, if suppressed, space
 |`,` (comma)|Insert a comma every three significant digits
+|`.` (point)|Insert a point every three significant digits (comma decimal point)
 |`+` (plus) |Force a plus sign on positive values
 |`-` (minus)|Suppress the minus sign on negative values
 |===
@@ -1229,7 +1230,7 @@ specified.
 
 ==== Standard
 
-Complies exactly.
+Complies exactly, except for inclusion of the non-standard point (`.`) code.
 
 ==== Examples
 

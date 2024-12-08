@@ -28,25 +28,20 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <sys/ioctl.h>                                                          // for ioctl
-#include <termios.h>                                                            // for ioctl
-#include <string.h>
-#include <time.h>                                                               // for nanosleep()
-#include <ctype.h>
-#include <signal.h>
-#include <unistd.h>                                                             // for sleep
-#include <sched.h>                                                              // for sched_yield()
-#include <sysexits.h>                                                           // for exit() condition
-#include <errno.h>                                                              // error stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // for XECUTE
 #include "error.h"                                                              // standard errors
 #include "opcode.h"                                                             // the op codes
-#include "compile.h"                                                            // for XECUTE
+#include "proto.h"                                                              // standard prototypes
 #include "seqio.h"                                                              // for signal stuff
+#include <errno.h>                                                              // error stuff
+#include <sched.h>                                                              // for sched_yield
+#include <signal.h>
+#include <stdio.h>                                                              // always include
+#include <string.h>
+#include <termios.h>                                                            // for ioctl
+#include <time.h>                                                               // for nanosleep
+#include <unistd.h>                                                             // for sleep
+#include <sys/ioctl.h>                                                          // for ioctl
 
 extern int failed_tty;                                                          // tty reset flag
 
@@ -62,7 +57,7 @@ short attention(void)                                                           
     /*
     if (partab.jobtab->trap & SIG_WS) {                                         // window size change SIGWINCH
         partab.jobtab->trap = partab.jobtab->trap & ~SIG_WS;                    // clear it
-        // THIS IS IGNORED IN signal.c CURRENTLY
+        // Note: This is ignored in seqio/signal.c currently
     }
     */
 
@@ -104,7 +99,7 @@ short attention(void)                                                           
     return s;                                                                   // return whatever
 }
 
-// DoInfo() - look after a <Control-T>
+// DoInfo - look after a <Control-T>
 void DoInfo(void)
 {
     int         i;                                                              // a handy int
@@ -119,7 +114,7 @@ void DoInfo(void)
     i += sprintf(&ct[i],"%d", (int) (partab.jobtab - partab.job_table) + 1);
     i += sprintf(&ct[i]," (%d) ", partab.jobtab->pid);
     p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam;           // point at routine name
-    for (j = 0; (j < VAR_LEN) && p[j]; ct[i++] = p[j++]) continue;              // copy it
+    for (j = 0; (j < VAR_LEN) && p[j]; ct[i++] = p[j++]) {}                     // copy it
     i += sprintf(&ct[i]," Cmds: %u ", partab.jobtab->commands);
     i += sprintf(&ct[i],"Grefs: %u ", partab.jobtab->grefs);
     var = &partab.jobtab->last_ref;                                             // point at $R
@@ -141,15 +136,17 @@ void DoInfo(void)
 
 /*
  * The ForkIt subroutine, forks another RSM process
+ *
  * Returns:  Success (parent) M job number of child
  *           Success (child) -M job number of parent
  *           Failure 0 (zot)
  *
- *     cft = 0 JOB
- *           1 FORK ($&%FORK or TCP FORK)
- *          -1 Daemons (do not copy file table)
+ *    cft = -1 Daemons (do not copy file table - FreeBSD)
+ *           0 JOB
+ *           1 TCP FORK
+ *           2 $&%FORK
  */
-int ForkIt(int cft)                                                             // Copy File Table True/False
+int ForkIt(int cft)                                                             // Copy File Table
 {
     int          i;                                                             // a handy int
     int          ret;                                                           // and another
@@ -171,15 +168,7 @@ int ForkIt(int cft)                                                             
         }
     }
 
-#ifdef __FreeBSD__
-    if (cft > -1) {
-        ret = RFPROC | RFNOWAIT | RFFDG;                                        // if it is a fork or JOB then copy the file table
-    } else {
-        ret = RFPROC | RFNOWAIT | RFCFDG;                                       // default - no copy FT
-    }
-#endif
-
-    if (cft > -1) {                                                             // not a daemon
+    if (cft != -1) {                                                            // not a daemon
         i = SemOp(SEM_SYS, SEM_WRITE);                                          // lock systab
         if (i < 0) return 0;                                                    // quit on error
 
@@ -196,10 +185,18 @@ int ForkIt(int cft)                                                             
         }
     }
 
+    if (cft != 2) setSignal(SIGCHLD, IGNORE);                                   // ignore child termination (except for $&%FORK)
 #ifdef __FreeBSD__                                                              // for FreeBSD
+    ret = RFPROC | RFNOWAIT;
+
+    if (cft == -1) {
+        ret |= RFCFDG;                                                          // default - don't copy file table
+    } else {
+        ret |= RFFDG;                                                           // if it is a fork or JOB then copy the file table
+    }
+
     i = rfork(ret);                                                             // create new process
 #else                                                                           // Linux, macOS, et al.
-    signal(SIGCHLD, SIG_IGN);                                                   // try this
     i = fork();
 #endif
 
@@ -211,18 +208,18 @@ int ForkIt(int cft)                                                             
     if (cft == -1) {                                                            // daemons
         if (!i) {                                                               // child
             j = freopen("/dev/null", "r", stdin);                               // redirect stdin
-            if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
             j = freopen("/dev/null", "w", stdout);                              // redirect stdout
-            if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
             j = freopen("/dev/null", "w", stderr);                              // redirect stderr
-            if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
+            if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
         }
 
         return i;
     }
 
     if (i == -1) {                                                              // fail ?
-        fprintf(stderr, "fork() errno = %d - %s\n", errno, strerror(errno));
+        fprintf(stderr, "ForkIt: fork() errno = %d - %s\n", errno, strerror(errno));
         SemOp(SEM_SYS, -SEM_WRITE);                                             // unlock
         return 0;                                                               // return fail
     } else if (i > 0) {                                                         // the parent ?
@@ -251,7 +248,7 @@ int ForkIt(int cft)                                                             
 
     if (cft) {                                                                  // fork type?
         i = SemOp(SEM_ROU, SEM_WRITE);                                          // grab the routine semaphore
-        if (i < 0) panic("Can't get SEM_ROU in ForkIt()");                      // die on fail
+        if (i < 0) panic("ForkIt: Can't get SEM_ROU semaphore)");               // die on fail
 
         for (i = partab.jobtab->cur_do; i > 0; i--) {                           // scan all do frames
             if (partab.jobtab->dostk[i].flags & DO_FLAG_ATT) {
@@ -263,18 +260,18 @@ int ForkIt(int cft)                                                             
         return ret;                                                             // return -parent job#
     }
 
-    for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) continue;                        // close all open files (job type)
+    for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) {}                               // close all open files (job type)
     j = freopen("/dev/null", "r", stdin);                                       // redirect stdin
-    if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stdout);                                      // redirect stdout
-    if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stderr);                                      // redirect stderr
-    if (j == NULL) fprintf(stderr, "freopen() errno = %d - %s\n", errno, strerror(errno));
+    if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
     return ret;                                                                 // return -parent job#
 }
 
-// SchedYield()
-void SchedYield(u_char sleep)                                                   // do a sched_yield() or a nanosleep() or nothing
+// SchedYield
+void SchedYield(u_char sleep)                                                   // do a sched_yield or a nanosleep or nothing
 {
     struct timespec time = {                                                    // 10ms sleep
         .tv_sec = 0,

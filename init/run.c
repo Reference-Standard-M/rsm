@@ -28,25 +28,21 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <signal.h>
+#include "init.h"                                                               // init prototypes
+#include "compile.h"
+#include "database.h"
+#include "error.h"                                                              // standard errors
+#include "opcode.h"
+#include "proto.h"                                                              // standard prototypes
 #include <errno.h>                                                              // error stuff
 #include <fcntl.h>                                                              // file stuff
+#include <signal.h>
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy
-#include <unistd.h>                                                             // database access
-#include <sys/ipc.h>                                                            // shared memory
-#include <sys/shm.h>                                                            // shared memory
-#include <sys/sem.h>                                                            // semaphores
 #include <termios.h>                                                            // for tcgetattr
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
-#include "init.h"                                                               // initialization prototypes
-#include "error.h"                                                              // standard errors
-#include "compile.h"
-#include "opcode.h"
-#include "database.h"
+#include <unistd.h>                                                             // database access
+#include <sys/shm.h>                                                            // shared memory
 
 partab_struct  partab;                                                          // setup partab
 systab_struct  *systab;
@@ -105,7 +101,7 @@ ENABLE_WARN
 *   -e environment (UCI)    (1 to VAR_LEN)        Opt *
 *   -x xecute command       (1 to MAX_STR_LEN)    Opt *
 \*****************************************************/
-int INIT_Run(char *file, const char *env, char *cmd)
+int init_run(char *file, const char *env, char *cmd)
 {
     int          i;                                                             // an int
     int          t;                                                             // for functions
@@ -139,10 +135,10 @@ start:
             return errno;
         }
 
-        i = UTIL_Share(file);                                                   // attach to shared memory
+        i = UTIL_Share(file, 0);                                                // attach to shared memory
 
         if (i != 0) {                                                           // quit on error
-            fprintf(stderr, "RSM environment is not initialized.\n");
+            fprintf(stderr, "RSM environment is not initialized\n");
             return i;
         }
     }

@@ -298,6 +298,7 @@ BP ; Show current debugging breakpoints and handlers
 
 %DED
 %DED ; Edit a document using $EDITOR
+ new doc
  read !,"Document: ",doc,! quit:doc=""  do INT(doc) quit
 ;---
 INT(doc,ro) new file,f,ui,%d,%v,%l,%,zr set zr="INT^%DED",ro=$get(ro)
@@ -483,7 +484,7 @@ S1 new %dt
 %G
 %G ; Global Extended Lister
  new  ; General Stack
- set $etrap="do ERR^%G" for  do RGLB quit:%g=""  write ! do GO
+ new $etrap set $etrap="do ERR^%G" for  do RGLB quit:%g=""  write ! do GO
 ;---
 EXIT write ! quit
 ;---
@@ -614,6 +615,7 @@ INT(fl,pat,uci,st,end,g) new %,f,l,zr set zr="INT^%GD"
 
 %GE
 %GE ; Global efficiency
+ new g
  read !,"Global: ^",g,! quit:g=""  do INT(g) quit
 ;---
 INT(g) new %,uci,b,nb,all,fre,l,ta,tu,siz,isd,zr set zr="INT^%GE"
@@ -902,6 +904,7 @@ INT(j) new %,zr set zr="INT^%SS",j=$&e(j) if j="" write "Show LOCKS, SYSTEM or J
  . write "Database reads - Logical: ",j,"  Physical: ",%
  . write:j "  Cache hits: ",$justify((j-%)/j*100,0,2),"%" write !
  ; Show JOB #
+ if j'?1.N!(j<1)!(j>^$job) quit
  write "       Job: "_j if '$data(^$job(j)) write " No such job",! quit
  write "   PID: "_^$job(j,"pid")_"   User: "_^$job(j,"owner")
  write "   Priority: "_^$job(j,"priority"),! set %=^$job(j,"process_start")
@@ -1636,6 +1639,7 @@ OUT write $piece($horolog,",",2)-a-^OVR," seconds for: " quit
 
 COMPRESS
 COMPRESS ; Compress a specific global on-line
+ new g
  read !,"Compress which Global: ^",g,! quit:g=""
  write "Priority being lowered to 20 (the lowest)",! set ^$job($job,"priority")=20
  do INT(g) quit
@@ -1648,7 +1652,7 @@ INT(g) new %,lev,zr,$etrap set zr="INT^COMPRESS",$etrap="do ^%ET",lev=15
 
 DECOMP
 DECOMP ; Decompile an RSM routine
- new  read !,"Routine: ",rou,! quit:rou=""
+ new rou,c read !,"Routine: ",rou,! quit:rou=""
  set c=$get(^$routine(rou,0)) if c="" write "?No such routine as ",rou,! quit
  write "Decompile of ",rou,! do INT(c) quit
 ;---
@@ -1784,7 +1788,7 @@ FIX ; Fix Database
  new dtyp,dgd,d,k,blk,cmd,lcmd,bsiz,i,vol,$estack,$etrap set $etrap="do ERR^FIX"
  set vol=^$job($job,"global_vol"),vol=-vol
  new varlen,hdrsize,idx,long set varlen=$get(^$system("name_length"),8),hdrsize=varlen+12,idx=hdrsize/2,long=0
- set ^$system("vol",-vol,"writelock")=1 write !,"Writelocking the database"
+ set ^$system("vol",-vol,"writelock")=1 write !,"Writelocking the database for volume "_-vol
  for  write "." quit:^$system("vol",-vol,"writelock")>0  hang 1
 ;---
 ; Get some input
@@ -1806,7 +1810,7 @@ ASK new %
  . write "Write enabling disk... " set ^$system("vol",-vol,"writelock")=0
  . ; Do it
  . do INT^%BLKDMP(-vol,blk_$select(long:"+",1:""),"^%DUMP") write "dumped to ^%DUMP()",!
- . set ^$system("vol",-vol,"writelock")=1 write "Writelocking the database"
+ . set ^$system("vol",-vol,"writelock")=1 write !,"Writelocking the database for volume "_-vol
  . for  write "." quit:^$system("vol",-vol,"writelock")>0  hang 1
  ; Check for Environment (UCI)
  if $extract(cmd)="E" do  goto ASK
@@ -2141,7 +2145,7 @@ IC
 IC ; Check database integrity
  new $etrap set $etrap="do ERR^IC"
  new er,vol set vol=^$job($job,"global_vol")
- set ^$system("vol",vol,"writelock")=1 write !,"Writelocking the database"
+ set ^$system("vol",vol,"writelock")=1 write !,"Writelocking the database for volume "_vol
  for  write "." quit:^$system("vol",vol,"writelock")>0  hang 1
  write !,"Checking Database..",! set er=$&%ic(vol,0)
  write ! write:er er write $select(er=0:"NO errors",er>1:" errors",1:" error")," found.",!
@@ -2185,7 +2189,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  . else  set end=999999999999
  else  set start=0,end=999999999999
  set quit=0
- write !,"Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
+ write !,"Date/Time",?25,"Action",?33,"UCI",?38,"Reference/Data",!
  ; Scan the file
  for  do  quit:off'<offset!quit
  . ; Get the fixed fields
@@ -2196,7 +2200,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  . set action=$select(action=5:"KILL",action=4:"SET",action=3:"ESTOP",action=2:"STOP",action=1:"START",'action:"CREATE")
  . ; Write the first bit
  . if epoch'>end&(epoch'<start) do
- . . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?24,action write:uci ?31,uci
+ . . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?25,action write:uci ?33,uci
  . . if size=timelen write !
  . ; If a "small" one, that's all
  . if size=timelen set off=off+size quit
@@ -2211,7 +2215,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  . ; Get the key
  . set key=$$FULLUNK^FIX1($extract(data,1,slen)),data=$extract(data,slen+1,99999)
  . ; Write the key - quit if not SET
- . set ref="^"_name_$select(slen:"("_key_")",1:"") write ?35,ref if action'="SET" write ! quit
+ . set ref="^"_name_$select(slen:"("_key_")",1:"") write ?38,ref if action'="SET" write ! quit
  . ; Extract the data
  . set dbc=$$CVT($extract(data,1,2)),data=$$DISP^%U($extract(data,3,dbc+2),long)
  . ; Finally the data (if any)
@@ -2263,7 +2267,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  read "Do you want verbose output of the journal recovery process? ([N]/Y): ",verbose write !!
  set verbose=$select($extract($translate(verbose,"yn","YN"))="Y":1,1:0)
  set quit=0,type=$select($extract(type)="S":"SET",$extract(type)="K":"KILL",1:"BOTH")
- if verbose write "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
+ if verbose write "Date/Time",?25,"Action",?33,"UCI",?38,"Reference/Data",!
  set (setcnt,killcnt)=0
  ; Scan the file
  for  do  quit:off'<offset!quit
@@ -2277,7 +2281,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  . if action'="SET"&(action'="KILL") set off=off+size quit
  . ; Write the first bit
  . if verbose,epoch'>end&(epoch'<start)&(type=action!(type="BOTH")) do
- . . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?24,action write:uci ?31,uci
+ . . write $$D^%D(+time)," ",$$T^%T($piece(time,",",2)),?25,action write:uci ?33,uci
  . ; If a "small" one, that's all
  . if size=timelen set off=off+size write:verbose ! quit
  . ; Get the rest of the record
@@ -2292,7 +2296,7 @@ ASK new file,ans,data,action,uci,size,name,time,ext,off,offset,magic,varlen,time
  . ; Get the key
  . set key=$$FULLUNK^FIX1($extract(data,1,slen)),data=$extract(data,slen+1,99999)
  . ; Write the key if verbose on - quit if not SET
- . set ref="^"_name_$select(slen:"("_key_")",1:"") write:verbose ?35,ref if action'="SET" write:verbose !
+ . set ref="^"_name_$select(slen:"("_key_")",1:"") write:verbose ?38,ref if action'="SET" write:verbose !
  . ; Finally kill the data (if any)
  . if action="KILL"&(type="KILL"!(type="BOTH")) kill @ref set killcnt=$increment(killcnt) quit
  . ; Extract the data

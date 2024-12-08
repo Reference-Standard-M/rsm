@@ -37,7 +37,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 == ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 [.lead]
-*Version 1.82.2 - 2024 Oct 26*
+*Version 1.82.3 - 2024 Dec 8*
 
 === Copyright and License
 
@@ -156,7 +156,7 @@ Install the `rsm` executable to a different bin directory [/usr/bin], and the
 
 [source,bash]
 ----
-$ sudo make install PREFIX=/usr
+$ sudo make install prefix=/usr
 ----
 
 Clean up the build environment after installation:
@@ -180,7 +180,7 @@ the `utils.rsm` utilities from a different rsm directory [/usr/share/rsm]:
 
 [source,bash]
 ----
-$ sudo make uninstall PREFIX=/usr
+$ sudo make uninstall prefix=/usr
 ----
 
 Install the documentation (asciidoc/man page) to the default rsm and man1
@@ -196,11 +196,11 @@ directories [/usr/share/doc/rsm, /usr/share/man/man1]:
 
 [source,bash]
 ----
-$ sudo make install-docs PREFIX=/usr
+$ sudo make install-docs prefix=/usr
 ----
 
-NOTE: On macOS and AIX, you might have to add `PREFIX/man` to the `MANPATH`
-environment variable for the `rsm` man page to be available
+NOTE: On macOS and AIX, you might have to add the path that `make install-docs`
+installed the `rsm` man page in, to the `MANPATH` environment variable
 
 Uninstall the documentation (asciidoc/man page) from the default rsm and man1
 directories [/usr/local/share/doc/rsm, /usr/local/share/man/man1]:
@@ -215,13 +215,10 @@ directories [/usr/share/doc/rsm, /usr/share/man/man1]:
 
 [source,bash]
 ----
-$ sudo make uninstall-docs PREFIX=/usr
+$ sudo make uninstall-docs prefix=/usr
 ----
 
 === Usage
-
-NOTE: Set the environment variable `RSM_DBFILE` to the database file path to
-avoid having to pass it to `rsm`
 
 Output a short version string:
 
@@ -236,6 +233,9 @@ Output a helpful options menu:
 ----
 $ rsm -h
 ----
+
+NOTE: Set the environment variable `RSM_DBFILE` to the database file path to
+avoid having to pass it to `rsm`
 
 To use RSM, create a database:
 
@@ -254,7 +254,7 @@ $ rsm -v TST -b 16 -s 4096 tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm -v TST -b 16 -s 4096
 ----
 
@@ -276,7 +276,7 @@ $ rsm -j 12 tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm -j 12
 ----
 
@@ -331,7 +331,7 @@ $ rsm -i tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm -i
 ----
 
@@ -349,7 +349,7 @@ $ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code' tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'
 ----
 
@@ -367,7 +367,7 @@ $ rsm tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm
 ----
 
@@ -387,7 +387,7 @@ $ rsm -x "do ^%M" tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm -x "do ^%M"
 ----
 
@@ -410,7 +410,7 @@ $ rsm -k tst.dat
 or
 [source,bash]
 ----
-$ export RSM_DBFILE="/home/user/rsm/tst.dat"
+$ export RSM_DBFILE="/home/user/tst.dat"
 $ rsm -k
 ----
 
@@ -426,13 +426,6 @@ If `utils.rsm` has been loaded:
 [source,cos]
 ----
 RSM [MGR,TST]> do ^SSD
-----
-
-From within the MCL shell:
-
-[source,cos]
-----
-MCL [MGR,TST]> shutdown
 ----
 
 === Docker Container

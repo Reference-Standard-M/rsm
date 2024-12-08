@@ -31,6 +31,8 @@
 #ifndef RSM_COMPILE_H
 #define RSM_COMPILE_H
 
+#include "rsm.h"                                                                // standard RSM includes
+
 // Compile undefined special variable error
 #define UNVAR { \
     comperror(-ERRM8); \

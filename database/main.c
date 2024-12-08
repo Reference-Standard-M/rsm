@@ -28,22 +28,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
+#include "database.h"                                                           // database protos
+#include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
+#include <errno.h>                                                              // errno
+#include <fcntl.h>                                                              // for file stuff
+#include <signal.h>                                                             // for kill
 #include <stddef.h>                                                             // for offsetof
-#include <stdlib.h>                                                             // these two
+#include <stdlib.h>                                                             // always include
 #include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
-#include <fcntl.h>                                                              // for file stuff
-#include <ctype.h>                                                              // for GBD stuff
-#include <errno.h>                                                              // errno
-#include <signal.h>                                                             // for kill
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
 
 int     curr_lock;                                                              // lock on globals
 mvar    db_var;                                                                 // local copy of var
@@ -72,10 +66,10 @@ int     hash_start = 0;                                                         
  *
  * Note:     No locks are held at this stage.
  */
-short Copy2local(const mvar *var)
+static short Copy2local(const mvar *var)
 {
     partab.jobtab->grefs++;                                                     // count global ref
-    for (int i = 0; i < MAXTREEDEPTH; blk[i++] = NULL) continue;                // clear blk[]
+    for (int i = 0; i < MAXTREEDEPTH; blk[i++] = NULL) {}                       // clear blk[]
     curr_lock = 0;                                                              // ensure this is clear
     writing = 0;                                                                // assume reading
     level = -1;                                                                 // no claimed GBDs yet
@@ -396,7 +390,7 @@ short DB_Order(const mvar *var, u_char *buf, int dir)                           
         }
     }                                                                           // end forwards
 
-    for (u_int i = IDX_START; i <= Index; i++) {                                // scan to current
+    for (u_int i = IDX_START; i <= Index; i++) {                                // scan to current (key compression)
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
@@ -483,7 +477,7 @@ short DB_Query(mvar *var, u_char *buf, int dir)                                 
         }
     }
 
-    for (u_int i = IDX_START; i <= Index; i++) {                                // scan to current
+    for (u_int i = IDX_START; i <= Index; i++) {                                // scan to current (key compression)
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
@@ -546,7 +540,7 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
     }
 
     /*
-    for (u_int i = IDX_START; i <= Index; i++) {                                // scan to current
+    for (u_int i = IDX_START; i <= Index; i++) {                                // scan to current (key compression)
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size

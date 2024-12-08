@@ -28,16 +28,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
+#include "database.h"                                                           // database protos
+#include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
 #include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // leopard seems to want this
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
 
 /*
  * Function: Kill_data
@@ -85,9 +80,7 @@ cont:
     t = Get_data(0);                                                            // attempt to get it
     if ((t < 0) && (t != -ERRM7)) return (short) t;                             // error, not undef then return it
 
-    if ((SOA(partab.vol[volnum]->vollab)->journal_available) &&
-      (SOA(partab.vol[volnum]->vollab)->journal_requested) &&
-      (partab.jobtab->last_block_flags & GL_JOURNAL)) {                         // if journaling
+    if ((SOA(partab.vol[volnum]->vollab)->journal_available) && (partab.jobtab->last_block_flags & GL_JOURNAL)) { // if journaling
         jrnrec jj;                                                              // jrn structure
         jj.action = JRN_KILL;                                                   // doing kill
         jj.uci = db_var.uci;                                                    // copy UCI
@@ -157,7 +150,7 @@ cont:
         return (short) t;                                                       // return it
     }                                                                           // WARNING: This leaves blocks reserved
 
-    if (rlevel != level) panic("Kill_data: left level not equal to right level"); // check this, if not correct, die
+    if (rlevel != level) panic("Kill_data: Left level not equal to right level"); // check this, if not correct, die
 
     for (level = 0; level < rlevel; level++) {                                  // scan the levels
         if (blk[level + 1] != rblk[level + 1]) break;                           // check following level and end loop

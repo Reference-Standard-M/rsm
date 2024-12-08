@@ -31,23 +31,25 @@
 #ifndef RSM_INIT_H
 #define RSM_INIT_H
 
+#include "rsm.h"                                                                // standard RSM includes
+
 #define MAX_GROUPS  32                                                          // max number of UNIX groups
 
 /*
- * @function {public} INIT_Create_File
+ * @function {public} init_create
  * @summary Create a database volume
  * @param {u_int} blocks (100-MAX_DATABASE_BLKS) - The initial size of the database in blocks
  * @param {u_int} bsize (1-256) - The block size for the database
  * @param {u_int} map (0-MAX_MAP_SIZE) - The size of the map block (database label header + block bitmap)
- * @param {char *} volnam (1-32 alpha) - The name of the volume
- * @param {char *} env (1-32 alpha) - The name of the manager UCI (default is MGR)
+ * @param {const char *} volnam (1-32 alpha) - The name of the volume
+ * @param {const char *} env (1-32 alpha) - The name of the manager UCI (default is MGR)
  * @param {char *} file (1-VOL_FILENAME_MAX) - The database file path
  * @returns {int} (0|-1|errno) - The return code representing success or failure
  */
-int INIT_Create_File(u_int blocks, u_int bsize, u_int map, char *volnam, char *env, char *file);
+int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file);
 
 /*
- * @function {public} INIT_Start
+ * @function {public} init_start
  * @summary Create and start an environment
  * @param {char *} file (1-VOL_FILENAME_MAX) - The database file path
  * @param {u_int} jobs (1-1024) - The number of jobs allocated for the environment
@@ -56,17 +58,17 @@ int INIT_Create_File(u_int blocks, u_int bsize, u_int map, char *volnam, char *e
  * @param {u_int} addmb - The size of the additional buffers
  * @returns {int} (0|-1|errno) - The return code representing success or failure
  */
-int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb);
+int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb);
 
 /*
- * @function {public} INIT_Run
+ * @function {public} init_run
  * @summary Start a job
  * @param {char *} file (1-VOL_FILENAME_MAX) - The database file path
  * @param {const char *} env (1-32 alpha) - The name of job's initial UCI (default is UCI 1)
  * @param {char *} cmd (1-ARG_MAX) - A string of M commands to be Xecuted
  * @returns {int} (0|-1|errno) - The return code representing success or failure
  */
-int INIT_Run(char *file, const char *env, char *cmd);
+int init_run(char *file, const char *env, char *cmd);
 
 // Initialize the symbol table
 void ST_Init(void);                                                             // empty symbol table

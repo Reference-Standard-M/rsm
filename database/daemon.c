@@ -28,28 +28,22 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memcpy
-#include <unistd.h>                                                             // for file reading
-#include <time.h>                                                               // for ctime
-#include <ctype.h>                                                              // for GBD stuff
+#include "database.h"                                                           // database protos
+#include "proto.h"                                                              // standard prototypes
 #include <errno.h>                                                              // for errors
 #include <fcntl.h>                                                              // for file stuff
 #include <signal.h>                                                             // for kill()
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
+#include <string.h>                                                             // for memcpy
+#include <time.h>                                                               // for ctime
+#include <unistd.h>                                                             // for file reading
+#include <sys/sem.h>                                                            // for semaphores
 #include <sys/shm.h>
 #include <sys/stat.h>                                                           // for mkdir()
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
 
 int  dbfd;                                                                      // global DB file descriptor
 int  myslot;                                                                    // my slot in WD table
-void ic_map(int flag);                                                          // check the map
 
 /*
  * Function: daemon_check
@@ -57,11 +51,11 @@ void ic_map(int flag);                                                          
  * Input(s): None
  * Return:   None
  */
-void daemon_check(void)                                                         // ensure all running
+static void daemon_check(void)                                                  // ensure all running
 {
     int i;                                                                      // a handy int
 
-    while (SemOp(SEM_WD, SEM_WRITE)) continue;                                  // lock WD
+    while (SemOp(SEM_WD, SEM_WRITE)) {}                                         // lock WD
 
     for (i = 0; i < partab.vol[volnum]->num_of_daemons; i++) {
         if (i != myslot) {                                                      // don't check self
@@ -82,7 +76,7 @@ void daemon_check(void)                                                         
  * Input(s): None
  * Return:   None
  */
-void do_write(void)                                                             // write GBDs
+static void do_write(void)                                                      // write GBDs
 {
     off_t file_off;                                                             // for lseek() et al
     int   i;                                                                    // a handy int
@@ -90,7 +84,7 @@ void do_write(void)                                                             
     gbd   *lastptr = NULL;                                                      // for the GBD
 
     gbdptr = partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata;                // get the gbdptr from daemon table
-    if (!gbdptr) panic("do_write: write message GBD is NULL");                  // check for null
+    if (!gbdptr) panic("do_write: Write message GBD is NULL");                  // check for null
     if (curr_lock == 0) SemOp(SEM_GLOBAL, SEM_READ);                            // if we need a lock then take a read lock
 
     while (TRUE) {                                                              // until we break
@@ -106,14 +100,14 @@ void do_write(void)                                                             
 
             if (file_off < 1) {
                 partab.vol[volnum]->stats.diskerrors++;                         // count an error
-                panic("lseek failed in do_write()!!");                          // die on error
+                panic("do_write: lseek() failed!!");                            // die on error
             }
 
             i = write(dbfd, gbdptr->mem, partab.vol[volnum]->vollab->block_size); // write it
 
             if (i < 0) {
                 partab.vol[volnum]->stats.diskerrors++;                         // count an error
-                panic("write failed in do_write()!!");                          // die on error
+                panic("do_write: write() failed!!");                            // die on error
             }
 
             partab.vol[volnum]->stats.phywt++;                                  // count a write
@@ -149,7 +143,7 @@ void do_write(void)                                                             
  * Input(s): Block number to free
  * Return:   None
  */
-void do_free(u_int gb)                                                          // free from map et al
+static void do_free(u_int gb)                                                   // free from map, et al.
 {
     gbd *ptr;                                                                   // GBD ptr
 
@@ -186,7 +180,7 @@ void do_free(u_int gb)                                                          
  * Input(s): Block number to zot
  * Return:   Negative error number or type byte of block zotted
  */
-int do_zot(u_int gb)                                                            // zot block
+static int do_zot(u_int gb)                                                     // zot block
 {
     u_int    u;                                                                 // a handy int
     int      ret;                                                               // for returns
@@ -206,7 +200,7 @@ int do_zot(u_int gb)                                                            
     // file offset of block to zot
     file_off = (off_t) (gb - 1) * partab.vol[volnum]->vollab->block_size + partab.vol[volnum]->vollab->header_bytes;
 
-    while(SemOp(SEM_GLOBAL, SEM_READ)) continue;                                // take a global lock
+    while(SemOp(SEM_GLOBAL, SEM_READ)) {}                                       // take a global lock
     ptr = partab.vol[volnum]->gbd_hash[gb & (GBD_HASH - 1)];                    // get the head
 
     while (ptr != NULL) {                                                       // for entire list
@@ -304,7 +298,7 @@ zotit:
  * Input(s): None
  * Return:   None
  */
-void do_garb(void)                                                              // garbage collect
+static void do_garb(void)                                                       // garbage collect
 {
     u_int gb;                                                                   // block being garbed
 
@@ -326,14 +320,14 @@ void do_garb(void)                                                              
  * Input(s): None
  * Return:   None
  */
-void do_dismount(void)                                                          // dismount volnum
+static void do_dismount(void)                                                   // dismount volnum
 {
     int     cnt;                                                                // and another
     int     pid;                                                                // for jobs
     time_t  t;                                                                  // for ctime()
     struct  shmid_ds sbuf;                                                      // for shmctl
 #ifdef __APPLE__
-    void    *semvals = NULL;
+    void    *semvals = NULL;                                                    // dummy for semctl IPC_RMID
 #else
     semun_t semvals = {.val = 0};                                               // dummy for semctl IPC_RMID
 #endif
@@ -391,12 +385,10 @@ void do_dismount(void)                                                          
     }                                                                           // end wait for daemons
 
     pid = partab.vol[volnum]->wd_tab[myslot].pid;
-    t = current_time(FALSE);                                                    // for ctime()
-
-    fprintf(stderr, "%s [%7d]: Daemon %2d writing out clean flag as clean\n", strtok(ctime(&t), "\n"), pid, myslot); // operation
-
-    fflush(stderr);                                                             // flush to the file
     partab.vol[volnum]->vollab->clean = 1;                                      // set database as clean
+    t = current_time(FALSE);                                                    // for ctime()
+    fprintf(stderr, "%s [%7d]: Daemon %2d writing out clean flag as clean\n", strtok(ctime(&t), "\n"), pid, myslot); // operation
+    fflush(stderr);                                                             // flush to the file
 
     if (lseek(dbfd, 0, SEEK_SET) == (off_t) -1) {                               // seek to start of file
         fprintf(stderr, "do_dismount lseek() error: %d - %s\n", errno, strerror(errno));
@@ -430,11 +422,10 @@ void do_dismount(void)                                                          
  * Input(s): None
  * Return:   None
  */
-void do_daemon(void)                                                            // do something
+static void do_daemon(void)                                                     // do something
 {
     int    i;                                                                   // handy int
     int    j;                                                                   // and another
-    int    pid;
     time_t t;                                                                   // for ctime()
 
 start:
@@ -477,7 +468,7 @@ start:
             partab.vol[volnum]->writelock = abs(partab.vol[volnum]->writelock);
         }                                                                       // end write lock
 
-        while (SemOp(SEM_WD, SEM_WRITE)) continue;                              // lock WD
+        while (SemOp(SEM_WD, SEM_WRITE)) {}                                     // lock WD
 
         if (partab.vol[volnum]->dirtyQ[partab.vol[volnum]->dirtyQr] != NULL) {  // any writes?
             partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata = partab.vol[volnum]->dirtyQ[partab.vol[volnum]->dirtyQr]; // get
@@ -496,27 +487,28 @@ start:
         SemOp(SEM_WD, -SEM_WRITE);                                              // release WD lock
     }                                                                           // end looking for work
 
-    pid = partab.vol[volnum]->wd_tab[myslot].pid;
 
     if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_NOTHING) {
         if (partab.vol[volnum]->dismount_flag) {                                // dismounting?
             if (myslot) {                                                       // first?
-                partab.vol[volnum]->wd_tab[myslot].pid = 0;                     // say gone
+                int pid;
+
+                pid = partab.vol[volnum]->wd_tab[myslot].pid;
                 t = current_time(FALSE);                                        // for ctime()
 
                 fprintf(stderr,"%s [%7d]: Daemon %2d stopped and detached from %s\n",
                         strtok(ctime(&t), "\n"), pid, myslot, partab.vol[volnum]->file_name); // stopping
 
                 fflush(stderr);                                                 // flush to the file
-                exit(EXIT_SUCCESS);                                             // and exit
+            } else {
+                do_dismount();                                                  // dismount it
             }
 
-            do_dismount();                                                      // dismount it
             partab.vol[volnum]->wd_tab[myslot].pid = 0;                         // say gone
             exit(EXIT_SUCCESS);                                                 // and exit
-        } else {                                                                // end dismount code
-            return;                                                             // nothing to do
         }
+
+        return;                                                                 // nothing to do
     }
 
     if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_WRITE) {
@@ -560,7 +552,7 @@ int DB_Daemon(int slot, int vol)                                                
 
     // -- Create log file name --
     k = strlen(partab.vol[volnum]->file_name);                                  // get len of filename
-    for (i = (k - 1); (partab.vol[volnum]->file_name[i] != '/') && (i > -1); i--) continue; // find last '/'
+    for (i = (k - 1); (partab.vol[volnum]->file_name[i] != '/') && (i > -1); i--) {} // find last '/'
     strncpy(logfile, partab.vol[volnum]->file_name, i + 1);                     // copy to log filename
     logfile[i + 1] = (char) '\0';                                               // terminate for strlen
     sprintf(&logfile[strlen(logfile)], "log/");                                 // add the log directory to the file path

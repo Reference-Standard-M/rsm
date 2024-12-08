@@ -8,7 +8,7 @@
       <a class="navbar-item" href="{{{or site.url siteRootPath}}}">{{site.title}}</a>
       {{#if env.SITE_SEARCH_PROVIDER}}
       <div class="navbar-item search hide-for-print">
-        <div id="search-field" class="field" style="margin-right:auto">
+        <div id="search-field" class="field">
           <input id="search-input" type="text" placeholder="Search the docs"{{#if page.home}} autofocus{{/if}}>
         </div>
       </div>
@@ -21,15 +21,18 @@
     </div>
     <div id="topbar-nav" class="navbar-menu">
       <div class="navbar-end">
-        <a class="navbar-item" href="https://rsmlang.com/" style="margin-left:auto">RSM Website</a>
         <div class="navbar-item has-dropdown is-hoverable">
-          <div class="navbar-link">Resources</div>
+          <a class="navbar-link" href="#">Resources</a>
           <div class="navbar-dropdown">
-            <a class="navbar-item" href="https://gitlab.com/dlwicksell/rsm-test/">Git Repository</a>
-            <a class="navbar-item" href="https://fourthwatchsoftware.com/">Fourth Watch Software</a>
+            <a class="navbar-item" href="https://rsmlang.com/">Website</a>
+            <a class="navbar-item" href="https://gitlab.com/reference-standard-m/rsm">Repository</a>
+            <a class="navbar-item" href="https://gitlab.com/reference-standard-m/rsm/-/issues">Issues</a>
           </div>
         </div>
-        <img class="navbar-item" src="https://fourthwatchsoftware.com/images/fws-logo-horizontal.png" style="max-width:50%" alt="">
+        <a class="navbar-item" href="https://fourthwatchsoftware.com/">Fourth Watch Software</a>
+        <div class="navbar-item">
+          <img class="icon" src="https://fourthwatchsoftware.com/images/fwslc-icon.png" alt="Fourth Watch Icon">
+        </div>
       </div>
     </div>
   </nav>

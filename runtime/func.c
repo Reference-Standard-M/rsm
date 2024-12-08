@@ -28,20 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <limits.h>                                                             // for LONG_MAX etc.
-#include <math.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // standard errors
 #include "database.h"                                                           // for GBD def
-
-#ifdef linux
+#include "error.h"                                                              // standard errors
+#include "proto.h"                                                              // standard prototypes
+#include <ctype.h>
+#include <stdlib.h>                                                             // always include
+#include <string.h>
+#ifdef __linux__
 #   include <values.h>
 #endif
 
@@ -119,17 +112,17 @@ int Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)
 }
 
 // $FIND(expr1,expr2[,int])
-int Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2)
+int Dfind2(u_char *ret_buffer, const cstring *expr1, const cstring *expr2)
 {
     return Dfind3(ret_buffer, expr1, expr2, 1);
 }
 
-int Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start)
+int Dfind3(u_char *ret_buffer, const cstring *expr1, const cstring *expr2, int start)
 {
     return ltocstring(ret_buffer, Dfind3x(expr1, expr2, start));                // eval into buffer and return length
 }
 
-int Dfind3x(cstring *expr1, cstring *expr2, int start)
+int Dfind3x(const cstring *expr1, const cstring *expr2, int start)
 {
     int ret = 0;                                                                // return value
 
@@ -404,7 +397,9 @@ int Dfnumber3(u_char *ret_buffer, cstring *numexp, const cstring *code, int rnd)
     change = malloc(sizeof(short) + t + 1);
     change->len = t;
     memcpy(change->buf, ret_buffer, t + 1);
-    return Dfnumber2(ret_buffer, change, code);
+    t = Dfnumber2(ret_buffer, change, code);
+    free(change);
+    return t;
 }
 
 // $GET(variable[,expr])
@@ -571,7 +566,7 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
 
     spc = size - len - zer;                                                     // spaces required
     if (spc < 0) spc = 0;
-    for (i = 0; i < spc; ret_buffer[i++] = ' ') continue;                       // copy in spaces
+    for (i = 0; i < spc; ret_buffer[i++] = ' ') {}                              // copy in spaces
 
     if (expr->buf[0] == '-') {
         ret_buffer[i++] = '-';                                                  // copy minus
@@ -642,12 +637,12 @@ short Dlength1(u_char *ret_buffer, const cstring *expr)
     return (short) ultocstring(ret_buffer, expr->len);                          // just do it
 }
 
-short Dlength2(u_char *ret_buffer, cstring *expr, cstring *delim)
+short Dlength2(u_char *ret_buffer, const cstring *expr, const cstring *delim)
 {
     return (short) ltocstring(ret_buffer, Dlength2x(expr, delim));              // copy to buf and ret len
 }
 
-int Dlength2x(cstring *expr, cstring *delim)
+int Dlength2x(const cstring *expr, const cstring *delim)
 {
     int i;                                                                      // temp
     int j;                                                                      // index for delim
@@ -965,7 +960,7 @@ ENABLE_WARN
             if (job != (partab.jobtab - partab.job_table)) return 0;            // can't find in private memory of another job
             p = (u_char *) SOA(partab.job_table[job].dostk[level].routine);
             if (p == NULL) return 0;                                            // nothing there
-            for (i = 0; (ret_buffer[i] = p[i]); i++) continue;                  // copy it
+            for (i = 0; (ret_buffer[i] = p[i]); i++) {}                         // copy it
             return i;                                                           // return the count
         }
 
@@ -1285,7 +1280,7 @@ int DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2)
     t = Dget1(vptr->buf, var);                                                  // get current value
     if (t < 0) return t;                                                        // die on error
     vptr->len = (u_short) t;                                                    // save the size
-    for (int i = t; i < i1; vptr->buf[i++] = ' ') continue;                     // ensure enough spaces
+    for (int i = t; i < i1; vptr->buf[i++] = ' ') {}                            // ensure enough spaces
 
     if (t <= i2) {                                                              // if no trailing left
         t = mcopy(cptr->buf, &vptr->buf[i1 - 1], cptr->len);                    // copy it in

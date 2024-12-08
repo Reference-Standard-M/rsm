@@ -31,30 +31,233 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <limits.h>
-#include <string.h>
-#include <ctype.h>
-#include "opcode.h"                                                             // the op codes
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // standard errors
+#include "opcode.h"                                                             // the op codes
+#include "proto.h"                                                              // standard prototypes
+#include <limits.h>
+#include <stdlib.h>                                                             // always include
+#include <string.h>
 
-#define NUMBASE   10
-#define PLUS      '+'
-#define MINUS     '-'
-#define POINT     '.'
-#define point     (POINT - ZERO)
-#define ZERO      '0'
-#define ONE       (ZERO + 1)
-#define TWO       (ZERO + 2)
-#define THREE     (ZERO + 3)
-#define FIVE      (ZERO + (NUMBASE / 2))
-#define NINE      (ZERO + NUMBASE - 1)
-#define EOL       ((char) '\000')
-#define toggle(A) (A ^= 01)
+#define NUMBASE     10
+#define PLUS        '+'
+#define MINUS       '-'
+#define POINT       '.'
+#define ZERO        '0'
+#define Point       (POINT - ZERO)
+#define ONE         (ZERO + 1)
+#define TWO         (ZERO + 2)
+#define THREE       (ZERO + 3)
+#define FIVE        (ZERO + (NUMBASE / 2))
+#define NINE        (ZERO + NUMBASE - 1)
+#define EOL         ((char) '\000')
+#define TOGGLE(a)   (a ^= 01)
+
+// square root
+static int g_sqrt(char *a)
+{
+    char  tmp1[MAX_NUM_BYTES + 2];
+    char  tmp2[MAX_NUM_BYTES + 2];
+    char  XX[MAX_NUM_BYTES + 2];
+    char  XXX[MAX_NUM_BYTES + 2];
+
+    if (a[0] == ZERO) return 1;
+    if (a[0] == MINUS) return -ERRM9;
+    strcpy(XX, a);
+
+    // look for good initial value
+    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
+        int i = 0;
+        int ch;
+
+        while ((ch = a[i++]) != EOL) {
+            if (ch == POINT) break;
+        }
+
+        if ((i = (i + 1) / 2)) a[i] = EOL;
+    } else if (a[0] != ONE) {
+        a[0] = ONE;
+        a[1] = EOL;
+    }
+
+    // Newton's algorithm with quadratic convergence
+    partab.jobtab->precision++;
+
+    do {
+        short s;
+
+        strcpy(XXX, a);
+        strcpy(tmp1, XX);
+        strcpy(tmp2, a);
+        s = runtime_div(tmp1, tmp2, OPDIV);
+        if (s < 0) return s;
+        s = runtime_add(a, tmp1);
+        if (s < 0) return s;
+        tmp2[0] = TWO;
+        tmp2[1] = EOL;
+        s = runtime_div(a, tmp2, OPDIV);
+        if (s < 0) return s;
+    } while (runtime_comp(a, XXX));
+
+    partab.jobtab->precision--;
+    return (int) strlen(a);
+}                                                                               // end g_sqrt()
+
+// n.th root
+static int root(char *a, int n)
+{
+    int   i;
+    int   ch;
+    short s;
+    char  tmp1[MAX_NUM_BYTES + 2];
+    char  tmp2[MAX_NUM_BYTES + 2];
+    char  XX[MAX_NUM_BYTES + 2];
+    char  XXX[MAX_NUM_BYTES + 2];
+    short again;
+
+    if (a[0] == ZERO) return 1;
+    if (a[0] == MINUS || n == 0) return -ERRM9;
+    strcpy(XX, a);
+
+    // look for good initial value
+    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
+        i = 0;
+        while (((ch = a[i++]) != EOL) && (ch != POINT)) {}
+
+        if ((i = (i + n - 2) / n) > 0) {
+            a[0] = THREE;
+            a[i] = EOL;
+        }
+    } else if (a[0] != ONE) {
+        a[0] = ONE;
+        a[1] = EOL;
+    }
+
+    // Newton's algorithm with quadratic convergence
+    if (partab.jobtab->precision <= 3) {
+        again = 0;                                                              // speedup div with small precision
+    } else {
+        again = partab.jobtab->precision;
+        partab.jobtab->precision = 2;
+    }
+
+second:
+    partab.jobtab->precision++;
+
+    for (;;) {
+        strcpy(XXX, a);
+        s = ltocstring((u_char *) tmp1, n - 1);
+        if (s < 0) return s;
+        strcpy(tmp2, a);
+        s = runtime_power(tmp2, tmp1);
+        if (s < 0) return s;
+        strcpy(tmp1, XX);
+        s = runtime_div(tmp1, tmp2, OPDIV);
+        if (s < 0) break;
+        s = ltocstring((u_char *) tmp2, n - 1);
+        if (s < 0) return s;
+        s = runtime_mul(a, tmp2);
+        if (s < 0) return s;
+        s = runtime_add(a, tmp1);
+        if (s < 0) return s;
+        s = ltocstring((u_char *) tmp2, n);
+        if (s < 0) return s;
+        s = runtime_div(a, tmp2, OPDIV);
+        if (s < 0) return s;
+        strcpy(tmp2, a);
+        s = runtime_div(XXX, tmp2, OPDIV);
+        if (s < 0) return s;
+        tmp2[0] = ONE;
+
+        if (partab.jobtab->precision <= 0) {
+            tmp2[1] = EOL;
+        } else {
+            tmp2[1] = POINT;
+            for (i = 2; i < partab.jobtab->precision; i++) tmp2[i] = ZERO;
+            tmp2[i++] = FIVE;
+            tmp2[i] = EOL;
+        }
+
+        if (!runtime_comp(XXX, tmp2)) continue;
+        if (partab.jobtab->precision <= 0) break;
+        tmp2[0] = POINT;
+        for (i = 1; i < partab.jobtab->precision; i++) tmp2[i] = NINE;
+        tmp2[i - 1] = FIVE;
+        tmp2[i] = EOL;
+        if (runtime_comp(tmp2, XXX)) break;
+    }
+
+    partab.jobtab->precision--;
+
+    if (again) {
+        partab.jobtab->precision = again;
+        again = 0;
+        goto second;
+    }
+
+    return (int) strlen(a);
+}                                                                               // end root()
+
+/* rounding
+ * 'a' is assumed to be a 'canonic' numeric string
+ * it is rounded to 'digits' fractional digits
+ */
+static void roundit(char *a, int digits)
+{
+    int i;
+    int pointpos;
+    int lena;
+
+    pointpos = -1;
+    i = 0;
+    i = 0;
+
+    while (a[i] != EOL) {
+        if (a[i] == POINT) pointpos = i;
+        i++;
+    }
+
+    lena = i;
+    if (pointpos < 0) pointpos = i;
+    if ((pointpos + digits + 1) >= i) return;                                   // nothing to round
+    i = pointpos + digits + 1;
+
+    if (a[i] < FIVE) {
+        a[i] = EOL;
+        while (a[--i] == ZERO) a[i] = EOL;
+
+        if (a[i] == POINT) {
+            a[i] = EOL;
+            if ((i == 0) || ((i == 1) && (a[0] == MINUS))) a[0] = ZERO;
+        }
+
+        return;
+    }
+
+    for (;;) {
+        int ch;
+
+        if (i >= pointpos) {
+            a[i] = EOL;
+        } else {
+            a[i] = ZERO;
+        }
+
+        if (--i < (a[0] == MINUS)) {
+            for (i = lena; i >= 0; i--) a[i + 1] = a[i];
+            a[a[0] == MINUS] = ONE;
+            break;
+        }
+
+        if ((ch = a[i]) == POINT) continue;
+
+        if (a[i] < NINE && ch >= ZERO) {
+            a[i] = ++ch;
+            break;
+        }
+    }
+
+    return;
+}                                                                               // end roundit
 
 // Add b to a
 short runtime_add(char *a, char *b)
@@ -205,7 +408,7 @@ again:
 
         lenb = i = lena - dpa + dpb;
         j = lena;
-        while ((a[j++] = b[i++]) != EOL) continue;
+        while ((a[j++] = b[i++]) != EOL) {}
         lena = --j;
         b[lenb] = EOL;
     }
@@ -295,7 +498,7 @@ again:
     if (mi) {
         if (a[0] != ZERO) {
             i = 0;
-            while (a[i++] != EOL) continue;
+            while (a[i++] != EOL) {}
 
             while (i > 0) {
                 a[i] = a[i - 1];
@@ -339,10 +542,9 @@ short runtime_mul(char *a, char *b)
         if (b[0] == ONE) return (short) strlen(a);
 
         if (b[0] == TWO) {
-
 multwo:
             acur = 0;
-            while (a[++acur] != EOL) continue;
+            while (a[++acur] != EOL) {}
             mi = (a[acur - 1] == FIVE);
             carry = 0;
             ccur = acur;
@@ -412,7 +614,7 @@ multwo:
 
     if (b[0] == MINUS) {
         b[0] = ZERO;
-        toggle(mi);
+        TOGGLE(mi);
     }
 
     carry = 0;
@@ -420,13 +622,13 @@ multwo:
 
     while (a[alen] != EOL) {
         a[alen] -= ZERO;
-        if (a[alen++] == point) carry = alen;
+        if (a[alen++] == Point) carry = alen;
     }
 
     // append a point on the right side if there was none
     if (--carry < 0) {
         carry = alen;
-        a[alen++] = point;
+        a[alen++] = Point;
         a[alen] = 0;
     }
 
@@ -435,12 +637,12 @@ multwo:
 
     while (b[blen] != EOL) {
         b[blen] -= ZERO;
-        if (b[blen++] == point) ccur = blen;
+        if (b[blen++] == Point) ccur = blen;
     }
 
     if (--ccur < 0) {
         ccur = blen;
-        b[blen++] = point;
+        b[blen++] = Point;
         b[blen] = 0;
     }
 
@@ -455,27 +657,27 @@ multwo:
 
     // init c to zero
     while (ccur >= 0) c[ccur--] = 0;
-    c[carry] = point;
+    c[carry] = Point;
     bcur = blen;
     clen = alen + blen - 1;
     carry = 0;
 
     while (bcur > 0) {
-        if (b[--bcur] == point) continue;
-        if (c[clen] == point) clen--;
+        if (b[--bcur] == Point) continue;
+        if (c[clen] == Point) clen--;
         acur = alen;
         ccur = clen--;
 
         while (acur > 0) {
-            if (a[--acur] == point) continue;
-            if (c[--ccur] == point) ccur--;
+            if (a[--acur] == Point) continue;
+            if (c[--ccur] == Point) ccur--;
             tmpx = a[acur] * b[bcur] + c[ccur] + carry;
             carry = tmpx / NUMBASE;
             c[ccur] = tmpx % NUMBASE;
         }
 
         while (carry) {
-            if (c[--ccur] == point) ccur--;
+            if (c[--ccur] == Point) ccur--;
 
             if ((c[ccur] += carry) >= NUMBASE) {
                 c[ccur] -= NUMBASE;
@@ -605,7 +807,7 @@ short runtime_div(char *uu, char *v, short typ)
 
         if (v[0] == MINUS) {
             v[0] = ZERO;
-            toggle(mi);
+            TOGGLE(mi);
         }
     } else {
         strcpy(vv, v);
@@ -618,7 +820,7 @@ short runtime_div(char *uu, char *v, short typ)
         if (v[0] == MINUS) {
             v[0] = ZERO;
             mi = 1;
-            toggle(plus);
+            TOGGLE(plus);
         }
     }
 
@@ -629,7 +831,7 @@ short runtime_div(char *uu, char *v, short typ)
 
     while ((j = v[i]) != EOL) {
         j -= ZERO;
-        if (j == point) dpv = i;
+        if (j == Point) dpv = i;
         if (j == 0) k++;
         v[i++] = j;
     }
@@ -656,11 +858,11 @@ short runtime_div(char *uu, char *v, short typ)
 
     while (u[i] != EOL) {
         u[i] -= ZERO;
-        if (u[i] == point) dpu = i;
+        if (u[i] == Point) dpu = i;
         i++;
     }
 
-    if (dpu < 0) u[dpu = i++] = point;
+    if (dpu < 0) u[dpu = i++] = Point;
     // u[ulen = i] = 0; u[i + 1] = 0; u[i + 2] = 0;
     ulen = i;
 
@@ -710,7 +912,7 @@ short runtime_div(char *uu, char *v, short typ)
             i++;
         }
 
-        u[i] = point;
+        u[i] = Point;
         dpu = i;
     }
 
@@ -730,7 +932,7 @@ short runtime_div(char *uu, char *v, short typ)
         carry = 0;
 
         while (i > 0) {
-            if (u[i] != point) {
+            if (u[i] != Point) {
                 carry += u[i] * d;
                 u[i] = carry % NUMBASE;
                 carry /= NUMBASE;
@@ -757,18 +959,18 @@ short runtime_div(char *uu, char *v, short typ)
     j = 0;
     m = ulen - vlen + 1;
     if (m <= dpu) m = dpu + 1;
-    for (i = 0; i <= m; q[i++] = ZERO) continue;
+    for (i = 0; i <= m; q[i++] = ZERO) {}
     if (typ == OPMOD) m = dpu - vlen;
     v1 = v[1];
 
     while (j < m) {
-        if (u[j] != point) {                                                    // calculate guess
-            if ((k = (u[j] * NUMBASE + ((u[j + 1] == point) ? u[j + 2] : u[j + 1]))) == 0) {
+        if (u[j] != Point) {                                                    // calculate guess
+            if ((k = (u[j] * NUMBASE + ((u[j + 1] == Point) ? u[j + 2] : u[j + 1]))) == 0) {
                 j++;
                 continue;
             }
 
-            k1 = (((u[j + 1] == point) || (u[j + 2] == point)) ? u[j + 3] : u[j + 2]);
+            k1 = (((u[j + 1] == Point) || (u[j + 2] == Point)) ? u[j + 3] : u[j + 2]);
             guess = ((u[j] == v1) ? (NUMBASE - 1) : (k / v1));
 
             if ((v[2] * guess) > ((k - guess * v1) * NUMBASE + k1)) {
@@ -783,7 +985,7 @@ short runtime_div(char *uu, char *v, short typ)
             if ((j < dpu) && (k >= dpu)) k++;
 
             while (k >= 0) {
-                if (u[k] == point) k--;
+                if (u[k] == Point) k--;
 
                 if (i >= 0) {
                     u[k] -= v[i--] * guess + carry;
@@ -811,7 +1013,7 @@ short runtime_div(char *uu, char *v, short typ)
                 if ((j < dpu) && (k >= dpu)) k++;
 
                 while (k >= 0) {
-                    if (u[k] == point) k--;
+                    if (u[k] == Point) k--;
 
                     if (i >= 0) {
                         u[k] += v[i--] + carry;
@@ -887,7 +1089,7 @@ short runtime_div(char *uu, char *v, short typ)
 
         if (d > 1) {
             for (i = 0; i <= ulen; i++) {
-                if (u[i] == point) {
+                if (u[i] == Point) {
                     u[i] = POINT;
                     dpu = i;
                 } else {
@@ -897,7 +1099,7 @@ short runtime_div(char *uu, char *v, short typ)
             }
         } else {
             for (i = 0; i <= ulen; i++) {
-                if (u[i] == point) {
+                if (u[i] == Point) {
                     u[dpu = i] = POINT;
                 } else {
                     u[i] += ZERO;
@@ -973,213 +1175,6 @@ short runtime_div(char *uu, char *v, short typ)
     strcpy(uu, u);
     return (short) strlen(uu);
 }                                                                               // end runtime_div()
-
-// square root
-int g_sqrt(char *a)
-{
-    char  tmp1[MAX_NUM_BYTES + 2];
-    char  tmp2[MAX_NUM_BYTES + 2];
-    char  XX[MAX_NUM_BYTES + 2];
-    char  XXX[MAX_NUM_BYTES + 2];
-
-    if (a[0] == ZERO) return 1;
-    if (a[0] == MINUS) return -ERRM9;
-    strcpy(XX, a);
-
-    // look for good initial value
-    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
-        int i = 0;
-        int ch;
-
-        while ((ch = a[i++]) != EOL) {
-            if (ch == POINT) break;
-        }
-
-        if ((i = (i + 1) / 2)) a[i] = EOL;
-    } else if (a[0] != ONE) {
-        a[0] = ONE;
-        a[1] = EOL;
-    }
-
-    // Newton's algorithm with quadratic convergence
-    partab.jobtab->precision++;
-
-    do {
-        short s;
-
-        strcpy(XXX, a);
-        strcpy(tmp1, XX);
-        strcpy(tmp2, a);
-        s = runtime_div(tmp1, tmp2, OPDIV);
-        if (s < 0) return s;
-        s = runtime_add(a, tmp1);
-        if (s < 0) return s;
-        tmp2[0] = TWO;
-        tmp2[1] = EOL;
-        s = runtime_div(a, tmp2, OPDIV);
-        if (s < 0) return s;
-    } while (runtime_comp(a, XXX));
-
-    partab.jobtab->precision--;
-    return (int) strlen(a);
-}                                                                               // end g_sqrt()
-
-// n.th root
-int root(char *a, int n)
-{
-    int   i;
-    int   ch;
-    short s;
-    char  tmp1[MAX_NUM_BYTES + 2];
-    char  tmp2[MAX_NUM_BYTES + 2];
-    char  XX[MAX_NUM_BYTES + 2];
-    char  XXX[MAX_NUM_BYTES + 2];
-    short again;
-
-    if (a[0] == ZERO) return 1;
-    if (a[0] == MINUS || n == 0) return -ERRM9;
-    strcpy(XX, a);
-
-    // look for good initial value
-    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
-        i = 0;
-        while (((ch = a[i++]) != EOL) && (ch != POINT)) continue;
-
-        if ((i = (i + n - 2) / n) > 0) {
-            a[0] = THREE;
-            a[i] = EOL;
-        }
-    } else if (a[0] != ONE) {
-        a[0] = ONE;
-        a[1] = EOL;
-    }
-
-    // Newton's algorithm with quadratic convergence
-    if (partab.jobtab->precision <= 3) {
-        again = 0;                                                              // speedup div with small precision
-    } else {
-        again = partab.jobtab->precision;
-        partab.jobtab->precision = 2;
-    }
-
-second:
-    partab.jobtab->precision++;
-
-    for (;;) {
-        strcpy(XXX, a);
-        s = ltocstring((u_char *) tmp1, n - 1);
-        if (s < 0) return s;
-        strcpy(tmp2, a);
-        s = runtime_power(tmp2, tmp1);
-        if (s < 0) return s;
-        strcpy(tmp1, XX);
-        s = runtime_div(tmp1, tmp2, OPDIV);
-        if (s < 0) break;
-        s = ltocstring((u_char *) tmp2, n - 1);
-        if (s < 0) return s;
-        s = runtime_mul(a, tmp2);
-        if (s < 0) return s;
-        s = runtime_add(a, tmp1);
-        if (s < 0) return s;
-        s = ltocstring((u_char *) tmp2, n);
-        if (s < 0) return s;
-        s = runtime_div(a, tmp2, OPDIV);
-        if (s < 0) return s;
-        strcpy(tmp2, a);
-        s = runtime_div(XXX, tmp2, OPDIV);
-        if (s < 0) return s;
-        tmp2[0] = ONE;
-
-        if (partab.jobtab->precision <= 0) {
-            tmp2[1] = EOL;
-        } else {
-            tmp2[1] = POINT;
-            for (i = 2; i < partab.jobtab->precision; i++) tmp2[i] = ZERO;
-            tmp2[i++] = FIVE;
-            tmp2[i] = EOL;
-        }
-
-        if (!runtime_comp(XXX, tmp2)) continue;
-        if (partab.jobtab->precision <= 0) break;
-        tmp2[0] = POINT;
-        for (i = 1; i < partab.jobtab->precision; i++) tmp2[i] = NINE;
-        tmp2[i - 1] = FIVE;
-        tmp2[i] = EOL;
-        if (runtime_comp(tmp2, XXX)) break;
-    }
-
-    partab.jobtab->precision--;
-
-    if (again) {
-        partab.jobtab->precision = again;
-        again = 0;
-        goto second;
-    }
-
-    return (int) strlen(a);
-}                                                                               // end root()
-
-/* rounding
- * 'a' is assumed to be a 'canonic' numeric string
- * it is rounded to 'digits' fractional digits
- */
-void roundit(char *a, int digits)
-{
-    int i;
-    int pointpos;
-    int lena;
-
-    pointpos = -1;
-    i = 0;
-    i = 0;
-
-    while (a[i] != EOL) {
-        if (a[i] == POINT) pointpos = i;
-        i++;
-    }
-
-    lena = i;
-    if (pointpos < 0) pointpos = i;
-    if ((pointpos + digits + 1) >= i) return;                                   // nothing to round
-    i = pointpos + digits + 1;
-
-    if (a[i] < FIVE) {
-        a[i] = EOL;
-        while (a[--i] == ZERO) a[i] = EOL;
-
-        if (a[i] == POINT) {
-            a[i] = EOL;
-            if ((i == 0) || ((i == 1) && (a[0] == MINUS))) a[0] = ZERO;
-        }
-
-        return;
-    }
-
-    for (;;) {
-        int ch;
-
-        if (i >= pointpos) {
-            a[i] = EOL;
-        } else {
-            a[i] = ZERO;
-        }
-
-        if (--i < (a[0] == MINUS)) {
-            for (i = lena; i >= 0; i--) a[i + 1] = a[i];
-            a[a[0] == MINUS] = ONE;
-            break;
-        }
-
-        if ((ch = a[i]) == POINT) continue;
-
-        if (a[i] < NINE && ch >= ZERO) {
-            a[i] = ++ch;
-            break;
-        }
-    }
-
-    return;
-}                                                                               // end roundit
 
 // raise a to the b-th power
 short runtime_power(char *a, char *b)

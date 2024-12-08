@@ -28,21 +28,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // for XECUTE
 #include "error.h"                                                              // standard errors
 #include "opcode.h"                                                             // the op codes
-#include "compile.h"                                                            // for XECUTE
+#include "proto.h"                                                              // standard prototypes
+#include <ctype.h>
+#include <string.h>
 
 mvar   dvar;                                                                    // an mvar for debugging
 u_char src[256];                                                                // some space for entered
-u_char cmp[1024];                                                               // ditto compiled
+u_char cmp[2048];                                                               // ditto compiled
 
 extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
 extern u_short hist_next;                                                       // next history pointer

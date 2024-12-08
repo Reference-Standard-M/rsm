@@ -28,18 +28,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memcmp
-#include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
 #include "database.h"                                                           // database protos
-#include "proto.h"                                                              // standard prototypes
 #include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
+#include <string.h>                                                             // for memcmp
 
 /*
  * Function: Get_data
@@ -70,8 +62,9 @@ int Get_data(int dir)                                                           
 
     if (systab->vol[volnum] == NULL) return -ERRM26;                            // vol still mounted? if not - error
 
-    if ((memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) != 0) && (dir == 0) &&  // if not ^$GLOBAL and going forward not to level
-      !(SOA(partab.vol[volnum]->vollab)->journal_available && writing)) {       // and not journaling and writing together
+    // if not ^$GLOBAL and going forward not to level and not journaling this global and writing together
+    if ((memcmp(&db_var.name.var_cu[0], "$GLOBAL\0", 8) != 0) && (dir == 0) &&
+      !(SOA(partab.vol[volnum]->vollab)->journal_available && (partab.jobtab->last_block_flags & GL_JOURNAL) && writing)) {
         block = systab->last_blk_used[LBU_OFF(volnum)];                         // get last used
 
         if (block && ((((u_char *) SOA(partab.vol[volnum]->map))[block >> 3]) & (1U << (block & 7)))) { // if one there
@@ -94,7 +87,7 @@ int Get_data(int dir)                                                           
                     if ((t >= 0) || ((t = -ERRM7) && (Index <= SOA(blk[level]->mem)->last_idx) && (Index > IDX_START))) {
                         partab.vol[volnum]->stats.lastok++;                     // count success
                         blk[level]->last_accessed = current_time(FALSE);        // accessed
-                        for (i = 0; i < level; blk[i++] = NULL) continue;       // zot these
+                        for (i = 0; i < level; blk[i++] = NULL) {}              // zot these
                         if (!t) t = record->len;                                // if ok then get the dbc
                         if (writing && (blk[level]->dirty == NULL)) blk[level]->dirty = (gbd *) 1; // if writing then reserve it
 

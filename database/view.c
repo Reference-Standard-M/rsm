@@ -28,18 +28,9 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memset
-#include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
 #include "database.h"                                                           // database protos
 #include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
+#include <string.h>                                                             // for memset
 
 /*
  * Function: DB_ViewGet
@@ -56,12 +47,12 @@ gbd *DB_ViewGet(u_int vol, u_int block)                                         
     level = 0;                                                                  // where it goes
     volnum = vol - 1;                                                           // need this
     writing = 0;                                                                // clear this
-    s = SemOp(SEM_GLOBAL, SEM_READ);                                            // write lock
+    s = SemOp(SEM_GLOBAL, SEM_READ);                                            // read lock
     if (s < 0) return NULL;                                                     // check error then quit if so
     s = Get_block(block);                                                       // get it
     if (s >= 0) blk[level]->last_accessed = current_time(FALSE) + 86400;        // push last access
     if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                               // unlock the globals
-    return ((s < 0) ? NULL : blk[level]);                                       // return whatever
+    return ((s < 0) ? NULL : SBA(blk[level]));                                  // return whatever
 }
 
 /*
@@ -118,7 +109,7 @@ void DB_ViewRel(u_int vol, gbd *ptr)                                            
 
         if (s < 0) {                                                            // check error
             return;                                                             // quit if so
-            // PROBABLY SHOULD PERSIST HERE
+            // Note: Probably should persist here
         }
 
         Free_GBD(ptr);                                                          // free it

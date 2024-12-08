@@ -28,22 +28,19 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>                                                             // string controls always handy
-#include <ctype.h>                                                              // this is handy too
-#include <sys/param.h>                                                          // for realpath() function
+#include "init.h"                                                               // init prototypes
+#include "database.h"                                                           // database includes
+#include "proto.h"                                                              // standard includes
 #include <errno.h>                                                              // error stuff
 #include <fcntl.h>                                                              // file stuff
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
+#include <string.h>                                                             // string controls always handy
 #include <unistd.h>                                                             // database access
-#include <sys/ipc.h>                                                            // shared memory
-#include <sys/shm.h>                                                            // shared memory
+#include <sys/param.h>                                                          // for realpath() function
 #include <sys/sem.h>                                                            // semaphores
+#include <sys/shm.h>                                                            // shared memory
 #include <sys/stat.h>                                                           // stat
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard includes
-#include "database.h"                                                           // database includes
 
 /***********************************************************************\
 * Initialize an environment - switches are:                             *
@@ -55,7 +52,7 @@
 \***********************************************************************/
 
 // database, number of jobs, MiB of global buffers, MiB of routine buffers, MiB of additional buffers (for volumes)
-int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
+int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 {
     int               dbfd;                                                     // database file descriptor
     int               hbuf[sizeof(label_block) / 4];                            // header buffer
@@ -80,7 +77,7 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     const label_block *labelblock;                                              // label block pointer
     char              version[120];                                             // a string
 
-    rsm_version((u_char *) version);                                            // get version into version[]
+    sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
 
     if ((jobs < 1) || (jobs > MAX_JOBS)) {                                      // check number of jobs
@@ -146,7 +143,7 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     shar_mem_id = shmget(shar_mem_key, 0, 0);                                   // attach to existing share
 
     if (shar_mem_id != -1) {                                                    // check to see if it's there
-        fprintf(stderr, "RSM environment is already initialized.\n");
+        fprintf(stderr, "RSM environment is already initialized\n");
         return EEXIST;                                                          // exit with error
     }
 
@@ -162,7 +159,7 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
         n_gbd = ((long long) gmb * MBYTE) / hbuf[3];                            // number of GBD
     }
 
-    for (i = 0; i < SEM_MAX; sem_val[i++] = jobs) continue;                     // setup for sem init
+    for (i = 0; i < SEM_MAX; sem_val[i++] = jobs) {}                            // setup for sem init
     semvals.array = sem_val;
 
     sjlt_size = sizeof(systab_struct)                                           // size of Systab
@@ -185,10 +182,14 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     share_size = sjlt_size + volset_size;                                       // shared memory size
     addoff = share_size;                                                        // where add buff starts
     share_size += (long long) addmb * MBYTE;                                    // and the additional
-    printf("Creating share for %u job%s with %u MiB routine space,\n", jobs, ((jobs > 1) ? "s" : ""), rmb);
-    printf("%u MiB (%u) global buffers, %d KiB label/map space,\n", gmb, n_gbd, hbuf[2] / 1024);
-    if (addmb > 0) printf("%u MiB of additional buffers for supplemental volumes,\n", addmb);
-    printf("%d KiB for the lock table, with a total share size of %lld MiB.\n", locksize / 1024, share_size / MBYTE);
+
+    printf("[Instance] Creating an environment for %u job%s, with %d KiB for the lock table\n",
+           jobs, ((jobs > 1) ? "s" : ""), locksize / 1024);
+
+    printf("[Volume 1] Creating %u MiB (%u) of global buffers, and %u MiB of routine space\n", gmb, n_gbd, rmb);
+    printf("[Volume 1] Using %d KiB for the volume label and map space\n", hbuf[2] / 1024);
+    printf("[Instance] Creating an environment with a total share size of %lld MiB\n", share_size / MBYTE);
+
     shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create share memory (0660)
 
     if (shar_mem_id == -1) {                                                    // die on error
@@ -239,7 +240,7 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
         return errno;                                                           // exit with error
     }
 
-    printf("Environment attached at 0x%lx [semid: %d  shmid: %d]\n", (u_long) systab, sem_id, shar_mem_id);
+    printf("[Instance] Environment attached at 0x%lx [semid: %d  shmid: %d]\n", (u_long) systab, sem_id, shar_mem_id);
     memset(systab, 0, share_size);                                              // zot the lot
     systab->address = systab;                                                   // store the address for ron
     systab->jobtab = (jobtab *) &systab->last_blk_used[jobs * MAX_VOL];         // setup jobtab pointer
@@ -311,7 +312,7 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;                                 // minimum of MIN_DAEMONS
     if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;                                 // and the max
     systab->vol[0]->num_of_daemons = jobs;                                      // initialize this
-    while (SemOp(SEM_WD, SEM_WRITE)) continue;                                  // lock WD
+    while (SemOp(SEM_WD, SEM_WRITE)) {}                                         // lock WD
 
     partab.job_table = systab->jobtab;                                          // so the daemons can start processes
     partab.vol[0] = systab->vol[0];                                             // so the daemons can manage table slots
@@ -329,14 +330,14 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     }                                                                           // all daemons started
 
     if (systab->maxjob == 1) {                                                  // if in single-user mode
-        printf("WARNING: Single-user, journaling not started.\n");
+        printf("[Volume 1] WARNING: Single-user, journaling not started\n");
     } else if (systab->vol[0]->vollab->journal_requested && systab->vol[0]->vollab->journal_file[0]) {
         struct stat sb;                                                         // File attributes
         off_t       jptr;                                                       // file pointer
         jrnrec      jj;                                                         // to write with
         int         jfd;                                                        // file descriptor
 
-        while (SemOp(SEM_GLOBAL, SEM_WRITE)) continue;                          // lock GLOBAL
+        while (SemOp(SEM_GLOBAL, SEM_WRITE)) {}                                 // lock GLOBAL
         systab->vol[0]->vollab->journal_available = 0;                          // assume fail
         i = stat(systab->vol[0]->vollab->journal_file, &sb);                    // check for file
 
@@ -406,7 +407,7 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 
                             close(jfd);                                         // and close it
                             systab->vol[0]->vollab->journal_available = 1;
-                            printf("Journaling started to %s\n", systab->vol[0]->vollab->journal_file); // say it worked
+                            printf("[Volume 1] Journaling started to %s\n", systab->vol[0]->vollab->journal_file); // it worked
                         }
                     }
                 }
@@ -435,6 +436,6 @@ int INIT_Start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     Routine_Init(0);                                                            // and the routine junk
     shmdt(systab);                                                              // detach the shared memory
     close(dbfd);                                                                // close the database
-    printf("RSM environment initialized.\n");                                   // say something
+    printf("[Instance] Environment is created and initialized\n");              // say something
     return 0;                                                                   // indicate success
 }

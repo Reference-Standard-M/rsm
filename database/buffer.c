@@ -28,20 +28,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <string.h>                                                             // for memset
-#include <unistd.h>                                                             // for file reading
-#include <ctype.h>                                                              // for GBD stuff
+#include "database.h"                                                           // database prototypes
+#include "error.h"                                                              // error strings
+#include "proto.h"                                                              // standard prototypes
 #include <errno.h>                                                              // error stuff
 #include <fcntl.h>                                                              // for open()
-#include <sys/types.h>                                                          // for semaphores
-#include <sys/ipc.h>                                                            // for semaphores
-#include <sys/sem.h>                                                            // for semaphores
-#include "rsm.h"                                                                // standard includes
-#include "database.h"                                                           // database prototypes
-#include "proto.h"                                                              // standard prototypes
-#include "error.h"                                                              // error strings
+#include <string.h>                                                             // for memset
+#include <unistd.h>                                                             // for file reading
 
 /* typedef struct GBD {                                                         // global buf desciptor
  *     u_int           block;                                                   // block number
@@ -85,7 +78,6 @@
 short Get_block(u_int blknum)                                                   // Get block
 {
     int   i;                                                                    // a handy int
-    short s = -1;                                                               // for functions
     off_t file_off;                                                             // for lseek()
     gbd   *ptr;                                                                 // a handy pointer
 
@@ -103,6 +95,8 @@ short Get_block(u_int blknum)                                                   
     }                                                                           // end memory search
 
     if (!writing) {                                                             // if read mode
+        short s = -1;                                                           // for functions
+
         SemOp(SEM_GLOBAL, -curr_lock);                                          // release read lock
         s = SemOp(SEM_GLOBAL, SEM_WRITE);                                       // get write lock
         if (s < 0) return s;                                                    // on error just return it
@@ -149,10 +143,17 @@ short Get_block(u_int blknum)                                                   
     file_off = ((off_t) (blknum - 1) * (off_t) SOA(partab.vol[volnum]->vollab)->block_size)
              + (off_t) SOA(partab.vol[volnum]->vollab)->header_bytes;
 
-    file_off = lseek(partab.vol_fds[volnum], file_off, SEEK_SET);               // Seek to block
+    file_off = lseek(partab.vol_fds[volnum], file_off, SEEK_SET);               // seek to block
     if (file_off < 1) panic("Get_block: lseek() failed!");                      // if that failed then die
     i = read(partab.vol_fds[volnum], SOA(blk[level]->mem), SOA(partab.vol[volnum]->vollab)->block_size);
     if (i < 0) panic("Get_block: read() failed!");                              // if read failed then die
+
+    if (!SOA(blk[level]->mem)->type) {                                          // block isn't used in the database (view buffer)
+        if (!writing) SemOp(SEM_GLOBAL, SEM_R_TO_WR);                           // if reading then upgrade to a write lock
+        Free_GBD(blk[level]);                                                   // block not used, give the buffer back
+        if (!writing) SemOp(SEM_GLOBAL, SEM_WR_TO_R);                           // if reading then drop to read lock
+        return 0;
+    }
 
 exit:
     blk[level]->last_accessed = current_time(FALSE);                            // set access time
@@ -193,7 +194,7 @@ short New_block(void)                                                           
     while (c <= end) {                                                          // scan map
         if (*c != 255) {                                                        // is there space
             blknum = (c - ((u_char *) SOA(partab.vol[volnum]->map))) * 8;       // base number
-            for (i = 0; ((1U << i) & *c); i++) continue;                        // find first free bit
+            for (i = 0; ((1U << i) & *c); i++) {}                               // find first free bit
             blknum += i;                                                        // add the little bit
 
             if (blknum <= SOA(partab.vol[volnum]->vollab)->max_block) {
@@ -236,7 +237,7 @@ void Get_GBDs(int greqd)                                                        
     int    pass = 0;                                                            // pass number
 
 start:
-    while (SemOp(SEM_GLOBAL, SEM_WRITE)) continue;                              // get write semaphore lock
+    while (SemOp(SEM_GLOBAL, SEM_WRITE)) {}                                     // get write semaphore lock
     ptr = SOA(partab.vol[volnum]->gbd_hash[GBD_HASH]);                          // head of free list
     curr = 0;                                                                   // clear current
 

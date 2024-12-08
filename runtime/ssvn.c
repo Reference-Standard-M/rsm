@@ -28,25 +28,21 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <unistd.h>                                                             // usually this too
-#include <sys/types.h>                                                          // for u_char def
-#include <sys/ipc.h>                                                            // shared memory
-#include <sys/shm.h>                                                            // shared memory
-#include <sys/sem.h>                                                            // semaphores
-#include <signal.h>                                                             // for kill()
-#include <pwd.h>                                                                // for user name
-#include <string.h>
-#include <ctype.h>
-#include <errno.h>                                                              // error stuff
-#include <sys/time.h>                                                           // for priority
-#include <sys/resource.h>                                                       // ditto
-#include <termios.h>                                                            // for tcsetattr
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
 #include "database.h"                                                           // for GBD def
 #include "error.h"                                                              // standard errors
+#include "proto.h"                                                              // standard prototypes
+#include <ctype.h>
+#include <errno.h>                                                              // error stuff
+#include <pwd.h>                                                                // for user name
+#include <signal.h>                                                             // for kill()
+#include <stdio.h>                                                              // always include
+#include <stdlib.h>                                                             // these two
+#include <string.h>
+#include <termios.h>                                                            // for tcsetattr
+#include <unistd.h>                                                             // usually this too
+#include <sys/sem.h>                                                            // semaphores
+#include <sys/shm.h>                                                            // shared memory
+#include <sys/resource.h>                                                       // ditto
 
 extern struct termios tty_settings;                                             // man 3 termios
 
@@ -63,7 +59,7 @@ extern struct termios tty_settings;                                             
  *                        $SYSTEM
  */
 
-int priv(void)                                                                  // return TRUE if job has priv
+static int priv(void)                                                           // return TRUE if job has priv
 {
     return (partab.jobtab->priv || (partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_cu[0] == '%')); // is it privileged?
 }
@@ -242,7 +238,7 @@ ENABLE_WARN
                 return mcopy((u_char *) "M", buf, 1);                           // just an M
             }
 
-            if (strncasecmp((char *) subs[1]->buf, "fd\0", 4) == 0) {
+            if (strncasecmp((char *) subs[1]->buf, "fd\0", 3) == 0) {
                 return ltocstring(buf, partab.jobtab->seqio[i].fid);
             }
 
@@ -664,9 +660,9 @@ ENABLE_WARN
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "big_endian\0", 11) == 0)) {
-            u_int end = 0x1;
+            u_int end = 1;
 
-            return ultocstring(buf, ((*(u_char *) &end) == 0x1) ? 0 : 1);       // little-endian is 0, big-endian is 1
+            return ultocstring(buf, ((*(u_char *) &end) == 0) ? 1 : 0);         // big-endian is 1, little-endian is 0
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "character\0", 10) == 0)) {
@@ -1062,7 +1058,7 @@ DISABLE_WARN(-Warray-bounds)
             }                                                                   // destination created
 
             j = 0;                                                              // clear index
-            while ((subs[2]->buf[j++] = data->buf[i++])) continue;              // and other one
+            while ((subs[2]->buf[j++] = data->buf[i++])) {}                     // and other one
 ENABLE_WARN
             s = UTIL_MvarFromCStr(subs[2], &partab.src_var);                    // encode
             if (s < 0) return s;                                                // complain on error
@@ -1127,7 +1123,6 @@ ENABLE_WARN
 
             i = cstringtoi(subs[1]) - 1;                                        // get vol#
             if ((i < 0) || (i >= MAX_VOL)) return -ERRM26;                      // out of range
-            vol_label = SOA(partab.vol[i]->vollab);
 
             if ((strncasecmp((char *) subs[2]->buf, "file\0", 5) == 0) && (systab->maxjob == 1)) { // mount new volume to volume set
                 if (data->len > VOL_FILENAME_MAX) return -ERRM56;               // too long
@@ -1138,6 +1133,7 @@ ENABLE_WARN
             }
 
             if (systab->vol[i] == NULL) return -ERRM26;                         // not mounted
+            vol_label = SOA(partab.vol[i]->vollab);
 
             if ((strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) && (systab->maxjob == 1)) {
                 if (data->len > JNL_FILENAME_MAX) return -ERRM56;               // too long
@@ -1158,7 +1154,7 @@ ENABLE_WARN
             }
 
             if ((strncasecmp((char *) subs[2]->buf, "journal_size\0", 13) == 0) && (cstringtoi(data) == 0)) { // clear journal
-                while (SemOp(SEM_GLOBAL, SEM_WRITE)) continue;                  // lock GLOBAL
+                while (SemOp(SEM_GLOBAL, SEM_WRITE)) {}                         // lock GLOBAL
                 ClearJournal(i);                                                // do it
                 SemOp(SEM_GLOBAL, -SEM_WRITE);                                  // unlock global
                 return 0;                                                       // done
@@ -1290,7 +1286,7 @@ short SS_Kill(mvar *var)                                                        
     int             i = 0;                                                      // useful int
     int             j;                                                          // and another
     short           s;                                                          // for functions
-    int             no_daemon = FALSE;                                          // for daemon info
+    int             daemon = TRUE;                                              // for daemon info
     int             cnt;                                                        // count of bytes used
     var_u           rou;                                                        // for routine name
     u_char          tmp[1024];                                                  // temp string space
@@ -1355,24 +1351,17 @@ ENABLE_WARN
 
         if (!priv()) return -ERRM29;                                            // KILL on SSVN not on
         systab->start_user = -1;                                                // Say 'shutting down'
-        CleanJob(0);                                                            // remove all locks, detach symbols, etc.
 
         for (i = (MAX_VOL - 1); i >= 0; i--) {
             if (systab->vol[i] == NULL) continue;
-
-            if (i == 0) {                                                       // only in volume 1
-                if (!kill(partab.vol[i]->wd_tab[0].pid, 0)) {                   // if the main one exists
-                    no_daemon = FALSE;
-                } else {
-                    no_daemon = TRUE;
-                }
-            }
 
             if (shmctl(partab.vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {         // remove the shares
                 return -(ERRMLAST + ERRZLAST + errno);
             }
 
             if (i == 0) {                                                       // only in volume 1
+                if (kill(partab.vol[i]->wd_tab[0].pid, 0) == -1) daemon = FALSE; // if the main daemon doesn't exist
+
                 for (u_int k = 0; k < systab->maxjob; k++) {                    // for each job
                     cnt = partab.job_table[k].pid;                              // get pid
 
@@ -1383,14 +1372,16 @@ ENABLE_WARN
                         }
                     }
                 }
+
             }
 
+            CleanJob(0);                                                        // remove all locks, detach symbols, etc.
             DB_Dismount(i + 1);                                                 // dismount the volume
+        }
 
-            if (no_daemon) {
-                if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {       // remove the semaphores
-                    fprintf(stderr, "errno = %d %s\n", errno, strerror(errno));
-                }
+        if (daemon == FALSE) {
+            if (semctl(systab->sem_id, 0, IPC_RMID, semvals) == -1) {           // remove the semaphores
+                return -(ERRMLAST + ERRZLAST + errno);
             }
         }
 

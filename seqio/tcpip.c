@@ -39,12 +39,11 @@
  *     SQ_Tcpip_Read   - Reads from a socket
  */
 
-#include <sys/types.h>
+#include "seqio.h"
+#include "error.h"
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "error.h"
-#include "seqio.h"
 
 // Local functions
 
@@ -54,7 +53,7 @@
  * descriptor. Otherwise, it returns a negative integer to indicate the error
  * that has occurred.
  */
-int SQ_Tcpip_Open_Server(const char *bind)
+static int SQ_Tcpip_Open_Server(const char *bind)
 {
     int     sid;
     int     ret;
@@ -86,7 +85,7 @@ int SQ_Tcpip_Open_Server(const char *bind)
  * descriptor. Otherwise, it returns a negative integer to indicate the error
  * that has occurred.
  */
-int SQ_Tcpip_Open_Client(const char *conn)
+static int SQ_Tcpip_Open_Client(const char *conn)
 {
     int     sid;
     char    *portptr;

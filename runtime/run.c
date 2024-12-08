@@ -28,22 +28,18 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <stdio.h>                                                              // always include
-#include <stdlib.h>                                                             // these two
-#include <sys/types.h>                                                          // for u_char def
-#include <string.h>
-#include <ctype.h>
-#include <unistd.h>                                                             // for sleep
-#include <errno.h>                                                              // error stuff
-#include <math.h>                                                               // maths functions
-#include <assert.h>
-#include "rsm.h"                                                                // standard includes
-#include "proto.h"                                                              // standard prototypes
+#include "compile.h"                                                            // for XECUTE
+#include "database.h"                                                           // for GBD def
 #include "error.h"                                                              // standard errors
 #include "opcode.h"                                                             // the op codes
-#include "compile.h"                                                            // for XECUTE
+#include "proto.h"                                                              // standard prototypes
 #include "symbol.h"                                                             // for fast symbol stuff
-#include "database.h"                                                           // for GBD def
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>                                                              // error stuff
+#include <stdlib.h>                                                             // these two
+#include <string.h>
+#include <unistd.h>                                                             // for sleep
 
 extern short in_hist;                                                           // are we in the history buffer
 
@@ -120,9 +116,14 @@ int run(int savasp, int savssp)                                                 
                 if (t == -(ERRZ51 + ERRMLAST)) partab.jobtab->io = 0;           // if it's a <Control-C> then $IO = 0
                 partab.jobtab->dostk[partab.jobtab->cur_do].pc = rsmpc;         // save pc
 
-                if (t == USRERR) {                                              // if SET $ECODE
-                    j = (u_char *) ptr1 - &strstk[ssp];                         // calculate how far $ECODE value is from the top
-                    ssp += j + ptr1->len + sizeof(u_short) + 1;                 // point past it for Set_Error with a var
+                // if SET $ECODE using a variable allocated on the string stack
+                if ((t == USRERR) && ((u_char *) ptr1 >= partab.strstk_start) && ((u_char *) ptr1 < partab.strstk_last)) {
+                    j = (u_char *) ptr1 - &strstk[ssp] + ptr1->len + sizeof(u_short) + 1; // how far $ECODE value is from the top
+
+                    if (j > 0) {                                                // only move ssp if ptr1 is above ssp
+                        ssp += j;                                               // point past it for Set_Error with a var
+                        if (ssp >= MAX_SSTK) continue;                          // check ssp, if too much die above
+                    }
                 }
 
                 cptr = (cstring *) &strstk[ssp];                                // where we will put it
@@ -1465,7 +1466,7 @@ int run(int savasp, int savssp)                                                 
             t = 0;
 
             for (i = 0; i < STORAGE; i++) {                                     // scan the symbol table
-                if (symtab[i].data == NULL) t++;                                // count empty symbol slots
+                if (symtab[i].data == ST_DATA_NULL) t++;                        // count empty symbol slots
             }
 
             cptr->len = ltocstring(cptr->buf, t);
@@ -2077,7 +2078,6 @@ int run(int savasp, int savssp)                                                 
                     partab.jobtab->view[i - 1] = NULL;                          // say it's released
                     if (j == 0) break;                                          // done if release
                     partab.jobtab->view[i - 1] = DB_ViewGet(i, j);              // get another block
-                    partab.jobtab->view[i - 1] = SBA(partab.jobtab->view[i - 1]); // shift memory
 
                     if (partab.jobtab->view[i - 1] == NULL) {                   // failed?
                         ERROR(-(ERRZ63 + ERRMLAST));                            // die
@@ -3032,9 +3032,11 @@ int run(int savasp, int savssp)                                                 
             if (t < 0) ERROR(t);                                                // die on error
 
             if (symtab[t].data == ST_DATA_NULL) {                               // if data block undefined
-                symtab[t].data = malloc(DTMINSIZE);                             // allocate some memory
-                if (symtab[t].data == NULL) ERROR(-(ERRZ56 + ERRMLAST));        // no memory
-                memset(symtab[t].data, 0, DTMINSIZE);                           // clear it
+                i = DTMINSIZE;                                                  // minimum size for a DT block
+
+                symtab[t].data = malloc(i);                                     // allocate some memory
+                if (symtab[t].data == ST_DATA_NULL) ERROR(-(ERRZ56 + ERRMLAST)); // no memory
+                memset(symtab[t].data, 0, i);                                   // clear it
 DISABLE_WARN(-Warray-bounds)
                 symtab[t].data->attach = 1;                                     // this one attached
                 symtab[t].data->dbc = VAR_UNDEFINED;                            // say undefined
@@ -3292,7 +3294,7 @@ ENABLE_WARN
                 if (t < 0) ERROR(t);                                            // or this way
             } else {
                 data = symtab[s].data;                                          // get data block address
-                if (data == NULL) ERROR(-ERRM15);                               // complain if missing
+                if (data == ST_DATA_NULL) ERROR(-ERRM15);                       // complain if missing
                 if (data->dbc == VAR_UNDEFINED) ERROR(-ERRM15);                 // complain if missing
                 ptr1 = (cstring *) &data->dbc;                                  // point at it
             }
@@ -3457,6 +3459,17 @@ ENABLE_WARN
             break;                                                              // go do it
 
         // ***** Start of Xcalls *****
+        case XCWAIT:                                                            // Xcall $&%WAIT()
+            ptr2 = (cstring *) addstk[--asp];                                   // get arg 2
+            ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
+            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
+            t = Xcall_wait((char *) cptr->buf, ptr1, ptr2);                     // do it
+            if (t < 0) ERROR(t);                                                // complain on error
+            cptr->len = t;                                                      // save the length
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
+            addstk[asp++] = (u_char *) cptr;                                    // stack it
+            break;
+
         case XCCOMP:                                                            // Xcall $&%COMPRESS()
             j = cstringtoi((cstring *) addstk[--asp]);                          // get second arg
             ptr1 = (cstring *) addstk[--asp];                                   // the first argument
@@ -3472,7 +3485,16 @@ ENABLE_WARN
             addstk[asp++] = (u_char *) cptr;                                    // stack it
             break;
 
-        //case XCSIG:                                                           // Xcall $&%SIGNAL() -  done elsewhere
+        case XCSIG:                                                             // Xcall $&%SIGNAL()
+            ptr2 = (cstring *) addstk[--asp];                                   // get arg 2
+            ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
+            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
+            t = Xcall_signal((char *) cptr->buf, ptr1, ptr2);                   // do it
+            if (t < 0) ERROR(t);                                                // complain on error
+            cptr->len = t;                                                      // save the length
+            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
+            addstk[asp++] = (u_char *) cptr;                                    // stack it
+            break;
 
         case XCHOST:                                                            // Xcall $&%HOST()
             ptr2 = (cstring *) addstk[--asp];                                   // get arg 2
@@ -3490,17 +3512,6 @@ ENABLE_WARN
             ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             t = Xcall_file((char *) cptr->buf, ptr1, ptr2);                     // do it
-            if (t < 0) ERROR(t);                                                // complain on error
-            cptr->len = t;                                                      // save the length
-            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
-            addstk[asp++] = (u_char *) cptr;                                    // stack it
-            break;
-
-        case XCWAIT:                                                            // Xcall $&%WAIT()
-            ptr2 = (cstring *) addstk[--asp];                                   // get arg 2
-            ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
-            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            t = Xcall_wait((char *) cptr->buf, ptr1, ptr2);                     // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // save the length
             ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
@@ -3545,17 +3556,6 @@ ENABLE_WARN
             ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             t = Xcall_opcom((char *) cptr->buf, ptr1, ptr2);                    // do it
-            if (t < 0) ERROR(t);                                                // complain on error
-            cptr->len = t;                                                      // save the length
-            ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
-            addstk[asp++] = (u_char *) cptr;                                    // stack it
-            break;
-
-        case XCSIG:                                                             // Xcall $&%SIGNAL()
-            ptr2 = (cstring *) addstk[--asp];                                   // get arg 2
-            ptr1 = (cstring *) addstk[--asp];                                   // get arg 1
-            cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            t = Xcall_signal((char *) cptr->buf, ptr1, ptr2);                   // do it
             if (t < 0) ERROR(t);                                                // complain on error
             cptr->len = t;                                                      // save the length
             ssp += sizeof(u_short) + cptr->len + 1;                             // point past it
