@@ -1604,7 +1604,7 @@ short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
 #else
     const char password[256] = {0};                                             // encrypted password
 
-    (void) dummy;                                                               // unused parameter
+    (void) pwd;                                                                 // unused parameter
 #endif
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)

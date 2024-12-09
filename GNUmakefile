@@ -161,7 +161,7 @@ uninstall:
 install-docs: $(INSTDOC)
 
 .PHONY: install-docs-default
-install-docs-default:
+install-docs-default: uninstall-docs
 	@echo install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
 	install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
 	echo install -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
@@ -182,7 +182,7 @@ install-docs-default:
 	fi
 
 .PHONY: install-docs-aix
-install-docs-aix:
+install-docs-aix: uninstall-docs
 	@echo mkdir -p $(PREFIX)/share/doc/$(PROG); \
 	mkdir -p $(PREFIX)/share/doc/$(PROG); \
 	for doc in $(DOCS); do \

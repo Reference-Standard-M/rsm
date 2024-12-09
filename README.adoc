@@ -37,7 +37,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 == ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 [.lead]
-*Version 1.82.3 - 2024 Dec 8*
+*Version 1.82.4 - 2024 Dec 9*
 
 === Copyright and License
 
@@ -140,9 +140,6 @@ $ gmake -j
 
 The resulting `rsm` executable will be optimized for your system.
 
-NOTE: Using `make install` and `make install-docs` doesn't currently work on
-Cygwin
-
 Install the `rsm` executable to the default bin directory [/usr/local/bin], and
 the `utils.rsm` utilities to the default rsm directory [/usr/local/share/rsm]:
 
@@ -157,6 +154,13 @@ Install the `rsm` executable to a different bin directory [/usr/bin], and the
 [source,bash]
 ----
 $ sudo make install prefix=/usr
+----
+
+On Cygwin (as administrator):
+
+[source,bash]
+----
+$ make install
 ----
 
 Clean up the build environment after installation:
@@ -197,6 +201,13 @@ directories [/usr/share/doc/rsm, /usr/share/man/man1]:
 [source,bash]
 ----
 $ sudo make install-docs prefix=/usr
+----
+
+On Cygwin (as administrator):
+
+[source,bash]
+----
+$ make install-docs
 ----
 
 NOTE: On macOS and AIX, you might have to add the path that `make install-docs`

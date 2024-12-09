@@ -118,7 +118,7 @@ uninstall:
 	$(RM) $(PREFIX)/bin/$(PROG)
 
 .PHONY: install-docs
-install-docs:
+install-docs: uninstall-docs
 	@echo install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
 	install -d -m 755 $(PREFIX)/share/doc/$(PROG); \
 	echo install -m 644 $(DOCS) $(PREFIX)/share/doc/$(PROG); \
