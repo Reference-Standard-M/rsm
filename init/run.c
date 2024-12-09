@@ -252,7 +252,9 @@ start:
     partab.jobtab->rvol = 1;                                                    // volset
     partab.jobtab->start_len = Vhorolog(partab.jobtab->start_dh);               // store start date/time
     partab.jobtab->dostk[0].type = TYPE_RUN;                                    // ensure slot 0 has a value
-    failed_tty = tcgetattr(STDIN_FILENO, &tty_settings);
+
+    // Save tty settings (if $principal on stdin and stdout is a terminal and not a pipe)
+    if (isatty(STDIN_FILENO) && isatty(STDOUT_FILENO)) failed_tty = tcgetattr(STDIN_FILENO, &tty_settings);
     i = SQ_Init();                                                              // have seqio setup chan 0
     if (i < 0) ser(i);                                                          // check for error
 

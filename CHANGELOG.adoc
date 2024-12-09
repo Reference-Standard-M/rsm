@@ -30,6 +30,12 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 == Release Changelog
 
+=== v1.82.4 -- 2024 Dec 9
+
+* Fix bug that prevents RSM from building on Cygwin
+* Improve I/O and shell redirection support
+* Fix the `install-docs` rule in the Make configurations to prevent extra files
+
 === v1.82.3 -- 2024 Dec 8
 
 * Improve last block used optimization to work in more journal scenarios

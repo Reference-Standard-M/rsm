@@ -1403,8 +1403,6 @@ int DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i)
     mvar    var3;                                                               // temp mvar
     short   s;                                                                  // for the functions
     short   num;
-    int     args;                                                               // for the functions
-    int     args2;                                                              // for the functions
     int     len;
 
     vptr = (cstring *) tmp;                                                     // where it goes
@@ -1436,6 +1434,9 @@ int DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i)
         if (s < 0) return s;                                                    // die on error
         vptr->len = s;
     } else {
+        int args;                                                               // for the functions
+        int args2;                                                              // for the functions
+
         num = ((s > i) ? s : i);
         args = 0;                                                               // clear ky index
         args2 = 0;
