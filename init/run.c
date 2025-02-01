@@ -345,7 +345,6 @@ start:
         partab.jobtab->dostk[0].estack = 0;                                     // estack offset
         partab.jobtab->dostk[0].level = 0;                                      // where we started
         partab.jobtab->dostk[0].flags = 0;                                      // no flags
-        partab.jobtab->dostk[0].test = -1;                                      // no NEW $TEST
         partab.jobtab->dostk[0].savasp = asp;                                   // address stack pointer
         partab.jobtab->dostk[0].savssp = ssp;                                   // string stack
         partab.jobtab->dostk[0].asp = asp;                                      // address stack pointer
@@ -476,7 +475,6 @@ start:
         partab.jobtab->dostk[0].estack = 0;                                     // estack offset
         partab.jobtab->dostk[0].level = 0;                                      // where we started
         partab.jobtab->dostk[0].flags = 0;                                      // no flags
-        partab.jobtab->dostk[0].test = -1;                                      // no NEW $TEST
         partab.jobtab->dostk[0].savasp = asp;                                   // address stack pointer
         partab.jobtab->dostk[0].savssp = ssp;                                   // string stack
         partab.jobtab->dostk[0].asp = asp;                                      // address stack pointer

@@ -98,6 +98,7 @@ static struct {
     {ERRM59,              "Environment reference not permitted for this SSVN"},
     {ERRM60,              "Undefined SSVN"},
     {ERRM75,              "String length exceeds implementation's limit"},
+    {ERRM90,              "Invalid name value"},
     {ERRM92,              "Mathematical overflow"},
     {ERRM93,              "Mathematical underflow"},
     {ERRM94,              "Zero to the power of zero"},

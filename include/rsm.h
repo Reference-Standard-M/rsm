@@ -50,7 +50,7 @@
 #define VERSION_MINOR       82                                                  // Minor version number
 #define VERSION_PATCH       4                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
-#define VERSION_TEST        1                                                   // Test version number
+#define VERSION_TEST        2                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
 #define MAX_JOBS            1024                                                // Maximum number of jobs
 #define DAEMONS             16                                                  // Jobs per daemon
@@ -178,7 +178,8 @@
 #define DO_FLAG_TEST    1                                                       // $TEST value (0/1)
 #define DO_FLAG_ATT     2                                                       // sym attach done
 #define DO_FLAG_FOR     4                                                       // called from a FOR (infor)
-//#define DO_FLAG_ERROR   8                                                       // this is an error frame
+#define DO_FLAG_NEW     8                                                       // NEW $TEST was called at least once
+//#define DO_FLAG_ERROR   16                                                      // this is an error frame
 
 // Signals we do something with (see jobtab->trap). (add as required)
 #define SIG_HUP     1                                                           // SIGHUP (ERRZ66)
@@ -362,7 +363,6 @@ typedef struct __attribute__ ((__packed__)) DO_FRAME {
     u_char  type;                                                               // see TYPE_??? def
     u_char  level;                                                              // current argless do level
     u_char  flags;                                                              // flags for this frame
-    char    test;                                                               // current $TEST (0/1) if NEW'd
     long    savasp;                                                             // saved asp
     long    savssp;                                                             // saved ssp
     long    asp;                                                                // entry asp

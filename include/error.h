@@ -88,6 +88,7 @@
 #define ERRM59      59                                                          // Environment reference not permitted for this SSVN
 #define ERRM60      60                                                          // Undefined SSVN
 #define ERRM75      75                                                          // String length exceeds implementation's limit
+#define ERRM90      90                                                          // Invalid name value
 #define ERRM92      92                                                          // Mathematical overflow
 #define ERRM93      93                                                          // Mathematical underflow
 #define ERRM94      94                                                          // Zero to the power of zero

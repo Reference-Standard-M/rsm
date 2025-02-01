@@ -1267,7 +1267,7 @@ int Dview(u_char *ret_buffer, int chan, int loc, int size, cstring *value)
     return 0;                                                                   // return OK
 }
 
-// set $EXTRACT
+// SET $EXTRACT
 int DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2)
 {
     cstring *vptr;                                                              // where the variable goes
@@ -1301,7 +1301,7 @@ int DSetextract(u_char *tmp, cstring *cptr, mvar *var, int i1, int i2)
     return DB_Set(var, vptr);                                                   // set it back and return
 }
 
-// set $PIECE
+// SET $PIECE
 int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int i2)
 {
     cstring *vptr;                                                              // where the variable goes
@@ -1394,81 +1394,112 @@ int DSetpiece(u_char *tmp, cstring *cptr, mvar *var, cstring *dptr, int i1, int 
     return DB_Set(var, vptr);                                                   // set it back and return
 }
 
-// set $QSUBSCRIPT
+// SET $QSUBSCRIPT
 int DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i)
 {
-    cstring *vptr;                                                              // where the variable goes
-    cstring temp;                                                               // temp cstring
-    mvar    var2;                                                               // temp mvar
-    mvar    var3;                                                               // temp mvar
-    short   s;                                                                  // for the functions
-    short   num;
-    int     len;
+    cstring *vptr,                                                              // where the variable goes
+            temp;                                                               // temp cstring
+    mvar    var2, var3;                                                         // temp mvars
+    short   s, num;                                                             // for the functions
 
     vptr = (cstring *) tmp;                                                     // where it goes
-    s = Dget1(vptr->buf, var);                                                  // get current value
-    if (s < 0) return s;                                                        // die on error
+    if ((s = Dget1(vptr->buf, var)) < 0) return s;                              // get current value
     vptr->len = s;                                                              // save the size
-    s = UTIL_MvarFromCStr(vptr, &var2);                                         // convert to an mvar
-    if (s < 0) return s;                                                        // die on error
+    if ((s = UTIL_MvarFromCStr(vptr, &var2)) < 0) return s;                     // convert to an mvar
+    num = s;
+    if (i && var_empty(var2.name)) return -ERRM90;                              // error, not a valid name value
 
-    if (i == -1) {                                                              // "environment" required
+    if (i == -2) {                                                              // volume part of environment
         if (cptr->len == 0) {
             var2.volset = 0;
-            var2.uci = UCI_IS_LOCALVAR;
         } else {
-            var2.volset = 0;
-            var2.uci = getuci(cptr, var2.volset);
+            if ((s = getvol(cptr)) < 0) return s;                               // get volume number
+            var2.volset = s;
+            if (!var2.uci || (var2.uci == UCI_IS_LOCALVAR)) var2.uci = partab.jobtab->uci;
         }
 
-        s = UTIL_String_Mvar(&var2, vptr->buf, s);                              // do it elsewhere
-        if (s < 0) return s;                                                    // die on error
+        if ((s = UTIL_String_Mvar(&var2, vptr->buf, num)) < 0) return s;        // do it elsewhere
+        vptr->len = s;
+    } else if (i == -1) {                                                       // UCI part of environment
+        if (cptr->len == 0) {
+            var2.volset = var2.uci = 0;
+        } else {
+            u_char volset;
+
+            volset = var2.volset;
+            if (!volset) var2.volset = partab.jobtab->vol;
+            if ((s = getuci(cptr, var2.volset)) < 0) return s;                  // get UCI number
+            var2.volset = volset;
+            var2.uci = s;
+        }
+
+        if ((s = UTIL_String_Mvar(&var2, vptr->buf, num)) < 0) return s;        // do it elsewhere
         vptr->len = s;
     } else if (i == 0) {                                                        // end environment stuff - the name?
-        num = s;
-        s = UTIL_MvarFromCStr(cptr, &var3);                                     // convert to an mvar
-        if (s < 0) return s;                                                    // die on error
+        char c;
+
+        if (cptr->len > VAR_LEN) return -ERRM56;                                // error, name too long
+        if ((s = UTIL_MvarFromCStr(cptr, &var3)) < 0) return s;                 // convert to an mvar
+        if (var3.volset) return -ERRM90;                                        // error, can't change volume this way
+        if ((var3.uci) && (var3.uci != UCI_IS_LOCALVAR)) return -ERRM90;        // error, only locals, globals, and SSVNS allowed
+        if (var3.slen) return -ERRM90;                                          // error, can't change subscripts this way
+        if (var_empty(var3.name)) return -ERRM90;                               // error, not a valid name value
         VAR_COPY(var2.name, var3.name);
-        var2.uci = var3.uci;
-        s = UTIL_String_Mvar(&var2, vptr->buf, num);                            // do it elsewhere
-        if (s < 0) return s;                                                    // die on error
+        s = 0;
+
+        while (((c = var2.name.var_cu[s++]) != '\0') && (s < VAR_LEN)) {
+            if ((s == 1) && ((c == '$') || (c == '%'))) continue;
+            if (isalpha((int) c) == 0) return -ERRM90;
+        }
+
+        if (var3.uci == UCI_IS_LOCALVAR) {
+            var2.volset = 0;
+            var2.uci = UCI_IS_LOCALVAR;
+        } else if ((var2.uci == UCI_IS_LOCALVAR) || (var2.uci == partab.jobtab->uci)) {
+            var2.volset = var2.uci = 0;
+        } else if (var2.volset == partab.jobtab->vol) {
+            var2.volset = 0;
+        }
+
+        if ((s = UTIL_String_Mvar(&var2, vptr->buf, num)) < 0) return s;        // do it elsewhere
         vptr->len = s;
     } else {
-        int args;                                                               // for the functions
-        int args2;                                                              // for the functions
+        int args = 0,                                                           // for the functions
+            args2 = 0,
+            len = 0;
 
         num = ((s > i) ? s : i);
-        args = 0;                                                               // clear ky index
-        args2 = 0;
-        len = 0;
-        var3.slen = 0;
+        if (num > MAX_NUM_SUBS) return -(ERRZ15 + ERRMLAST);                    // complain if too many
         i--;
+        var3.slen = 0;
 
         for (int j = 0; j < num; j++) {                                         // look for the subscript
-            s = UTIL_Key_Extract(&var2.key[args], temp.buf, &len);              // get key from here
-            if (s < 0) return s;                                                // die on error
+            if (args < var2.slen) {
+                if (args >= MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);           // complain if too big
+                if ((s = UTIL_Key_Extract(&var2.key[args], temp.buf, &len)) < 0) return s; // get key from here
+            } else {
+                s = 0;
+            }
+
             temp.len = s;
 
             if (j == i) {
-                s = UTIL_Key_Build(cptr, &var3.key[args2]);
-                if (s < 0) return s;                                            // die on error
-                args2 += s;
-                var3.slen += s;
+                if ((args2 + cptr->len + 3) >= MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST); // complain if too big
+                if ((s = UTIL_Key_Build(cptr, &var3.key[args2])) < 0) return s;
             } else {
-                s = UTIL_Key_Build(&temp, &var3.key[args2]);
-                if (s < 0) return s;                                            // die on error
-                args2 += s;
-                var3.slen += s;
+                if ((args2 + s + 3) >= MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST); // complain if too big
+                if ((s = UTIL_Key_Build(&temp, &var3.key[args2])) < 0) return s;
             }
 
             args += len;                                                        // add key bytes used
+            args2 += s;
+            var3.slen += s;
         }
 
         var3.name = var2.name;
         var3.volset = var2.volset;
         var3.uci = var2.uci;
-        s = UTIL_String_Mvar(&var3, vptr->buf, num);                            // do it elsewhere
-        if (s < 0) return s;                                                    // die on error
+        if ((s = UTIL_String_Mvar(&var3, vptr->buf, num)) < 0) return s;        // do it elsewhere
         vptr->len = s;
     }
 

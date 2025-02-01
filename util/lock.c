@@ -66,13 +66,7 @@ static int failed(lck_add *pctx)                                                
         SchedYield(TRUE);                                                       // give up slice (or sleep)
     }
 
-    if (pctx->tryagain == 0) {
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;               // flag failure to lock
-        } else {
-            partab.jobtab->test = 0;                                            // flag failure to lock
-        }
-    }
+    if (pctx->tryagain == 0) partab.jobtab->test = 0;                           // flag failure to lock
 
     if (partab.jobtab->attention) {
         if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP)) {
@@ -537,15 +531,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
         int   pos = 0;                                                          // position indicator
 
         pctx->tryagain = 0;                                                     // reset retry flag
-
-        if (pctx->to > -1) {
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;           // flag successful locking
-            } else {
-                partab.jobtab->test = 1;                                        // flag successful locking
-            }
-        }
-
+        if (pctx->to > -1) partab.jobtab->test = 1;                             // flag successful locking
         pctx->done = 0;                                                         // init
         pctx->x = SemOp(SEM_LOCK, SEM_WRITE);                                   // write lock SEM_LOCK
         if (pctx->x < 0) return pctx->x;                                        // return the error

@@ -507,13 +507,7 @@ static int signalCaught(SQ_Chan *c)
 
     if (partab.jobtab->trap & MASK[SIGALRM]) {
         partab.jobtab->trap &= ~MASK[SIGALRM];
-
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-        } else {
-            partab.jobtab->test = 0;
-        }
-
+        partab.jobtab->test = 0;
         return SIGALRM;
     } else {
         return -1;
@@ -1070,13 +1064,7 @@ static int readTCP(int chan, u_char *buf, int maxbyt, int tout)
             c->dkey_len = 0;
             c->dkey[0] = '\0';
             partab.jobtab->trap &= ~MASK[SIGALRM];
-
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-            } else {
-                partab.jobtab->test = 0;
-            }
-
+            partab.jobtab->test = 0;
             return 0;
         } else {
             return oid;
@@ -1297,13 +1285,7 @@ static int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 
             if (partab.jobtab->trap & MASK[SIGALRM]) {
                 partab.jobtab->trap &= ~MASK[SIGALRM];
-
-                if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                    partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-                } else {
-                    partab.jobtab->test = 0;
-                }
-
+                partab.jobtab->test = 0;
                 return bytesread;
             }
 
@@ -1395,13 +1377,7 @@ static int readTERM(int chan, u_char *buf, int maxbyt, int tout)
 
                     if (partab.jobtab->trap & MASK[SIGALRM]) {                  // Operation timed out
                         partab.jobtab->trap &= ~MASK[SIGALRM];
-
-                        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                            partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-                        } else {
-                            partab.jobtab->test = 0;
-                        }
-
+                        partab.jobtab->test = 0;
                         return bytesread;
                     } else {
                         return ret;                                             // Read error
@@ -1862,14 +1838,7 @@ short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
 
     // Check for opening $PRINCIPAL. In RSM, this is a no-op (See close code as well).
     if (chan == STDCHAN) {
-        if (tout > UNLIMITED) {                                                 // if there's a timeout
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;           // say that open succeeded
-            } else {
-                partab.jobtab->test = 1;                                        // say that open succeeded
-            }
-        }
-
+        if (tout > UNLIMITED) partab.jobtab->test = 1;                          // if there's a timeout then say open succeeded
         return 0;
     }
 
@@ -1892,13 +1861,7 @@ short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
     if (tout < UNLIMITED) return (short) getError(INT, ERRZ22);
 
     // Assume operation won't time out
-    if (tout > UNLIMITED) {
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;               // assume won't time out
-        } else {
-            partab.jobtab->test = 1;                                            // assume won't time out
-        }
-    }
+    if (tout > UNLIMITED) partab.jobtab->test = 1;                              // assume won't time out
 
     // Determine object type and operation
     oper = getOperation(op);                                                    // Determine operation
@@ -1967,23 +1930,11 @@ short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
     alarm(0);
 
     if (oid < 0) {
-        if (tout == 0) {                                                        // Failed to obtain ownership
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-            } else {
-                partab.jobtab->test = 0;
-            }
-        }
+        if (tout == 0) partab.jobtab->test = 0;                                 // Failed to obtain ownership
 
         if (partab.jobtab->trap & MASK[SIGALRM]) {                              // Timeout received
             partab.jobtab->trap &= ~MASK[SIGALRM];
-
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;
-            } else {
-                partab.jobtab->test = 0;
-            }
-
+            partab.jobtab->test = 0;
             return 0;
         } else if (partab.jobtab->trap & MASK[SIGINT]) {                        // Caught SIGINT
             return 0;
@@ -2468,14 +2419,7 @@ int SQ_Read(u_char *buf, int tout, int maxbyt)
     type = (int) partab.jobtab->seqio[chan].type;
 
     if ((tout > 0) && (type != SQ_FILE)) alarm(tout);
-
-    if ((tout > UNLIMITED) && (type != SQ_FILE)) {
-        if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-            partab.jobtab->dostk[partab.jobtab->cur_do].test = 1;               // assume won't time out
-        } else {
-            partab.jobtab->test = 1;                                            // assume won't time out
-        }
-    }
+    if ((tout > UNLIMITED) && (type != SQ_FILE)) partab.jobtab->test = 1;       // assume won't time out
 
     // Read from object
     switch (type) {
@@ -2504,28 +2448,14 @@ int SQ_Read(u_char *buf, int tout, int maxbyt)
 
     // Return bytes read or error
     if (ret >= 0) {                                                             // Read successful
-        if ((ret == 0) && (tout == 0)) {                                        // no char and 0 TO
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;           // say failed
-            } else {
-                partab.jobtab->test = 0;                                        // say failed
-            }
-        }
-
+        if ((ret == 0) && (tout == 0)) partab.jobtab->test = 0;                 // no char and 0 TO so say failed
         buf[ret] = '\0';                                                        // NULL terminate
         return ret;
     } else if (partab.jobtab->trap & MASK[SIGINT]) {                            // SIGINT caught
         buf[0] = '\0';
         return 0;
     } else {                                                                    // Error
-        if (tout == 0) {                                                        // Failed to obtain ownership
-            if (partab.jobtab->dostk[partab.jobtab->cur_do].test != -1) {
-                partab.jobtab->dostk[partab.jobtab->cur_do].test = 0;           // say failed
-            } else {
-                partab.jobtab->test = 0;                                        // say failed
-            }
-        }
-
+        if (tout == 0) partab.jobtab->test = 0;                                 // Failed to obtain ownership
         return ret;
     }
 }
