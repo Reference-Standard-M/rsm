@@ -3,13 +3,12 @@ Package: Reference Standard M
 File:    README.adoc
 Summary: Basic getting started documentation
 
-David Wicksell <dlw@linux.com>
-Copyright © 2020-2024 Fourth Watch Software LC
-https://gitlab.com/Reference-Standard-M/rsm
-
-Based on MUMPS V1 by Raymond Douglas Newman
-Copyright © 1999-2003
-https://gitlab.com/Reference-Standard-M/mumpsv1
+SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2003)
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -18,36 +17,38 @@ Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
 You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
-
-SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 ////
 
 :source-highlighter: highlight.js
 :highlightjs-languages: bash, cos
-:logo: image:https://www.fourthwatchsoftware.com/images/fws-logo-horizontal.png
+:imagesdir: doc/modules/ROOT/images
 :documentation: https://reference-standard-m.gitlab.io/rsm[documentation]
 
 = Reference Standard M
+Author: David Wicksell
 
-{logo}[caption="Fourth Watch Software Logo", width="480", height="80"]
+[caption="Fourth Watch Software Logo", width="480", height="80", align="left"]
+image::fws-logo.png[]
 
 '''
 
 == ANSI/MDC Standard M X11.1-1995 (ISO/IEC 11756:1999)
 
 [.lead]
-*Version 1.82.4 - 2024 Dec 9*
+*Version 1.83.0 - 2026 Jun 8*
 
 === Copyright and License
 
 Developed and maintained by David Wicksell <dlw@linux.com> +
-Copyright © 2020-2024 Fourth Watch Software LC +
+Copyright © 2020-2026 Fourth Watch Software LC +
 https://gitlab.com/Reference-Standard-M/rsm
 
-Originally based on MUMPS V1 by Raymond Douglas Newman +
+Derived from MUMPS V1 by Raymond Douglas Newman +
 Copyright © 1999-2018 +
 https://gitlab.com/Reference-Standard-M/mumpsv1
+
+Reference Standard M (RSM) is free software, licensed under the GNU Affero
+General Public License version 3 or later (AGPL-3.0-or-later).
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU Affero General Public License (AGPL) as published by the
@@ -70,42 +71,48 @@ and database, which implements the latest M standard that has been released by
 the M Development Committee (MDC), currently ANSI/MDC X11.1-1995 (ISO/IEC
 11756:1999).
 
-RSM was originally named MUMPS V1 (MV1), and was created by Raymond Douglas
-Newman. When I took over maintenance and development of MV1, I changed its name
-to better reflect its use as a reference implementation for the MDC.
+RSM is derived from MUMPS V1 (MV1), originally authored by Raymond Douglas
+Newman, and renamed to better reflect its use as a reference implementation for
+the MDC. See the link:NOTICE.adoc[Notice] for full attribution, provenance, and
+licensing information.
 
 See the link:CHANGELOG.adoc[Changelog] for more information on the development
-of Reference Standard M. The RSM {documentation} is a work-in-progress.
-This software uses https://semver.org/[semantic versioning].
+of Reference Standard M. The RSM {documentation} is a work-in-progress. This
+software uses https://semver.org/[semantic versioning].
 
 _This is the post-relational database._
 
 === Installation
 
-RSM builds and runs on most UNIX, and UNIX-derived platforms, running 32-bit and
-64-bit processors, in little-endian and big-endian mode. The platforms that have
-been tested, and/or known (or suspected) to build and run RSM, are:
+RSM builds and runs on most UNIX and UNIX-derived platforms, on 64-bit and
+32-bit processors, in little-endian or big-endian byte order. The platforms that
+have been tested, or are known (or suspected) to build and run RSM, are:
 
-* Linux (Ubuntu, Debian, Red Hat, OpenSUSE, and Slackware) on i386 and x86_64
+* Linux on x86_64, and i386 where distributions still ship images (see below)
+  - Ubuntu on x86_64, and i386 before 19.10
+  - Debian on x86_64, and i386 before Debian 13
+  - Red Hat on x86_64, and i386 before RHEL 7
+  - Fedora on x86_64, and i386 before Fedora 31
+  - OpenSUSE on x86_64, and i386 before Leap 15.0
+  - Slackware on x86_64 and i386
+  - Arch on x86_64, and i386 before 2017
+  - Kali on x86_64, and i386 before 2024.4
+  - Alma on x86_64
 * Debian Linux on ppc64le
 * Gentoo Linux on IA-64
 * FreeBSD on amd64
 * NetBSD on amd64
 * OpenBSD on amd64
-* macOS 10.4 and newer on ILP32 and LP64 Intel (Clang or GCC)
-* macOS 11.0 and newer on 64-bit M1 ARMv8 (Clang or GCC)
+* macOS 10.4 and newer on LP64 and ILP32 Intel (Clang or GCC)
+* macOS 11.0 and newer on 64-bit Apple Silicon ARMv8 (Clang or GCC)
 * Solaris on i86pc and Sun-4v (SPARC)
 * Tru64 on Alpha
 * AIX on ppc32be and ppc64be
 * HP-UX on IA-64
-* Windows XP, 7, 10, and 11, under Cygwin
-* Windows 10 and 11, under Windows Subsystem for Linux (WSL) 1 and 2
-* Raspberry Pi on armv6l and armv7l running Raspbian
+* Windows XP on i386, and 7, 10, and 11 on x86_64, under Cygwin
+* Windows 10 and 11 on x86_64, under Windows Subsystem for Linux (WSL) 1 and 2
+* Raspberry Pi on armv7l and armv6l running Raspbian
 * Mobian (Mobile Debian Linux) on aarch64
-
-Thanks to https://gitlab.com/jpwillis[John Willis] for providing access to the
-build farm, and to https://github.com/racingmars[Matthew Wilson], Terry
-Wiechmann, and Flavio Fornazier for helping me with testing.
 
 To build RSM, clone the RSM git repository:
 
@@ -132,13 +139,11 @@ On Solaris:
 ----
 $ gmake
 ----
-or
-[source,bash]
-----
-$ gmake -j
-----
 
 The resulting `rsm` executable will be optimized for your system.
+
+NOTE: On current versions of Ubuntu and Kali Linux, `libcrypt-dev` must be
+installed before building RSM: `sudo apt install libcrypt-dev`.
 
 Install the `rsm` executable to the default bin directory [/usr/local/bin], and
 the `utils.rsm` utilities to the default rsm directory [/usr/local/share/rsm]:
@@ -211,7 +216,7 @@ $ make install-docs
 ----
 
 NOTE: On macOS and AIX, you might have to add the path that `make install-docs`
-installed the `rsm` man page in, to the `MANPATH` environment variable
+installed the `rsm` man page in, to the `MANPATH` environment variable.
 
 Uninstall the documentation (asciidoc/man page) from the default rsm and man1
 directories [/usr/local/share/doc/rsm, /usr/local/share/man/man1]:
@@ -246,7 +251,7 @@ $ rsm -h
 ----
 
 NOTE: Set the environment variable `RSM_DBFILE` to the database file path to
-avoid having to pass it to `rsm`
+avoid having to pass it to `rsm`.
 
 To use RSM, create a database:
 
@@ -270,14 +275,14 @@ $ rsm -v TST -b 16 -s 4096
 ----
 
 NOTE: In order to load the supplied M utilities, use a block size of 14 KiB or
-larger
+larger.
 
 Initialize and start the environment:
 
 [source,bash]
 ----
 # Optional arguments in square brackets
-#  -j <max-jobs>          Size of job table in environment  (1-1024 jobs)
+#  -j <max-jobs>          Size of job table in environment  (1-4096 jobs)
 # [-g <global-buffers>]   Size of global buffers            (1-131072 MiB)
 # [-r <routine-buffers>]  Size of routine buffers           (1-4095 MiB)
 # [<database-file>]       Name of the database file
@@ -307,10 +312,10 @@ $ sudo sysctl -w kern.sysv.shmall=2097152
 
 To persist the above configuration changes on macOS, you'll need to create a
 property list configuration and load it so the daemon picks it up at boot time.
-There is a sample plist XML file at `rsm/etc/sysctl.plist`. Run these commands,
-after adjusting the `kern.sysv.shmmax` and `kern.sysv.shmall` settings based on
-your system resources, and ensuring you aren't overwriting an existing file with
-that name:
+There is a sample plist XML file at link:etc/sysctl.plist[sysctl.plist]. Run
+these commands, after adjusting the `kern.sysv.shmmax` and `kern.sysv.shmall`
+settings based on your system resources, and ensuring you aren't overwriting an
+existing file with that name:
 
 [source,bash]
 ----
@@ -403,8 +408,8 @@ $ rsm -x "do ^%M"
 ----
 
 When upgrading to a new version of RSM, you might occasionally run in to an
-issue executing a routine. Normally this will not be an issue, but if it is, you
-can fix it by recompiling the routines:
+issue executing a routine. If this happens, you might be able to fix it by
+recompiling the routines:
 
 [source,cos]
 ----
@@ -484,7 +489,7 @@ $ docker buildx build -t rsm \
 ----
 
 NOTE: If you build the image from source, using the previous example, replace
-dlwicksell/rsm with rsm below
+dlwicksell/rsm with rsm below.
 
 To create and run the Docker container with RSM in direct mode:
 
@@ -564,6 +569,147 @@ $ docker stop rsm
 
 Consult the Docker https://docs.docker.com/[documentation] to learn about other
 ways you can run and manage the RSM Docker image and container.
+
+=== Snap Package
+
+To install the RSM snap from the Snap Store:
+
+[source,bash]
+----
+$ sudo snap install rsm
+----
+
+The snap installs with three commands: `rsm` for direct mode, `rsm.man` for the
+man page, and `rsm.daemon` which runs as a background service. The database is
+created automatically at install time and the utilities are loaded. The daemon
+is started automatically and will restart on failure.
+
+NOTE: The database file is managed automatically by the snap at
+`$SNAP_COMMON/rsm.dat`.
+
+NOTE: The snap uses strict confinement, which requires the `-U` flag to be
+passed to `rsm` internally to relax certain file and IPC permissions.
+
+View the RSM man page:
+
+[source,bash]
+----
+$ rsm.man
+----
+
+Start RSM in direct mode:
+
+[source,bash]
+----
+$ rsm
+----
+
+Run an M routine in indirect mode:
+
+[source,bash]
+----
+$ rsm -x "do ^%M"
+----
+
+The environment starts with the following default configuration:
+
+* `max-jobs`: 32
+* `global-buffers`: `max-jobs` / 2 MiB
+* `routine-buffers`: `max-jobs` / 8 MiB
+
+To configure the environment before starting it:
+
+[source,bash]
+----
+# Optional snap configuration options in square brackets
+# [max-jobs]         Size of job table in environment  (1-4096 jobs)
+# [global-buffers]   Size of global buffers            (1-131072 MiB)
+# [routine-buffers]  Size of routine buffers           (1-4095 MiB)
+
+$ sudo snap set rsm max-jobs=64
+$ sudo snap set rsm global-buffers=32
+$ sudo snap set rsm routine-buffers=8
+----
+
+To reset the environment configuration option back to its default value:
+
+[source,bash]
+----
+$ sudo snap unset rsm max-jobs
+$ sudo snap unset rsm global-buffers
+$ sudo snap unset rsm routine-buffers
+----
+
+NOTE: Configuration changes require an environment restart to take effect.
+
+To view all user-configured environment options, or the current value of a
+specific option (only returns a value if the option has been explicitly set by
+the user):
+
+[source,bash]
+----
+$ sudo snap get rsm
+$ sudo snap get rsm max-jobs
+$ sudo snap get rsm global-buffers
+$ sudo snap get rsm routine-buffers
+----
+
+To start, stop, or restart the environment:
+
+[source,bash]
+----
+$ sudo snap start rsm
+$ sudo snap stop rsm
+$ sudo snap restart rsm
+----
+
+To check the environment status:
+
+[source,bash]
+----
+$ snap services rsm
+----
+
+To view the environment daemon logs:
+
+[source,bash]
+----
+$ sudo snap logs rsm
+----
+
+To view detailed environment daemon status information:
+
+[source,bash]
+----
+$ sudo systemctl status snap.rsm.daemon
+----
+
+To view information about the snap, including version and available channels:
+
+[source,bash]
+----
+$ snap info rsm
+----
+
+To update the snap to the latest version:
+
+[source,bash]
+----
+$ sudo snap refresh rsm
+----
+
+To remove the snap:
+
+[source,bash]
+----
+$ sudo snap remove rsm
+----
+
+NOTE: Removing the snap does not delete the database file at
+`$SNAP_COMMON/rsm.dat`, unless the `--purge` flag is passed to `snap remove`.
+
+Consult the Snap https://snapcraft.io/docs[documentation] to learn about other
+ways you can run and manage the RSM snap.
 
 === Database Upgrade
 

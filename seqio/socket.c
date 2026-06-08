@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/seqio/socket.c
- * Summary: module IO - sequential socket IO
+ * File:    seqio/socket.c
+ * Summary: I/O Module - sequential socket IO
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  *
  * Extended Summary:
@@ -47,6 +43,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -236,10 +233,10 @@ int SQ_Socket_Write(int sid, u_char *writebuf, int nbytes)
         char       *addrptr;
         char       *portptr;
         u_short    port;
-        char       xxxx[100];
+        char       xxxx[MAX_SEQ_NAME];
         const char *addr = (char *) c->s.name;
 
-        strcpy(xxxx, addr);
+        str_copy(xxxx, addr, sizeof(xxxx));
         portptr = strpbrk(xxxx, " ");
         *portptr = '\0';
         addrptr = xxxx;

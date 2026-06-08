@@ -1,10 +1,11 @@
-#
 # Package: Reference Standard M
-# File:    rsm/Dockerfile
+# File:    Dockerfile
 # Summary: Create an RSM Docker image
 #
-# David Wicksell <dlw@linux.com>
-# Copyright © 2022-2024 Fourth Watch Software LC
+# SPDX-FileCopyrightText:  © 2022-2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -19,33 +20,28 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
 #
-# SPDX-FileCopyrightText:  © 2022 David Wicksell <dlw@linux.com>
-# SPDX-License-Identifier: AGPL-3.0-or-later
-#
 #
 # syntax=docker/dockerfile:1
 
-# LTS release
-FROM ubuntu:24.04
-MAINTAINER David Wicksell <dlw@linux.com>
+# Stage 1: Builder
+FROM ubuntu:26.04 AS builder
 USER root
 
-# Install dependencies, upgrade packages, and clean up
+# Install build dependencies
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get -qq update && \
-    apt-get -qq --no-install-recommends install apt-utils libc6-dev file make gcc vim-nox bash-completion 2>/dev/null && \
-    apt-get -qq upgrade && \
-    apt-get -qq clean
+RUN apt-get -qq update && apt-get -qq --no-install-recommends install libc6-dev libcrypt-dev file gcc clang make git
 
 # The /opt directory is the typical place to install self-contained packages
 WORKDIR /opt/rsm
 COPY . /opt/rsm
 
-# The 'make install' command below requires USER set to root and SHELL is needed for the MCL to shell out with the OS command
-ENV USER=root SHELL=/bin/bash RSM_DBFILE=/opt/rsm/tst.dat
+# The 'make install' command below requires USER set to root
+ENV USER=root RSM_DBFILE=/opt/rsm/tst.dat
 
 # Build the rsm executable, install it system-wide for $PATH, and clean up the working directory
-RUN make -j && make install && make clean
+# Passing '--build-arg CC=clang' will use clang instead of gcc to compile RSM
+ARG CC=gcc
+RUN make CC=$CC RSM_DOCKER_BUILDER=rsm -j $(nproc) && make install && make clean
 
 # Setup the environment and configure the database
 # The 'bsize' and 'blocks' arguments can be passed to 'docker build...' via '--build-arg bsize=<bsize> --build-arg blocks=<blocks>'
@@ -69,13 +65,41 @@ RUN if [ "$journal" = "on" ]; \
         rsm -k; \
     fi
 
-# Install and compile the local RSM magic file
-RUN cp etc/magic $HOME/.magic && cd && file -C -m $HOME/.magic && cd - >/dev/null
-
 # Install the Bash completion script
-RUN sed -i '/^#if.*bash_completion/,/^#fi/ s/^#//' /root/.bashrc && \
-    mkdir -p /usr/local/share/bash-completion/completions && \
-    cp etc/rsm /usr/local/share/bash-completion/completions/
+RUN mkdir -p /usr/local/share/bash-completion/completions && cp etc/rsm /usr/local/share/bash-completion/completions/
+
+# Stage 2: Final image
+FROM ubuntu:26.04 AS final
+LABEL com.fourthwatchsoftware.vendor="Fourth Watch Software LC" \
+      com.fourthwatchsoftware.maintainer="David Wicksell <dlw@linux.com>" \
+      com.fourthwatchsoftware.description="Reference Standard M Docker Image" \
+      com.fourthwatchsoftware.version="1.83.0" \
+      com.fourthwatchsoftware.licenses="AGPL-3.0-or-later" \
+      com.fourthwatchsoftware.url="https://gitlab.com/Reference-Standard-M/rsm"
+
+USER root
+
+# Copy artifacts from builder
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /opt/rsm/log /opt/rsm/log
+COPY --from=builder /opt/rsm/bin/docker /opt/rsm/bin/
+COPY --from=builder /opt/rsm/etc/magic /opt/rsm/etc/
+COPY --from=builder /opt/rsm/tst.* /opt/rsm/
+
+# Install runtime dependencies and clean up
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get -qq update && apt-get -qq --no-install-recommends install file vim-nox bash-completion && \
+    apt-get -qq clean && rm -rf /var/lib/apt/lists/*
+
+# Start from here for bin/docker
+WORKDIR /opt/rsm
+
+# SHELL is needed for the MCL to shell out with an OS command
+ENV SHELL=/bin/bash RSM_DBFILE=/opt/rsm/tst.dat
+
+# Install and compile the local RSM magic file, and turn Bash completion on
+RUN cp etc/magic $HOME/.magic && cd && file -C -m $HOME/.magic && cd - >/dev/null && \
+    sed -i '/^#if.*bash_completion/,/^#fi/ s/^#//' /root/.bashrc
 
 # Open port 80 so that the container can host the RSM Web Server (which defaults to port 80)
 EXPOSE 80/tcp

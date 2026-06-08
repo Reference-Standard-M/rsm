@@ -3,13 +3,10 @@ Package: Reference Standard M
 File:    CHANGELOG.adoc
 Summary: Log of changes for each release
 
-David Wicksell <dlw@linux.com>
-Copyright © 2020-2024 Fourth Watch Software LC
-https://gitlab.com/Reference-Standard-M/rsm
-
-Based on MUMPS V1 by Raymond Douglas Newman
-Copyright © 1999-2003
-https://gitlab.com/Reference-Standard-M/mumpsv1
+SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -18,17 +15,104 @@ Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
 You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
-
-SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 ////
 
 :source-highlighter: highlight.js
 :highlightjs-languages: bash
 
 = Reference Standard M
+Author: David Wicksell
 
 == Release Changelog
+
+=== v1.83.0 -- 2026 Jun 8
+
+* Increase max jobs from 1024 to 4096
+* Increase default decimal precision from 18 to 32 digits
+  - Exceeds the standard-mandated precision requirement of `±10^±25`
+* Change the default of the `$NEXT` historic language feature from on to off
+  - Re-enable support via `^$SYSTEM("$NEXTOK")=1` as a privileged user
+* Add `WORD_SIZE` node to the `^$SYSTEM` system variable
+* Add safety check for address stack overflow in the runtime interpreter
+* Improve `$RANDOM` to use `arc4random()` on macOS, FreeBSD, and OpenBSD
+* Fix `$RANDOM` to seed the random number generator on startup
+* Improve pattern matching to use standard character classification functions
+  - Replace hand-written character logic with standard functions
+  - Standard functions are locale-aware and consistent across all platforms
+* Fix regression in the pattern match code that caused an obscure bug
+* Fix `@` indirection bug where a second `@` argument corrupted the stack
+* Fix `LOCK` command to process arguments in left-to-right order per M standard
+* Fix bugs when getting or setting journal status for a non-existent global
+  - Fix bug which retrieves status from the wrong (existing) global
+  - Fix bug which updates status in the wrong (existing) global
+* Fix routine buffer and symbol table memory leak in bottom-level stack frames
+  - Detach routines attached by a `GOTO` command on exit in bottom-level frame
+* Fix `$&%COMPRESS` to return an error for invalid compression level arguments
+* Fix `^COMPRESS` to continue at normal priority if privilege is not available
+* Improve `$&DEBUG` to include memory size in `"GBD"`, `"RBD"`, and `"LTD"`
+* Fix illegal syntax when using scientific exponent notation with `E`
+* Fix unary `+` and `-` to return a syntax error [`Z12`] on a bare decimal point
+* Fix 32-bit shift overflow in I/O terminator bitmask handling
+* Fix negative offset in tag references to return an error [`M5`/`M12`]
+* Fix error propagation in `DO`, `GOTO`, and `JOB` for invalid tag references
+* Fix `DO` with an argument that targets a line at a dot level above 1 [`M14`]
+* Fix environment reference resolution in global variable subscripts
+* Fix restricted mode [`-R`] error [`Z77`] message
+* Add `-U` option to `rsm` executable for unsecured (snap confinement) mode
+* Improve error messages to include `+line^routine` where the error occurred
+* Improve privilege check to grant privilege in unsecured mode
+* Improve startup to detect wrong endian database and journal files
+* Improve version string to include hostname and packaging info
+  - Add current hostname to the version string
+  - Add Docker or Snap packaging indicator to the git build hash
+* Fix the accuracy of the database SET statistic
+* Fix database to correctly detect available free blocks in the map
+* Improve database expansion to avoid redundant memory allocation per block
+* Fix environment cleanup when the main daemon fails to start
+* Improve the daemon to log when a missing daemon process is restarted
+* Fix the daemon to preserve stderr if the log file cannot be opened
+* Add `INFO` command to the MCL (allows RSM to be REUSE compliant)
+* Add `ZWRITE` command to the MCL to dump the current symbol table
+* Increment the MCL version number from 1.0 to 1.1
+* Fix regression in `^%M` where some control characters were not terminators
+* Improve routine display format in `^%TYP` (suggested by Wolfgang Malkemper)
+* Make several improvements to the block repair tool routine [`^FIX`]
+  - Add the current block number to the interactive prompt
+  - Add map check option to scan the map block and report errors
+* Improve the display format of the system statistics routine [`^%STA`]
+* Fix `TRACE` in `^%DEBUG` to avoid a stack underflow at stack level 0
+* Fix `^%BLKDMP` to validate the block number against the database size
+* Fix `^IC` and `^SSD` to report a privilege error gracefully
+* Add snap package support [`snapcraft.yaml`]
+  - Add snap configuration hook [`configure`]
+  - Add snap install hook [`install`]
+  - Add snap daemon script [`rsm.daemon`]
+  - Add snap man page script [`rsm.man`]
+* Refactor `Dockerfile` to use a multi-stage build
+  - Add Stage 1: Builder image with compile dependencies
+  - Add Stage 2: Final runtime image with only runtime dependencies
+* Update the base image in `Dockerfile` from Ubuntu 24.04 LTS to 26.04 LTS
+* Update the default max jobs in the Docker container from 12 to 32 [`docker`]
+* Migrate standard target from C99/POSIX.1-2001 to C11/POSIX.1-2008
+  - Update `CFLAGS` in the Make configurations [`GNUmakefile` `Makefile`]
+* Add `DESTDIR` support to the Make configurations [`GNUmakefile` `Makefile`]
+* Add automatic dependency tracking with `-MMD` [`GNUmakefile`]
+* Fix Antora documentation site deployment in the CI pipeline
+  - Set `GIT_DEPTH: 0` and `GIT_STRATEGY: clone` for full Git history
+  - Switch from `antora --fetch` to `antora generate --clean`
+* Update the CI host build image from GCC 12.2.0 to 16.1.0 [`.gitlab-ci.yml`]
+* Standardize SPDX copyright and license headers across all source files
+* Add `LicenseRef-MDC` and `LicenseRef-Proprietary-Logo` to `LICENSES`
+* Add `NOTICE.adoc` for attribution, provenance, and licensing notices
+* Add sequential I/O interface document [`seqio.adoc`]
+* Add Reference Standard M (RSM) logo for the snap package [`rsm-logo.png`]
+* Add Fourth Watch Software (FWS) logo for the documentation [`fws-logo.png`]
+* Adopt Conventional Commits v1.0.0 for commit messages
+  - See https://www.conventionalcommits.org/en/v1.0.0/
+
+This version makes a change to some of the structures in the shared memory
+environment, which requires shutting down the environment with the previous
+version, before installing.
 
 === v1.82.4 -- 2024 Dec 9
 
@@ -57,7 +141,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 * Improve scoping in many vendor utility routines
 * Update the `README.adoc` file
 * Update the language guide [`language.adoc`]
-* Improve the design of the documentation site design
+* Improve the design of the documentation site
 
 === v1.82.2 -- 2024 Oct 26
 
@@ -134,7 +218,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 * Improve the space efficiency of locks in the lock table during inserts
 * Simplify the algorithm for the `LOCK -` command
 * Improve error handling with expressions that have a postcondition
-* Add more detailed information to some integrity checker [`^&%IC`] messages
+* Add more detailed information to some integrity checker [`$&%IC`] messages
 * Add message when map errors are repaired to the integrity checker [`$&%IC`]
 * Improve the volume number check in the integrity checker [`$&%IC`]
 * Add support for larger numbers to the number-to-string conversion functions
@@ -169,6 +253,7 @@ SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
   - Add rules `install-docs` and `uninstall-docs`
 * Fix bug in `Makefile` which prevents proper setting of the `GIT_SHA` macro
 * Add SPDX copyright and license identifiers to every file per REUSE
+  - See https://reuse.software/spec-3.3/
 * Add `LICENSES` directory with a copy of every license used per REUSE
 * Update continuous integration configuration script [`.gitlab-ci.yml`]
   - Add new GitLab Pages deployment using Antora with `*-doc` tags
@@ -742,7 +827,7 @@ version, before installing.
 
 === v1.73.1 -- 2021 Mar 4
 
-* Add fix to support ISC Cache routine export format
+* Add fix to support ISC Caché routine export format
   - Fix supplied by https://gitlab.com/shabiel[Sam Habiel]
 
 This version erroneously displays V1.73.0 instead of V1.73.1 when using

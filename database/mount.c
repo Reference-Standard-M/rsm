@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/database/mount.c
- * Summary: module database - mount a database file
+ * File:    database/mount.c
+ * Summary: Database Module - mount a database file
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // database includes
@@ -90,7 +86,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
         return -(ERRZ60 + ERRMLAST);
     }
 
-    dbfd = open(file, O_RDWR);                                                  // open the database read/write
+    dbfd = open(file, O_RDWR);                                                  // open the database RW
     if (dbfd == -1) return -(ERRMLAST + ERRZLAST + errno);                      // if that failed exit with error
 
     if (systab->addsize) {
@@ -173,15 +169,14 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
     partab.vol[vol]->map_dirty_flag = 0;                                        // clear dirty map flag
 
     if (realpath(file, fullpathvol) != NULL) {                                  // get full path
-        if (strlen(fullpathvol) <= VOL_FILENAME_MAX) {                          // if can fit in our struct
-            strcpy(partab.vol[vol]->file_name, fullpathvol);                    // copy this full path into the vol_def structure
-        } else {                                                                // end if path will fit - otherwise
-            i = strlen(fullpathvol) - VOL_FILENAME_MAX;                         // copy as much as
-            strcpy(partab.vol[vol]->file_name, &fullpathvol[i]);                // is possible, thats the best we can do
-        }                                                                       // end length testing
+        size_t flen, offset;
+
+        flen = strlen(fullpathvol);
+        offset = (flen > VOL_FILENAME_MAX) ? flen - VOL_FILENAME_MAX : 0;       // make sure to copy the end of the path
+        str_copy(systab->vol[0]->file_name, &fullpathvol[offset], VOL_FILENAME_MAX + 1); // copy as much as possible
     } else {                                                                    // end realpath worked - or there was an error
         i = errno;                                                              // save realpath error
-        shmdt(systab);                                                          // detach the shared memory
+        shmdt((void *) systab);                                                 // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         return -(ERRMLAST + ERRZLAST + i);                                      // if that failed exit with error
     }
@@ -192,7 +187,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
 
     if (i < (int) labelblock->header_bytes) {                                   // in case of error
         i = errno;                                                              // save realpath error
-        shmdt(systab);                                                          // detach the shared memory
+        shmdt((void *) systab);                                                 // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         return -(ERRMLAST + ERRZLAST + i);                                      // exit with error
     }
@@ -222,7 +217,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
         i = DB_Daemon(indx, vol + 1);                                           // start each daemon (for mounted volume)
 
         if (i != 0) {                                                           // in case of error
-            shmdt(systab);                                                      // detach the shared memory
+            shmdt((void *) systab);                                             // detach the shared memory
             return -(ERRMLAST + ERRZLAST + i);                                  // exit with error
         }
     }                                                                           // all daemons started
@@ -255,7 +250,7 @@ short DB_Mount(char *file, int vol, u_int gmb, u_int rmb)
                 errno = 0;
                 i = read(jfd, temp.tmp, 4);                                     // read the magic
 
-                if ((i != 4) || (temp.magic != (RSM_MAGIC - 1))) {
+                if ((i != 4) || (temp.magic != JRN_MAGIC)) {
                     i = errno;
                     close(jfd);
                     return -(ERRMLAST + ERRZLAST + i);                          // exit with error

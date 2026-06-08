@@ -1,2 +1,4 @@
-SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: CC0-1.0
+SPDX-FileCopyrightText:  © 2017-present OpenDevise Inc. and the Antora Project
+SPDX-FileComment:        Minified highlight.js bundle from antora-ui-default
+SPDX-FileComment:        Modified to add COS/Caché ObjectScript language support
+SPDX-License-Identifier: MPL-2.0

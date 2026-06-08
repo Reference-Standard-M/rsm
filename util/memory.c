@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/util/memory.c
- * Summary: module util - memory subroutines
+ * File:    util/memory.c
+ * Summary: Utility Module - memory subroutines
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2016
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2016)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // for rbd def
@@ -54,7 +50,7 @@ int mcopy(u_char *src, u_char *dst, int bytes)                                  
  * Convert string (**src) to canonic number at (*dst) returning length
  * The source pointer is left pointing at the terminating character
  */
-short ncopy(u_char **src, u_char *dst)                                          // copy as number
+short ncopy(u_char **src, u_char *dst, int runtime)                             // copy as number
 {
     u_char c;                                                                   // the character
     u_char *p;                                                                  // a pointer
@@ -63,7 +59,7 @@ short ncopy(u_char **src, u_char *dst)                                          
     int    dp = 0;                                                              // decimal place flag
     int    minus = FALSE;                                                       // minus flag
     long   exp = 0;                                                             // exponent
-    int    expsgn = 1;                                                          // exponent sign
+    int    expsgn = 0;                                                          // exponent sign
 
     // if dst is at or after strstk and before the end of strstk and this will overflow strstk
     if ((dst >= partab.strstk_start) && (dst < partab.strstk_last) && (&dst[MAX_NUM_BYTES] > partab.strstk_last)) {
@@ -104,10 +100,18 @@ short ncopy(u_char **src, u_char *dst)                                          
 
             if (c == '-') {                                                     // check minus
                 expsgn = -1;                                                    // change sign
+            } else if (c == '+') {                                              // if not a plus
+                expsgn = 1;                                                     // flag it
             } else if (isdigit(c)) {                                            // if digit
                 exp = c - '0';                                                  // store value
-            } else if (c != '+') {                                              // if not a plus
-                break;                                                          // done
+            } else {
+                if (runtime) break;                                             // a unary + on a string
+                return -(ERRZ12 + ERRMLAST);                                    // have to have a number after E
+            }
+
+            if (expsgn) {
+                if ((*p == '-') || (*p == '+')) return -(ERRZ12 + ERRMLAST);    // if more than a single - or +, complain
+                if (!runtime && (*p == '\0')) return -(ERRZ12 + ERRMLAST);      // if ending with a - or +, complain
             }
 
             while (TRUE) {                                                      // scan exponent
@@ -146,7 +150,7 @@ short ncopy(u_char **src, u_char *dst)                                          
         }
     }
 
-    if (expsgn > 0) {                                                           // if positive
+    if (expsgn != -1) {                                                         // if positive
         if (dp) {                                                               // if found a dot
             for (; k < i; k++) {                                                // scan to eos
                 dst[k] = dst[k + 1];                                            // copy one char

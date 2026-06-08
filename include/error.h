@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/error.h
- * Summary: module RSM header file - error definitions
+ * File:    include/error.h
+ * Summary: RSM Module Header File - error definitions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -24,9 +23,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
  *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
- *
  *
  * Errors returned by functions internally are minus one of the following:
  *   Specifically -1 = ERRM1
@@ -36,7 +32,7 @@
  *
  * USE: short UTIL_strerror(int err, u_char *buf) to return the error string
  *
- * Add ERRZn definitions to the end of this file and the text form to rsm/util/error.c
+ * Add ERRZn definitions to the end of this file and the text form to util/error.c
  */
 
 #ifndef RSM_ERROR_H
@@ -45,9 +41,9 @@
 // The following are the MDC specific errors
 #define ERRM1       1                                                           // Naked indicator undefined
 #define ERRM2       2                                                           // Invalid $FNUMBER P code string combination
-#define ERRM3       3                                                           // $RANDOM argument less than 1
+#define ERRM3       3                                                           // $RANDOM argument less than one
 #define ERRM4       4                                                           // No true condition in $SELECT
-#define ERRM5       5                                                           // Line reference less than 0
+#define ERRM5       5                                                           // Line reference less than zero
 #define ERRM6       6                                                           // Undefined local variable
 #define ERRM7       7                                                           // Undefined global variable
 #define ERRM8       8                                                           // Undefined special variable
@@ -60,16 +56,26 @@
 #define ERRM15      15                                                          // Undefined index variable
 #define ERRM16      16                                                          // QUIT with an argument not allowed
 #define ERRM17      17                                                          // QUIT with an argument required
-#define ERRM18      18                                                          // Fixed length READ not greater than 0
+#define ERRM18      18                                                          // Fixed length READ not greater than zero
 #define ERRM19      19                                                          // Cannot merge a tree or subtree into itself
 #define ERRM20      20                                                          // Line must have a formal list
 #define ERRM21      21                                                          // Formal list name duplication
 #define ERRM22      22                                                          // SET or KILL to ^$GLOBAL when data in global
 #define ERRM23      23                                                          // SET or KILL to ^$JOB for non-existent job
+#define ERRM24      24                                                          // Change to collation algorithm while subscripted
+                                                                                //   local variables defined
 #define ERRM25      25                                                          // Attempt to modify currently executing routine
 #define ERRM26      26                                                          // Non-existent environment
+#define ERRM27      27                                                          // Attempt to rollback a transaction that
+                                                                                //   is not restartable
 #define ERRM28      28                                                          // Mathematical function, parameter out of range
 #define ERRM29      29                                                          // SET or KILL on SSVN not allowed by implementation
+#define ERRM30      30                                                          // Reference to variable with different collating
+                                                                                //   sequence within a collation algorithm
+#define ERRM31      31                                                          // Controlmnemonic used for device without a
+                                                                                //   mnemonicspace selected
+#define ERRM32      32                                                          // Controlmnemonic used in user-defined
+                                                                                //   mnemonicspace which has no associated line
 #define ERRM33      33                                                          // SET or KILL to ^$ROUTINE when routine exists
 #define ERRM35      35                                                          // Device does not support mnemonicspace
 #define ERRM36      36                                                          // Incompatible mnemonicspaces
@@ -77,7 +83,10 @@
 #define ERRM38      38                                                          // Invalid SSVN subscript
 #define ERRM39      39                                                          // Invalid $NAME argument
 #define ERRM40      40                                                          // Call-by-reference in JOB actual
+#define ERRM41      41                                                          // Invalid LOCK argument within a transaction
+#define ERRM42      42                                                          // Invalid QUIT within a transaction
 #define ERRM43      43                                                          // Invalid range ($X, $Y)
+#define ERRM44      44                                                          // Invalid command outside of a transaction
 #define ERRM45      45                                                          // Invalid GOTO reference
 #define ERRM46      46                                                          // Invalid attribute name
 #define ERRM47      47                                                          // Invalid attribute value
@@ -85,8 +94,9 @@
 #define ERRM57      57                                                          // More than one defining occurrence
                                                                                 //   of label in routine
 #define ERRM58      58                                                          // Too few formal parameters
-#define ERRM59      59                                                          // Environment reference not permitted for this SSVN
-#define ERRM60      60                                                          // Undefined SSVN
+#define ERRM59      59                                                          // Environment references not permitted for this SSVN
+#define ERRM60      60                                                          // Reference to undefined SSVN with
+                                                                                //   unspecified semantics
 #define ERRM75      75                                                          // String length exceeds implementation's limit
 #define ERRM92      92                                                          // Mathematical overflow
 #define ERRM93      93                                                          // Mathematical underflow
@@ -100,7 +110,7 @@
 #define ERRZ4       4                                                           // Error in database create
 #define ERRZ5       5                                                           // Null character not permitted in key
 #define ERRZ6       6                                                           // Error when reading from database file
-#define ERRZ7       7                                                           // DO stack overflow
+#define ERRZ7       7                                                           // DO stack overflow (max 127)
 #define ERRZ8       8                                                           // String stack overflow
 #define ERRZ9       9                                                           // Invalid BREAK parameter
 #define ERRZ10      10                                                          // String stack underflow
@@ -108,7 +118,7 @@
 #define ERRZ12      12                                                          // Expression syntax error
 #define ERRZ13      13                                                          // Command syntax error
 #define ERRZ14      14                                                          // Unknown opcode encountered
-#define ERRZ15      15                                                          // Too many subscripts
+#define ERRZ15      15                                                          // Too many subscripts (max 63)
 #define ERRZ16      16                                                          // Null subscript
 #define ERRZ17      17                                                          // Too many IF commands in one line (max 256)
 #define ERRZ18      18                                                          // Unknown external routine
@@ -136,13 +146,14 @@
 #define ERRZ40      40                                                          // IO: Bytes to write < 0
 #define ERRZ41      41                                                          // IO: Write format specifier < -2
 #define ERRZ42      42                                                          // IO: Maximum number of jobs could be exceeded
-#define ERRZ43      43                                                          // IO: Device not found or a character special dev
+#define ERRZ43      43                                                          // IO: Device not found or a character
+                                                                                //   special device
 #define ERRZ44      44                                                          // IO: Printf failed
 #define ERRZ45      45                                                          // IO: Unsigned integer value expected
 #define ERRZ46      46                                                          // IO: Peer has disconnected
 #define ERRZ47      47                                                          // IO: Peer not connected
 #define ERRZ48      48                                                          // IO: Invalid Internet address
-// More implementation specific errors
+// The following are more implementation specific errors
 #define ERRZ49      49                                                          // Job table is full
 #define ERRZ50      50                                                          // Invalid argument to $STACK()
 #define ERRZ51      51                                                          // Interrupt - Control-C Received
@@ -170,7 +181,7 @@
 #define ERRZ73      73                                                          // Invalid database file specified
 #define ERRZ74      74                                                          // Too many variables (max 255)
 #define ERRZ75      75                                                          // Too many arguments (max 127)
-#define ERRZ77      77                                                          // RSM is in restricted mode
+#define ERRZ77      77                                                          // Operation not permitted in restricted mode
 #define ERRZ78      78                                                          // Lock count exceeds implementation's limit
 #define ERRZLAST    200                                                         // Must equal last implementation error
 // Database dummy errors

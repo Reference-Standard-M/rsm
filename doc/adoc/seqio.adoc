@@ -3,13 +3,12 @@ Package: Reference Standard M
 File:    doc/adoc/seqio.adoc
 Summary: Sequential I/O documentation
 
-David Wicksell <dlw@linux.com>
-Copyright © 2020-2024 Fourth Watch Software LC
-https://gitlab.com/Reference-Standard-M/rsm
-
-Based on MUMPS V1 by Raymond Douglas Newman
-Copyright © 1999-2003
-https://gitlab.com/Reference-Standard-M/mumpsv1
+SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2003)
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -18,16 +17,551 @@ Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
 You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
-
-SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 ////
 
 :source-highlighter: highlight.js
 :highlightjs-languages: cos
 
 = Sequential I/O Interface
+Author: David Wicksell
 
-== Under Construction
+== Introduction
 
-'''
+RSM sequential I/O may be performed on the following device classes:
+
+1. <<_disk_files,Disk Files>>
+2. <<_socket_devices,Socket Devices>>
+3. <<_named_pipes,Named Pipes>>
+4. <<_character_devices,Character Devices>>
+
+The M commands that are used for I/O are:
+
+[%autowidth]
+.M I/O Commands
+|===
+|Command  |Description
+
+|`O[PEN]` |Open an I/O device and bind it to a numbered channel
+|`U[SE]`  |Change the current I/O device to the one bound to the channel
+|`R[EAD]` |Read from the current I/O device
+|`W[RITE]`|Write to the current I/O device
+|`C[LOSE]`|Close an I/O device and unbind it from a numbered channel
+|===
+
+Commands may be supplied in full or abbreviated form (the character outside of
+the brackets is the minimum abbreviation), and are case-insensitive.
+
+Sequential I/O is performed by first doing an `OPEN` on a device in a numbered
+channel, then doing a `USE` on the channel number that is bound to that device.
+Then all `READ` and `WRITE` commands executed before the next `USE` command will
+execute on the device bound to that channel. When finished with the device,
+`CLOSE` the channel number, which closes and releases the device back to the
+operating system.
+
+NOTE: The M standard specifies that device access is exclusive, but in RSM it
+is shared.
+
+IMPORTANT: While inputting commands in direct mode (not ones that are stored in
+routines), after every new line of code, `$IO` (the current device) is reset
+back to `$PRINCIPAL` (channel 0), which by default is connected to Stdin,
+Stdout, and Stderr.
+
+RSM supports the use of up to 64 concurrent device channels (numbered 0
+through 63). An attempt to open a device on a channel number outside of that
+range results in a `Z25 (IO: Channel out of range)` error. Channel 0 is always
+set to the principal device used when the RSM job was created, and cannot be
+assigned any other device. The specific use of these commands with each device
+class is discussed below.
+
+== Disk Files
+
+The file class includes disk files (binary or ASCII). The principal device
+[channel 0] can be a file device, Stdin, Stdout, or both.
+
+=== OPEN for Disk Files
+
+The OPEN command is of the form:
+
+`OPEN _channel_:(_file_:__mode__)[:__timeout__[:__namespace__]]`
+
+Where _channel_ is a channel number from 1 to 63 inclusive, _file_ is the file
+path specification (absolute or relative ) - like `/home/user/rsm/README.adoc`,
+and _mode_ is one of the following options. Modes may be supplied in full or
+abbreviated form (the characters in brackets are optional), and are
+case-insensitive.
+
+[%autowidth]
+.File Modes
+|===
+|Mode        |Action
+
+|`"R[EAD]"`  |Open for reading
+|`"W[RITE]"` |Open for writing, or to delete the file
+|`"A[PPEND]"`|Open for writing by appending to the end of the file
+|`"I[O]"`    |Open for reading and writing, positioned at file start
+|===
+
+A _timeout_ is a no-op when used with a file. A _namespace_ is optional and
+must be the name of a routine that performs any user-defined control sequences.
+For example, see `^%X364` from the distribution [`utils.rsm`].
+
+In order to remove a file, open it with a mode of `"WRITE"`, then `CLOSE` it
+before writing to it.
+
+NOTE: `OPEN` is largely a no-op on channel 0, though it will set `$TEST` to 1
+if called with a _timeout_.
+
+[source,cos]
+----
+open 1:("/home/user/file1":"read")   ; Open file for reading
+open 2:("/home/user/file2":"write")  ; Open file for writing
+open 3:("/home/user/file3":"append") ; Open file for appending
+open 4:("/home/user/file4":"io")     ; Open file for reading and writing
+----
+
+=== USE for Disk Files
+
+The USE command is of the form:
+
+`USE _channel_[:__parameters__[:__namespace__]]`
+
+Where _channel_ is a channel number from 0 to 63 inclusive, and _parameters_ are
+zero or more of the following options. If more than one parameter is supplied,
+they must be enclosed in parentheses `()` and separated with colons `:`.
+
+* *TERMINATOR=$CHAR(_n_,...)* - Specify the input terminators. All input
+  terminators must be in the range of ASCII 0 to ASCII 127. The special case of
+  `$CHAR(13,10)` requires both characters to be in the input stream contiguously
+  to terminate input, typically used for reading files created on DOS. The
+  terminating character(s) are returned in `$KEY`. The default input terminator
+  for this class is `$CHAR(10)` (newline `\n`).
+
+* *OUTPUT=$CHAR(_n_,...)* - Specify the character sequence to output when `WRITE
+  !` is executed. This may be up to 6 characters. The default output terminator
+  for this class is `$CHAR(10)` (newline `\n`).
+
+A _namespace_ is optional and must be the name of a routine that performs any
+user-defined control sequences. For example, see `^%X364` from the distribution
+[`utils.rsm`].
+
+=== READ for Disk Files
+
+The READ command is of the form:
+
+`READ _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the read _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* *_var_[#_count_]* - Input data to a max length of _count_ into _var_
+* **_var_* - Input one ASCII character as an integer (0 to 255) into _var_
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== WRITE for Disk Files
+
+The WRITE command is of the form:
+
+`WRITE _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the write _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* **_intexpr_* - Output the ASCII character _intexpr_ # 256
+* Output any valid M expression
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== CLOSE for Disk Files
+
+The CLOSE command is of the form:
+
+`CLOSE _channel_`
+
+NOTE: A file may be deleted by opening it in `"WRITE"` mode then closing it
+before writing to it.
+
+[source,cos]
+----
+open 1:("file":"write") ; open "file" to be deleted
+close 1                 ; delete "file"
+----
+
+== Socket Devices
+
+The socket class includes TCP and UDP connections, as a server or client,
+over IPv4 or IPv6. The principal device [channel 0] can be a socket device,
+Stdin, Stdout, or both.
+
+=== OPEN for Socket Devices
+
+The OPEN command is of the form:
+
+`OPEN _channel_:(_address_ _port_:__mode__)[:__timeout__[:__namespace__]]` +
+`OPEN _channel_:(_port_:__mode__)[:__timeout__[:__namespace__]]`
+
+Where _channel_ is a channel number from 1 to 63 inclusive. For a client
+connection, _address port_ is an IP address, space, and port number. For a
+server connection, _port_ alone is the port to listen on. The _mode_ has short
+and long forms, is case-insensitive, and is one of the following. Optionally
+appending `6` to any mode selects IPv6; omitting it selects IPv4.
+
+[%autowidth]
+.Socket Modes
+|===
+|Mode                |Action
+
+|`"T[CPIP][6]"`      |Open a TCP client
+|`"U[DPIP][6]"`      |Open a UDP client
+|`"S[ERVER][6]"`     |Open a TCP non-forking server
+|`"TCPSERVER[6]"`    |Open a TCP non-forking server
+|`"S[ERVER][6]=n"`   |Open a TCP forking server, max _n_ concurrent jobs
+|`"TCPSERVER[6]=n"`  |Open a TCP forking server, max _n_ concurrent jobs
+|`"U[DP]S[ERVER][6]"`|Open a UDP server
+|===
+
+A _timeout_ specifies the time in seconds to wait for a client connection to
+become available. For server connections it only affects `$TEST`. A
+_namespace_ is optional and must be the name of a routine that performs any
+user-defined control sequences. For example, see `^%X364` from the distribution
+[`utils.rsm`].
+
+NOTE: `OPEN` may not be used with channel 0.
+
+[source,cos]
+----
+open 1:("80":"S=5") ; Open http port as forking server with up to 5 jobs
+----
+
+=== USE for Socket Devices
+
+The USE command is of the form:
+
+`USE _channel_[:__parameters__[:__namespace__]]`
+
+Where _channel_ is a channel number from 0 to 63 inclusive, and _parameters_ are
+zero or more of the following options. If more than one parameter is supplied,
+they must be enclosed in parentheses `()` and separated with colons `:`.
+
+* *TERMINATOR=$CHAR(_n_,...)* - Specify the input terminators. All input
+  terminators must be in the range of ASCII 0 to ASCII 127. The special case of
+  `$CHAR(13,10)` requires both characters to be in the input stream to terminate
+  input, typically used for reading HTTP input. The terminating character(s) are
+  returned in `$KEY`. The default input terminator for this class is
+  `$CHAR(13)`.
+
+* *OUTPUT=$CHAR(_n_,...)* - Specify the character sequence to output when `WRITE
+  !` is executed. This may be up to 6 characters. The default output terminator
+  for this class is `$CHAR(13)`.
+
+A _namespace_ is optional and must be the name of a routine that performs any
+user-defined control sequences. For example, see `^%X364` from the distribution
+[`utils.rsm`].
+
+=== READ for Socket Devices
+
+The READ command is of the form:
+
+`READ _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the read _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* *_var_[#_count_]* - Input data to a max length of _count_ into _var_
+* **_var_* - Input one ASCII character as an integer (0 to 255) into _var_
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== WRITE for Socket Devices
+
+The WRITE command is of the form:
+
+`WRITE _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the write _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* **_intexpr_* - Output the ASCII character _intexpr_ # 256
+* Output any valid M expression
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== CLOSE for Socket Devices
+
+The CLOSE command is of the form:
+
+`CLOSE _channel_`
+
+== Named Pipes
+
+The pipe class includes named UNIX pipe devices, creating a write end or
+using a read end. The principal device [channel 0] can be a pipe device,
+Stdin, or Stdout.
+
+=== OPEN for Named Pipes
+
+The OPEN command is of the form:
+
+`OPEN _channel_:(_pipe_:__mode__)[:__timeout__[:__namespace__]]`
+
+Where _channel_ is a channel number from 1 to 63 inclusive, _pipe_ is the full
+pipe path - like `/home/me/mypipe`, and _mode_ is one of the following. Modes
+may be supplied in full or abbreviated form (the characters in brackets are
+optional), and are case-insensitive.
+
+[%autowidth]
+.Pipe Modes
+|===
+|Mode         |Action
+
+|`"N[EWPIPE]"`|Open a new named pipe for reading
+|`"P[IPE]"`   |Open an existing named pipe for writing
+|===
+
+A _timeout_ is a no-op when used with a pipe. A _namespace_ is optional and
+must be the name of a routine that performs any user-defined control sequences.
+For example, see `^%X364` from the distribution [`utils.rsm`].
+
+NOTE: `OPEN` may not be used with channel 0.
+
+[source,cos]
+----
+open 1:("/home/me/mypipe":"newpipe") ; Open mypipe for reading
+----
+
+=== USE for Named Pipes
+
+The USE command is of the form:
+
+`USE _channel_[:__parameters__[:__namespace__]]`
+
+Where _channel_ is a channel number from 0 to 63 inclusive, and _parameters_ are
+zero or more of the following options. If more than one parameter is supplied,
+they must be enclosed in parentheses `()` and separated with colons `:`.
+
+* *TERMINATOR=$CHAR(_n_,...)* - Specify the input terminators. All input
+  terminators must be in the range of ASCII 0 to ASCII 127. The special case of
+  `$CHAR(13,10)` requires both characters to be in the input stream to terminate
+  input. The terminating character(s) are returned in `$KEY`. The default input
+  terminator for this class is `$CHAR(13,10)`.
+
+* *OUTPUT=$CHAR(_n_,...)* - Specify the character sequence to output when `WRITE
+  !` is executed. This may be up to 6 characters. The default output terminator
+  for this class is `$CHAR(13,10)`.
+
+A _namespace_ is optional and must be the name of a routine that performs any
+user-defined control sequences. For example, see `^%X364` from the distribution
+[`utils.rsm`].
+
+=== READ for Named Pipes
+
+The READ command is of the form:
+
+`READ _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the read _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* *_var_[#_count_]* - Input data to a max length of _count_ into _var_
+* **_var_* - Input one ASCII character as an integer (0 to 255) into _var_
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== WRITE for Named Pipes
+
+The WRITE command is of the form:
+
+`WRITE _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the write _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* **_intexpr_* - Output the ASCII character _intexpr_ # 256
+* Output any valid M expression
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== CLOSE for Named Pipes
+
+The CLOSE command is of the form:
+
+`CLOSE _channel_`
+
+== Character Devices
+
+The character class includes the console, serial lines (terminals or printers),
+parallel ports (printers), and pseudo-terminals (xterms). Channel 0 is also
+known as the principal device [`$PRINCIPAL`], which is opened and used as the
+initial device for every M job. Standard input (Stdin) and standard output
+(Stdout) for the principal device channel are usually a character device.
+
+=== OPEN for Character Devices
+
+The OPEN command is of the form:
+
+`OPEN _channel_:(_device_:__mode__)[:__timeout__[:__namespace__]]`
+
+Where _channel_ is a number from 0 to 63 inclusive, _device_ is the full
+device path - like `"/dev/pts/0"` - and _mode_ is one of the following.
+Modes may be supplied in full or abbreviated form (the characters in brackets
+are optional), and are case-insensitive.
+
+[%autowidth]
+.Character Device Modes
+|===
+|Mode       |Action
+
+|`"R[EAD]"` |Open the device for reading only
+|`"W[RITE]"`|Open the device for writing only
+|`"I[O]"`   |Open the device for both reading and writing
+|===
+
+A _timeout_ is an optional time in seconds to wait for the device. A
+_namespace_ is optional and must be the name of a routine that performs any
+required mnemonic control sequences. For example, see `^%X364` from the
+distribution [`utils.rsm`].
+
+NOTE: `OPEN` is ignored when used on channel 0, but will set `$TEST` to 1
+with a _timeout_.
+
+[source,cos]
+----
+open 1:("/dev/lpt0":"write") ; Open a printer for writing
+open 2:("/dev/pts/1":"io")   ; Open a terminal for reading and writing
+----
+
+=== USE for Character Devices
+
+The USE command is of the form:
+
+`USE _channel_[:__parameters__[:__namespace__]]`
+
+Where _channel_ is a number from 0 to 63 inclusive, and _parameters_ are zero or
+more of the following options. If more than one parameter is supplied, they
+must be enclosed in parentheses `()` and separated with colons `:`.
+
+* *TERMINATOR=$CHAR(_n_,...)*
++
+Specify the input terminators. All input terminators must be in the range of
+ASCII 0 to ASCII 127. The special case of `$CHAR(13,10)` requires both
+characters to be in the input stream to terminate input. The terminating
+character(s) are returned in `$KEY`. The default input terminator for this
+class is `$CHAR(13)`.
+
+* *OUTPUT=$CHAR(_n_,...)*
++
+Specify the character sequence to output when `WRITE !` is executed. This
+may be up to 6 characters. The default output character sequence for this
+class is `$CHAR(13,10)`.
+
+* *[NO]CONTROLC*
++
+Enable or disable interruption of a running process. Applies to Stdin only.
+Defaults to *CONTROLC*.
+
+* *[NO]CONTROLT*
++
+Enable or disable mini process status. Applies to Stdin only. Defaults to
+*CONTROLT*.
+
+* *[NO]ESCAPE*
++
+Enable or disable escape sequence processing. When enabled, escape sequences
+are returned in `$KEY`. Defaults to *ESCAPE*.
+
+* *[NO]ECHO*
++
+Enable or disable character echo. Defaults to *ECHO*.
+
+* *DELETE=NONE|BACK|DELETE|BOTH*
++
+Define the character delete key as *NONE*, *BACK* [`$CHAR(8)`], *DELETE*
+[`$CHAR(127)`], or *BOTH* [`$CHAR(8)` and `$CHAR(127)`]. Defaults to
+*DELETE=DELETE*.
+
+A _namespace_ is optional and must be the name of a routine that performs
+any required mnemonic control sequences. For example, see `^%X364` from the
+distribution [`utils.rsm`].
+
+=== READ for Character Devices
+
+The READ command is of the form:
+
+`READ _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the read _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* *_var_[#_count_]* - Input data to a max length of _count_ into _var_
+* **_var_* - Input one ASCII character as an integer (0 to 255) into _var_
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+If _timeout_ is specified and is zero or a positive number, the system will
+wait that many seconds for data to become available. `$TEST` is set to 1
+when a single character is received into a `*_var_` read, when `#_count_`
+is reached, or when a terminator is received; otherwise `$TEST` is set to 0.
+If the form `READ "literal",_var_` is used, all typeahead is canceled before
+the read is performed.
+
+=== WRITE for Character Devices
+
+The WRITE command is of the form:
+
+`WRITE _argument1_[,_argument2_[,...,_argumentn_]]`
+
+Where the write _arguments_ are:
+
+* *#* - Carriage return, page feed combination
+* *!* - Output the sequence configured by the OUTPUT parameter
+* *?_n_* - Tab to character position _n_ (leftmost position is 0)
+* */cmd[(_parameters_)]* - Provide device specific control (see namespace)
+* **_intexpr_* - Output the ASCII character _intexpr_ # 256
+* Output any valid M expression
+
+NOTE: Combining `#`, `!`, and the left side of `?` arguments does not require
+a comma as a separator.
+
+=== CLOSE for Character Devices
+
+The CLOSE command is of the form:
+
+`CLOSE _channel_`
+
+NOTE: Closing channel 0 is ignored.
+
+== $DEVICE ISV and ^$DEVICE SSV
+
+The `$DEVICE` intrinsic special variable (ISV) contains information about the
+current device. The `^$DEVICE` structured system variable (SSV) contains a list
+of the currently open devices, along with their current configuration options.
+See xref:language.adoc[Language Guide] for more details on how to use `$DEVICE`
+and `^$DEVICE`.

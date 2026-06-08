@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/seqio/seqio.c
- * Summary: module IO - main sequential IO functionality
+ * File:    seqio/seqio.c
+ * Summary: I/O Module - main sequential I/O functionality
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  *
  * Extended Summary:
@@ -123,7 +119,7 @@ short addr_family  = AF_INET;                                                   
 short sock_type    = SOCK_STREAM;                                               // SOCK_STREAM or SOCK_DGRAM
 short sock_proto   = IPPROTO_TCP;                                               // IPPROTO_TCP or IPPROTO_UDP
 
-extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
+extern char    history[MAX_HISTORY][MAX_STR_LEN + 1];                           // history buffer
 extern u_short hist_next;                                                       // next history pointer
 extern u_short hist_curr;                                                       // history entry pointer
 extern short   in_hist;                                                         // are we in the history buffer
@@ -342,7 +338,7 @@ static IN_Term getBitMask(cstring *cstr, IN_Term in_term)
 
     for (index = 0; index < cstr->len; index++) {
         if ((u_char) cstr->buf[index] > 127) continue;                          // Only allow ASCII characters in the bitmask
-        chmask = (1UL << ((int) cstr->buf[index] % 64));
+        chmask = (1ULL << ((int) cstr->buf[index] % 64));
         in_term.interm[cstr->buf[index] / 64] |= chmask;
     }
 
@@ -375,8 +371,8 @@ static int getOperation(const cstring *op)
     char *ptr;                                                                  // Pointer to '=' in operation
 
     if (op->len > OPSIZE) return getError(INT, ERRZ33);
-    ptr = strcpy(str, (char *) op->buf);
-    ptr = strchr(ptr, '=');
+    snprintf(str, OPSIZE, "%.*s", op->len, (char *) op->buf);
+    ptr = strchr(str, '=');
     if (ptr != NULL) *ptr = '\0';
 
     proto_family = PF_INET;                                                     // PF_INET or PF_INET6
@@ -564,15 +560,15 @@ static void initFORK(forktab *f)
 static int initSERVER(int chan, u_int size)
 {
     servertab *s;
-    forktab   *f = NULL;                                                        // TEMP FIX
+    forktab   *f = NULL;
 
     if (size > (systab->maxjob - 1)) return getError(INT, ERRZ42);
     s = &partab.jobtab->seqio[chan].s;
 
-    if (size) {                                                                 // TEMP FIX
+    if (size) {
         f = malloc(sizeof(forktab) * size);                                     // to forktab from fork
         if (f == NULL) return getError(SYS, errno);
-    }                                                                           // TEMP FIX
+    }
 
     for (u_int index = 0; index < size; index++) initFORK(&f[index]);
     s->slots = size;
@@ -594,9 +590,9 @@ static int initSERVER(int chan, u_int size)
  */
 static int openSERVER(int chan, const char *oper)
 {
-    SQ_Chan *c;
-    char    *ptr;
-    int     ret;
+    SQ_Chan    *c;
+    const char *ptr;
+    int        ret;
 
     // Acquire a pointer to the SQ_Chan structure
     c = &partab.jobtab->seqio[chan];
@@ -758,7 +754,7 @@ static int acceptSERVER(int chan, int tout)
             c->mode = (u_char) FORKED;
             s->forked = NULL;
             c->fid = s->cid;
-            strncpy((char *) c->name, (char *) s->name, MAX_SEQ_NAME);
+            str_copy((char *) c->name, (char *) s->name, MAX_SEQ_NAME);
             s->cid = -1;
             s->name[0] = '\0';
             return c->fid;
@@ -1445,7 +1441,7 @@ static int readTERM(int chan, u_char *buf, int maxbyt, int tout)
                         bytesread = len;
                         ret = SQ_Device_Write(oid, (u_char *) history[hist_curr], len); // Write out the buffer from history
                         if (ret < 0) return ret;
-                        snprintf((char *) buf, maxbyt, "%s", history[hist_curr]);
+                        str_copy((char *) buf, history[hist_curr], maxbyt);
 
                         if (!(c->dx % w.ws_col)) {                              // Cursor has hit the end of the line
                             // Move cursor to the beginning of the next line
@@ -1727,13 +1723,14 @@ static int initObject(int chan, int type)
  */
 short SQ_Init(void)
 {
-    int index;                                                                  // Useful variable
-    int mask;                                                                   // Useful variable
-    int ret;                                                                    // Return value
-    int typ;                                                                    // object type
+    int        index;                                                           // Useful variable
+    int        mask;                                                            // Useful variable
+    int        ret;                                                             // Return value
+    int        typ;                                                             // object type
+    const char *tty = "Not a tty";
 
     // Integer bit mask
-    for (index = 0; index < MASKSIZE; index++) MASK[index] = (1UL << index);
+    for (index = 0; index < MASKSIZE; index++) MASK[index] = (1ULL << index);
 
     // CRLF
     mask = (1U << 13);
@@ -1795,13 +1792,11 @@ short SQ_Init(void)
 
     // Determine associated terminal if tty
     if (isatty(STDCHAN)) {
-        snprintf((char *) partab.jobtab->seqio[STDCHAN].name, MAX_SEQ_NAME, "%s", ttyname(STDCHAN));
-    } else {
-        snprintf((char *) partab.jobtab->seqio[STDCHAN].name, MAX_SEQ_NAME, "Not a tty");
+        if ((tty = ttyname(STDCHAN)) == NULL) tty = "/dev/tty";
     }
 
-    // Indicate success
-    return 0;
+    str_copy((char *) partab.jobtab->seqio[STDCHAN].name, tty, MAX_SEQ_NAME);
+    return 0;                                                                   // Indicate success
 }
 
 /*
@@ -1957,7 +1952,7 @@ short SQ_Open(int chan, cstring *object, const cstring *op, int tout)
         if (save_type == SOCK_DGRAM) c->options = setOptionsBitMask(c->options, UDP, SET);
     }
 
-    i = snprintf((char *) c->name, MAX_SEQ_NAME, "%s", object->buf);
+    i = str_copy((char *) c->name, (char *) object->buf, MAX_SEQ_NAME);
     if (i < 0) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
 
     // Set SQ_Chan appropriately (if server socket)
@@ -2165,7 +2160,9 @@ short SQ_Close(int chan)
     case SQ_FILE:
         // If the file is opened for writing or appending and it is empty, then delete it
         if (((int) c->mode == WRITE) || ((int) c->mode == APPEND)) {
-            int ret = fstat(c->fid, &sb);
+            int ret;
+
+            ret = fstat(c->fid, &sb);
 
             if ((ret == 0) && (sb.st_size == 0)) {
                 close(c->fid);
@@ -2576,7 +2573,7 @@ short SQ_Flush(void)
 int SQ_Device(u_char *buf)
 {
     int        chan;                                                            // Current IO channel
-    char       errmsg[2048];                                                    // Error message
+    char       errmsg[MAX_ERR_LEN];                                             // Error message
     SQ_Chan    *c;                                                              // $IO pointer
     const char *name;                                                           // Channel's attributes
 
@@ -2586,14 +2583,14 @@ int SQ_Device(u_char *buf)
 
     if (isChan(chan) == 0) {                                                    // Check if channel is out of range
         getErrorMsg(ERRZ25, errmsg);
-        sprintf((char *) buf, "1,%d,%s", ERRZ25, errmsg);
+        snprintf((char *) buf, BUFSIZE, "1,%d,%s", ERRZ25, errmsg);
         return strlen((char *) buf);
     }
 
     c = &partab.jobtab->seqio[chan];                                            // Acquire a point to $IO
 
     if (isChanFree(chan) == 1) {                                                // Channel free
-        sprintf((char *) buf, "1,0,");
+        str_copy((char *) buf, "1,0,", BUFSIZE);
         return strlen((char *) buf);
     }
 
@@ -2637,12 +2634,12 @@ int SQ_Device(u_char *buf)
     // Check for NULL pointer (name)
     if (name == NULL) {
         getErrorMsg(ERRZ28 + ERRMLAST, errmsg);
-        sprintf((char *) buf, "1,%d,%s", ERRZ28 + ERRMLAST, errmsg);
+        snprintf((char *) buf, BUFSIZE, "1,%d,%s", ERRZ28 + ERRMLAST, errmsg);
         return strlen((char *) buf);
     }
 
     // Return channel's attributes
-    sprintf((char *) buf, "0,%d,%s", (int) c->type, name);
+    snprintf((char *) buf, BUFSIZE, "0,%d,%s", (int) c->type, name);
     return strlen((char *) buf);
 }
 

@@ -1,18 +1,15 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/math.c
- * Summary: module runtime - decimal arithmetic
+ * File:    runtime/math.c
+ * Summary: Runtime Module - decimal arithmetic
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
- *
- * Originally based on FreeMUMPS
- * Copyright © 1998 MUG Deutschland
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-FileComment:        Ancestry includes FreeMUMPS (1998, MUG Deutschland)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -26,15 +23,13 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "error.h"                                                              // standard errors
 #include "opcode.h"                                                             // the op codes
 #include "proto.h"                                                              // standard prototypes
 #include <limits.h>
+#include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // always include
 #include <string.h>
 
@@ -51,151 +46,6 @@
 #define NINE        (ZERO + NUMBASE - 1)
 #define EOL         ((char) '\000')
 #define TOGGLE(a)   (a ^= 01)
-
-// square root
-static int g_sqrt(char *a)
-{
-    char  tmp1[MAX_NUM_BYTES + 2];
-    char  tmp2[MAX_NUM_BYTES + 2];
-    char  XX[MAX_NUM_BYTES + 2];
-    char  XXX[MAX_NUM_BYTES + 2];
-
-    if (a[0] == ZERO) return 1;
-    if (a[0] == MINUS) return -ERRM9;
-    strcpy(XX, a);
-
-    // look for good initial value
-    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
-        int i = 0;
-        int ch;
-
-        while ((ch = a[i++]) != EOL) {
-            if (ch == POINT) break;
-        }
-
-        if ((i = (i + 1) / 2)) a[i] = EOL;
-    } else if (a[0] != ONE) {
-        a[0] = ONE;
-        a[1] = EOL;
-    }
-
-    // Newton's algorithm with quadratic convergence
-    partab.jobtab->precision++;
-
-    do {
-        short s;
-
-        strcpy(XXX, a);
-        strcpy(tmp1, XX);
-        strcpy(tmp2, a);
-        s = runtime_div(tmp1, tmp2, OPDIV);
-        if (s < 0) return s;
-        s = runtime_add(a, tmp1);
-        if (s < 0) return s;
-        tmp2[0] = TWO;
-        tmp2[1] = EOL;
-        s = runtime_div(a, tmp2, OPDIV);
-        if (s < 0) return s;
-    } while (runtime_comp(a, XXX));
-
-    partab.jobtab->precision--;
-    return (int) strlen(a);
-}                                                                               // end g_sqrt()
-
-// n.th root
-static int root(char *a, int n)
-{
-    int   i;
-    int   ch;
-    short s;
-    char  tmp1[MAX_NUM_BYTES + 2];
-    char  tmp2[MAX_NUM_BYTES + 2];
-    char  XX[MAX_NUM_BYTES + 2];
-    char  XXX[MAX_NUM_BYTES + 2];
-    short again;
-
-    if (a[0] == ZERO) return 1;
-    if (a[0] == MINUS || n == 0) return -ERRM9;
-    strcpy(XX, a);
-
-    // look for good initial value
-    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
-        i = 0;
-        while (((ch = a[i++]) != EOL) && (ch != POINT)) {}
-
-        if ((i = (i + n - 2) / n) > 0) {
-            a[0] = THREE;
-            a[i] = EOL;
-        }
-    } else if (a[0] != ONE) {
-        a[0] = ONE;
-        a[1] = EOL;
-    }
-
-    // Newton's algorithm with quadratic convergence
-    if (partab.jobtab->precision <= 3) {
-        again = 0;                                                              // speedup div with small precision
-    } else {
-        again = partab.jobtab->precision;
-        partab.jobtab->precision = 2;
-    }
-
-second:
-    partab.jobtab->precision++;
-
-    for (;;) {
-        strcpy(XXX, a);
-        s = ltocstring((u_char *) tmp1, n - 1);
-        if (s < 0) return s;
-        strcpy(tmp2, a);
-        s = runtime_power(tmp2, tmp1);
-        if (s < 0) return s;
-        strcpy(tmp1, XX);
-        s = runtime_div(tmp1, tmp2, OPDIV);
-        if (s < 0) break;
-        s = ltocstring((u_char *) tmp2, n - 1);
-        if (s < 0) return s;
-        s = runtime_mul(a, tmp2);
-        if (s < 0) return s;
-        s = runtime_add(a, tmp1);
-        if (s < 0) return s;
-        s = ltocstring((u_char *) tmp2, n);
-        if (s < 0) return s;
-        s = runtime_div(a, tmp2, OPDIV);
-        if (s < 0) return s;
-        strcpy(tmp2, a);
-        s = runtime_div(XXX, tmp2, OPDIV);
-        if (s < 0) return s;
-        tmp2[0] = ONE;
-
-        if (partab.jobtab->precision <= 0) {
-            tmp2[1] = EOL;
-        } else {
-            tmp2[1] = POINT;
-            for (i = 2; i < partab.jobtab->precision; i++) tmp2[i] = ZERO;
-            tmp2[i++] = FIVE;
-            tmp2[i] = EOL;
-        }
-
-        if (!runtime_comp(XXX, tmp2)) continue;
-        if (partab.jobtab->precision <= 0) break;
-        tmp2[0] = POINT;
-        for (i = 1; i < partab.jobtab->precision; i++) tmp2[i] = NINE;
-        tmp2[i - 1] = FIVE;
-        tmp2[i] = EOL;
-        if (runtime_comp(tmp2, XXX)) break;
-    }
-
-    partab.jobtab->precision--;
-
-    if (again) {
-        partab.jobtab->precision = again;
-        again = 0;
-        goto second;
-    }
-
-    return (int) strlen(a);
-}                                                                               // end root()
 
 /* rounding
  * 'a' is assumed to be a 'canonic' numeric string
@@ -259,6 +109,151 @@ static void roundit(char *a, int digits)
     return;
 }                                                                               // end roundit
 
+// square root
+static int g_sqrt(char *a)
+{
+    char  tmp1[MAX_NUM_BYTES + 2];
+    char  tmp2[MAX_NUM_BYTES + 2];
+    char  XX[MAX_NUM_BYTES + 2];
+    char  XXX[MAX_NUM_BYTES + 2];
+
+    if (a[0] == ZERO) return 1;
+    if (a[0] == MINUS) return -ERRM9;
+    str_copy(XX, a, sizeof(XX));
+
+    // look for good initial value
+    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
+        int i = 0;
+        int ch;
+
+        while ((ch = a[i++]) != EOL) {
+            if (ch == POINT) break;
+        }
+
+        if ((i = (i + 1) / 2)) a[i] = EOL;
+    } else if (a[0] != ONE) {
+        a[0] = ONE;
+        a[1] = EOL;
+    }
+
+    // Newton's algorithm with quadratic convergence
+    partab.jobtab->precision++;
+
+    do {
+        short s;
+
+        str_copy(XXX, a, sizeof(XXX));
+        str_copy(tmp1, XX, sizeof(tmp1));
+        str_copy(tmp2, a, sizeof(tmp2));
+        s = runtime_div(tmp1, tmp2, OPDIV);
+        if (s < 0) return s;
+        s = runtime_add(a, tmp1);
+        if (s < 0) return s;
+        tmp2[0] = TWO;
+        tmp2[1] = EOL;
+        s = runtime_div(a, tmp2, OPDIV);
+        if (s < 0) return s;
+    } while (runtime_comp(a, XXX));
+
+    partab.jobtab->precision--;
+    return (int) strlen(a);
+}                                                                               // end g_sqrt()
+
+// n.th root
+static int root(char *a, int n)
+{
+    int   i;
+    int   ch;
+    short s;
+    char  tmp1[MAX_NUM_BYTES + 2];
+    char  tmp2[MAX_NUM_BYTES + 2];
+    char  XX[MAX_NUM_BYTES + 2];
+    char  XXX[MAX_NUM_BYTES + 2];
+    short again;
+
+    if (a[0] == ZERO) return 1;
+    if (a[0] == MINUS || n == 0) return -ERRM9;
+    str_copy(XX, a, sizeof(XX));
+
+    // look for good initial value
+    if ((a[0] > ONE) || ((a[0] == ONE) && (a[1] != POINT))) {
+        i = 0;
+        while (((ch = a[i++]) != EOL) && (ch != POINT)) {}
+
+        if ((i = (i + n - 2) / n) > 0) {
+            a[0] = THREE;
+            a[i] = EOL;
+        }
+    } else if (a[0] != ONE) {
+        a[0] = ONE;
+        a[1] = EOL;
+    }
+
+    // Newton's algorithm with quadratic convergence
+    if (partab.jobtab->precision <= 3) {
+        again = 0;                                                              // speedup div with small precision
+    } else {
+        again = partab.jobtab->precision;
+        partab.jobtab->precision = 2;
+    }
+
+second:
+    partab.jobtab->precision++;
+
+    for (;;) {
+        str_copy(XXX, a, sizeof(XXX));
+        s = ltocstring((u_char *) tmp1, n - 1);
+        if (s < 0) return s;
+        str_copy(tmp2, a, sizeof(tmp2));
+        s = runtime_power(tmp2, tmp1);
+        if (s < 0) return s;
+        str_copy(tmp1, XX, sizeof(tmp1));
+        s = runtime_div(tmp1, tmp2, OPDIV);
+        if (s < 0) break;
+        s = ltocstring((u_char *) tmp2, n - 1);
+        if (s < 0) return s;
+        s = runtime_mul(a, tmp2);
+        if (s < 0) return s;
+        s = runtime_add(a, tmp1);
+        if (s < 0) return s;
+        s = ltocstring((u_char *) tmp2, n);
+        if (s < 0) return s;
+        s = runtime_div(a, tmp2, OPDIV);
+        if (s < 0) return s;
+        str_copy(tmp2, a, sizeof(tmp2));
+        s = runtime_div(XXX, tmp2, OPDIV);
+        if (s < 0) return s;
+        tmp2[0] = ONE;
+
+        if (partab.jobtab->precision <= 0) {
+            tmp2[1] = EOL;
+        } else {
+            tmp2[1] = POINT;
+            for (i = 2; i < partab.jobtab->precision; i++) tmp2[i] = ZERO;
+            tmp2[i++] = FIVE;
+            tmp2[i] = EOL;
+        }
+
+        if (!runtime_comp(XXX, tmp2)) continue;
+        if (partab.jobtab->precision <= 0) break;
+        tmp2[0] = POINT;
+        for (i = 1; i < partab.jobtab->precision; i++) tmp2[i] = NINE;
+        tmp2[i - 1] = FIVE;
+        tmp2[i] = EOL;
+        if (runtime_comp(tmp2, XXX)) break;
+    }
+
+    partab.jobtab->precision--;
+
+    if (again) {
+        partab.jobtab->precision = again;
+        again = 0;
+        goto second;
+    }
+
+    return (int) strlen(a);
+}                                                                               // end root()
+
 // Add b to a
 short runtime_add(char *a, char *b)
 {
@@ -279,7 +274,7 @@ short runtime_add(char *a, char *b)
     if (b[0] == ZERO) return (short) strlen(a);
 
     if (a[0] == ZERO) {
-        strcpy(a, b);
+        str_copy(a, b, MAX_NUM_BYTES + 1);
         return (short) strlen(a);
     }
 
@@ -597,14 +592,10 @@ multwo:
 
     if (a[1] == EOL) {
         if (a[0] == ZERO) return (short) strlen(a);
-
-        if (a[0] == ONE) {
-            strcpy(a, b);
-            return (short) strlen(a);
-        }
+        if (a[0] == ONE) return (short) str_copy(a, b, MAX_NUM_BYTES + 1);
 
         if (a[0] == TWO) {
-            strcpy(a, b);
+            str_copy(a, b, MAX_NUM_BYTES + 1);
             goto multwo;
         }
     }
@@ -795,7 +786,7 @@ short runtime_div(char *uu, char *v, short typ)
     if (uu[0] == ZERO) return 1;
 
     // look at the signs
-    strcpy(u, uu);
+    str_copy(u, uu, sizeof(u));
     mi = 0;
     plus = 0;
 
@@ -810,7 +801,7 @@ short runtime_div(char *uu, char *v, short typ)
             TOGGLE(mi);
         }
     } else {
-        strcpy(vv, v);
+        str_copy(vv, v, sizeof(vv));
 
         if (u[0] == MINUS) {
             u[0] = ZERO;
@@ -1172,8 +1163,7 @@ short runtime_div(char *uu, char *v, short typ)
         }
     }
 
-    strcpy(uu, u);
-    return (short) strlen(uu);
+    return (short) str_copy(uu, u, MAX_NUM_BYTES + 1);
 }                                                                               // end runtime_div()
 
 // raise a to the b-th power
@@ -1207,11 +1197,10 @@ short runtime_power(char *a, char *b)
     if (b[0] == MINUS) {
         s = runtime_power(a, &b[1]);
         if (s < 0) return s;
-        strcpy(c, a);
+        str_copy(c, a, sizeof(c));
         a[0] = ONE;
         a[1] = EOL;
-        s = runtime_div(a, c, OPDIV);
-        return s;
+        return runtime_div(a, c, OPDIV);
     }
 
     if (b[1] == EOL) {
@@ -1225,7 +1214,7 @@ short runtime_power(char *a, char *b)
             return (short) strlen(a);
 
         case TWO:
-            strcpy(c, a);
+            str_copy(c, a, sizeof(c));
             return runtime_mul(a, c);
         }
     }
@@ -1240,18 +1229,17 @@ short runtime_power(char *a, char *b)
 
             if ((b[i + 1] == FIVE) && (b[i + 2] == EOL)) {                      // half-integer: extra solution
                 if (i) {
-                    strcpy(c, b);
+                    str_copy(c, b, sizeof(c));
                     s = runtime_add(b, c);
                     if (s < 0) return s;
                     s = runtime_power(a, b);
                     if (s < 0) return s;
                 }
 
-                s = (short) g_sqrt(a);
-                return s;
+                return (short) g_sqrt(a);
             }
 
-            strcpy(e, &b[i]);
+            str_copy(e, &b[i], sizeof(e));
             b[i] = EOL;
             break;
         }
@@ -1259,7 +1247,7 @@ short runtime_power(char *a, char *b)
         i++;
     }
 
-    strcpy(d, a);
+    str_copy(d, a, sizeof(d));
     i = atoi(b);
     if (i == INT_MAX) return -ERRM92;
 
@@ -1283,12 +1271,12 @@ short runtime_power(char *a, char *b)
         j /= 2;
 
         while (j) {
-            strcpy(c, a);
+            str_copy(c, a, sizeof(c));
             s = runtime_mul(a, c);
             if (s < 0) return s;
 
             if (i & j) {
-                strcpy(c, d);
+                str_copy(c, d, sizeof(c));
                 s = runtime_mul(a, c);
                 if (s < 0) return s;
             }
@@ -1310,7 +1298,7 @@ short runtime_power(char *a, char *b)
     // is fraction the inverse of an integer?
     Z[0] = ONE;
     Z[1] = EOL;
-    strcpy(c, e);
+    str_copy(c, e, sizeof(c));
     s = runtime_div(Z, c, OPDIV);
     if (s < 0) return s;
     i = 0;
@@ -1338,13 +1326,9 @@ short runtime_power(char *a, char *b)
 
     // if integer
     if (strcmp(Z, e) == 0) {
-        strcpy(Z, d);
+        str_copy(Z, d, sizeof(Z));
         s = (short) root(Z, j);
-
-        if (s < 0) {
-            s = runtime_mul(a, Z);
-            return s;
-        }                                                                       // on error try other method
+        if (s < 0) return runtime_mul(a, Z);                                    // on error try other method
     }
 
     Z[0] = ONE;
@@ -1362,7 +1346,7 @@ short runtime_power(char *a, char *b)
         if (e[0] == ONE) {
             e[0] = ZERO;
             //numlit(e);                                                          // not required !!
-            strcpy(c, d);
+            str_copy(c, d, sizeof(c));
             s = runtime_mul(Z, c);
             if (s < 0) return s;
             roundit(Z, partab.jobtab->precision);

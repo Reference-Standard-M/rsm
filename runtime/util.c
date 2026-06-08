@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/util.c
- * Summary: module runtime - runtime utilities
+ * File:    runtime/util.c
+ * Summary: Runtime Module - runtime utilities
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "error.h"                                                              // standard includes
@@ -58,7 +54,7 @@ int cstringtoi(cstring *str)                                                    
 
     if ((systab->historic & HISTORIC_EOK) && (i < (str->len - 1)) && (str->buf[i] == 'E')) {
         long exp = 0;                                                           // an exponent
-        int expsgn = 1;                                                         // and the sign
+        int  expsgn = 1;                                                        // and the sign
 
         i++;                                                                    // point past the 'E'
 
@@ -102,7 +98,6 @@ int cstringtoi(cstring *str)                                                    
                 if (minus) return INT_MIN;
                 return INT_MAX;
             }
-
         }
     }
 
@@ -112,7 +107,7 @@ int cstringtoi(cstring *str)                                                    
 
 int cstringtob(const cstring *str)                                              // convert cstring to boolean
 {
-    int ret = 0;                                                                // return value
+    int ret = FALSE;                                                            // return value
     int i;                                                                      // for loops
     int dp = 0;                                                                 // decimal place flag
 
@@ -127,7 +122,7 @@ int cstringtob(const cstring *str)                                              
             continue;                                                           // go for next
         }
 
-        if ((str->buf[i] >= '1') && (str->buf[i] <= '9')) ret = 1;              // check for digit and got a true value
+        if ((str->buf[i] >= '1') && (str->buf[i] <= '9')) ret = TRUE;           // check for digit and got a true value
         break;
     }                                                                           // end convert loop
 
@@ -229,7 +224,7 @@ int Set_Error(int err, cstring *user, cstring *space)
 DISABLE_WARN(-Warray-bounds)
     tmp->len = ltocstring(tmp->buf, partab.jobtab->cur_do);
 ENABLE_WARN
-    var->slen = (u_char) UTIL_Key_Build(tmp, var->key);
+    var->slen = (u_char) UTIL_Key_Build(tmp, var->key, FALSE);
 
     if (flag) {                                                                 // if not first one
         t = ST_Get(var, space->buf);                                            // get it
@@ -258,17 +253,16 @@ ENABLE_WARN
     }
 
     ST_Set(var, space);                                                         // set it
-
     return flag;                                                                // done
 }
 
 int short_version(u_char *ret_buffer, int i)
 {
-    i += sprintf((char *) &ret_buffer[i], "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-    if (VERSION_PRE) i += sprintf((char *) &ret_buffer[i], "-pre.%d", VERSION_PRE);
-    if (VERSION_TEST) i += sprintf((char *) &ret_buffer[i], " T%d", VERSION_TEST);
-#ifdef GIT_SHA
-    i += sprintf((char *) &ret_buffer[i], " (%s)", RSM_STRING(GIT_SHA));        // Git short SHA1 commit hash
+    i += snprintf((char *) &ret_buffer[i], 40, "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    if (VERSION_PRE) i += snprintf((char *) &ret_buffer[i], 40, "-pre.%d", VERSION_PRE);
+    if (VERSION_TEST) i += snprintf((char *) &ret_buffer[i], 40, " T%d", VERSION_TEST);
+#ifdef BUILD_INFO
+    i += snprintf((char *) &ret_buffer[i], 40, " (%s)", RSM_STRING(BUILD_INFO)); // Git short SHA1 commit hash or other build info
 #endif
     return i;
 }
@@ -282,17 +276,26 @@ int sys_version(u_char *ret_buffer)                                             
     i = uname(&uts);                                                            // get system info
     if (i == -1) return -1;                                                     // exit on error
     memcpy(ret_buffer, "Reference Standard M V", 22);                           // copy in Reference Standard M V
-    i = 22;                                                                     // point past it
-    i = short_version(ret_buffer, i);                                           // get short version string
+    i = short_version(ret_buffer, 22);                                          // get short version string
+    i += snprintf((char *) &ret_buffer[i], 300, " Built %s at %s", __DATE__, __TIME__); // Build information
     memcpy(&ret_buffer[i], " for ", 5);                                         // copy in for
     i += 5;
-    j = 0;                                                                      // clear src ptr
+    j = 0;                                                                      // clear source ptr
     while ((ret_buffer[i++] = uts.sysname[j++])) {}                             // copy name
     ret_buffer[i - 1] = ' ';                                                    // and a space over the null
-    j = 0;                                                                      // clear src ptr
+    j = 0;                                                                      // clear source ptr
     while ((ret_buffer[i++] = uts.machine[j++])) {}                             // copy hardware
-    ret_buffer[i - 1] = ' ';                                                    // and a space over the null
-    i += sprintf((char *) &ret_buffer[i], "Built %s at %s", __DATE__, __TIME__); // Build information
+    ret_buffer[i] = '\0';                                                       // and a null
+
+    if (strlen(uts.nodename)) {
+        j = 0;                                                                  // clear source ptr
+        ret_buffer[i - 1] = ' ';                                                // and a space over the null
+        ret_buffer[i++] = '[';                                                  // and a (
+        while ((ret_buffer[i++] = uts.nodename[j++])) {}                        // copy name
+        ret_buffer[i - 1] = ']';                                                // and a )
+        ret_buffer[i] = '\0';                                                   // and a null
+    }
+
     return i;                                                                   // and return count
 }
 

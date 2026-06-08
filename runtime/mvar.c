@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/mvar.c
- * Summary: module runtime - build an mvar
+ * File:    runtime/mvar.c
+ * Summary: Runtime Module - build an mvar
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // RBD structure
@@ -33,7 +29,7 @@
 #include "proto.h"                                                              // standard prototypes
 #include <string.h>
 
-short getvol(const cstring *vol)                                                // get vol number for volume name
+static short getvol(const cstring *vol)                                         // get vol number for volume name
 {
     u_short us;                                                                 // for cstring length
 
@@ -54,7 +50,7 @@ short getvol(const cstring *vol)                                                
     return -ERRM26;                                                             // complain - no such
 }
 
-short getuci(const cstring *uci, int vol)                                       // get UCI number
+static short getuci(const cstring *uci, int vol)                                // get UCI number
 {
     u_short us;                                                                 // for cstring length
 
@@ -75,7 +71,7 @@ short getuci(const cstring *uci, int vol)                                       
 /*
  * This module is the runtime code to build an mvar.
  * It is passed the address of the mvar and reads from *rsmpc++.
- * See comments in rsm/compile/var.c for more info.
+ * See comments in compile/var.c for more info.
  * If nul_ok is true, a null subscript as the last is OK.
  * Returns new asp or -err
  */
@@ -137,7 +133,7 @@ short buildmvar(mvar *var, int nul_ok, int asp)                                 
             return -(ERRZ16 + ERRMLAST);                                        // complain
         }
 
-        s = UTIL_Key_Build(ptr, &var->key[var->slen]);                          // get one subscript
+        s = UTIL_Key_Build(ptr, &var->key[var->slen], FALSE);                   // get one subscript
         if (s < 0) return s;                                                    // die on error
         if ((var->slen + s) > MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);         // check how big and complain on error
         var->slen += s;                                                         // add it in

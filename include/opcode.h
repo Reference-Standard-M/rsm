@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/opcode.h
- * Summary: module RSM header file - internal opcodes (and only real opcodes)
+ * File:    include/opcode.h
+ * Summary: RSM Module Header File - internal opcodes (and only real opcodes)
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,19 +22,16 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef RSM_OPCODE_H
 #define RSM_OPCODE_H
 
-#define ENDLIN      0                                                           // End of line
-#define OPHALT      1                                                           // Halt instruction
-#define OPERROR     2                                                           // short -(ERR) follows
+#define ENDLIN      0                                                           // End of line (1)
+#define OPHALT      1                                                           // Halt instruction (1)
+#define OPERROR     2                                                           // short -(ERR) follows (3)
 #define OPNOT       3                                                           // boolean NOT
-#define OPENDC      4                                                           // end of command
+#define OPENDC      4                                                           // end of command (1)
 #define JMP0        5                                                           // jump if false
 #define OPIFN       6                                                           // no arg if
 #define OPIFA       7                                                           // if (check stack)
@@ -83,16 +79,16 @@
 #define CMREADC     50                                                          // read variable count
 #define CMREADCT    51                                                          // read variable count, t/o
 #define CMWRTST     52                                                          // write star
-#define CMWRTNL     53                                                          // write !
+#define CMWRTNL     53                                                          // write ! (1)
 #define CMWRTFF     54                                                          // write #
 #define CMWRTAB     55                                                          // write ?expr
-#define CMWRTEX     56                                                          // write expression
+#define CMWRTEX     56                                                          // write expression (1)
 #define CMUSE       57                                                          // use (args) ch, a1, a2, ...
 #define CMOPEN      58                                                          // open chan, p1, p2, timeout
 #define CMCLOSE     59                                                          // close channel
-#define OPSTR       60                                                          // string follows in line
+#define OPSTR       60                                                          // string follows in line (cstring->len + 3)
 #define OPVAR       61                                                          // eval var name follows
-#define OPMVAR      62                                                          // build mvar, name follows
+#define OPMVAR      62                                                          // build mvar, name follows (1 + 1/2/3 + 32)
 #define OPMVARN     63                                                          // build mvar, (null OK)
 #define OPMVARF     64                                                          // bld mvar, no null, full size
 #define INDEVAL     65                                                          // eval name indirection
@@ -180,7 +176,7 @@
 #define CMGORTO     153                                                         // GOTO routine, tag, off
 #define CMXECUT     154                                                         // XECUTE
 #define CMXECI      155                                                         // XECUTE indirect
-#define CHKDOTS     156                                                         // check current level
+#define CHKDOTS     156                                                         // check current level (2)
 #define CMQUIT      157                                                         // QUIT - no arg (not FOR)
 #define CMQUITA     158                                                         // QUIT with argument
 //spare             159
@@ -195,7 +191,7 @@
 
 #define CMNEW       164                                                         // NEW
 #define CMNEWB      165                                                         // NEW #args() - new except
-#define CMKILL      166                                                         // kill 1 variable
+#define CMKILL      166                                                         // kill 1 variable (1)
 #define CMKILLB     167                                                         // kill but() args
 #define NEWBREF     168                                                         // push null for NEW by ref
 #define VARUNDF     169                                                         // point at VAR_UNDEFINED

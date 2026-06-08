@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/database.h
- * Summary: module database header file - standard includes
+ * File:    include/database.h
+ * Summary: Database Module Header File - standard includes
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef RSM_DATABASE_H
@@ -38,18 +34,22 @@
 #define PTR_UNDEFINED   0                                                       // junk pointer
 
 /*
- * Below is the maximum depth that the database code will search down to.
+ * Below is the maximum depth that the database code will search down to
  *
- * NOTE: With a block size of 4 KiB a depth of 12 allows for
- *       potentially about 8.649E12 data blocks available.
+ * NOTE: With a 4 KiB block size and maximum key length, the minimum fan-out is
+ *       15, requiring at most depth 8 to index all 2^31 blocks of a maximum 8
+ *       TiB database. A depth-12 tree could theoretically index ~8.649E12
+ *       blocks (15^11), far exceeding the block address space.
+ *
+ *       While with a 256 KiB block size and maximum key length, the minimum
+ *       fan-out is 974, requiring at most depth 4 to index all 2^31 blocks of
+ *       a maximum 512 TiB database. A depth-12 tree could theoretically index
+ *       ~7.48E32 blocks (974^11), far exceeding the block address space.
  */
 #define MAXTREEDEPTH    12                                                      // max level down
 #define LAST_USED_LEVEL 3                                                       // when last used works
 #define MAXREKEY        (MAXTREEDEPTH * 3)                                      // max re-keys
 #define GBD_EXPIRED     60                                                      // seconds to expire
-
-// DB_Block flags
-#define BLOCK_DIRTY     1                                                       // block needs tidying
 
 // Write Daemon defines
 #define DOING_NOTHING   0                                                       // nothing
@@ -57,6 +57,12 @@
 #define DOING_WRITE     2                                                       // writing
 #define DOING_GARB      3                                                       // garbage collect
 #define DOING_DISMOUNT  4                                                       // dismounting
+
+// DB_Block flags
+#define BLOCK_DIRTY     1                                                       // block needs tidying
+//#define BLOCK_BACKUP    2                                                       // block copied during an incremental backup
+//#define BLOCK_READ      4                                                       // block has a read lock
+//#define BLOCK_WRITE     8                                                       // block has a write lock
 
 // Structures
 typedef struct __attribute__ ((aligned(4), packed)) DB_BLOCK {                  // database block layout
@@ -103,7 +109,7 @@ typedef struct __attribute__ ((__packed__)) JRNREC {                            
 #define JRN_KILL    5                                                           // Kill global
 
 /*
- * NOTE: The first 4 bytes (u_int) = (RSM_MAGIC - 1).
+ * NOTE: The first 4 bytes (u_int) = JRN_MAGIC.
  *       The next 8 bytes (off_t) in the file point at the next free byte.
  *       Initially 12 and always rounded to the next 4 byte boundary.
  *       Journal file is only accessed while a write lock is held.
@@ -111,7 +117,7 @@ typedef struct __attribute__ ((__packed__)) JRNREC {                            
 
 // External declarations
 
-// File: rsm/database/main.c
+// File: database/main.c
 extern int     curr_lock;                                                       // lock on globals
 extern int     gbd_expired;
 extern mvar    db_var;                                                          // local copy of var
@@ -131,35 +137,35 @@ extern int     hash_start;                                                      
 
 // Function Prototypes
 
-// File: rsm/database/buffer.c
+// File: database/buffer.c
 short Get_block(u_int blknum);                                                  // Get block
 short New_block(void);                                                          // get new block
 void  Get_GBD(void);                                                            // get a GBD
 void  Get_GBDs(int greqd);                                                      // get n free GBDs
 void  Free_GBD(gbd *free);                                                      // Free a GBD
 
-// File: rsm/database/get.c
+// File: database/get.c
 int Get_data(int dir);                                                          // get db_var node
 
-// File: rsm/database/ic.c
+// File: database/ic.c
 void ic_map(int flag);                                                          // check the map
 
-// File: rsm/database/kill.c
+// File: database/kill.c
 short Kill_data(void);                                                          // remove tree
 
-// File: rsm/database/locate.c
+// File: database/locate.c
 short Locate(u_char *key);                                                      // find key
 short Locate_next(void);                                                        // point at next key
 
-// File: rsm/database/rekey.c
+// File: database/rekey.c
 short Add_rekey(u_int block, int level);                                        // add to re-key table
 short Re_key(void);                                                             // re-key blocks
 void  Un_key(void);                                                             // un-key blk[level]
 
-// File: rsm/database/set.c
+// File: database/set.c
 int Set_data(cstring *data);                                                    // set a record
 
-// File: rsm/database/util.c
+// File: database/util.c
 void  Align_record(void);                                                       // align record (int)
 void  Copy_data(gbd *fptr, int fidx);                                           // copy records
 void  DoJournal(jrnrec *jj, cstring *data);                                     // Write journal

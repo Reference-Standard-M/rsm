@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/database/main.c
- * Summary: module database - main database functions
+ * File:    database/main.c
+ * Summary: Database Module - main database functions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // database protos
@@ -76,7 +72,7 @@ static short Copy2local(const mvar *var)
     memcpy(&db_var, var, sizeof(var_u) + 4 + var->slen);                        // copy the data
     if (db_var.volset == 0) db_var.volset = partab.jobtab->vol;                 // if volset is zero then get current volset
     if (db_var.uci == 0) db_var.uci = partab.jobtab->uci;                       // if UCI is zero then get current UCI
-    if (db_var.name.var_cu[0] == '%') db_var.uci = 1;                           // if routine is %, change to UCI 1 (vol too?)
+    if (db_var.name.var_cu[0] == '%') db_var.uci = 1;                           // if global is %, change to UCI 1 (vol too?)
     if (db_var.volset > MAX_VOL) return -ERRM26;                                // within limits? if not - error
     if (systab->vol[db_var.volset - 1] == NULL) return -ERRM26;                 // is it mounted? if not - error
     if (db_var.uci > UCIS) return -ERRM26;                                      // too big
@@ -181,7 +177,7 @@ int DB_Set(const mvar *var, cstring *data)                                      
     i = SOA(partab.vol[volnum]->vollab)->max_block >> 3;                        // last map byte necessary for current database size
 
     while (i) {                                                                 // check from the end
-        if ((((u_char *) SOA(partab.vol[volnum]->map))[i--]) == 0) break;       // OK if byte is free
+        if ((((u_char *) SOA(partab.vol[volnum]->map))[i--]) < 255) break;      // OK if byte is free
     }
 
     if (!i) return -(ERRZ11 + ERRZLAST);                                        // complain if failed
@@ -527,10 +523,7 @@ short DB_QueryD(mvar *var, u_char *buf)                                         
         return -(ERRZ55 + ERRMLAST);                                            // and return
     }
 
-    if ((t < 0) && db_var.slen) {                                               // If we had a "real"
-        Index--;                                                                // <UNDEF> last time
-    }                                                                           // back up Index
-
+    if ((t < 0) && db_var.slen) Index--;                                        // If we had a "real" <UNDEF> last time, back up
     t = Locate_next();                                                          // point at next
 
     if (t < 0) {                                                                // not found or error
@@ -634,22 +627,14 @@ int DB_Free(int vol)                                                            
  *           New size in blocks (checks have been done)
  * Return:   0 or error
  */
-short DB_Expand(int vol, u_int vsiz)                                            // expand it
+short DB_Expand(int vol, u_int vsiz)
 {
     off_t  fptr;                                                                // for lseek
-    off_t  fres;                                                                // ditto
     u_int  vexp;                                                                // expand by
-    u_char *p;                                                                  // for malloc
     int    dbfd;                                                                // for open
 
-    p = malloc(SOA(partab.vol[vol]->vollab)->block_size);                       // get some space
-    if (p == NULL) return -(ERRMLAST + ERRZLAST + errno);                       // die
-    memset(p, 0, SOA(partab.vol[vol]->vollab)->block_size);                     // clear it
-    dbfd = open(partab.vol[vol]->file_name, O_RDWR);                            // open database read-write
-
-    if (dbfd == -1) {                                                           // if failed
-        free(p);                                                                // free memory
-        return -(ERRMLAST + ERRZLAST + errno);                                  // and die
+    if ((dbfd = open(partab.vol[vol]->file_name, O_WRONLY)) == -1) {
+        return -(ERRMLAST + ERRZLAST + errno);
     }
 
     fptr = (off_t) SOA(partab.vol[vol]->vollab)->max_block;                     // start here
@@ -657,29 +642,20 @@ short DB_Expand(int vol, u_int vsiz)                                            
     fptr = (fptr * (off_t) SOA(partab.vol[vol]->vollab)->block_size)
          + (off_t) SOA(partab.vol[vol]->vollab)->header_bytes;
 
-    fres = lseek(dbfd, fptr, SEEK_SET);                                         // Seek to eof
-
-    if (fres != fptr) {                                                         // if failed
-        free(p);                                                                // free memory
+    if (lseek(dbfd, fptr, SEEK_SET) == (off_t) -1) {                            // seek to EOF
         return -(ERRMLAST + ERRZLAST + errno);                                  // and die
     }
 
     vexp = vsiz - SOA(partab.vol[vol]->vollab)->max_block;                      // expand by
 
     while (vexp) {
-        int i;
-
-        i = write(dbfd, p, SOA(partab.vol[vol]->vollab)->block_size);
-
-        if (i == -1) {                                                          // if failed
-            free(p);                                                            // free memory
+        if (write(dbfd, SOA(partab.vol[vol]->zero_block), SOA(partab.vol[vol]->vollab)->block_size) == -1) {
             return -(ERRMLAST + ERRZLAST + errno);                              // and die
         }
 
         vexp--;                                                                 // count 1
     }
 
-    free(p);                                                                    // free memory
     close(dbfd);                                                                // close DB file
     SOA(partab.vol[vol]->vollab)->max_block = vsiz;                             // store new size
     partab.vol[vol]->map_dirty_flag = 1;                                        // say write this
@@ -717,14 +693,14 @@ void DB_StopJournal(int vol, u_char action)                                     
     jrnrec jj;
 
     volnum = vol - 1;                                                           // set common var
-    if (!SOA(partab.vol[vol - 1]->vollab)->journal_available) return;           // if no journal then just exit
+    if (!SOA(partab.vol[volnum]->vollab)->journal_available) return;            // if no journal then just exit
     while (SemOp(SEM_GLOBAL, SEM_WRITE)) sleep(1);
     jj.action = action;
     jj.uci = 0;
     VAR_CLEAR(jj.name);
     jj.slen = 0;
     DoJournal(&jj, NULL);
-    SOA(partab.vol[vol - 1]->vollab)->journal_available = 0;
+    SOA(partab.vol[volnum]->vollab)->journal_available = 0;
     SemOp(SEM_GLOBAL, -SEM_WRITE);                                              // release global lock
     return;
 }
@@ -751,7 +727,7 @@ int DB_GetFlags(const mvar *var)                                                
 
     t = Get_data(0);                                                            // try to find that
 
-    if ((t < 0) && (t != -ERRM7)) {                                             // check for errors
+    if (t < 0) {                                                                // check for errors
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
         return t;                                                               // and return the error
     }
@@ -788,7 +764,6 @@ int DB_SetFlags(const mvar *var, int flags)                                     
     }
     */
 
-    partab.vol[volnum]->stats.dbset++;                                          // update stats
     writing = 1;                                                                // say we are writing
 
     while (partab.vol[volnum]->writelock) {                                     // check for write lock
@@ -799,11 +774,12 @@ int DB_SetFlags(const mvar *var, int flags)                                     
     Get_GBDs(1);                                                                // ensure this many
     t = Get_data(0);                                                            // try to find that
 
-    if ((t < 0) && (t != -ERRM7)) {                                             // check for errors
+    if (t < 0) {                                                                // check for errors
         if (curr_lock) SemOp(SEM_GLOBAL, -curr_lock);                           // if locked then release global lock
         return t;                                                               // return error
     }
 
+    partab.vol[volnum]->stats.dbset++;                                          // update stats
     i = ((int *) record)[1];                                                    // get current flags
 
     if (clearit) {
@@ -827,7 +803,7 @@ int DB_SetFlags(const mvar *var, int flags)                                     
  * Function: DB_Compress
  * Summary:  Compress a global on-line
  * Input(s): Where to start in global (mvar) Must ---> partab.jobtab->last_ref
- *           Level to process 0 -> 15 (data level or more means data level)
+ *           Level to process 1 -> MAXTREEDEPTH - 1 (data level or more means data level)
  * Return:   Actual level number processed or error number
  */
 short DB_Compress(mvar *var, int flags)                                         // Compress global
@@ -836,7 +812,7 @@ short DB_Compress(mvar *var, int flags)                                         
     int   t;
     short retlevel;                                                             // the ACTUAL level
 
-    flags &= 15;                                                                // clear high bits
+    if ((flags < 1) || (flags > (MAXTREEDEPTH - 1))) return -(ERRZ64 + ERRMLAST); // range check
     t = Copy2local(var);                                                        // get local copy
     if (t < 0) return (short) t;                                                // exit on error
 
@@ -849,7 +825,7 @@ short DB_Compress(mvar *var, int flags)                                         
     memset(rekey_blk, 0, MAXREKEY * sizeof(u_int));                             // clear that table
     memset(rekey_lvl, 0, MAXREKEY * sizeof(int));                               // and that table
     memcpy(var, &db_var, sizeof(mvar));                                         // copy the data back
-    t = Get_data(flags);                                                        // get to level 'flags'
+    Get_data(flags);                                                            // get to level 'flags'
     retlevel = level;                                                           // save real level
 
     if (!level) {                                                               // give up if no such

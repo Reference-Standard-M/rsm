@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/init/start.c
- * Summary: module init - startup code
+ * File:    init/start.c
+ * Summary: Init Module - startup code
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "init.h"                                                               // init prototypes
@@ -49,10 +45,11 @@
 *  -g global buffers in MiB        (0 to MAX_GLOBAL_BUFFERS)        Opt *
 *  -r routine buffers in MiB       (0 to MAX_ROUTINE_BUFFERS)       Opt *
 *  -a additional buffers in MiB    (1 to MAX_ADDITIONAL_BUFFERS)    Opt *
+*  -u unsecured mode                                                Opt *
 \***********************************************************************/
 
 // database, number of jobs, MiB of global buffers, MiB of routine buffers, MiB of additional buffers (for volumes)
-int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
+int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb, int unsecured)
 {
     int               dbfd;                                                     // database file descriptor
     int               hbuf[sizeof(label_block) / 4];                            // header buffer
@@ -75,7 +72,7 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     gbd               *gptr;                                                    // a GBD pointer
     u_char            *ptr;                                                     // and a byte one
     const label_block *labelblock;                                              // label block pointer
-    char              version[120];                                             // a string
+    char              version[300];                                             // a string
 
     sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
@@ -102,7 +99,7 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     if (rmb < 1) rmb = 1;                                                       // but at least 1 MiB
     locksize = jobs * LOCKTAB_SIZE;                                             // what we need for locktab
     locksize = (((locksize - 1) / pagesize) + 1) * pagesize;                    // round up
-    dbfd = open(file, O_RDWR);                                                  // open the database read/write
+    dbfd = open(file, O_RDWR);                                                  // open the database RW
 
     if (dbfd == -1) {                                                           // if that failed
         fprintf(stderr, "Open of database %s failed - %s\n", file, strerror(errno)); // what was returned
@@ -118,6 +115,16 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 
     labelblock = (label_block *) hbuf;                                          // point label block at it
 
+    if (labelblock->magic != RSM_MAGIC) {
+        if (labelblock->magic == SWAP_ENDIAN(RSM_MAGIC)) {
+            fprintf(stderr, "Invalid RSM database (wrong endian) - start failed!!\n");
+        } else {
+            fprintf(stderr, "Invalid RSM database (wrong magic) - start failed!!\n");
+        }
+
+        return -1;
+    }
+
     if (labelblock->db_ver != DB_VER) {                                         // if we need to upgrade
         fprintf(stderr, "Database is version %u, image requires version %d - start failed!!\n", labelblock->db_ver, DB_VER);
 
@@ -127,11 +134,6 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 
         return -1;
     }                                                                           // end upgrade procedure
-
-    if (labelblock->magic != RSM_MAGIC) {
-        fprintf(stderr, "Invalid RSM database (wrong magic) - start failed!!\n");
-        return -1;
-    }
 
     shar_mem_key = ftok(file, RSM_SYSTEM);                                      // get a unique key
 
@@ -190,7 +192,13 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     printf("[Volume 1] Using %d KiB for the volume label and map space\n", hbuf[2] / 1024);
     printf("[Instance] Creating an environment with a total share size of %lld MiB\n", share_size / MBYTE);
 
-    shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create share memory (0660)
+    if (unsecured) {
+        // create share memory (0666) for snap confinement
+        shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    } else {
+        // create share memory (0660)
+        shar_mem_id = shmget(shar_mem_key, share_size, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    }
 
     if (shar_mem_id == -1) {                                                    // die on error
         fprintf(stderr, "Unable to create shared memory segment - %s\n", strerror(errno)); // give an error
@@ -214,7 +222,13 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
         return errno;                                                           // and return with error
     }
 
-    sem_id = semget(shar_mem_key, SEM_MAX, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // create semaphores (0660)
+    if (unsecured) {
+        // create semaphores (0666) for snap confinement
+        sem_id = semget(shar_mem_key, SEM_MAX, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    } else {
+        // create semaphores (0660)
+        sem_id = semget(shar_mem_key, SEM_MAX, IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    }
 
     if (sem_id == -1) {
         fprintf(stderr, "Unable to create semaphore set - %s\n", strerror(errno)); // give an error
@@ -247,7 +261,7 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     systab->maxjob = jobs;                                                      // save max jobs
     systab->start_user = (int) getuid();                                        // remember who started this
     systab->precision = DEFAULT_PREC;                                           // decimal precision
-    systab->historic = HISTORIC_EOK | HISTORIC_OFFOK | HISTORIC_DNOK;           // default "historic" features to on
+    systab->historic = HISTORIC_EOK | HISTORIC_OFFOK;                           // default E and +offset "historic" features to on
     systab->lockstart = (void *) ((char *) systab->jobtab + (sizeof(jobtab) * jobs)); // locktab
     systab->locksize = locksize;                                                // the size
     systab->lockhead = NULL;                                                    // no locks currently
@@ -257,6 +271,7 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     systab->lockfree->job = -1;                                                 // means free
     systab->addoff = addoff;                                                    // Add buffer offset
     systab->addsize = ((long long) addmb * MBYTE);                              // and size in bytes
+    systab->unsecured = unsecured;                                              // whether unsecure mode should be enabled or not
     systab->vol[0] = (vol_def *) ((char *) systab + sjlt_size);                 // jump to start of volume set memory
     systab->vol[0]->vollab = (label_block *) ((char *) systab->vol[0] + sizeof(vol_def)); // and point to label blk
     systab->vol[0]->map = (void *) ((char *) systab->vol[0]->vollab + sizeof(label_block)); // and point to map
@@ -272,16 +287,15 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     systab->vol[0]->map_dirty_flag = 0;                                         // clear dirty map flag
 
     if (realpath(file, fullpathvol) != NULL) {                                  // get full path
-        if (strlen(fullpathvol) <= VOL_FILENAME_MAX) {                          // if can fit in our struct
-            strcpy(systab->vol[0]->file_name, fullpathvol);                     // copy path into the vol_def structure
-        } else {                                                                // end if path will fit, otherwise
-            i = strlen(fullpathvol) - VOL_FILENAME_MAX;                         // copy as much as
-            strcpy(systab->vol[0]->file_name, &fullpathvol[i]);                 // is possible, that's the best we can do
-        }                                                                       // end length testing
+        size_t flen, offset;
+
+        flen = strlen(fullpathvol);
+        offset = (flen > VOL_FILENAME_MAX) ? flen - VOL_FILENAME_MAX : 0;       // make sure to copy the end of the path
+        str_copy(systab->vol[0]->file_name, &fullpathvol[offset], VOL_FILENAME_MAX + 1); // copy as much as possible
     } else {                                                                    // end realpath worked, otherwise it was an error
         i = errno;                                                              // save realpath error
         fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // what was returned
-        shmdt(systab);                                                          // detach the shared memory
+        shmdt((void *) systab);                                                 // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
         return i;                                                               // exit with error
@@ -294,7 +308,7 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
     if (i < hbuf[2]) {                                                          // in case of error
         i = errno;                                                              // save read error
         fprintf(stderr, "Read of label/map block failed - %s\n", strerror(errno)); // what was returned
-        shmdt(systab);                                                          // detach the shared memory
+        shmdt((void *) systab);                                                 // detach the shared memory
         shmctl(shar_mem_id, IPC_RMID, &sbuf);                                   // remove the share
         semctl(sem_id, 0, IPC_RMID, semvals);                                   // and the semaphores
         return i;                                                               // exit with error
@@ -323,9 +337,16 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
         i = DB_Daemon(indx, 1);                                                 // start each daemon (volume 1)
 
         if (i != 0) {                                                           // in case of error
-            fprintf(stderr, "*** Died on error - %s ***\n\n", strerror(i));     // what was returned
-            shmdt(systab);                                                      // detach the shared memory
-            return errno;                                                       // exit with error
+            shmdt((void *) systab);                                             // detach the shared memory
+
+            if (indx == 0) {                                                    // if main daemon
+                fprintf(stderr, "init_start: *** Died on error - %s ***\n", strerror(i)); // what was returned
+                printf("[Instance] Environment is detached and destroyed\n");
+                shmctl(shar_mem_id, IPC_RMID, &sbuf);                           // remove the share
+                semctl(sem_id, 0, IPC_RMID, semvals);                           // and the semaphores
+            }
+
+            return i;                                                           // exit with error
         }
     }                                                                           // all daemons started
 
@@ -351,16 +372,26 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
                 fprintf(stderr, "Failed to open journal file: %s\nerrno = %d\n", systab->vol[0]->vollab->journal_file, errno);
             } else {                                                            // if open OK
                 union {
-                    u_int magic;
-                    u_char tmp[4];
-                } temp;
+                    u_int   magic1;
+                    u_char  magic4[4];
+                } jrn_magic;
 
                 lseek(jfd, 0, SEEK_SET);
                 errno = 0;
-                i = read(jfd, temp.tmp, 4);                                     // read the magic
+                i = read(jfd, jrn_magic.magic4, 4);                             // read the magic
 
-                if ((i != 4) || (temp.magic != (RSM_MAGIC - 1))) {
-                    fprintf(stderr, "Failed to open journal file: %s\nWRONG MAGIC\n", systab->vol[0]->vollab->journal_file);
+                if (i != 4) {
+                    fprintf(stderr, "Failed to open journal file: %s\n", systab->vol[0]->vollab->journal_file);
+                    if (i == -1) fprintf(stderr, "errno = %d\n", errno);
+
+                    close(jfd);
+                } else if (jrn_magic.magic1 != JRN_MAGIC) {
+                    if (jrn_magic.magic1 == SWAP_ENDIAN(JRN_MAGIC)) {
+                        fprintf(stderr, "Failed to open journal file (wrong endian): %s\n", systab->vol[0]->vollab->journal_file);
+                    } else {
+                        fprintf(stderr, "Failed to open journal file (wrong magic): %s\n", systab->vol[0]->vollab->journal_file);
+                    }
+
                     close(jfd);
                 } else {
                     i = read(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
@@ -434,7 +465,7 @@ int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb)
 
     systab->vol[0]->gbd_hash[GBD_HASH] = gptr;                                  // head of free list
     Routine_Init(0);                                                            // and the routine junk
-    shmdt(systab);                                                              // detach the shared memory
+    shmdt((void *) systab);                                                     // detach the shared memory
     close(dbfd);                                                                // close the database
     printf("[Instance] Environment is created and initialized\n");              // say something
     return 0;                                                                   // indicate success

@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/init/run.c
- * Summary: module init - startup (main) code
+ * File:    init/run.c
+ * Summary: Init Module - startup (main) code
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "init.h"                                                               // init prototypes
@@ -41,22 +37,23 @@
 #include <stdlib.h>                                                             // these two
 #include <string.h>                                                             // for memcpy
 #include <termios.h>                                                            // for tcgetattr
+#include <time.h>
 #include <unistd.h>                                                             // database access
 #include <sys/shm.h>                                                            // shared memory
 
-partab_struct  partab;                                                          // setup partab
+partab_struct  partab = {.job_table = NULL};                                    // setup partab
 systab_struct  *systab;
 struct termios tty_settings;                                                    // man 3 termios
 
 u_char *addstk[MAX_ASTK];                                                       // address stack
-u_char strstk[MAX_SSTK];                                                        // string stack
-u_char indstk[MAX_ISTK];                                                        // indirect stack
+u_char strstk[MAX_SSTK] = {0};                                                  // string stack
+u_char indstk[MAX_ISTK] = {0};                                                  // indirect stack
 long   isp;                                                                     // indirect stack pointer
 int    failed_tty = -1;                                                         // flag for tty reset
 int    gbd_expired = GBD_EXPIRED;                                               // Set this
 u_char *rsmpc;                                                                  // RSM prog pointer
 
-char    history[MAX_HISTORY][MAX_STR_LEN];                                      // history buffer
+char    history[MAX_HISTORY][MAX_STR_LEN + 1] = {{0}};                          // history buffer
 u_short hist_next = 0;                                                          // next history pointer
 u_short hist_curr = 0;                                                          // history entry pointer
 short   in_hist = FALSE;                                                        // are we in the history buffer
@@ -122,8 +119,8 @@ int init_run(char *file, const char *env, char *cmd)
     label_block  *vol_label;                                                    // current volume label
 
 start:
-#if defined(__APPLE__) || defined(__FreeBSD__)
-    srandomdev();                                                               // randomize
+#if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
+    srandom((u_int) time(NULL));                                                // randomize
 #endif
     partab.jobtab = (jobtab *) NULL;                                            // clear jobtab pointer
 
@@ -138,7 +135,7 @@ start:
         i = UTIL_Share(file, 0);                                                // attach to shared memory
 
         if (i != 0) {                                                           // quit on error
-            fprintf(stderr, "RSM environment is not initialized\n");
+            fprintf(stderr, "RSM environment [%s] is not initialized\n", file);
             return i;
         }
     }
@@ -217,7 +214,8 @@ start:
 
     partab.jobtab->user = (int) getuid();                                       // get user number
 
-    if ((partab.jobtab->user == systab->start_user) || (partab.jobtab->user == 0)) { // if he started it or is root
+    // if it was started by the current user or the current user is root
+    if ((partab.jobtab->user == systab->start_user) || (partab.jobtab->user == 0) || systab->unsecured) {
         partab.jobtab->priv = 1;                                                // say yes
     } else {
         if (systab->maxjob == 1) {                                              // if single job
@@ -381,6 +379,23 @@ start:
             if (cptr->buf[0] != 'U') {
                 cptr->len = 4;                                                  // max error size
                 cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);       // convert to error string
+
+                // add +line^routine where the error occurred
+                if (partab.jobtab->dostk[STM1_FRAME].line_num) {
+                    memcpy(&cptr->buf[cptr->len], " - At +", 7);
+                    cptr->len += 7;
+                    cptr->len += ultocstring(&cptr->buf[cptr->len], partab.jobtab->dostk[STM1_FRAME].line_num); // line number
+                    cptr->buf[cptr->len++] = '^';                               // lead off routine
+
+                    for (i = 0; i < VAR_LEN; i++) {
+                        if (!(cptr->buf[i + cptr->len] = partab.jobtab->dostk[STM1_FRAME].rounam.var_cu[i])) {
+                            break;                                              // copy routine name
+                        }
+                    }
+
+                    cptr->len += i;                                             // save length
+                }
+
                 t = SQ_Write(cptr);                                             // write the error
                 if (t < 0) ser(t);                                              // check for error
                 t = SQ_WriteFormat(SQ_LF);                                      // new line
@@ -402,13 +417,8 @@ start:
         if (strcmp((char *) partab.jobtab->seqio[0].name, "Not a tty") != 0) {  // stdin is not a file or heredoc (pipe), etc.
             volnam = SOA(partab.vol[partab.jobtab->vol - 1]->vollab)->volnam.var_cu; // get current volume name
             uci_ptr = &SOA(partab.vol[partab.jobtab->vol - 1]->vollab)->uci[partab.jobtab->uci - 1]; // get pointer to UCI
-            sptr->len = strlen((char *) volnam) + strlen((char *) uci_ptr->name.var_cu) + 9; // find the length
-            prompt_len = sptr->len;                                             // update the prompt length for direct mode editing
-
-            // copy in the prompt
-            if (snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%s,%s]> ", uci_ptr->name.var_cu, volnam) < 0) {
-                return errno;
-            }
+            prompt_len = sptr->len = strnlen((char *) uci_ptr->name.var_cu, VAR_LEN) + strnlen((char *) volnam, VAR_LEN) + 9;
+            snprintf((char *) sptr->buf, sptr->len + 1, "RSM [%.*s,%.*s]> ", VAR_LEN, uci_ptr->name.var_cu, VAR_LEN, volnam);
 
             if (partab.jobtab->seqio[0].dx) {                                   // if not at left margin
                 t = SQ_WriteFormat(SQ_LF);                                      // new line
@@ -433,13 +443,8 @@ start:
         if (t == 0) continue;                                                   // ignore null
 
         if (!hist_next || strcmp(history[hist_next - 1], (char *) sptr->buf)) {
-            strcpy(history[hist_next], (char *) sptr->buf);
-
-            if (hist_next == (MAX_HISTORY - 1)) {
-                hist_next = 0;
-            } else {
-                hist_next++;
-            }
+            str_copy(history[hist_next], (char *) sptr->buf, sizeof(history[hist_next]));
+            if (++hist_next == MAX_HISTORY) hist_next = 0;
         }
 
         hist_curr = hist_next;
@@ -518,6 +523,23 @@ start:
         if (cptr->buf[0] != 'U') {
             cptr->len = 4;                                                      // max error size
             cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr);           // convert to error string
+
+            // add +line^routine where the error occurred
+            if (partab.jobtab->dostk[STM1_FRAME].line_num) {
+                memcpy(&cptr->buf[cptr->len], " - At +", 7);
+                cptr->len += 7;
+                cptr->len += ultocstring(&cptr->buf[cptr->len], partab.jobtab->dostk[STM1_FRAME].line_num); // line number
+                cptr->buf[cptr->len++] = '^';                                   // lead off routine
+
+                for (i = 0; i < VAR_LEN; i++) {
+                    if (!(cptr->buf[i + cptr->len] = partab.jobtab->dostk[STM1_FRAME].rounam.var_cu[i])) {
+                        break;                                                  // copy routine name
+                    }
+                }
+
+                cptr->len += i;                                                 // save length
+            }
+
             t = SQ_Write(cptr);                                                 // write the error
             if (t < 0) ser(t);                                                  // check for error
             t = SQ_WriteFormat(SQ_LF);                                          // new line
@@ -527,7 +549,7 @@ start:
 
 exit:                                                                           // general exit code
     if (partab.jobtab != NULL) CleanJob(0);                                     // if we have a jobtab, remove locks, detach symbols
-    shmdt(systab);                                                              // detach the shared memory
+    shmdt((void *) systab);                                                     // detach the shared memory
 
     for (i = 0; i < MAX_VOL; i++) {
         if (partab.vol_fds[i]) close(partab.vol_fds[i]);                        // close the databases

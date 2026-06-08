@@ -1,11 +1,12 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/init/util.c
- * Summary: module init - command line utilities
+ * File:    init/util.c
+ * Summary: Init Module - command line utilities
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2021-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileCopyrightText:  © 2021-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -19,9 +20,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2021 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "init.h"                                                               // init prototypes
@@ -43,11 +41,11 @@
 // *** Give help if they entered -h or need help ***
 void help(void)                                                                 // give some help
 {
-    char version[120];                                                          // a string
+    char version[300];                                                          // a string
 
     sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
-    printf("Copyright © 2020-2024 Fourth Watch Software LC\n");
+    printf("Copyright © 2020-2026 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n\n");
     printf("Show information:\n");
     printf("  rsm -V\t\t\tOutput short version string\n");
@@ -81,15 +79,15 @@ void info(char *file)                                                           
 {
     int     i = 0;                                                              // an int
     u_int   cnt = 0;                                                            // current job count
-    char    version[120];                                                       // a string
     char    pidlen;                                                             // calculate length of daemon PID
     char    margin = 24;                                                        // calculate margin for daemon PID list
     locktab *lock_free;                                                         // loop through lock free space
     int     lock_size = 0;                                                      // actual size of free lock space
+    char    version[300];                                                       // a string
 
     sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
-    printf("Copyright © 2020-2024 Fourth Watch Software LC\n");
+    printf("Copyright © 2020-2026 Fourth Watch Software LC\n");
     printf("https://gitlab.com/Reference-Standard-M/rsm\n");
     printf("Database Version: %d\tCompiler Version: %d\n\n", DB_VER, COMP_VER);
     printf("Database Volume and Environment Configuration Information:\n");
@@ -103,7 +101,7 @@ void info(char *file)                                                           
 
     if ((i != 0) || (systab == NULL) || (systab->vol[0] == NULL)) {             // if that failed
         if (i != 0) {
-            fprintf(stderr, "\nCannot connect to RSM environment - %s\n", strerror(errno));
+            fprintf(stderr, "\nCannot connect to RSM environment [%s] - %s\n", file, strerror(errno));
             exit(i);
         }
 
@@ -146,24 +144,26 @@ void info(char *file)                                                           
         if (partab.vol[i]->rbd_hash[RBD_HASH] == NULL) continue;
         vol_label = SOA(partab.vol[i]->vollab);
 #if RSM_DBVER != 1
-        time = vol_label->creation_time;
+        time = (time_t) vol_label->creation_time;
 #endif
         printf("\n*** Volume %d ***\n", i + 1);
         printf("Volume File Path:\t%s\n", partab.vol[i]->file_name);
-        printf("Volume Name:\t\t%s\n", vol_label->volnam.var_cu);
-        printf("Manager UCI Name:\t%s\n", vol_label->uci[0].name.var_cu);
 #if RSM_DBVER != 1
         printf("Volume Creation Time:\t%s\n", strtok(ctime(&time), "\n"));
 #endif
-
-        printf("Journal File Path:\t%s [%s]\n", ((vol_label->journal_file[0] != '\0') ? vol_label->journal_file : "--"),
-               (vol_label->journal_available ? "ON" : "OFF"));
-
+        printf("Volume Name:\t\t%s\n", vol_label->volnam.var_cu);
+        printf("Manager UCI Name:\t%s\n", vol_label->uci[0].name.var_cu);
         printf("Label/Map Block Size:\t%-12uKiB\n", vol_label->header_bytes / 1024);
         printf("Volume Block Size:\t%-12uKiB\n", vol_label->block_size / 1024);
         printf("Volume Size:\t\t%-12uBlocks\n", vol_label->max_block);
         printf("Volume Free:\t\t%-12dBlocks\n", DB_Free(i + 1));
-        if (vol_label->journal_file[0] != '\0') printf("Journal Size:\t\t%-12lldBytes\n", (long long) partab.vol[i]->jrn_next);
+
+        printf("Journal File Path:\t%s [%s]\n", ((vol_label->journal_file[0] != '\0') ? vol_label->journal_file : "--"),
+               (vol_label->journal_available ? "ON" : "OFF"));
+
+        if ((vol_label->journal_file[0] != '\0') && vol_label->journal_available) {
+            printf("Journal Size:\t\t%-12lldBytes\n", (long long) partab.vol[i]->jrn_next);
+        }
 
         printf("Global Buffers:\t\t%-12dMiB (%u Buffers)\n", (int) (((u_char *) SOA(partab.vol[i]->zero_block) -
                (u_char *) SOA(partab.vol[i]->global_buf)) / MBYTE), partab.vol[i]->num_gbd);
@@ -215,7 +215,7 @@ void info(char *file)                                                           
         margin = 24;
     }
 
-    shmdt(systab);                                                              // detach the shared mem
+    shmdt((void *) systab);                                                     // detach the shared mem
     exit(EXIT_SUCCESS);                                                         // give info and exit
 }
 
@@ -225,13 +225,13 @@ void shutdown(char *file)                                                       
     int             i = 0;                                                      // an int
     int             daemon = TRUE;                                              // for daemon info
     int             user;                                                       // for user number
-    char            version[120];                                               // a string
     struct shmid_ds sbuf;                                                       // for shmctl (shutdown)
 #ifdef __APPLE__
     void            *semvals = NULL;
 #else
     semun_t         semvals = {.val = 0};                                       // dummy for semctl IPC_RMID
 #endif
+    char            version[300];                                               // a string
 
     sys_version((u_char *) version);                                            // get version into version[]
     printf("%s\n", version);                                                    // print version string
@@ -244,7 +244,7 @@ void shutdown(char *file)                                                       
     i = UTIL_Share(file, 0);                                                    // attach to shared memory
 
     if (i != 0) {                                                               // quit on error
-        fprintf(stderr, "RSM environment is not initialized - %s\n", strerror(errno));
+        fprintf(stderr, "RSM environment [%s] is not initialized - %s\n", file, strerror(errno));
         exit(i);
     }
 

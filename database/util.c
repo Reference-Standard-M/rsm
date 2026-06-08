@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/database/util.c
- * Summary: module database - database functions - utilities
+ * File:    database/util.c
+ * Summary: Database Module - database functions - utilities
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // database protos
@@ -237,7 +233,7 @@ void Free_block(u_int blknum)                                                   
  * Note:     Must hold a write lock before calling this function
  *           The caller must have ensured that, if there is a map
  *           scan in progress, this block is less than "upto"
- * This is only called from rsm/database/view.c
+ * This is only called from database/view.c
  */
 void Used_block(u_int blknum)                                                   // set block in map
 {
@@ -316,7 +312,7 @@ void Copy_data(gbd *fptr, int fidx)                                             
     fiidx = (int *) SOA(fptr->mem);                                             // point at it
     keybuf[0] = 0;                                                              // clear this
 
-    for (int i = IDX_START; i <= SOA(blk[level]->mem)->last_idx; i++) {         // scan to end to block (key compression)
+    for (int i = IDX_START; i <= SOA(blk[level]->mem)->last_idx; i++) {         // scan to end of block (key compression)
         chunk = (cstring *) &iidx[idx[i]];                                      // point at the chunk
         memcpy(&keybuf[chunk->buf[0] + 1], &chunk->buf[2], chunk->buf[1]);      // update the key
         keybuf[0] = chunk->buf[0] + chunk->buf[1];                              // and the size
@@ -417,7 +413,7 @@ short Compress1(void)
     curlevel = level;
     writing = 1;                                                                // flag writing
     t = Get_data(curlevel);                                                     // get the data
-    if ((t == -ERRM7) && (!db_var.slen)) t = 0;                                 // if top, it does exist
+    if ((t == -ERRM7) && !db_var.slen) t = 0;                                   // if top, it does exist
 
     if (t == -ERRM7) {                                                          // if gone missing
         while (level >= 0) {
@@ -573,24 +569,27 @@ void ClearJournal(int vol)                                                      
     vol_label = SOA(partab.vol[vol]->vollab);
     umask(0);                                                                   // set umask to 0000
 
-    // Create journal file, with 0660 permissions, jobs write their own journal entries
-    jfd = open(vol_label->journal_file, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (systab->unsecured) {
+        // Create journal file, with 0666 permissions for snap confinement, jobs write their own journal entries
+        jfd = open(vol_label->journal_file, O_CREAT | O_TRUNC | O_WRONLY,
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    } else {
+        // Create journal file, with 0660 permissions, jobs write their own journal entries
+        jfd = open(vol_label->journal_file, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    }
 
     if (jfd == -1) {                                                            // error
         fprintf(stderr, "Journal %s open error: %d - %s\n", vol_label->journal_file, errno, strerror(errno));
     } else {                                                                    // if OK
         if (realpath(vol_label->journal_file, fullpathvol) != NULL) {           // get full path
-            if (strlen(fullpathvol) <= JNL_FILENAME_MAX) {                      // if can fit in our struct
-                strcpy(vol_label->journal_file, fullpathvol);                   // copy this full path into the vol_def structure
-            } else {                                                            // end if path will fit - otherwise
-                int i;
+            size_t flen, offset;
 
-                i = strlen(fullpathvol) - JNL_FILENAME_MAX;                     // copy as much as
-                strcpy(vol_label->journal_file, &fullpathvol[i]);               // is possible, thats the best we can do
-            }                                                                   // end length testing
+            flen = strlen(fullpathvol);
+            offset = (flen > JNL_FILENAME_MAX) ? flen - JNL_FILENAME_MAX : 0;   // make sure to copy the end of the path
+            str_copy(vol_label->journal_file, &fullpathvol[offset], JNL_FILENAME_MAX + 1); // copy as much as possible
         }
 
-        magic = RSM_MAGIC - 1;
+        magic = JRN_MAGIC;
 
         if (write(jfd, (u_char *) &magic, sizeof(magic)) < (long) sizeof(magic)) { // write the journal header magic
             fprintf(stderr, "Journal %s write error: %d - %s\n", vol_label->journal_file, errno, strerror(errno));
@@ -644,15 +643,15 @@ void DoJournal(jrnrec *jj, cstring *data)                                       
         goto fail;                                                              // if failed
     }
 
-    jj->size = 13 + sizeof(var_u) + jj->slen;
-    if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) jj->size = 12;     // not SET or KILL, small size is 12
+    jj->size = 12;                                                              // not SET or KILL, small size is 12
+    if ((jj->action == JRN_SET) || (jj->action == JRN_KILL)) jj->size += sizeof(var_u) + jj->slen + 1; // SET or KILL
     i = jj->size;                                                               // store full size, but data is written below
-    if (jj->action == JRN_SET) jj->size += (sizeof(short) + data->len);
+    if (jj->action == JRN_SET) jj->size += (sizeof(u_short) + data->len);
     jj->time = (u_int64) current_time(TRUE);                                    // store the time
     if (write(partab.jnl_fds[volnum], jj, i) != i) goto fail;                   // write header
 
     if (jj->action == JRN_SET) {
-        i = sizeof(short) + data->len;                                          // data size
+        i = sizeof(u_short) + data->len;                                        // data size
         if (write(partab.jnl_fds[volnum], data, i) != i) goto fail;             // write data
     }
 
@@ -696,7 +695,11 @@ void Dump_gbd(void)                                                             
 
     f = SOA(partab.vol[partab.jobtab->vol - 1]->gbd_hash[GBD_HASH]);
     printf("Global Buffers Free at %p --> %p\r\n", (void *) f, (f == NULL) ? NULL : (void *) SOA(f->mem));
-    printf("Using %u of %u Global Buffers\r\n\r\n", cnt, partab.vol[partab.jobtab->vol - 1]->num_gbd);
+
+    printf("Using %u of %u Global Buffers [%d MiB]\r\n\r\n", cnt, partab.vol[partab.jobtab->vol - 1]->num_gbd,
+           (int) (((u_char *) SOA(partab.vol[partab.jobtab->vol - 1]->zero_block) -
+                   (u_char *) SOA(partab.vol[partab.jobtab->vol - 1]->global_buf)) / MBYTE));
+
     printf("       Address   Global Buffer       Block  Right Link  Block Type  Last Access  VOL  UCI  Global Name\r\n");
 
     for (i = 0; i < partab.vol[partab.jobtab->vol - 1]->num_gbd; i++) {         // for all
@@ -710,8 +713,8 @@ void Dump_gbd(void)                                                             
 
         tmp[j] = '\0';                                                          // null terminate name
 
-        len = snprintf(type, 10, "%s", (strncmp(tmp, "$GLOBAL\0", 8) == 0) ? "Directory" :
-              (SOA(p[i].mem)->type > UCIS) ? "Data" : "Pointer");
+        len = str_copy(type, (strncmp(tmp, "$GLOBAL\0", 8) == 0) ? "Directory" :
+              (SOA(p[i].mem)->type > UCIS) ? "Data" : "Pointer", 10);
 
         type[len] = '\0';
         uci = SOA(p[i].mem)->type % 64;

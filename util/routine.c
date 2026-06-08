@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/util/routine.c
- * Summary: module RSM routine - routine functions
+ * File:    util/routine.c
+ * Summary: RSM Routine Module - routine functions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2016
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2016)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // RBD structures
@@ -39,7 +35,7 @@ static int Routine_Hash(var_u routine)                                          
 {
     int hash = 0;                                                               // for the return
 
-    int p[4][8] = {
+    const int p[4][8] = {
         {3, 5, 7, 11, 13, 17, 19, 23},
         {29, 31, 37, 41, 43, 47, 53, 59},
         {61, 67, 71, 73, 79, 83, 89, 97},
@@ -238,7 +234,7 @@ static rbd *Routine_Find(u_int size)                                            
     return ptr;                                                                 // return the pointer
 }
 
-// The following is called ONLY from rsm/init/start.c and rsm/database/mount.c
+// The following is called ONLY from init/start.c and database/mount.c
 void Routine_Init(int vol)                                                      // setup rbd for this vol
 {
     rbd   *rou;                                                                 // a routine pointer
@@ -313,13 +309,13 @@ DISABLE_WARN(-Warray-bounds)
 
     cptr->buf[i] = '\0';                                                        // terminate
     cptr->len = (u_short) i;                                                    // the count
-    s = UTIL_Key_Build(cptr, rouglob.key);                                      // first subs
+    s = UTIL_Key_Build(cptr, rouglob.key, FALSE);                               // first subs
     rouglob.slen = (u_char) s;                                                  // save count so far
     cptr->buf[0] = '0';                                                         // now the zero
     cptr->buf[1] = '\0';                                                        // null terminate
     cptr->len = 1;                                                              // and the length
 ENABLE_WARN
-    s = UTIL_Key_Build(cptr, &rouglob.key[s]);                                  // second subs
+    s = UTIL_Key_Build(cptr, &rouglob.key[s], FALSE);                           // second subs
     rouglob.slen += (u_char) s;                                                 // save count so far
     t = DB_GetLen(&rouglob, 0, NULL);                                           // get a possible length
     if (t < 1) return NULL;                                                     // no such
@@ -449,7 +445,7 @@ void Dump_rbd(void)                                                             
     size = (u_int) ((u_char *) SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_end) -
            (u_char *) SOA(partab.vol[partab.jobtab->rvol - 1]->rbd_head));
 
-    printf("Using %u of %u bytes of Routine Buffer Space\r\n\r\n", size - free_size, size);
+    printf("Using %u of %u bytes [%u MiB] of Routine Buffer Space\r\n\r\n", size - free_size, size, size / MBYTE);
     printf("       Address    Forward Link  Chunk Size      Attach  Last Access  VOL  UCI  Routine Size  Routine Name\r\n");
 
     while (TRUE) {                                                              // for all

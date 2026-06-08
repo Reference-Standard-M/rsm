@@ -1,5 +1,11 @@
 {{!
-  SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
+  Package: Reference Standard M
+  File:    doc/supplemental-ui/partials/header-content.hbs
+  Summary: Antora UI Handlebars header configuration
+
+  SPDX-FileCopyrightText:  © 2024-2026 Fourth Watch Software LC
+  SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+  SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
   SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 }}
 <header class="header">
@@ -22,7 +28,7 @@
     <div id="topbar-nav" class="navbar-menu">
       <div class="navbar-end">
         <div class="navbar-item has-dropdown is-hoverable">
-          <a class="navbar-link" href="#">Resources</a>
+          <a class="navbar-link" href="#" onclick="event.preventDefault()">Resources</a>
           <div class="navbar-dropdown">
             <a class="navbar-item" href="https://rsmlang.com/">Website</a>
             <a class="navbar-item" href="https://gitlab.com/reference-standard-m/rsm">Repository</a>
@@ -31,7 +37,7 @@
         </div>
         <a class="navbar-item" href="https://fourthwatchsoftware.com/">Fourth Watch Software</a>
         <div class="navbar-item">
-          <img class="icon" src="https://fourthwatchsoftware.com/images/fwslc-icon.png" alt="Fourth Watch Icon">
+          <img class="icon" src="{{{uiRootPath}}}/img/fws-icon.png" alt="Fourth Watch Software Icon">
         </div>
       </div>
     </div>

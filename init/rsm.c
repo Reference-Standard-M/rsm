@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/init/rsm.c
- * Summary: module init - startup (main) code
+ * File:    init/rsm.c
+ * Summary: Init Module - startup (main) code
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "init.h"                                                               // init prototypes
@@ -52,6 +48,7 @@ int main(int argc, char **argv)                                                 
     u_int      rmb = 0;                                                         // routine buffer MiB
     u_int      addmb = 0;                                                       // additional buffer in MiB
     int        blocks = 0;                                                      // number of data blocks
+    int        unsecured = FALSE;                                               // whether the RSM environment is unsecure or not
     const char *volnam = NULL;                                                  // volume name
     char       *cmd = NULL;                                                     // startup command
     const char *dbfile;                                                         // pass volume in environment
@@ -61,7 +58,7 @@ int main(int argc, char **argv)                                                 
     dbfile = getenv("RSM_DBFILE");
     if ((argc < 2) && (dbfile == NULL)) help();                                 // they need help
 
-    while ((c = getopt(argc, argv, "a:b:e:g:hij:km:r:s:v:x:RV")) != EOF) {
+    while ((c = getopt(argc, argv, "a:b:e:g:hij:km:r:s:v:x:RUV")) != EOF) {
         switch (c) {
         case 'a':                                                               // switch -a
             addmb = atoi(optarg);                                               // additional buffer (init - not ready yet)
@@ -119,9 +116,13 @@ int main(int argc, char **argv)                                                 
             restricted = TRUE;                                                  // turn on restricted mode
             break;
 
+        case 'U':                                                               // switch -U
+            unsecured = TRUE;                                                   // turn on unsecure mode
+            break;
+
         case 'V':                                                               // switch -V
             if (i || k) break;
-            short_version((u_char *) version, sprintf((char *) &version[0], "V")); // get version string
+            short_version((u_char *) version, snprintf((char *) &version[0], 2, "V")); // get version string
             printf("%s\n", version);                                            // print version string
             exit(EXIT_SUCCESS);                                                 // give version and exit
             break;
@@ -137,9 +138,9 @@ int main(int argc, char **argv)                                                 
     argv += optind;                                                             // should point at parameter
 
     if (argc == 1) {
-        strcpy(file, *argv);
+        str_copy(file, *argv, VOL_FILENAME_MAX);
     } else if (dbfile != NULL) {
-        strcpy(file, dbfile);
+        str_copy(file, dbfile, VOL_FILENAME_MAX);
     } else {
         if (i) info(NULL);                                                      // exit via info()
         if (k) shutdown(NULL);                                                  // exit via shutdown()
@@ -151,12 +152,12 @@ int main(int argc, char **argv)                                                 
 
     if (volnam != NULL) {                                                       // do a create
         // number of blocks, block size in bytes, map size in bytes, volume name, UCI name, file name
-        exit(init_create(blocks, bsize * 1024, map * 1024, volnam, env, file));
+        exit(init_create(blocks, bsize * 1024, map * 1024, volnam, env, file, unsecured));
     }
 
     if (jobs > 0) {                                                             // do an init
         // database, number of jobs, MiB of global buf, MiB of routine buf, MiB of additional buf
-        exit(init_start(file, jobs, gmb, rmb, addmb));
+        exit(init_start(file, jobs, gmb, rmb, addmb, unsecured));
     }
 
     c = init_run(file, env, cmd);                                               // run a job

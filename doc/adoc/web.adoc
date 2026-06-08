@@ -3,13 +3,12 @@ Package: Reference Standard M
 File:    doc/adoc/web.adoc
 Summary: Web server documentation
 
-David Wicksell <dlw@linux.com>
-Copyright © 2020-2024 Fourth Watch Software LC
-https://gitlab.com/Reference-Standard-M/rsm
-
-Based on MUMPS V1 by Raymond Douglas Newman
-Copyright © 1999-2003
-https://gitlab.com/Reference-Standard-M/mumpsv1
+SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2003)
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -18,15 +17,13 @@ Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
 You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
-
-SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 ////
 
 :source-highlighter: highlight.js
 :highlightjs-languages: cos, http, xml
 
 = Web Server Utility
+Author: David Wicksell
 
 == Introduction
 
@@ -65,15 +62,15 @@ are interpreted as follows:
 [%autowidth]
 .Web Server Resources
 |===
-| File extension     | Description
+|File extension    |Description
 
-| `js` or `JS`       | A JavaScript source file
-| `css` or `CSS`     | A CSS style sheet
-| `jpg` or `JPG`     | A JPEG image
-| `png` or `PNG`     | A PNG image
-| `gif` or `GIF`     | A GIF image
-| `class` or `CLASS` | A Java class
-| Anything else      | An HTML document
+|`js` or `JS`      |A JavaScript source file
+|`css` or `CSS`    |A CSS style sheet
+|`jpg` or `JPG`    |A JPEG image
+|`png` or `PNG`    |A PNG image
+|`gif` or `GIF`    |A GIF image
+|`class` or `CLASS`|A Java class
+|Anything else     |An HTML document
 |===
 
 Documents may be created and edited using `^%DED` or the `MCL` commands
