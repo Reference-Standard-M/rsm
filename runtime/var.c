@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/var.c
- * Summary: module runtime - runtime variables
+ * File:    runtime/var.c
+ * Summary: Runtime Module - runtime variables
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "error.h"                                                              // standard errors
@@ -93,9 +89,11 @@ int Vetrap(u_char *ret_buffer)
 // $HOROLOG
 short Vhorolog(u_char *ret_buffer)
 {
-    time_t sec = current_time(TRUE);                                            // get secs from 1 Jan 1970 with local offset
-    int    day = sec / SECDAY + YRADJ;                                          // get number of days
+    time_t sec;
+    int    day;
 
+    sec = current_time(TRUE);                                                   // get secs from 1 Jan 1970 with local offset
+    day = sec / SECDAY + YRADJ;                                                 // get number of days
     sec %= SECDAY;                                                              // and number of seconds
     return (short) snprintf((char *) ret_buffer, 14, "%d,%d", day, (int) sec);  // return count and $HOROLOG
 }

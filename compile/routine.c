@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/compile/routine.c
- * Summary: module compile - parse a routine ref
+ * File:    compile/routine.c
+ * Summary: Compile Module - parse a routine ref
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // compile stuff
@@ -270,7 +266,12 @@ short routine(int runtime)                                                      
     }
 
 exit:
-    if (isinder) return 0;                                                      // if there was indirection then exit flagging that
+    if (isinder) {
+        if (c == '-') return -ERRM5;                                            // negative offset in $TEXT not allowed
+        return 0;                                                               // if there was indirection then exit flagging that
+    }
+
+    if (c == '-') return -ERRM12;                                               // negative offset not allowed
 
     // Below if we are doing a DO sans indirection... we must copy tag and rou to comp_ptr
     if (!var_empty(tag) || offset) {                                            // if we have a tag
@@ -454,7 +455,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     line->buf[0] = '0';                                                         // seed the $ORDER()
     line->buf[1] = '\0';                                                        // null terminated
     line->len = 1;                                                              // this long
-    t = UTIL_Key_Build(line, &src->key[src_slen]);                              // build the key
+    t = UTIL_Key_Build(line, &src->key[src_slen], FALSE);                       // build the key
     src->slen = src_slen + t;                                                   // store the new length
     comp_ptr = code;                                                            // setup the compiler ptr
     partab.varlst = var_tbl;                                                    // for localvar()
@@ -469,7 +470,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
         }
 
         line->len = t;                                                          // save length
-        t = UTIL_Key_Build(line, &src->key[src_slen]);                          // build the key
+        t = UTIL_Key_Build(line, &src->key[src_slen], FALSE);                   // build the key
         src->slen = src_slen + t;                                               // store the new length
         t = Dget1(line->buf, src);                                              // get the data
         if (t < 1) continue;                                                    // ignore empty/undefined lines
@@ -599,7 +600,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 DISABLE_WARN(-Warray-bounds)
             cptr->len = ltocstring(cptr->buf, partab.ln);                       // convert to a cstring
 ENABLE_WARN
-            t = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                      // build the key
+            t = UTIL_Key_Build(cptr, &rou->key[rou_slen], FALSE);               // build the key
             rou->slen = rou_slen + t;                                           // store the new length
             t = DB_Set(rou, line);                                              // write out the source line
 
@@ -677,7 +678,7 @@ ENABLE_WARN
     *comp_ptr++ = ENDLIN;                                                       // mark end of routine
     *comp_ptr++ = ENDLIN;                                                       // mark end of routine
     partab.varlst = NULL;                                                       // for localvar()
-    for (num_vars = 0; !var_empty(var_tbl[num_vars]); num_vars++) {}            // count them
+    for (num_vars = 0; (num_vars < MAX_NUM_VARS) && !var_empty(var_tbl[num_vars]); num_vars++) {} // count them
     p = line->buf;                                                              // where we put it now
 DISABLE_WARN(-Warray-bounds)
     cptr->len = Vhorolog(cptr->buf);                                            // get current date/time
@@ -738,7 +739,7 @@ ENABLE_WARN
         return partab.errors;
     }
 
-    t = UTIL_Key_Build(cptr, &rou->key[rou_slen]);                              // build the key
+    t = UTIL_Key_Build(cptr, &rou->key[rou_slen], FALSE);                       // build the key
     rou->slen = rou_slen + t;                                                   // store the new length
     t = DB_Set(rou, line);                                                      // set it
     if (same) Routine_Delete(rounam, rou->volset, rou->uci);                    // delete the routine

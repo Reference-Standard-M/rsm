@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/database/daemon.c
- * Summary: module database - database daemon functions
+ * File:    database/daemon.c
+ * Summary: Database Module - database daemon functions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // database protos
@@ -53,7 +49,9 @@ int  myslot;                                                                    
  */
 static void daemon_check(void)                                                  // ensure all running
 {
-    int i;                                                                      // a handy int
+    int    i;                                                                   // a handy int
+    int    pid;                                                                 // for jobs
+    time_t t;                                                                   // for ctime()
 
     while (SemOp(SEM_WD, SEM_WRITE)) {}                                         // lock WD
 
@@ -61,7 +59,10 @@ static void daemon_check(void)                                                  
         if (i != myslot) {                                                      // don't check self
             if (kill(partab.vol[volnum]->wd_tab[i].pid, 0) == -1) {             // if gone
                 if (errno == ESRCH) DB_Daemon(i, volnum + 1);                   // restart the daemon
-                // NOTE: Should log this success or fail
+                pid = partab.vol[volnum]->wd_tab[myslot].pid;                   // get current PID
+                t = current_time(FALSE);                                        // for ctime()
+                fprintf(stderr, "%s [%7d]: Daemon %2d started new daemon %d\n", strtok(ctime(&t), "\n"), pid, myslot, i);
+                fflush(stderr);                                                 // flush to the file
             }
         }
     }                                                                           // end daemon check
@@ -78,34 +79,26 @@ static void daemon_check(void)                                                  
  */
 static void do_write(void)                                                      // write GBDs
 {
-    off_t file_off;                                                             // for lseek() et al
-    int   i;                                                                    // a handy int
-    gbd   *gbdptr;                                                              // for the GBD
-    gbd   *lastptr = NULL;                                                      // for the GBD
+    off_t file_off;                                                             // for lseek(), et al.
+    gbd   *gbdptr, *lastptr = NULL;                                             // for the GBDs
 
     gbdptr = partab.vol[volnum]->wd_tab[myslot].currmsg.gbddata;                // get the gbdptr from daemon table
-    if (!gbdptr) panic("do_write: Write message GBD is NULL");                  // check for null
-    if (curr_lock == 0) SemOp(SEM_GLOBAL, SEM_READ);                            // if we need a lock then take a read lock
+    if (gbdptr == NULL) panic("do_write: Write message GBD is NULL");           // check for null
+    if (!curr_lock) SemOp(SEM_GLOBAL, SEM_READ);                                // if we need a lock then take a read lock
 
     while (TRUE) {                                                              // until we break
         if (gbdptr->last_accessed == (time_t) 0) {                              // if garbaged
             gbdptr->block = 0;                                                  // just zot the block
         } else {                                                                // do a write
-            file_off = (off_t) gbdptr->block - 1;                               // block#
+            file_off = (off_t) (gbdptr->block - 1) * partab.vol[volnum]->vollab->block_size
+                     + partab.vol[volnum]->vollab->header_bytes;                // block #
 
-            file_off = (file_off * (off_t) partab.vol[volnum]->vollab->block_size)
-                     + (off_t) partab.vol[volnum]->vollab->header_bytes;
-
-            file_off = lseek(dbfd, file_off, SEEK_SET);                         // seek to block
-
-            if (file_off < 1) {
+            if (lseek(dbfd, file_off, SEEK_SET) == (off_t) -1) {                // seek to block
                 partab.vol[volnum]->stats.diskerrors++;                         // count an error
                 panic("do_write: lseek() failed!!");                            // die on error
             }
 
-            i = write(dbfd, gbdptr->mem, partab.vol[volnum]->vollab->block_size); // write it
-
-            if (i < 0) {
+            if (write(dbfd, gbdptr->mem, partab.vol[volnum]->vollab->block_size) == -1) { // write it
                 partab.vol[volnum]->stats.diskerrors++;                         // count an error
                 panic("do_write: write() failed!!");                            // die on error
             }
@@ -487,7 +480,6 @@ start:
         SemOp(SEM_WD, -SEM_WRITE);                                              // release WD lock
     }                                                                           // end looking for work
 
-
     if (partab.vol[volnum]->wd_tab[myslot].doing == DOING_NOTHING) {
         if (partab.vol[volnum]->dismount_flag) {                                // dismounting?
             if (myslot) {                                                       // first?
@@ -536,6 +528,7 @@ int DB_Daemon(int slot, int vol)                                                
     int    k;                                                                   // and another
     int    fit;                                                                 // for fork ret
     int    pid;                                                                 // for child PID
+    int    save_stderr;                                                         // save stderr FD
     char   logfile[VOL_FILENAME_MAX + 22];                                      // daemon log file name
     time_t t;                                                                   // for ctime()
 
@@ -553,9 +546,7 @@ int DB_Daemon(int slot, int vol)                                                
     // -- Create log file name --
     k = strlen(partab.vol[volnum]->file_name);                                  // get len of filename
     for (i = (k - 1); (partab.vol[volnum]->file_name[i] != '/') && (i > -1); i--) {} // find last '/'
-    strncpy(logfile, partab.vol[volnum]->file_name, i + 1);                     // copy to log filename
-    logfile[i + 1] = (char) '\0';                                               // terminate for strlen
-    sprintf(&logfile[strlen(logfile)], "log/");                                 // add the log directory to the file path
+    i = snprintf(logfile, sizeof(logfile), "%.*s%s", ++i, partab.vol[volnum]->file_name, "log/"); // copy to log filename
     umask(0);                                                                   // set umask to 0000
 
     // --- Create the log directory, with 0755 permissions, ignore if it already exists
@@ -563,8 +554,15 @@ int DB_Daemon(int slot, int vol)                                                
         if (errno != EEXIST) return errno;
     }
 
-    umask(S_IWGRP | S_IROTH | S_IWOTH);                                         // set umask to 0026
-    sprintf(&logfile[strlen(logfile)], "rsm-daemon-%d.log", volnum + 1);        // create daemon log file path
+    if (systab->unsecured) {
+        // Create log file - set umask to 0022 for 0644 permissions for snap confinement
+        umask(S_IWGRP | S_IWOTH);
+    } else {
+        // Create log file - set umask to 0026 for 0640 permissions
+        umask(S_IWGRP | S_IROTH | S_IWOTH);
+    }
+
+    snprintf(&logfile[i], sizeof(logfile) - i, "rsm-daemon-%d.log", volnum + 1); // create daemon log file path
     myslot = slot;                                                              // remember my slot
 
 #ifndef __FreeBSD__
@@ -572,10 +570,50 @@ int DB_Daemon(int slot, int vol)                                                
     if (close(partab.vol_fds[volnum]) == -1) return errno;
 #endif
 
+    fflush(NULL);
+
     // --- Reopen stdin, stdout, and stderr (logfile) ---
-    if (freopen("/dev/null", "r", stdin) == NULL) return errno;                 // stdin to bitbucket
-    if (freopen("/dev/null", "w", stdout) == NULL) return errno;                // stdout to bitbucket
-    if (freopen(logfile, "a", stderr) == NULL) return errno;                    // stderr to logfile
+    if (freopen("/dev/null", "r", stdin) == NULL) {                             // stdin to bitbucket
+        fprintf(stderr, "DB_Daemon: freopen() stdin errno = %d - %s\n", errno, strerror(errno));
+        return errno;
+    }
+
+    if (freopen("/dev/null", "w", stdout) == NULL) {                            // stdout to bitbucket
+        fprintf(stderr, "DB_Daemon: freopen() stdout errno = %d - %s\n", errno, strerror(errno));
+        return errno;
+    }
+
+    if ((save_stderr = dup(STDERR_FILENO)) == -1) {                             // save original stderr
+        fprintf(stderr, "DB_Daemon: dup() errno = %d - %s\n", errno, strerror(errno));
+        return errno;
+    }
+
+    if (freopen(logfile, "a", stderr) == NULL) {                                // stderr to logfile
+        i = errno;
+
+        if (dup2(save_stderr, STDERR_FILENO) != -1) {
+            FILE *fp;
+
+            if ((fp = fdopen(STDERR_FILENO, "w")) != NULL) {
+                fprintf(fp, "DB_Daemon: freopen() stderr errno = %d - %s\n", i, strerror(i));
+                fclose(fp);
+            } else {
+                char msg[256];
+                int  len;
+
+                len = snprintf(msg, sizeof(msg), "DB_Daemon: freopen() stderr errno = %d - %s\n", i, strerror(i));
+
+                if (write(save_stderr, msg, len) == -1) {
+                    panic("DB_Daemon: write() save_stderr failed!!");           // die on error
+                }
+            }
+        }
+
+        close(save_stderr);
+        return i;
+    }
+
+    close(save_stderr);                                                         // no longer needed
     pid = partab.vol[volnum]->wd_tab[slot].pid;                                 // get current PID
     dbfd = open(partab.vol[volnum]->file_name, O_RDWR);                         // open database RW
     t = current_time(FALSE);                                                    // for ctime()

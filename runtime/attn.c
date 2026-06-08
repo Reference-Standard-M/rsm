@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/attn.c
- * Summary: module runtime - look after attention conditions
+ * File:    runtime/attn.c
+ * Summary: Runtime Module - look after attention conditions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // for XECUTE
@@ -111,12 +107,12 @@ void DoInfo(void)
 
     memcpy(ct, "\033\067\033[99;1H", 9);                                        // start off
     i = 9;                                                                      // next char
-    i += sprintf(&ct[i],"%d", (int) (partab.jobtab - partab.job_table) + 1);
-    i += sprintf(&ct[i]," (%d) ", partab.jobtab->pid);
+    i += snprintf(&ct[i], 400 - i, "%d", (int) (partab.jobtab - partab.job_table) + 1);
+    i += snprintf(&ct[i], 400 - i, " (%d) ", partab.jobtab->pid);
     p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam;           // point at routine name
     for (j = 0; (j < VAR_LEN) && p[j]; ct[i++] = p[j++]) {}                     // copy it
-    i += sprintf(&ct[i]," Cmds: %u ", partab.jobtab->commands);
-    i += sprintf(&ct[i],"Grefs: %u ", partab.jobtab->grefs);
+    i += snprintf(&ct[i], 400 - i, " Cmds: %u ", partab.jobtab->commands);
+    i += snprintf(&ct[i], 400 - i, "Grefs: %u ", partab.jobtab->grefs);
     var = &partab.jobtab->last_ref;                                             // point at $R
 
     if (var->name.var_cu[0] != '\0') {                                          // something there?
@@ -263,6 +259,7 @@ int ForkIt(int cft)                                                             
     for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++)) {}                               // close all open files (job type)
     j = freopen("/dev/null", "r", stdin);                                       // redirect stdin
     if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
+    fflush(NULL);
     j = freopen("/dev/null", "w", stdout);                                      // redirect stdout
     if (j == NULL) fprintf(stderr, "ForkIt: freopen() errno = %d - %s\n", errno, strerror(errno));
     j = freopen("/dev/null", "w", stderr);                                      // redirect stderr
@@ -271,7 +268,7 @@ int ForkIt(int cft)                                                             
 }
 
 // SchedYield
-void SchedYield(u_char sleep)                                                   // do a sched_yield or a nanosleep or nothing
+void SchedYield(u_char sleep)                                                   // do a sched_yield() or a nanosleep or nothing
 {
     struct timespec time = {                                                    // 10ms sleep
         .tv_sec = 0,

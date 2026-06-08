@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/util/lock.c
- * Summary: module database - lock utilities
+ * File:    util/lock.c
+ * Summary: Database Module - lock utilities
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2016
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2016)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // for RBD definition
@@ -83,7 +79,7 @@ static int failed(lck_add *pctx)                                                
  *   var: Address of the lock entry
  *   str: Location of the destination string
  */
-short UTIL_String_Lock(locktab *var, u_char *str)
+static short UTIL_String_Lock(locktab *var, u_char *str)
 {
     int          i;                                                             // for loops
     int          p = 0;                                                         // string pointer
@@ -597,7 +593,7 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                 if ((pctx->lptr != NULL) &&
                   (UTIL_Key_Cmp(current->buf, &pctx->lptr->vol, current->len, pctx->lptr->byte_count) == KEQUAL)) {
                     if (pctx->lptr->job == (partab.jobtab - partab.job_table + 1)) { // we MUST own
-                        int i = 0;
+                        int i = FALSE;
 
                         while ((pctx->lptr != NULL) &&                          // more to look at
                           (UTIL_Key_KeyCmp(current->buf, &pctx->lptr->vol, current->len, pctx->lptr->byte_count) == K2_LESSER)) {
@@ -607,7 +603,6 @@ short LCK_Add(int p_count, cstring *list, int p_to)                             
                         }                                                       // end while conditions true
 
                         slptr = pctx->lptr;
-                        i = FALSE;
 
                         while ((slptr != NULL) &&                               // more to look at
                           (UTIL_Key_Cmp(current->buf, &slptr->vol, current->len, slptr->byte_count) == KEQUAL)) {
@@ -954,7 +949,7 @@ void Dump_ltd(void)
         used = SOA(used->fwd_link);
     }
 
-    printf("Using %d of %d bytes of Lock Table Space\r\n\r\n", size, systab->locksize);
+    printf("Using %d of %d bytes [%d KiB] of Lock Table Space\r\n\r\n", size, systab->locksize, systab->locksize / 1024);
     printf("  Lock Pointer    Forward Link      Size   Job  Lock Cnt  Byte Cnt  VOL  UCI  Variable(Key)\r\n");
 
     while (lptr != NULL) {

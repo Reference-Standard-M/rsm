@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/init.h
- * Summary: module RSM header file - prototypes (module init)
+ * File:    include/init.h
+ * Summary: RSM Module Header File - prototypes (module init)
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef RSM_INIT_H
@@ -44,21 +40,23 @@
  * @param {const char *} volnam (1-32 alpha) - The name of the volume
  * @param {const char *} env (1-32 alpha) - The name of the manager UCI (default is MGR)
  * @param {char *} file (1-VOL_FILENAME_MAX) - The database file path
+ * @param {int} unsecured - Whether to create the database volume with unsecure permissions
  * @returns {int} (0|-1|errno) - The return code representing success or failure
  */
-int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file);
+int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file, int unsecured);
 
 /*
  * @function {public} init_start
  * @summary Create and start an environment
  * @param {char *} file (1-VOL_FILENAME_MAX) - The database file path
- * @param {u_int} jobs (1-1024) - The number of jobs allocated for the environment
+ * @param {u_int} jobs (1-4096) - The number of jobs allocated for the environment
  * @param {u_int} gmb (0-131072) - The size of the global buffers
  * @param {u_int} rmb (0-4095) - The size of the routine buffers
  * @param {u_int} addmb - The size of the additional buffers
+ * @param {int} unsecured - Whether unsecured mode should be enabled or not
  * @returns {int} (0|-1|errno) - The return code representing success or failure
  */
-int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb);
+int init_start(char *file, u_int jobs, u_int gmb, u_int rmb, u_int addmb, int unsecured);
 
 /*
  * @function {public} init_run

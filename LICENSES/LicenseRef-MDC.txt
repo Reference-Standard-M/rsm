@@ -1,0 +1,3 @@
+Copyright © 1995-2002 by the MUMPS Development Committee. This document may
+be reproduced in any form so long as acknowledgment of the source is made.
+Anyone reproducing this release is requested to reproduce this introduction.

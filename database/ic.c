@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/database/ic.c
- * Summary: module database - database functions, integrity check
+ * File:    database/ic.c
+ * Summary: Database Module - database functions, integrity check
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // database protos
@@ -36,11 +32,11 @@
 #include <string.h>                                                             // for memcpy
 #include <unistd.h>                                                             // for file reading
 
-#define WRT_LEN 100                                                             // write error buffer size
+#define WRT_LEN 120                                                             // write error buffer size
 
 int     icerr;                                                                  // error count
 int     doing_full;                                                             // type of ic
-u_char  wrt_buf[WRT_LEN + 2];                                                   // for output
+u_char  wrt_buf[WRT_LEN];                                                       // for output
 cstring *outc;                                                                  // ditto
 u_char  *rlnk;                                                                  // for right links
 u_char  *dlnk;                                                                  // for down links
@@ -117,7 +113,7 @@ static u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)  
 {
     short   s;                                                                  // for funct
     int     left_edge;                                                          // a flag
-    u_char  emsg[80];                                                           // for errors
+    u_char  emsg[MAX_ERR_LEN];                                                  // for errors
     int     isdata;                                                             // blk type
     int     Llevel;                                                             // local level
     gbd     *Lgbd;                                                              // and GBD

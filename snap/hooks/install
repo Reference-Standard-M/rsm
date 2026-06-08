@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Package: Reference Standard M
+# File:    snap/hooks/install
+# Summary: Snap install hook
+#
+# SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License (AGPL) as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
+
+if [ ! -f "$SNAP_COMMON/rsm.dat" ]
+then
+    "$SNAP"/usr/bin/rsm -v RSM -b 16 -s 16384 -m 262147 -U "$SNAP_COMMON"/rsm.dat
+fi
+
+"$SNAP"/usr/bin/rsm -j 1 -U "$SNAP_COMMON"/rsm.dat
+"$SNAP"/usr/bin/rsm -x "open 1:(\"$SNAP/usr/share/rsm/utils.rsm\":\"read\") use 1 read code xecute code" "$SNAP_COMMON"/rsm.dat
+"$SNAP"/usr/bin/rsm -k "$SNAP_COMMON"/rsm.dat
+
+exit 0
+
+# ex: filetype=sh

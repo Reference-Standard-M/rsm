@@ -1,11 +1,13 @@
 #!/bin/bash -
 #
 # Package: Reference Standard M
-# File:    rsm/bin/upgrade
+# File:    bin/upgrade
 # Summary: Upgrade an RSM or MV1 database from version 1 to 2
 #
-# David Wicksell <dlw@linux.com>
-# Copyright © 2020-2024 Fourth Watch Software LC
+# SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -19,9 +21,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
-#
-# SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
-# SPDX-License-Identifier: AGPL-3.0-or-later
 
 def="\033[0m" log="\033[0;32m" err="\033[0;31m"
 
@@ -46,7 +45,7 @@ error_off()
 error_on
 
 echo -e "${log}Reference Standard M Database Upgrade Utility${def}\n"
-echo "Copyright © 2020-2024 Fourth Watch Software LC"
+echo "Copyright © 2020-2026 Fourth Watch Software LC"
 echo -e "https://gitlab.com/Reference-Standard-M/rsm\n"
 echo -e "Upgrades an RSM (or MV1) database from version 1 to 2\n"
 echo -e "${err}WARNING:${def} This script is experimental"

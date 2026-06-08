@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/compile/parse.c
- * Summary: module compile - parse a line
+ * File:    compile/parse.c
+ * Summary: Compile Module - parse a line
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // compile stuff
@@ -275,6 +271,11 @@ void parse_do(int runtime)                                                      
         *comp_ptr++ = CMDOTAG;                                                  // assume a do tag
         i = routine(runtime);                                                   // parse the rouref
 
+        if (i < -4) {                                                           // check for error
+            comperror(i);                                                       // complain
+            return;                                                             // and exit
+        }
+
         if (i == 0) {                                                           // if it's indirect
             *ptr = OPNOP;                                                       // ignore previous opcode
             *comp_ptr++ = INDDO;                                                // store the opcode
@@ -358,7 +359,7 @@ void parse_do(int runtime)                                                      
             memcpy(save, ptr, savecount);                                       // save that lot
             comp_ptr = ptr;                                                     // back where we started
             source_ptr++;                                                       // skip the :
-            eval();                                                             // evel postcond
+            eval();                                                             // eval postcond
             *comp_ptr++ = JMP0;                                                 // jump if false
             s = (short) savecount;
             assert(sizeof(s) == sizeof(short));
@@ -388,6 +389,11 @@ void parse_goto(int runtime)                                                    
         *comp_ptr++ = CMGOTAG;                                                  // assume a goto tag
         i = routine(runtime);                                                   // parse the rouref
 
+        if (i < -4) {                                                           // check for error
+            comperror(i);                                                       // complain
+            return;                                                             // and exit
+        }
+
         if (i == 0) {                                                           // if it's indirect
             *ptr = OPNOP;                                                       // ignore previous opcode
             *comp_ptr++ = INDGO;                                                // store the opcode
@@ -411,7 +417,7 @@ void parse_goto(int runtime)                                                    
             memcpy(save, ptr, savecount);                                       // save that lot
             comp_ptr = ptr;                                                     // back where we started
             source_ptr++;                                                       // skip the :
-            eval();                                                             // evel postcond
+            eval();                                                             // eval postcond
             *comp_ptr++ = JMP0;                                                 // jump if false
             assert(sizeof(savecount) == sizeof(short));
             memcpy(comp_ptr, &savecount, sizeof(short));
@@ -492,6 +498,11 @@ void parse_job(int runtime)                                                     
         ptr = comp_ptr;                                                         // save compile pointer
         *comp_ptr++ = CMJOBTAG;                                                 // assume a do tag
         i = routine(runtime);                                                   // parse the rouref
+
+        if (i < -4) {                                                           // check for error
+            comperror(i);                                                       // complain
+            return;                                                             // and exit
+        }
 
         if (i == 0) {                                                           // if it's indirect
             *ptr = OPNOP;                                                       // ignore previous opcode
@@ -1484,10 +1495,11 @@ void parse_xecute(void)                                                         
  */
 void parse(void)                                                                // MAIN PARSE LOOP
 {
-    short  s;                                                                   // for functions
-    int    i;                                                                   // a handy int
-    int    args = 0;                                                            // number of args
-    u_char *ptr;                                                                // a handy pointer
+    short   s;                                                                  // for functions
+    u_short us;                                                                 // for offsets
+    int     i;                                                                  // a handy int
+    int     args = 0;                                                           // number of args
+    u_char  *ptr;                                                               // a handy pointer
 
     while (TRUE) {                                                              // loop
         char c;
@@ -1502,7 +1514,7 @@ void parse(void)                                                                
             return;                                                             // all done
 
         case ' ':                                                               // space
-            break;                                                              // go for more
+            continue;                                                           // go for more
 
         case 'B':                                                               // BREAK - no indirection
             if (isalpha(*source_ptr) != 0) {                                    // if the next is alpha
@@ -1516,7 +1528,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1551,7 +1563,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1571,7 +1583,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1617,14 +1629,14 @@ void parse(void)                                                                
                 comp_ptr--;                                                     // backup over ENDLIN
                 *comp_ptr++ = OPENDC;                                           // say end cmd (restore asp)
                 *comp_ptr++ = JMP;                                              // add a jump
-                s = ptr - comp_ptr;
-                assert(sizeof(s) == sizeof(short));
-                memcpy(comp_ptr, &s, sizeof(short));
-                comp_ptr += sizeof(short);
+                us = ptr - comp_ptr;
+                assert(sizeof(us) == sizeof(u_short));
+                memcpy(comp_ptr, &us, sizeof(u_short));
+                comp_ptr += sizeof(u_short);
                 *comp_ptr++ = OPNOP;                                            // add the NOP
-                s = (short) (comp_ptr - ptr - sizeof(short) - 1);
-                assert(sizeof(s) == sizeof(short));
-                memcpy(ptr, &s, sizeof(short));
+                us = (u_short) (comp_ptr - ptr - sizeof(u_short) - 1);
+                assert(sizeof(us) == sizeof(u_short));
+                memcpy(ptr, &us, sizeof(u_short));
                 break;                                                          // and give up
             }
 
@@ -1667,18 +1679,18 @@ void parse(void)                                                                
             }
 
             source_ptr--;                                                       // backup the source ptr
-            s = comp_ptr - ptr - sizeof(short);                                 // offset to code
-            assert(sizeof(s) == sizeof(short));
-            memcpy(ptr, &s, sizeof(short));
-            ptr += sizeof(short);
+            us = comp_ptr - ptr - sizeof(u_short);                              // offset to code
+            assert(sizeof(us) == sizeof(u_short));
+            memcpy(ptr, &us, sizeof(u_short));
+            ptr += sizeof(u_short);
             parse();                                                            // parse the code
             source_ptr--;                                                       // backup to null (I hope)
             comp_ptr--;                                                         // backup over ENDLIN
             *comp_ptr++ = CMFOREND;                                             // do end of for processing
             *comp_ptr++ = OPNOP;                                                // add the NOP
-            s = (short) (comp_ptr - ptr - sizeof(short) - 1);
-            assert(sizeof(s) == sizeof(short));
-            memcpy(ptr, &s, sizeof(short));
+            us = (u_short) (comp_ptr - ptr - sizeof(u_short) - 1);
+            assert(sizeof(us) == sizeof(u_short));
+            memcpy(ptr, &us, sizeof(u_short));
             break;                                                              // end of FOR
 
         case 'G':                                                               // GOTO
@@ -1693,7 +1705,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1723,7 +1735,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = ' ';                                                        // assume space
                 if (*source_ptr != '\0') c = *source_ptr++;                     // get next char (if any)
             }
@@ -1773,7 +1785,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1794,7 +1806,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = ' ';                                                        // assume a space
                 if (*source_ptr != '\0') c = *source_ptr++;                     // get next char (if any)
             }
@@ -1824,7 +1836,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1858,7 +1870,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1880,7 +1892,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = ' ';                                                        // assume a space
                 if (*source_ptr != '\0') c = *source_ptr++;                     // get next char (if any)
             }
@@ -1910,7 +1922,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1931,7 +1943,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = ' ';                                                        // assume a space
                 if (*source_ptr != '\0') c = *source_ptr++;                     // get next char (if any)
             }
@@ -1961,7 +1973,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -1981,7 +1993,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -2001,7 +2013,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -2021,7 +2033,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -2051,7 +2063,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -2071,7 +2083,7 @@ void parse(void)                                                                
                 eval();                                                         // evaluate the TVE
                 *comp_ptr++ = JMP0;                                             // store the opcode
                 jmp_eoc = comp_ptr;                                             // save the location
-                comp_ptr += sizeof(short);                                      // leave space for offset
+                comp_ptr += sizeof(u_short);                                    // leave space for offset
                 c = *source_ptr++;                                              // get next char
             }
 
@@ -2085,9 +2097,9 @@ void parse(void)                                                                
         }                                                                       // end of switch
 
         if (jmp_eoc != NULL) {                                                  // was there a postcond
-            s = (short) (comp_ptr - jmp_eoc - sizeof(short));
-            assert(sizeof(s) == sizeof(short));
-            memcpy(jmp_eoc, &s, sizeof(short));                                 // save the jump offset
+            us = (u_short) (comp_ptr - jmp_eoc - sizeof(u_short));
+            assert(sizeof(us) == sizeof(u_short));
+            memcpy(jmp_eoc, &us, sizeof(u_short));                              // save the jump offset
         }
 
         *comp_ptr++ = OPENDC;                                                   // flag end of command

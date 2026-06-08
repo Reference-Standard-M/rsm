@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/seqio/signal.c
- * Summary: module IO - sequential IO signal handling
+ * File:    seqio/signal.c
+ * Summary: I/O Module - sequential I/O signal handling
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2016
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2016)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  *
  * Extended Summary:
@@ -48,7 +44,7 @@
 /*
  * This function handles all caught signals.
  *
- * NOTE: Refer to the function "setSignalBitMask" in the file rsm/seqio/util.c
+ * NOTE: Refer to the function "setSignalBitMask" in the file seqio/util.c
  */
 static void signalHandler(int sig)                                              // Caught signal
 {
@@ -106,64 +102,40 @@ int setSignals(void)
     action.sa_flags = 0;
     action.sa_handler = SIG_IGN;
     if (sigaction(SIGHUP, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
-    if (sigaction(SIGINT, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_flags = SA_RESTART;
-    if (sigaction(SIGQUIT, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_flags = 0;
+    if (sigaction(SIGPIPE, &action, NULL) == -1) return getError(SYS, errno);
+    //if (sigaction(SIGCHLD, &action, NULL) == -1) return getError(SYS, errno); // Setting this to SIG_IGN should stop zombies
+    if (sigaction(SIGWINCH, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_handler = SIG_DFL;                                                // let UNIX do this one
     if (sigaction(SIGILL, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
-    if (sigaction(SIGTRAP, &action, NULL) == -1) return getError(SYS, errno);
-    if (sigaction(SIGABRT, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
-
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-    if (sigaction(SIGEMT, &action, NULL) == -1) return getError(SYS, errno);
-#endif
-
-    if (sigaction(SIGFPE, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGBUS, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGFPE, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGSEGV, &action, NULL) == -1) return getError(SYS, errno);   // SIGSEGV is desirable
-
+    if (sigaction(SIGCONT, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGTSTP, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGTTIN, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGTTOU, &action, NULL) == -1) return getError(SYS, errno);
 #if defined(__FreeBSD__) || defined(__NetBSD__)
     if (sigaction(SIGSYS, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGEMT, &action, NULL) == -1) return getError(SYS, errno);
 #endif
-
     action.sa_handler = signalHandler;
+    if (sigaction(SIGINT, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGTRAP, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGABRT, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGUSR1, &action, NULL) == -1) return getError(SYS, errno);
+    if (sigaction(SIGUSR2, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGALRM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGTERM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGURG, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
-    if (sigaction(SIGPIPE, &action, NULL) == -1) return getError(SYS, errno);
-    if (sigaction(SIGTSTP, &action, NULL) == -1) return getError(SYS, errno);
-    if (sigaction(SIGCONT, &action, NULL) == -1) return getError(SYS, errno);
-
-    /* Setting this to SIG_IGN should stop zombies
-    action.sa_handler = SIG_IGN;
-    if (sigaction(SIGCHLD, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_DFL;                                                // let UNIX do this one
-    */
-
-    if (sigaction(SIGTTIN, &action, NULL) == -1) return getError(SYS, errno);
-    if (sigaction(SIGTTOU, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
-    if (sigaction(SIGIO, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGXCPU, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGXFSZ, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGVTALRM, &action, NULL) == -1) return getError(SYS, errno);
     if (sigaction(SIGPROF, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = SIG_IGN;                                                // Ignore for now
-    if (sigaction(SIGWINCH, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_handler = signalHandler;
-
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+    if (sigaction(SIGIO, &action, NULL) == -1) return getError(SYS, errno);
     action.sa_flags = SA_RESTART;
+    if (sigaction(SIGQUIT, &action, NULL) == -1) return getError(SYS, errno);
+#if defined(__FreeBSD__) || defined(__NetBSD__)
     if (sigaction(SIGINFO, &action, NULL) == -1) return getError(SYS, errno);
-    action.sa_flags = 0;
 #endif
-
-    if (sigaction(SIGUSR1, &action, NULL) == -1) return getError(SYS, errno);
-    if (sigaction(SIGUSR2, &action, NULL) == -1) return getError(SYS, errno);
     return 0;
 }

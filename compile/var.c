@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/compile/var.c
- * Summary: module compile - parse a local variable
+ * File:    compile/var.c
+ * Summary: Compile Module - parse a local variable
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // compile stuff
@@ -62,7 +58,7 @@
  *     TYPVARNAKED:        subscripts OPVAR TYPVARNAKED #subs
  *     TYPVARGBLUCI:       subscripts UCI OPVAR TYPVARGBLUCI #subs (var_u) name
  *     TYPVARGBLUCIENV:    subscripts UCI env OPVAR TYPVARGBLUCIENV #subs (var_u) name
- *     TYPVARIND:          (str on addstk[]) subscripts OPVAR TYPEVARIND #subs
+ *     TYPVARIND:          (@...@ str on addstk[]) subscripts OPMVAR TYPEVARIND #subs
 */
 short localvar(void)                                                            // evaluate local variable
 {
@@ -139,7 +135,7 @@ short localvar(void)                                                            
          * TODO: Add check for real intrinsic variables, not just their first letter
          *       $DEVICE, $ECODE, $ESTACK, $ETRAP, $HOROLOG, $IO, $JOB, $KEY, $PRINCIPAL,
          *       $QUIT, $REFERENCE, $STORAGE, $STACK, $SYSTEM, $TEST, $X, $Y, $ZBP (an array, not a function)
-         *       cf. dodollar() in rsm/compile/dollar.c
+         *       cf. dodollar() in compile/dollar.c
         */
         if (strchr("DEHIJKPQRSTXYZ", i) == NULL) return -ERRM8;                 // if letter is invalid complain
     }
@@ -180,7 +176,7 @@ subs:
     // candidate for index? and in a routine compile and it's not $...
     if ((type < TYPVARGBL) && (partab.varlst != NULL) && (var.var_cu[0] != '$')) {
         for (i = 0; ; i++) {                                                    // scan list
-            if (i == (MAX_KEY_SIZE + 1)) break;                                 // too many
+            if (i == MAX_NUM_VARS) break;                                       // too many
             if (var_equal(partab.varlst[i], var)) break;                        // found it
 
             if (var_empty(partab.varlst[i])) {
@@ -189,7 +185,7 @@ subs:
             }
         }
 
-        if (i != (MAX_KEY_SIZE + 1)) {
+        if (i != MAX_NUM_VARS) {
             type |= TYPVARIDX;                                                  // change the type
             idx = i;                                                            // save index
         }

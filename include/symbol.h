@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/symbol.h
- * Summary: module RSM header file - includes for symbol module
+ * File:    include/symbol.h
+ * Summary: RSM Module Header File - includes for symbol module
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef RSM_SYMBOL_H
@@ -103,10 +99,8 @@ typedef struct __attribute__ ((__packed__)) KEY_STRUCT {                        
     u_char key[MAX_KEY_SIZE + 1];                                               // the actual key
 } key_s;                                                                        // have MAX_KEY_SIZE + 1 chars
 
-short ST_Locate(var_u var);                                                     // locate a var name
 short ST_LocateIdx(int idx);                                                    // locate in symtab by index
 short ST_Create(var_u var);                                                     // create and/or locate a var
-void  ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr);
 void  ST_Restore(ST_newtab *newtab);
 
 #endif

@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/ssvn.c
- * Summary: module runtime - runtime variables
+ * File:    runtime/ssvn.c
+ * Summary: Runtime Module - runtime variables
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // for GBD def
@@ -404,7 +400,7 @@ ENABLE_WARN
 
                             default:
                                 if (iscntrl(partab.jobtab->seqio[i].out_term[j])) {
-                                    sprintf(&temp_buf[t], "%03o", partab.jobtab->seqio[i].out_term[j]);
+                                    snprintf(&temp_buf[t], sizeof(temp_buf) - t, "%03o", partab.jobtab->seqio[i].out_term[j]);
                                     t += 3;
                                 } else {
                                     temp_buf[t++] = partab.jobtab->seqio[i].out_term[j];
@@ -427,7 +423,7 @@ ENABLE_WARN
                         t = 0;
 
                         for (j = 0; (count < in_term) && (j < 64); j++) {
-                            count = 1UL << j;
+                            count = 1ULL << j;
 
                             if (in_term & count) {
                                 t += ltocstring(&temp_buf[t], j);
@@ -439,7 +435,7 @@ ENABLE_WARN
                         count = 0;
 
                         for (j = 0; (count < in_term) && (j < 64); j++) {
-                            count = 1UL << j;
+                            count = 1ULL << j;
 
                             if (in_term & count) {
                                 t += ltocstring(&temp_buf[t], j + 64);
@@ -551,7 +547,7 @@ ENABLE_WARN
 
                 pp = getpwuid((uid_t) partab.job_table[i].user);                // get password
                 if (pp == NULL) return ltocstring(buf, partab.job_table[i].user); // on fail, return numb
-                strcpy((char *) buf, pp->pw_name);                              // copy it
+                str_copy((char *) buf, pp->pw_name, MAX_STR_LEN + 1);            // copy it
                 return (int) strlen((char *) buf);                              // return len
             }
 
@@ -660,9 +656,13 @@ ENABLE_WARN
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "big_endian\0", 11) == 0)) {
-            u_int end = 1;
+            union {
+                u_short u16;
+                u_char  u8[2];
+            } end;
 
-            return ultocstring(buf, ((*(u_char *) &end) == 0) ? 1 : 0);         // big-endian is 1, little-endian is 0
+            end.u16 = 1;
+            return ultocstring(buf, (end.u8[1] == 1) ? 1 : 0);                  // big-endian is 1, little-endian is 0
         }
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "character\0", 10) == 0)) {
@@ -679,6 +679,10 @@ ENABLE_WARN
 
         if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "string_max\0", 11) == 0)) {
             return ultocstring(buf, MAX_STR_LEN);
+        }
+
+        if ((nsubs == 1) && (strncasecmp((char *) subs[0]->buf, "word_size\0", 10) == 0)) {
+            return ultocstring(buf, sizeof(void *) * 8);                        // word size of the current CPU
         }
 
         if (strncasecmp((char *) subs[0]->buf, "trantab\0", 8) == 0) {
@@ -714,7 +718,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[2]->buf, "file\0", 5) == 0) {
-                strcpy((char *) buf, partab.vol[i]->file_name);                 // copy it
+                str_copy((char *) buf, partab.vol[i]->file_name, MAX_STR_LEN + 1); // copy it
                 return (int) strlen((char *) buf);                              // return the length
             }
 
@@ -731,7 +735,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) {
-                strcpy((char *) buf, vol_label->journal_file);
+                str_copy((char *) buf, vol_label->journal_file, MAX_STR_LEN + 1);
                 return (int) strlen((char *) buf);
             }
 
@@ -967,7 +971,7 @@ ENABLE_WARN
             }
 
             if (strncasecmp((char *) subs[1]->buf, "priv\0", 5) == 0) {
-                partab.job_table[i].priv = (j || 0);                            // set to 0 or 1
+                partab.job_table[i].priv = j || 0;                              // set to 0 or 1
                 if (!j) j = setuid(partab.jobtab->user);                        // if clearing PRIV then attempt to change user
                 if (j == -1) return -(ERRMLAST + ERRZLAST + errno);
                 return 0;
@@ -1137,7 +1141,7 @@ ENABLE_WARN
 
             if ((strncasecmp((char *) subs[2]->buf, "journal_file\0", 13) == 0) && (systab->maxjob == 1)) {
                 if (data->len > JNL_FILENAME_MAX) return -ERRM56;               // too long
-                strcpy(vol_label->journal_file, (char *) data->buf);
+                snprintf(vol_label->journal_file, JNL_FILENAME_MAX + 1, "%.*s", data->len, (char *) data->buf);
                 partab.vol[i]->map_dirty_flag = 1;                              // tell them to write it
                 return 0;
             }
@@ -1179,11 +1183,7 @@ ENABLE_WARN
                 if (vsiz <= vol_label->max_block) return -ERRM38;
                 vsiz |= 7;                                                      // fix size
                 if (vsiz > MAX_DATABASE_BLKS) return -ERRM38;
-
-                if (vsiz > (((vol_label->header_bytes - sizeof(label_block)) * 8) | 7)) {
-                    return -ERRM38;
-                }
-
+                if (vsiz > ((vol_label->header_bytes - sizeof(label_block)) * 8)) return -ERRM38;
                 return DB_Expand(i, vsiz);                                      // do it
             }
 
@@ -1350,12 +1350,14 @@ ENABLE_WARN
         }
 
         if (!priv()) return -ERRM29;                                            // KILL on SSVN not on
+        j = systab->start_user;                                                 // save in case of error
         systab->start_user = -1;                                                // Say 'shutting down'
 
         for (i = (MAX_VOL - 1); i >= 0; i--) {
             if (systab->vol[i] == NULL) continue;
 
             if (shmctl(partab.vol[i]->shm_id, IPC_RMID, &sbuf) == -1) {         // remove the shares
+                systab->start_user = j;                                         // reset start_user on error
                 return -(ERRMLAST + ERRZLAST + errno);
             }
 
@@ -1404,7 +1406,8 @@ ENABLE_WARN
         return s;                                                               // do it and exit
 
     case 'R':                                                                   // $ROUTINE
-        if (nsubs > 1) return -ERRM38;                                          // junk
+        if (nsubs > 2) return -ERRM38;                                          // junk
+        if (nsubs == 2) return -ERRM29;                                         // KILL on SSVN not on
 
         if (var->slen == '\0') {                                                // if unsubscripted
             if (!priv()) return -ERRM29;                                        // KILL on SSVN not on

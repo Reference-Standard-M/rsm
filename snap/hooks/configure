@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# Package: Reference Standard M
+# File:    snap/hooks/configure
+# Summary: Snap configure hook
+#
+# SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License (AGPL) as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
+
+mjobs=$(snapctl get max-jobs)
+gbuff=$(snapctl get global-buffers)
+rbuff=$(snapctl get routine-buffers)
+
+if [ -n "$mjobs" ]; then
+    if ! echo "$mjobs" | grep -qE '^[0-9]+$' || [ "$mjobs" -lt 1 ] || [ "$mjobs" -gt 4096 ]; then
+        echo "The max-jobs option must be set to a positive integer between 1 and 4096"
+        exit 1
+    fi
+fi
+
+if [ -n "$gbuff" ]; then
+    if ! echo "$gbuff" | grep -qE '^[0-9]+$' || [ "$gbuff" -lt 1 ] || [ "$gbuff" -gt 131072 ]; then
+        echo "The global-buffers option must be set to a positive integer between 1 and 131072"
+        exit 1
+    fi
+fi
+
+if [ -n "$rbuff" ]; then
+    if ! echo "$rbuff" | grep -qE '^[0-9]+$' || [ "$rbuff" -lt 1 ] || [ "$rbuff" -gt 4095 ]; then
+        echo "The routine-buffers option must be set to a positive integer between 1 and 4095"
+        exit 1
+    fi
+fi
+
+exit 0
+
+# ex: filetype=sh

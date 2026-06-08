@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/func.c
- * Summary: module runtime - runtime functions
+ * File:    runtime/func.c
+ * Summary: Runtime Module - runtime functions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,15 +22,13 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // for GBD def
 #include "error.h"                                                              // standard errors
 #include "proto.h"                                                              // standard prototypes
 #include <ctype.h>
+#include <errno.h>                                                              // error stuff
 #include <stdlib.h>                                                             // always include
 #include <string.h>
 #ifdef __linux__
@@ -211,16 +208,18 @@ int Dfnumber2(u_char *ret_buffer, const cstring *numexp, const cstring *code)
 
     if ((z == 1) && (numexp->buf[1] == '.')) z = 0;                             // check for '0.bla', leave the leading zero
     tempc = malloc(sizeof(short) + numexp->len + (numexp->len / 3) + 3);
+    if (tempc == NULL) return -(ERRMLAST + ERRZLAST + errno);                   // die
     dest = malloc(sizeof(short) + numexp->len + (numexp->len / 3) + 3);
+    if (dest == NULL) return -(ERRMLAST + ERRZLAST + errno);                    // die
     dest->len = numexp->len - z;
     memcpy(dest->buf, &numexp->buf[z], numexp->len);
 
     if ((d1 != NULL) || (d2 != NULL)) {                                         // add in commas or periods
-        int    ndlen;
-        int    nlen;
-        int    nc;
-        int    cd = 0;
-        u_char *ptr1;
+        int          ndlen;
+        int          nlen;
+        int          nc;
+        int          cd = 0;
+        const u_char *ptr1;
 
         if (dp != NULL) {                                                       // contains a decimal point
             int i;
@@ -395,6 +394,7 @@ int Dfnumber3(u_char *ret_buffer, cstring *numexp, const cstring *code, int rnd)
     t = Djustify3(ret_buffer, numexp, 0, rnd);
     if (t < 0) return t;
     change = malloc(sizeof(short) + t + 1);
+    if (change == NULL) return -(ERRMLAST + ERRZLAST + errno);                  // die
     change->len = t;
     memcpy(change->buf, ret_buffer, t + 1);
     t = Dfnumber2(ret_buffer, change, code);
@@ -444,7 +444,7 @@ int Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
 // $INCREMENT(variable)
 short Dincrement1(u_char *ret_buffer, mvar *var)
 {
-    u_char  tmp[MAX_NUM_BYTES];                                                 // some temp storage for arithmetic
+    u_char  tmp[MAX_NUM_BYTES + 1];                                             // some temp storage for arithmetic
     cstring *cptr;                                                              // for the call
 
     cptr = (cstring *) tmp;                                                     // point at the space
@@ -481,7 +481,7 @@ short Dincrement2(u_char *ret_buffer, mvar *var, cstring *numexpr)
         if (var->uci != UCI_IS_LOCALVAR) SemOp(SEM_ATOMIC, -SEM_WRITE);         // release the atomic write
         return (short) t;
     } else {
-        t = ncopy(&tmp, ret_buffer);
+        t = ncopy(&tmp, ret_buffer, TRUE);
     }
 
     if (t < 0) {
@@ -594,11 +594,11 @@ int Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
             if (ret_buffer[ru] == '.') ru--;                                    // skip the DP
             if (ret_buffer[ru] == ' ') ret_buffer[ru] = '0';
 
-            if ((ret_buffer[ru] == '-') && (ret_buffer[0] == ' ')) {            // Check for the 2016 case
+            if ((ret_buffer[ru] == '-') && (ret_buffer[0] == ' ')) {
                 ret_buffer[ru--] = '1';
                 ret_buffer[ru] = '-';
                 break;
-            }                                                                   // end 2016 patch
+            }
 
             if (ru >= j) continue;
             memmove(&ret_buffer[j + 1], &ret_buffer[j], len - j + 1);
@@ -637,12 +637,7 @@ short Dlength1(u_char *ret_buffer, const cstring *expr)
     return (short) ultocstring(ret_buffer, expr->len);                          // just do it
 }
 
-short Dlength2(u_char *ret_buffer, const cstring *expr, const cstring *delim)
-{
-    return (short) ltocstring(ret_buffer, Dlength2x(expr, delim));              // copy to buf and ret len
-}
-
-int Dlength2x(const cstring *expr, const cstring *delim)
+static int Dlength2x(const cstring *expr, const cstring *delim)
 {
     int i;                                                                      // temp
     int j;                                                                      // index for delim
@@ -662,6 +657,11 @@ int Dlength2x(const cstring *expr, const cstring *delim)
     }                                                                           // end of expr
 
     return pce;                                                                 // and return count
+}
+
+short Dlength2(u_char *ret_buffer, const cstring *expr, const cstring *delim)
+{
+    return (short) ltocstring(ret_buffer, Dlength2x(expr, delim));              // copy to buf and ret len
 }
 
 // $NAME(variable[,int])
@@ -815,7 +815,11 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 short Drandom(u_char *ret_buffer, int seed)
 {
     if (seed < 1) return -ERRM3;                                                // an error
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+    seed = arc4random() % seed;                                                 // get a random number
+#else
     seed = random() % seed;                                                     // get a random number
+#endif
     return ltocstring(ret_buffer, seed);                                        // convert answer to string
 }
 
@@ -937,7 +941,7 @@ int Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
 DISABLE_WARN(-Warray-bounds)
         cptr->len = ltocstring(cptr->buf, level);                               // setup for subscript
 ENABLE_WARN
-        var->slen = UTIL_Key_Build(cptr, &var->key[0]);
+        var->slen = UTIL_Key_Build(cptr, &var->key[0], FALSE);
         t = ST_Get(var, ret_buffer);                                            // get and return
         if (t == -ERRM6) t = 0;                                                 // allow for not there
         return t;
@@ -987,12 +991,12 @@ DISABLE_WARN(-Warray-bounds)
 
         cptr->buf[i] = '\0';                                                    // null terminate
         cptr->len = i;                                                          // save the length
-        t = UTIL_Key_Build(cptr, &var->key[0]);                                 // make a key from it
+        t = UTIL_Key_Build(cptr, &var->key[0], FALSE);                          // make a key from it
         if (t < 0) return t;                                                    // die on error
         var->slen = (u_char) t;                                                 // save the length
         cptr->len = ltocstring(cptr->buf, line);                                // make a string from int
 ENABLE_WARN
-        t = UTIL_Key_Build(cptr, &var->key[var->slen]);                         // make a key from it
+        t = UTIL_Key_Build(cptr, &var->key[var->slen], FALSE);                  // make a key from it
         if (t < 0) return t;                                                    // die on error
         var->slen += (u_char) t;                                                // save the length
         t = Dget1(ret_buffer, var);                                             // get data
@@ -1117,13 +1121,13 @@ DISABLE_WARN(-Warray-bounds)
     partab.src_var.uci = partab.jobtab->ruci;                                   // UCI
     if (cr->buf[0] == '%') partab.src_var.uci = 1;                              // manager routine? then point there
     partab.src_var.slen = 0;                                                    // init key size
-    t = UTIL_Key_Build(cr, &partab.src_var.key[0]);                             // first key
+    t = UTIL_Key_Build(cr, &partab.src_var.key[0], FALSE);                      // first key
     if (t < 0) return t;                                                        // die on error
     slen = (u_char) t;                                                          // save key size
 
     if (ct->len == 0) {                                                         // no tag?
         ct->len = ltocstring(ct->buf, off);                                     // cstring off
-        t = UTIL_Key_Build(ct, &partab.src_var.key[slen]);                      // next key
+        t = UTIL_Key_Build(ct, &partab.src_var.key[slen], FALSE);               // next key
         if (t < 0) return t;                                                    // die on error
         partab.src_var.slen = t + slen;                                         // save key size
         t = DB_Get(&partab.src_var, ret_buffer);                                // get it
@@ -1140,7 +1144,7 @@ DISABLE_WARN(-Warray-bounds)
 
     for (j = 1; ; j++) {                                                        // need to read all lines
         cr->len = ltocstring(cr->buf, j);                                       // cstring j
-        t = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
+        t = UTIL_Key_Build(cr, &partab.src_var.key[slen], FALSE);               // next key
         if (t < 0) return t;                                                    // die on error
         partab.src_var.slen = t + slen;                                         // save key size
         t = DB_Get(&partab.src_var, ret_buffer);                                // get it
@@ -1165,7 +1169,7 @@ DISABLE_WARN(-Warray-bounds)
         j += off;                                                               // add the offset
         cr->len = ltocstring(cr->buf, j);                                       // cstring j
 ENABLE_WARN
-        t = UTIL_Key_Build(cr, &partab.src_var.key[slen]);                      // next key
+        t = UTIL_Key_Build(cr, &partab.src_var.key[slen], FALSE);               // next key
         if (t < 0) return t;                                                    // die on error
         partab.src_var.slen = t + slen;                                         // save key size
         t = DB_Get(&partab.src_var, ret_buffer);                                // get it
@@ -1485,10 +1489,10 @@ int DSetqsubscript(u_char *tmp, cstring *cptr, mvar *var, int i)
 
             if (j == i) {
                 if ((args2 + cptr->len + 3) >= MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST); // complain if too big
-                if ((s = UTIL_Key_Build(cptr, &var3.key[args2])) < 0) return s;
+                if ((s = UTIL_Key_Build(cptr, &var3.key[args2], FALSE)) < 0) return s;
             } else {
                 if ((args2 + s + 3) >= MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST); // complain if too big
-                if ((s = UTIL_Key_Build(&temp, &var3.key[args2])) < 0) return s;
+                if ((s = UTIL_Key_Build(&temp, &var3.key[args2], FALSE)) < 0) return s;
             }
 
             args += len;                                                        // add key bytes used

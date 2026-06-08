@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/database/set.c
- * Summary: module database - set database functions
+ * File:    database/set.c
+ * Summary: Database Module - set database functions
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "database.h"                                                           // database protos
@@ -193,7 +189,7 @@ ENABLE_WARN
 
     if (db_var.slen == 0) {                                                     // changing top node?
         if ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0) {
-            if (blk[0] == NULL) {                                               // was it a trylast?
+            if (blk[0] == NULL) {                                               // was it a lasttry?
                 if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;   // if we reserved it then clear that
                 blk[level] = NULL;                                              // clear that
                 level = 0;                                                      // reset level
@@ -285,7 +281,7 @@ ENABLE_WARN
         }
 
         if (Index == IDX_START) {                                               // if it's 1st node
-            if (blk[0] == NULL) {                                               // was it a trylast?
+            if (blk[0] == NULL) {                                               // was it a lasttry?
                 if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;   // if we reserved it then clear that
                 blk[level] = NULL;                                              // clear that
                 level = 0;                                                      // reset level
@@ -319,7 +315,7 @@ ENABLE_WARN
         }
     }                                                                           // end simple replace (original node missing)
 
-    if (blk[0] == NULL) {                                                       // was it a trylast?
+    if (blk[0] == NULL) {                                                       // was it a lasttry?
         if (blk[level]->dirty == (gbd *) 1) blk[level]->dirty = NULL;           // if we reserved it then clear that
         blk[level] = NULL;                                                      // clear that
         level = 0;                                                              // reset level

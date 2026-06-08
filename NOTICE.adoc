@@ -1,0 +1,139 @@
+////
+Package: Reference Standard M
+File:    NOTICE.adoc
+Summary: Attribution, provenance, and licensing notices
+
+SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with no Invariant
+Sections, with no Front-Cover texts, and with no Back-Cover Texts.
+
+You should have received a copy of the GNU Free Documentation License along
+with this program. If not, see https://www.gnu.org/licenses/.
+////
+
+= Reference Standard M (RSM) NOTICE
+Author: David Wicksell
+
+Reference Standard M is Copyright © 2020-2026 Fourth Watch Software LC, authored
+by David Wicksell. It incorporates work originally authored by Raymond Douglas
+Newman for MUMPS V1 and subsequent contributions from other contributors
+identified below. It is licensed under the GNU Affero General Public License,
+version 3.0 or later. The license text is available in link:COPYING[COPYING].
+
+Reference Standard M (RSM) is derived from MUMPS V1 (MV1), originally authored
+by Raymond Douglas Newman and released under the BSD 3-Clause License.
+
+On June 17, 2020, Raymond Douglas Newman transferred stewardship and future
+development of MUMPS V1 to David Wicksell of Fourth Watch Software LC and
+provided the complete project archives. On July 10, 2020, Newman expressly
+authorized relicensing of the project under terms chosen by Wicksell, provided
+the final MUMPS V1 release remained publicly available. The project was
+subsequently renamed Reference Standard M (RSM), substantially revised, and
+relicensed under the GNU Affero General Public License, version 3.0 or later.
+Since that time, the original source files have been extensively modified,
+adapted, or rewritten by Fourth Watch Software LC.
+
+== Contributors
+
+* Raymond Douglas Newman -- Original author (Copyright © 1999-2018)
+* David Wicksell -- Principal author and maintainer (Copyright © 2020-2026)
+
+== Third-Party Contributors
+
+The following individuals contributed code that is incorporated into RSM under
+the project's AGPL-3.0-or-later license. Their contributions are identified by
+SPDX snippet annotations in the relevant source files.
+
+* Colin Richardson -- `^%X364` in `utils.rsm` (2002)
+* Martin Kula -- `Xcall_wait()` in `xcall/xcall.c` (2003)
+* Piotr Koper -- `^MUMTRIS` in `utils.rsm` (2012)
+
+== MDC Example Code
+
+The `^MATH` routine library in `utils.rsm` is derived from example code
+published in the MDC Millennium Standard (X11/TG6/2002-1), Annex I: Example Code
+for Library Functions (informative). This code is Copyright © 1995-2002 by the
+MUMPS Development Committee and is reproduced with acknowledgment of the source
+per the MDC's reproduction terms. It is licensed under
+link:LICENSES/LicenseRef-MDC.txt[LicenseRef-MDC].
+
+The following individuals contributed corrections to this code within the MDC
+standards process:
+
+* Winfried Gerum -- corrections (X11/95-11, 8 June 1995)
+* Alan Frank -- corrections (X11/95-11, October 1995)
+* Eli Reidler -- corrections (X11/95-11, 28 June 1996)
+* Ed de Moel -- corrections and editor
+  (X11/SC13/TG2/1999-1, X11/1998-32, X11/1998-21, 29 August 1999)
+
+== Minor Contributions
+
+The following individuals contributed minor fixes, suggestions, or testing
+support. These contributions do not affect copyright or license terms.
+
+* Flavio Fornazier -- testing
+* Sam Habiel -- bug fix
+* Wolfgang Malkemper -- suggestions
+* Jacob Riesen -- bug fix
+* Terry Wiechmann -- testing
+* Serena Willis -- testing and testing support
+* Matthew Wilson -- portability fixes
+
+== Acknowledgements
+
+The math and pattern match modules incorporate code derived from FreeMUMPS,
+originally developed by MUG Deutschland (1998). Many thanks to the FreeMUMPS
+contributors.
+
+== Documentation
+
+Documentation for Reference Standard M is Copyright © 2020-2026 Fourth Watch
+Software LC, authored by David Wicksell. It incorporates work originally
+authored by Raymond Douglas Newman for MUMPS V1. It is licensed under the GNU
+Free Documentation License, version 1.3 or any later version, with no Invariant
+Sections. The license text is available in link:doc/COPYING[doc/COPYING].
+
+== Proprietary Artwork
+
+=== Fourth Watch Software Logos
+
+The FWS horizontal logo
+(link:doc/modules/ROOT/images/fws-logo.png[fws-logo.png]) and FWS favicon
+(link:doc/supplemental-ui/img/fws-icon.png[fws-icon.png]) are Copyright ©
+2017-2019 Fourth Watch Software LC. The original design was commissioned as a
+work-for-hire in 2017; the current version was derived from it in 2019. They are
+licensed under the
+link:LICENSES/LicenseRef-Proprietary-Logo.txt[LicenseRef-Proprietary-Logo]
+license. Permission is granted to use the logos solely for identifying Fourth
+Watch Software LC. You may not redistribute, modify, or reuse them in unrelated
+works, forks, or commercial uses without express written permission.
+
+=== Reference Standard M Logo
+
+The RSM logo (link:snap/gui/rsm-logo.png[rsm-logo.png]) is Copyright © 2022-2025
+Fourth Watch Software LC, created by David Wicksell. It is licensed under the
+link:LICENSES/LicenseRef-Proprietary-Logo.txt[LicenseRef-Proprietary-Logo]
+license. Permission is granted to use the logo solely for identifying the
+Reference Standard M (RSM) software as distributed by Fourth Watch Software LC.
+You may not redistribute, modify, or reuse it in unrelated works, forks, or
+commercial uses without express written permission.
+
+== Source Repository
+
+RSM source code is hosted at https://gitlab.com/Reference-Standard-M/rsm
+
+Machine-readable SPDX licensing information is embedded in individual source
+files. The SPDX license identifiers used in this project are:
+
+* Source code: `AGPL-3.0-or-later`
+* Documentation: `GFDL-1.3-no-invariants-or-later`
+* Configuration files: `CC0-1.0`
+* Proprietary artwork: `LicenseRef-Proprietary-Logo`
+* MDC example code: `LicenseRef-MDC`
+* Documentation UI: `MPL-2.0`

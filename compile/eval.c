@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/compile/eval.c
- * Summary: module compile - evaluate
+ * File:    compile/eval.c
+ * Summary: Compile Module - evaluate
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // compiler stuff
@@ -240,12 +236,7 @@ void atom(void)                                                                 
     if ((isalpha((int) c) != 0) || (c == '%') || (c == '^')) {                  // check for local variable or a global var
         source_ptr--;                                                           // backup to first character
         s = localvar();                                                         // parse the variable
-
-        if (s < 0) {                                                            // if we got an error
-            comperror(s);                                                       // compile it
-            return;                                                             // and exit
-        }
-
+        if (s < 0) comperror(s);                                                // if we got an error, compile it
         return;                                                                 // and exit
     }                                                                           // end variable parse
 
@@ -257,7 +248,7 @@ void atom(void)                                                                 
     if ((isdigit((int) c) != 0) || (c == '.')) {                                // check for number or dot
         source_ptr--;                                                           // back up the source ptr
         *comp_ptr++ = OPSTR;                                                    // say string following
-        s = ncopy(&source_ptr, comp_ptr + sizeof(u_short));                     // copy as number
+        s = ncopy(&source_ptr, comp_ptr + sizeof(u_short), FALSE);              // copy as number
 
         if (s < 0) {                                                            // if we got an error
           comp_ptr--;                                                           // remove the OPSTR
@@ -265,7 +256,7 @@ void atom(void)                                                                 
           return;                                                               // and exit
         }
 
-        memcpy(comp_ptr, (u_short *) &s, sizeof(u_short));                      // store string count
+        memcpy(comp_ptr, &s, sizeof(u_short));                                  // store string count
         comp_ptr += sizeof(u_short) + s + 1;                                    // allow for null byte
         return;
     }                                                                           // end numeric parse

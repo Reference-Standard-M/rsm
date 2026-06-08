@@ -1,15 +1,24 @@
-# SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
+# Package: Reference Standard M
+# File:    .gitignore
+# Summary: Git ignore list
+#
+# SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 rsm
-**/*.o
-log/rsm-*.log
+tags
+TODO
 RSM_CRASH
+.debug-build
+.cppcheckrc
+.shellcheckrc
 *core
 *.dat
 *.jnl
-tags
-TODO
-.cppcheckrc
-.shellcheckrc
+*.snap
+log/rsm-*.log
+**/*.o
+**/*.d
 **/.*.sw[ponx]

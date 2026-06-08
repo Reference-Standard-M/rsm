@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/debug.c
- * Summary: module runtime - debug
+ * File:    runtime/debug.c
+ * Summary: Runtime Module - debug
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // for XECUTE
@@ -33,13 +29,14 @@
 #include "opcode.h"                                                             // the op codes
 #include "proto.h"                                                              // standard prototypes
 #include <ctype.h>
+#include <stdio.h>                                                              // always include
 #include <string.h>
 
 mvar   dvar;                                                                    // an mvar for debugging
 u_char src[256];                                                                // some space for entered
 u_char cmp[2048];                                                               // ditto compiled
 
-extern char    history[MAX_HISTORY][MAX_STR_LEN];                               // history buffer
+extern char    history[MAX_HISTORY][MAX_STR_LEN + 1];                           // history buffer
 extern u_short hist_next;                                                       // next history pointer
 extern u_short hist_curr;                                                       // history entry pointer
 extern u_short prompt_len;                                                      // length of the current direct mode prompt
@@ -148,14 +145,14 @@ ENABLE_WARN
 DISABLE_WARN(-Warray-bounds)
         if (ct->len) {
 ENABLE_WARN
-            var_u   lbl = {0};
-            tags    *ttbl;
-            u_char  *pc;
-            u_short us = 0;
-            u_short len;
-            u_short src_ttbl;
-            u_short src_num;
-            u_short src_code;
+            var_u        lbl = {0};
+            tags         *ttbl;
+            const u_char *pc;
+            u_short      us = 0;
+            u_short      len;
+            u_short      src_ttbl;
+            u_short      src_num;
+            u_short      src_code;
 
 DISABLE_WARN(-Warray-bounds)
             if (cr->len == 0) return -(ERRZ9 + ERRMLAST);                       // have to have a routine
@@ -168,13 +165,13 @@ DISABLE_WARN(-Warray-bounds)
             if (cr->buf[0] == '%') partab.src_var.uci = 1;                      // manager routine? then point there
 ENABLE_WARN
             partab.src_var.slen = 0;                                            // init key size
-            t = UTIL_Key_Build(cr, &partab.src_var.key[0]);                     // first key
+            t = UTIL_Key_Build(cr, &partab.src_var.key[0], FALSE);              // first key
             if (t < 0) return t;                                                // die on error
             len = t;
 DISABLE_WARN(-Warray-bounds)
             cr->len = ltocstring(cr->buf, 0);
 ENABLE_WARN
-            t = UTIL_Key_Build(cr, &partab.src_var.key[len]);                   // next key
+            t = UTIL_Key_Build(cr, &partab.src_var.key[len], FALSE);            // next key
             if (t < 0) return t;                                                // die on error
             partab.src_var.slen = t + len;                                      // save key size
             t = DB_Get(&partab.src_var, partab.src_ln);                         // get it
@@ -378,7 +375,7 @@ short Debug(int savasp, int savssp, int dot)                                    
         if (t < 1) continue;                                                    // ignore nulls and errors
 
         if (!hist_next || strcmp(history[hist_next - 1], (char *) ptr->buf)) {
-            strcpy(history[hist_next], (char *) ptr->buf);
+            str_copy(history[hist_next], (char *) ptr->buf, sizeof(history[hist_next]));
 
             if (hist_next == (MAX_HISTORY - 1)) {
                 hist_next = 0;

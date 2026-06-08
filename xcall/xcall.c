@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/xcall/xcall.c
- * Summary: module xcall - supplied external calls
+ * File:    xcall/xcall.c
+ * Summary: XCall Module - Supplied External Calls
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifdef __linux__
@@ -40,7 +36,7 @@
 #include "error.h"                                                              // errors
 #include "proto.h"                                                              // standard prototypes
 #include "symbol.h"
-#ifdef __sun__
+#if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
 #   include <crypt.h>
 #endif
 #include <ctype.h>
@@ -87,14 +83,22 @@
 // FUNCTION DEFINITIONS
 
 /*
- * $&%WAIT() - Wait on a child
+ * SPDX-SnippetBegin
  *
- * Original author: Martin Kula <mkula@users.sourceforge.net>
+ * SPDX-SnippetCopyrightText: © 2003 Martin Kula <mkula@users.sourceforge.net>
+ * SPDX-SnippetCopyrightText: © 2007-2018 Raymond Douglas Newman
+ * SPDX-SnippetCopyrightText: © 2024-2026 Fourth Watch Software LC
+ * SPDX-FileComment:          Originally authored by Martin Kula
+ * SPDX-FileComment:          Adapted for MUMPS V1 by Raymond Douglas Newman
+ * SPDX-FileComment:          Modified for RSM by David Wicksell
+ * SPDX-License-Identifier:   AGPL-3.0-or-later
+ *
+ * $&%WAIT() - Wait on a child
  *
  * Arguments:
  *   First:
- *       none - wait's on a pid
- *       PID  - wait on the PID
+ *       none - wait's on any child PID
+ *       PID  - wait on the child PID
  *   Second:
  *       "BLOCK"   - blocked waiting
  *       none or   - non-blocked waiting
@@ -104,7 +108,7 @@
  *     <0 - failed
  *     0  - none pid exit
  *
- * num_bytes in ret_buffer which contains "pid number#error_code#terminate signal number"
+ * Number of bytes in ret_buffer which contains "pid number#error_code#terminate signal number"
  */
 short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
 {
@@ -127,7 +131,7 @@ short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
         pid = cstringtoi(arg1);                                                 // get pid number
         if (pid < 1) return -ERRM99;
         pid = waitpid(pid, &status, noblock);
-    } else {                                                                    // call without an arguments
+    } else {                                                                    // call without an argument
         pid = waitpid(-1, &status, noblock);
         if ((pid == -1) && noblock && (errno == ECHILD)) pid = 0;               // no error if non-blocked
     }
@@ -143,6 +147,9 @@ short Xcall_wait(char *ret_buffer, cstring *arg1, const cstring *arg2)
     if (WIFSIGNALED(status)) s += ltocstring((u_char *) &ret_buffer[s], WTERMSIG(status));
     return s;
 }
+/*
+ * SPDX-SnippetEnd
+ */
 
 // $&%SIGNAL - Send signal to PID
 short Xcall_signal(char *ret_buffer, cstring *pid, cstring *sig)
@@ -214,18 +221,18 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg)
             if ((strcasecmp((char *) arg->buf, "ip6") == 0) || (strcasecmp((char *) arg->buf, "uip6") == 0)) {
                 char ipstr6[INET6_ADDRSTRLEN];
 
-                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
-                         &((struct sockaddr_in6 *) addr->ai_addr)->sin6_addr, ipstr6, INET6_ADDRSTRLEN));
+                str_copy((char *) ret_buffer, inet_ntop(addr->ai_addr->sa_family,
+                         &((struct sockaddr_in6 *) addr->ai_addr)->sin6_addr, ipstr6, INET6_ADDRSTRLEN), MAX_SEQ_NAME);
             } else {
                 char ipstr[INET_ADDRSTRLEN];
 
-                snprintf((char *) ret_buffer, MAX_SEQ_NAME, "%s", inet_ntop(addr->ai_addr->sa_family,
-                         &((struct sockaddr_in *) addr->ai_addr)->sin_addr, ipstr, INET_ADDRSTRLEN));
+                str_copy((char *) ret_buffer, inet_ntop(addr->ai_addr->sa_family,
+                         &((struct sockaddr_in *) addr->ai_addr)->sin_addr, ipstr, INET_ADDRSTRLEN), MAX_SEQ_NAME);
             }
 
             freeaddrinfo(addr);                                                 // free addrinfo allocated in getaddrinfo()
         } else {
-            strcpy(ret_buffer, gai_strerror(i));
+            str_copy((char *) ret_buffer, gai_strerror(i), MAX_STR_LEN + 1);
         }
 
         return (short) strlen(ret_buffer);
@@ -245,9 +252,9 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg)
         i = getnameinfo((struct sockaddr *) &sin, sizeof(sin), host, sizeof(host), service, sizeof(service), 0);
 
         if (i == 0) {
-            strcpy(ret_buffer, host);
+            str_copy((char *) ret_buffer, host, MAX_STR_LEN + 1);
         } else {
-            strcpy(ret_buffer, gai_strerror(i));
+            str_copy((char *) ret_buffer, gai_strerror(i), MAX_STR_LEN + 1);
         }
 
         return (short) strlen(ret_buffer);
@@ -267,9 +274,9 @@ short Xcall_host(char *ret_buffer, cstring *name, cstring *arg)
         i = getnameinfo((struct sockaddr *) &sin6, sizeof(sin6), host, sizeof(host), service, sizeof(service), 0);
 
         if (i == 0) {
-            strcpy(ret_buffer, host);
+            str_copy((char *) ret_buffer, host, MAX_STR_LEN + 1);
         } else {
-            strcpy(ret_buffer, gai_strerror(i));
+            str_copy((char *) ret_buffer, gai_strerror(i), MAX_STR_LEN + 1);
         }
 
         return (short) strlen(ret_buffer);
@@ -328,25 +335,25 @@ short Xcall_file(char *ret_buffer, cstring *file, cstring *attr)
 
     // Get desired attribute
     if (strcasecmp((char *) attr->buf, "exists") == 0) {                        // File exists
-        ret = sprintf(ret_buffer, "%d", exists);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%d", exists);
         return (short) ret;                                                     // Size of ret_buffer (EXISTS)
     } else if (strcasecmp((char *) attr->buf, "size") == 0) {
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_size);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%lld", (long long) sb.st_size);
         return (short) ret;                                                     // Size of ret_buffer (SIZE)
     } else if (strcasecmp((char *) attr->buf, "atime") == 0) {                  // Last access time
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_atime);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%lld", (long long) sb.st_atime);
         return (short) ret;                                                     // Size of ret_buffer (ATIME)
     } else if (strcasecmp((char *) attr->buf, "ctime") == 0) {                  // Last status change (inode)
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_ctime);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%lld", (long long) sb.st_ctime);
         return (short) ret;                                                     // Size of ret_buffer (CTIME)
     } else if (strcasecmp((char *) attr->buf, "mtime") == 0) {                  // Last modification time
-        ret = sprintf(ret_buffer, "%lld", (long long) sb.st_mtime);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%lld", (long long) sb.st_mtime);
         return (short) ret;                                                     // Size of ret_buffer (MTIME)
     } else if (strcasecmp((char *) attr->buf, "uid") == 0) {                    // UID of file
-        ret = sprintf(ret_buffer, "%u", sb.st_uid);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%u", sb.st_uid);
         return (short) ret;                                                     // Size of ret_buffer (UID)
     } else if (strcasecmp((char *) attr->buf, "gid") == 0) {                    // GID of file
-        ret = sprintf(ret_buffer, "%u", sb.st_gid);
+        ret = snprintf(ret_buffer, MAX_STR_LEN + 1, "%u", sb.st_gid);
         return (short) ret;                                                     // Size of ret_buffer (GID)
     } else {                                                                    // Invalid attribute name
         ret_buffer[0] = '\0';
@@ -458,7 +465,7 @@ static char *findNextChar(char ch, char *filename)
  *
  * It returns 1 (true) if it does match, otherwise 0.
  */
-static int isPatternMatch(char *pattern, char *filename)
+static int isPatternMatch(const char *pattern, char *filename)
 {
     int flag;                                                                   // Flag
 
@@ -525,23 +532,16 @@ short Xcall_directory(char *ret_buffer, const cstring *file, cstring *dummy)
             }
 
             ret = isPatternMatch(pattern, dent->d_name);
-
-            if (ret == 1) {                                                     // Found next matching directory entry
-                sprintf(ret_buffer, "%s", dent->d_name);
-                return (short) strlen(ret_buffer);
-            }
+            if (ret == 1) return (short) str_copy(ret_buffer, dent->d_name, MAX_STR_LEN + 1); // Found next matching directory entry
         }
     } else {
         int  len;                                                               // Filename length
         char *patptr;                                                           // Pointer to pattern
 
         // Otherwise, open the directory and return the first matching directory entry or NULL
-        int  i = snprintf(path, MAX_SEQ_NAME, "%s", file->buf);                 // Make a local copy of the
-
-        if (i < 0) fprintf(stderr, "errno = %d - %s\r\n", errno, strerror(errno));
-        len = strlen(path);                                                     //  filename
+        len = str_copy(path, (char *) file->buf, MAXFILENAME);                  // Make a local copy of the filename
         patptr = path;                                                          // Move pointer to the
-        patptr += len;                                                          //  filenames NULL terminator
+        patptr += len;                                                          //   filenames NULL terminator
 
         /*
          * Moving back to front, find the first occurrence of PATHSEP in "path",
@@ -564,15 +564,17 @@ short Xcall_directory(char *ret_buffer, const cstring *file, cstring *dummy)
             }
         }
 
-        snprintf(pattern, MAXFILENAME, "%s", patptr);                           // Record pattern for subsequent calls
+        str_copy(pattern, patptr, MAXFILENAME);                                 // Record pattern for subsequent calls
 
         // If path is empty, then assume current directory
         if (len == -1) {
-            snprintf((char *) env.buf, MAX_STR_LEN + 1, "%s", "PWD");
-            env.len = strlen((char *) env.buf);
+            size_t plen;
+
+            env.len = str_copy((char *) env.buf, "PWD", MAX_STR_LEN + 1);
             ret = Xcall_getenv(path, &env, NULL);
             if (ret < 0) return (short) ret;
-            strcat(path, "/");
+            plen = strlen(path);
+            str_copy(path + plen, "/", MAXFILENAME - plen);
         }
 
         dirp = opendir(path);                                                   // Open the directory
@@ -593,7 +595,7 @@ short Xcall_directory(char *ret_buffer, const cstring *file, cstring *dummy)
             ret = isPatternMatch(pattern, dent->d_name);
 
             if (ret == 1) {                                                     // Found next matching directory entry
-                sprintf(ret_buffer, "%s", dent->d_name);
+                str_copy(ret_buffer, dent->d_name, MAX_STR_LEN + 1);
                 return (short) strlen(ret_buffer);
             }
         }
@@ -1641,7 +1643,7 @@ short Xcall_paschk(char *ret_buffer, const cstring *user, cstring *pwd)
                 postptr = strchr(preptr, ':');
                 *postptr = '\0';
 #ifndef __CYGWIN__
-                strncpy(password, crypt((char *) pwd->buf, preptr), 255);       // Note: Won't work on Cygwin
+                str_copy(password, crypt((char *) pwd->buf, preptr), sizeof(password)); // Note: Won't work on Cygwin
 #endif
 
                 if (strcmp(password, preptr) == 0) {
@@ -1724,7 +1726,7 @@ int Xcall_x(char *ret_buffer, cstring *str, const cstring *flag)
         int xx = 0;                                                             // for the result
 
         for (tmp = 0; tmp != (int) str->len; tmp++) xx += (int) str->buf[tmp];
-        tmp = sprintf(ret_buffer, "%d", xx);                                    // convert to ascii
+        tmp = snprintf(ret_buffer, MAX_STR_LEN + 1, "%d", xx);                  // convert to ASCII
         return tmp;                                                             // and return length
     }                                                                           // end standard $&X()
 
@@ -1752,9 +1754,9 @@ int Xcall_x(char *ret_buffer, cstring *str, const cstring *flag)
  */
 short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy)
 {
-    int     tmp;
-    u_char  *chp = &str->buf[0];
-    u_short crc = 0;                                                            // CRC result number
+    int          tmp;
+    const u_char *chp = &str->buf[0];
+    u_short      crc = 0;                                                       // CRC result number
 
     (void) dummy;                                                               // unused parameter
 

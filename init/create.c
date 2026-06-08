@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/init/create.c
- * Summary: module init - create a database file
+ * File:    init/create.c
+ * Summary: Init Module - create a database file
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "init.h"                                                               // init prototypes
@@ -48,21 +44,22 @@
 *   -m map block size in KiB      (0 to MAX_MAP_SIZE)           Opt *
 *   -v volume set name            (1 to VAR_LEN)                Req *
 *   -e manager UCI name           (1 to VAR_LEN)                Opt *
+*   -u unsecured mode                                           Opt *
 *      database file name         (1 to VAR_LEN)                Req *
 \*******************************************************************/
 
 // number of blocks, block size in bytes, map size in bytes (may be 0), volume name, UCI name, file name
-int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file)
+int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const char *env, char *file, int unsecured)
 {
     int         namlen;                                                         // length of volume name
     int         envlen;                                                         // length of UCI name
     u_short     us;                                                             // for mgrblk index entry
     int         ret;                                                            // for return values
-    int         fid;                                                            // file handle
+    int         fd;                                                             // file handle
     DB_Block    *mgrblk;                                                        // manager block pointer
     label_block *labelblock;                                                    // database label block header
     cstring     *hunk;
-    char        version[120];                                                   // a string
+    char        version[300];                                                   // a string
 
     union {
         int  buff[BLKLEN / 4];                                                  // 512 KiB buffer
@@ -139,10 +136,15 @@ int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const 
     errno = 0;                                                                  // clear error flag
     umask(0);                                                                   // set umask to 0000
 
-    // Create database file - with 0640 permissions
-    fid = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP);
+    if (unsecured) {
+        // Create database file - with 0644 permissions for snap confinement
+        fd = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    } else {
+        // Create database file - with 0640 permissions
+        fd = open(file, O_CREAT | O_TRUNC | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP);
+    }
 
-    if (fid < 1) {                                                              // if that failed
+    if (fd < 1) {                                                               // if that failed
         fprintf(stderr, "Creation of %s failed - %s\n", file, strerror(errno)); // what was returned
         return errno;                                                           // exit with error
     }                                                                           // end file create test
@@ -170,10 +172,10 @@ int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const 
     label.cuff[sizeof(label_block)] = 3;                                        // mark blocks 0 & 1 as used
 
     if (map > (u_int) BLKLEN) {
-        ret = write(fid, label.buff, BLKLEN);                                   // write out the first 512 KiB incl. header
+        ret = write(fd, label.buff, BLKLEN);                                    // write out the first 512 KiB incl. header
                                                                                 //   + first map block byte
         if (ret < BLKLEN) {                                                     // if that failed
-            close(fid);                                                         // close the file
+            close(fd);                                                          // close the file
             fprintf(stderr, "Database file write failed - %s\n", strerror(errno)); // what was returned
             return errno;                                                       // and return
         }                                                                       // probably should delete it
@@ -181,29 +183,29 @@ int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const 
         memset(label.buff, 0, BLKLEN);                                          // clear it
 
         for (u_int i = 0; i < (map / BLKLEN - 1); i++) {                        // write out large map block
-            ret = write(fid, label.buff, BLKLEN);                               // write out the header
+            ret = write(fd, label.buff, BLKLEN);                                // write out the header
 
             if (ret < BLKLEN) {                                                 // if that failed
-                close(fid);                                                     // close the file
+                close(fd);                                                      // close the file
                 fprintf(stderr, "Database file write failed - %s\n", strerror(errno)); // what was returned
                 return errno;                                                   // and return
             }                                                                   // probably should delete it
         }
 
         if (map % BLKLEN) {
-            ret = write(fid, label.buff, map % BLKLEN);                         // write out the remainder of the large map block
+            ret = write(fd, label.buff, map % BLKLEN);                          // write out the remainder of the large map block
 
             if (ret < (int) (map % BLKLEN)) {                                   // if that failed
-                close(fid);                                                     // close the file
+                close(fd);                                                      // close the file
                 fprintf(stderr, "Database file write failed - %s\n", strerror(errno)); // what was returned
                 return errno;                                                   // and return
             }                                                                   // probably should delete it
         }
     } else {
-        ret = write(fid, label.buff, map);                                      // write out the header
+        ret = write(fd, label.buff, map);                                       // write out the header
 
         if (ret < (int) map) {                                                  // if that failed
-            close(fid);                                                         // close the file
+            close(fd);                                                          // close the file
             fprintf(stderr, "Database file write failed - %s\n", strerror(errno)); // what was returned
             return errno;                                                       // and return
         }                                                                       // probably should delete it
@@ -224,10 +226,10 @@ int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const 
     memcpy(&hunk->buf[2], "\200$GLOBAL\0", 9);                                  // the key
     us += 4;                                                                    // point at block#
     label.buff[us] = 1;                                                         // block 1
-    ret = write(fid, label.buff, bsize);                                        // write manager block
+    ret = write(fd, label.buff, bsize);                                         // write manager block
 
     if (ret < (int) bsize) {                                                    // if that failed
-        close(fid);                                                             // close the file
+        close(fd);                                                              // close the file
         fprintf(stderr, "Database file write failed - %s\n", strerror(errno));  // what was returned
         return errno;                                                           // and return
     }                                                                           // probably should delete it
@@ -236,16 +238,16 @@ int init_create(u_int blocks, u_int bsize, u_int map, const char *volnam, const 
     memset(label.buff, 0, bsize);                                               // clear it
 
     for (u_int i = 0; i < (blocks - 1); i++) {                                  // for each data block
-        ret = write(fid, label.buff, bsize);                                    // write a block
+        ret = write(fd, label.buff, bsize);                                     // write a block
 
         if (ret < 1) {                                                          // if that failed
-            close(fid);                                                         // close the file
+            close(fd);                                                          // close the file
             fprintf(stderr, "Database file write failed - %s\n", strerror(errno)); // what was returned
             return errno;                                                       // and return
         }                                                                       // probably should delete it
     }                                                                           // end of write code
 
-    close(fid);                                                                 // close file
+    close(fd);                                                                  // close file
     printf("Database file %s has been created\n", file);                        // say we've done that
     return 0;                                                                   // indicate success
 }

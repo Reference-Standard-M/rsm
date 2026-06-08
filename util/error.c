@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/util/error.c
- * Summary: module RSM error - return full name of error
+ * File:    util/error.c
+ * Summary: RSM Error Module - return full name of error
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2016
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2016)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  *
  * Extended Summary:
@@ -56,9 +52,9 @@ static struct {
     {0,                   "No error"},
     {ERRM1,               "Naked indicator undefined"},
     {ERRM2,               "Invalid $FNUMBER P code string combination"},
-    {ERRM3,               "$RANDOM argument less than 1"},
+    {ERRM3,               "$RANDOM argument less than one"},
     {ERRM4,               "No true condition in $SELECT"},
-    {ERRM5,               "Line reference less than 0"},
+    {ERRM5,               "Line reference less than zero"},
     {ERRM6,               "Undefined local variable"},
     {ERRM7,               "Undefined global variable"},
     {ERRM8,               "Undefined special variable"},
@@ -71,16 +67,21 @@ static struct {
     {ERRM15,              "Undefined index variable"},
     {ERRM16,              "QUIT with an argument not allowed"},
     {ERRM17,              "QUIT with an argument required"},
-    {ERRM18,              "Fixed length READ not greater than 0"},
+    {ERRM18,              "Fixed length READ not greater than zero"},
     {ERRM19,              "Cannot merge a tree or subtree into itself"},
     {ERRM20,              "Line must have a formal list"},
     {ERRM21,              "Formal list name duplication"},
     {ERRM22,              "SET or KILL to ^$GLOBAL when data in global"},
     {ERRM23,              "SET or KILL to ^$JOB for non-existent job"},
+    {ERRM24,              "Change to collation algorithm while subscripted local variables defined"},
     {ERRM25,              "Attempt to modify currently executing routine"},
     {ERRM26,              "Non-existent environment"},
+    {ERRM27,              "Attempt to rollback a transaction that is not restartable"},
     {ERRM28,              "Mathematical function, parameter out of range"},
     {ERRM29,              "SET or KILL on SSVN not allowed by implementation"},
+    {ERRM30,              "Reference to variable with different collating sequence within a collation algorithm"},
+    {ERRM31,              "Controlmnemonic used for device without a mnemonicspace selected"},
+    {ERRM32,              "Controlmnemonic used in user-defined mnemonicspace which has no associated line"},
     {ERRM33,              "SET or KILL to ^$ROUTINE when routine exists"},
     {ERRM35,              "Device does not support mnemonicspace"},
     {ERRM36,              "Incompatible mnemonicspaces"},
@@ -88,15 +89,18 @@ static struct {
     {ERRM38,              "Invalid SSVN subscript"},
     {ERRM39,              "Invalid $NAME argument"},
     {ERRM40,              "Call-by-reference in JOB actual"},
+    {ERRM41,              "Invalid LOCK argument within a transaction"},
+    {ERRM42,              "Invalid QUIT within a transaction"},
     {ERRM43,              "Invalid range ($X, $Y)"},
+    {ERRM44,              "Invalid command outside of a transaction"},
     {ERRM45,              "Invalid GOTO reference"},
     {ERRM46,              "Invalid attribute name"},
     {ERRM47,              "Invalid attribute value"},
-    {ERRM56,              "Name length exceeds implementation's limit"},
+    {ERRM56,              "Name length limit exceeds implementation's limit"},
     {ERRM57,              "More than one defining occurrence of label in routine"},
     {ERRM58,              "Too few formal parameters"},
-    {ERRM59,              "Environment reference not permitted for this SSVN"},
-    {ERRM60,              "Undefined SSVN"},
+    {ERRM59,              "Environment references not permitted for this SSVN"},
+    {ERRM60,              "Reference to undefined SSVN with unspecified semantics"},
     {ERRM75,              "String length exceeds implementation's limit"},
     {ERRM90,              "Invalid name value"},
     {ERRM92,              "Mathematical overflow"},
@@ -183,7 +187,7 @@ static struct {
     {(ERRZ74 + ERRMLAST), "Too many variables (max " RSM_STRING(MAX_NUM_VARS) ")"},
     {(ERRZ75 + ERRMLAST), "Too many arguments (max " RSM_STRING(MAX_NUM_ARGS) ")"},
     {(ERRZ76 + ERRMLAST), "Invalid global name"},
-    {(ERRZ77 + ERRMLAST), "RSM is in restricted mode"},
+    {(ERRZ77 + ERRMLAST), "Operation not permitted in restricted mode"},
     {(ERRZ78 + ERRMLAST), "Lock count exceeds implementation's limit"},
     {0,                   NULL}
 };                                                                              // merrtab[]
@@ -207,7 +211,7 @@ u_short UTIL_strerror(int err, u_char *buf)                                     
         }
     }                                                                           // end our error
 
-    strcpy((char *) buf, (char *) ptr);                                         // copy the message
+    str_copy((char *) buf, (char *) ptr, MAX_ERR_LEN);                          // copy the message
     return (u_short) strlen((char *) ptr);                                      // and return length
 }
 
@@ -217,8 +221,14 @@ void panic(const char *msg)                                                     
     char       tmp[512];                                                        // some string space
     time_t     t;                                                               // for time
 
-    fprintf(stderr, "\r\nFATAL RSM ERROR occurred!!\r\n%s\r\n", msg);           // print
-    if (errno) fprintf(stderr, "errno = %d - %s\r\n", errno, strerror(errno));
+    if (partab.jobtab == NULL) {                                                // log to the daemon log file
+        fprintf(stderr, "\nFATAL RSM ERROR occurred!!\n%s\n", msg);
+        if (errno) fprintf(stderr, "errno = %d - %s\n", errno, strerror(errno));
+    } else {                                                                    // log to the console on standard error
+        fprintf(stderr, "\r\nFATAL RSM ERROR occurred!!\r\n%s\r\n", msg);
+        if (errno) fprintf(stderr, "errno = %d - %s\r\n", errno, strerror(errno));
+    }
+
     fflush(stderr);
     a = freopen("RSM_CRASH", "a", stderr);                                      // redirect stderr
 

@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/runtime/run.c
- * Summary: module runtime - run it
+ * File:    runtime/run.c
+ * Summary: Runtime Module - run it
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // for XECUTE
@@ -37,6 +33,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>                                                              // error stuff
+#include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // these two
 #include <string.h>
 #include <unistd.h>                                                             // for sleep
@@ -60,13 +57,13 @@ int run(int savasp, int savssp)                                                 
     int       args;                                                             // num arguments
     int       flag;                                                             // a random flag
     int       pieces;                                                           // number of subscripts
-    cstring   *cptr;                                                            // a cstring ptr
-    cstring   *ptr1 = NULL;                                                     // a cstring ptr
-    cstring   *ptr2 = NULL;                                                     // a cstring ptr
+    cstring   *cptr;                                                            // a cstring pointer
+    cstring   *ptr1 = NULL;                                                     // a cstring pointer
+    cstring   *ptr2 = NULL;                                                     // a cstring pointer
     cstring   *tmp;                                                             // and another
     mvar      *var;                                                             // an mvar pointer
     mvar      *var2;                                                            // an mvar pointer
-    u_char    *p;                                                               // useful ptr
+    u_char    *p;                                                               // useful pointer
     u_short   var_undefined = VAR_UNDEFINED;                                    // for CMDO undefined vars
     var_u     rou;                                                              // a routine name
     var_u     tag;                                                              // a tag name
@@ -81,11 +78,17 @@ int run(int savasp, int savssp)                                                 
     var_u     *vt;                                                              // pointer for var tab
     ST_data   *data;                                                            // for direct symbol access
 
+    union {
+        u_char *pc;
+        u_char bytes[sizeof(u_char *)];
+    } rsm;
+
     asp = savasp;
     ssp = savssp;
 
     while (TRUE) {                                                              // keep going till done
         if (ssp >= MAX_SSTK) panic("String Stack overflow in runtime!!");       // check ssp, if too much die
+        if (asp >= MAX_ASTK) panic("Address Stack overflow in runtime!!");      // check asp, if too much die
 
         if (partab.jobtab->attention) {                                         // any attention thingys
             t = attention();                                                    // do it
@@ -140,7 +143,7 @@ int run(int savasp, int savssp)                                                 
                 cptr->len = t;                                                  // save the length
                 ssp += cptr->len + sizeof(u_short) + 1;                         // point past it
                 p = &strstk[ssp];                                               // some space
-                comp_ptr = p;                                                   // call it a compile ptr
+                comp_ptr = p;                                                   // call it a compile pointer
 
                 if (cptr->len && !flag) {                                       // if something there & no previous error at level
                     source_ptr = cptr->buf;                                     // where the data is
@@ -165,7 +168,6 @@ int run(int savasp, int savssp)                                                 
                 i = comp_ptr - p;                                               // get the length
                 ssp += i;                                                       // point past it
                 rsmpc = p;                                                      // new pc
-                savasp = asp;
                 savssp = ssp;
             }
         }
@@ -243,7 +245,7 @@ int run(int savasp, int savssp)                                                 
 
                 if (opc == OPIFI) {                                             // indirect
                     assert(sizeof(isp) == sizeof(long));
-                    memcpy(&isp, rsmpc, sizeof(long));                          // restore the isp
+                    memcpy(&isp, rsmpc, sizeof(isp));                           // restore the isp
                     rsmpc += sizeof(long);
                 }
 
@@ -292,10 +294,10 @@ int run(int savasp, int savssp)                                                 
             ptr1 = (cstring *) addstk[--asp];
             ptr2 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             t = runtime_add((char *) cptr->buf, (char *) temp);
             if (t < 0) ERROR(t);
@@ -309,10 +311,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, &temp[1]);
+            t = ncopy(&p, &temp[1], TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             temp[0] = '-';
             s = 0;
@@ -335,10 +337,10 @@ int run(int savasp, int savssp)                                                 
             ptr1 = (cstring *) addstk[--asp];
             ptr2 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             t = runtime_mul((char *) cptr->buf, (char *) temp);
             if (t < 0) ERROR(t);
@@ -354,10 +356,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             t = runtime_div((char *) cptr->buf, (char *) temp, opc);
             if (t < 0) ERROR(t);
@@ -371,10 +373,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             t = runtime_power((char *) cptr->buf, (char *) temp);
             if (t < 0) ERROR(t);
@@ -384,8 +386,8 @@ int run(int savasp, int savssp)                                                 
             break;                                                              // done
 
         case OPCAT:                                                             // CONCATENATE
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             if ((ptr1->len + ptr2->len) > MAX_STR_LEN) ERROR(-ERRM75);          // string too long
 
             if (((u_char *) ptr1 >= partab.strstk_start) &&                     // if at or after strstk
@@ -408,10 +410,18 @@ int run(int savasp, int savssp)                                                 
 
         case OPPLUS:                                                            // UNARY PLUS
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            ptr1 = (cstring *) addstk[--asp];                                   // get source string ptr
-            p = ptr1->buf;                                                      // ptr for ncopy to play with
-            t = ncopy(&p, cptr->buf);                                           // make a number
-            if (t < 0) ERROR(t);
+            ptr1 = (cstring *) addstk[--asp];                                   // get source string pointer
+            p = ptr1->buf;                                                      // pointer for ncopy to play with
+            t = ncopy(&p, cptr->buf, TRUE);                                     // make a number
+
+            if (t == -(ERRZ12 + ERRMLAST)) {                                    // if just a dp, change to 0
+                cptr->buf[0] = '0';
+                t = 1;
+                cptr->buf[t] = '\0';
+            } else if (t < 0) {
+                ERROR(t);
+            }
+
             cptr->len = t;                                                      // save the length
             ssp += t + sizeof(u_short) + 1;                                     // point past it
             addstk[asp++] = (u_char *) cptr;                                    // stack it
@@ -419,11 +429,17 @@ int run(int savasp, int savssp)                                                 
 
         case OPMINUS:                                                           // UNARY MINUS
             cptr = (cstring *) &strstk[ssp + 1];                                // where we will put it
-            ptr1 = (cstring *) addstk[--asp];                                   // get source string ptr
-            p = ptr1->buf;                                                      // ptr for ncopy to play with
-            t = ncopy(&p, cptr->buf);                                           // make a number
+            ptr1 = (cstring *) addstk[--asp];                                   // get source string pointer
+            p = ptr1->buf;                                                      // pointer for ncopy to play with
+            t = ncopy(&p, cptr->buf, TRUE);                                     // make a number
 
-            if ((t > 1) || (cptr->buf[0] != '0')) {                             // if it's not zero
+            if (t == -(ERRZ12 + ERRMLAST)) {                                    // if just a dp, change to 0
+                cptr->buf[0] = '0';
+                t = 1;
+                cptr->buf[t] = '\0';
+            } else if (t < 0) {
+                ERROR(t);
+            } else if ((t > 1) || (cptr->buf[0] != '0')) {                      // if it's not zero
                 if (cptr->buf[0] == '-') {                                      // if there is a minus there
                     t--;                                                        // decrement count
                     cptr = (cstring *) ((u_char *) cptr + 1);                   // move up
@@ -444,8 +460,8 @@ int run(int savasp, int savssp)                                                 
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '0';                                                 // assume false
             cptr->buf[1] = '\0';                                                // null terminate
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
 
             if (ptr1->len == ptr2->len) {                                       // if same length
                 if (memcmp(ptr1->buf, ptr2->buf, ptr1->len) == 0) {
@@ -462,10 +478,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (runtime_comp((char *) cptr->buf, (char *) temp) ? '1' : '0');
@@ -479,10 +495,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (runtime_comp((char *) temp, (char *) cptr->buf) ? '1' : '0');
@@ -542,8 +558,8 @@ int run(int savasp, int savssp)                                                 
             break;
 
         case OPCON:                                                             // CONTAINS
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             t = Dfind3x(ptr1, ptr2, 1);                                         // check it
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = 1;                                                      // the count
@@ -558,8 +574,8 @@ int run(int savasp, int savssp)                                                 
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '0';                                                 // assume false
             cptr->buf[1] = '\0';                                                // null terminate
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             t = ptr1->len;                                                      // length of first string
             if (t > ptr2->len) t = ptr2->len;                                   // get the smallest
             i = memcmp(ptr1->buf, ptr2->buf, t);                                // compare them
@@ -592,12 +608,12 @@ int run(int savasp, int savssp)                                                 
 
         case OPSAF:                                                             // SORTS AFTER
             ptr2 = (cstring *) &strstk[ssp];                                    // where we put the second arg
-            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf);           // make a key out of it
+            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf, TRUE);     // make a key out of it
             if (t < 0) ERROR(t);                                                // check for error
             ptr2->len = t;                                                      // save the length
             ssp += t + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
-            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf);           // make a key out of it
+            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf, TRUE);     // make a key out of it
             if (t < 0) ERROR(t);                                                // check for error
             ptr1->len = t;                                                      // save the length
             ssp += t + sizeof(u_short) + 1;                                     // move ssp along
@@ -616,12 +632,12 @@ int run(int savasp, int savssp)                                                 
 
         case OPSAFEQL:                                                          // SORTS AFTER or EQUALS
             ptr2 = (cstring *) &strstk[ssp];                                    // where we put the second arg
-            s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf);           // make a key out of it
+            s = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf, TRUE);     // make a key out of it
             if (s < 0) ERROR(s);                                                // check for error
             ptr2->len = s;                                                      // save the length
             ssp += s + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
-            s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf);           // make a key out of it
+            s = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf, TRUE);     // make a key out of it
             if (s < 0) ERROR(s);                                                // check for error
             ptr1->len = s;                                                      // save the length
             ssp += s + sizeof(u_short) + 1;                                     // move ssp along
@@ -645,8 +661,8 @@ int run(int savasp, int savssp)                                                 
 
         case OPPAT:                                                             // PATTERN MATCHES
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             t = patmat(ptr1, ptr2);                                             // do it
             if (t < 0) ERROR(t);                                                // check for error
             cptr->len = 1;                                                      // the count
@@ -673,8 +689,8 @@ int run(int savasp, int savssp)                                                 
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '1';                                                 // assume true
             cptr->buf[1] = '\0';                                                // null terminate
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
 
             if (ptr1->len == ptr2->len) {                                       // if same length
                 if (memcmp(ptr1->buf, ptr2->buf, ptr1->len) == 0) {
@@ -691,10 +707,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (!runtime_comp((char *) cptr->buf, (char *) temp) ? '1' : '0');
@@ -708,10 +724,10 @@ int run(int savasp, int savssp)                                                 
             ptr2 = (cstring *) addstk[--asp];
             ptr1 = (cstring *) addstk[--asp];
             p = ptr2->buf;
-            t = ncopy(&p, temp);
+            t = ncopy(&p, temp, TRUE);
             if (t < 0) ERROR(t);
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = (!runtime_comp((char *) temp, (char *) cptr->buf) ? '1' : '0');
@@ -771,8 +787,8 @@ int run(int savasp, int savssp)                                                 
             break;
 
         case OPNCON:                                                            // NOT CONTAINS
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             i = Dfind3x(ptr1, ptr2, 1);                                         // check it
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             cptr->len = 1;                                                      // the count
@@ -787,8 +803,8 @@ int run(int savasp, int savssp)                                                 
             cptr->len = 1;                                                      // the count
             cptr->buf[0] = '1';                                                 // assume true
             cptr->buf[1] = '\0';                                                // null terminate
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             t = ptr1->len;                                                      // length of first string
             if (t > ptr2->len) t = ptr2->len;                                   // get the smallest
             i = memcmp(ptr1->buf, ptr2->buf, t);                                // compare them
@@ -800,12 +816,12 @@ int run(int savasp, int savssp)                                                 
 
         case OPNSAF:                                                            // NOT SORTS AFTER
             ptr2 = (cstring *) &strstk[ssp];                                    // where we put the second arg
-            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf);           // make a key out of it
+            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr2->buf, TRUE);     // make a key out of it
             if (t < 0) ERROR(t);                                                // check for error
             ptr2->len = t;                                                      // save the length
             ssp += t + sizeof(u_short) + 1;                                     // move ssp along
             ptr1 = (cstring *) &strstk[ssp];                                    // where we put the first arg
-            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf);           // make a key out of it
+            t = UTIL_Key_Build((cstring *) addstk[--asp], ptr1->buf, TRUE);     // make a key out of it
             if (t < 0) ERROR(t);                                                // check for error
             ptr1->len = t;                                                      // save the length
             ssp += t + sizeof(u_short) + 1;                                     // move ssp along
@@ -824,8 +840,8 @@ int run(int savasp, int savssp)                                                 
 
         case OPNPAT:                                                            // NOT PATTERN MATCHES
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             t = patmat(ptr1, ptr2);                                             // do it
             if (t < 0) ERROR(t);                                                // check for error
             cptr->len = 1;                                                      // the count
@@ -1096,7 +1112,7 @@ int run(int savasp, int savssp)                                                 
         case CMUSE:                                                             // USE (args) ch, a1, a2, ...
             partab.jobtab->commands++;                                          // count a command
             VAR_CLEAR(rou);                                                     // clear this
-            args = (int) *rsmpc++;                                              // number of args
+            args = *rsmpc++;                                                    // number of args
             ptr1 = (cstring *) NULL;                                            // default to nothing
             ptr2 = (cstring *) NULL;                                            // default to nothing
             i = 0;                                                              // other parameters
@@ -1175,8 +1191,8 @@ int run(int savasp, int savssp)                                                 
             VAR_CLEAR(rou);                                                     // clear this
             cptr = (cstring *) addstk[--asp];                                   // get the namespace
             i = cstringtoi((cstring *) addstk[--asp]);                          // get the timeout
-            ptr2 = (cstring *) addstk[--asp];                                   // get second string ptr
-            ptr1 = (cstring *) addstk[--asp];                                   // get first string ptr
+            ptr2 = (cstring *) addstk[--asp];                                   // get second string pointer
+            ptr1 = (cstring *) addstk[--asp];                                   // get first string pointer
             j = cstringtoi((cstring *) addstk[--asp]);                          // get the ch#
             t = SQ_Open(j, ptr1, ptr2, i);                                      // do it
             if (t < 0) ERROR(t);                                                // complain on error
@@ -1266,11 +1282,9 @@ int run(int savasp, int savssp)                                                 
             if (*source_ptr != '\0') ERROR(-(ERRZ57 + ERRMLAST));               // must point at end of var or complain
             if (INDANOK(comp_ptr)) ERROR(-(ERRZ58 + ERRMLAST));                 // too much indirection
             *comp_ptr++ = INDREST;                                              // restore things
-            assert(sizeof(isp) == sizeof(long));
-            memcpy(comp_ptr, &isp, sizeof(long));                               // the isp to restore
-            comp_ptr += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            memcpy(comp_ptr, &rsmpc, sizeof(u_char *));                         // and the rsmpc
+            rsm.pc = rsmpc;
+            memcpy(comp_ptr, rsm.bytes, sizeof(rsm.bytes));                     // and the rsmpc
             comp_ptr += sizeof(u_char *);
             rsmpc = &indstk[isp];                                               // what we are going to do
             isp += comp_ptr - &indstk[isp];                                     // adjust isp
@@ -1300,11 +1314,9 @@ int run(int savasp, int savssp)                                                 
             if (*source_ptr != '\0') ERROR(-(ERRZ57 + ERRMLAST));               // must point at end of var then complain
             if (INDANOK(comp_ptr)) ERROR(-(ERRZ58 + ERRMLAST));                 // too much indirection
             *comp_ptr++ = INDREST;                                              // restore things
-            assert(sizeof(isp) == sizeof(long));
-            memcpy(comp_ptr, &isp, sizeof(long));                               // the isp to restore
-            comp_ptr += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            memcpy(comp_ptr, &rsmpc, sizeof(u_char *));                         // and the rsmpc
+            rsm.pc = rsmpc;
+            memcpy(comp_ptr, rsm.bytes, sizeof(rsm.bytes));                     // and the rsmpc
             comp_ptr += sizeof(u_char *);
             rsmpc = &indstk[isp];                                               // what we are going to do
             isp += comp_ptr - &indstk[isp];                                     // adjust isp
@@ -1614,7 +1626,7 @@ int run(int savasp, int savssp)                                                 
             cptr = (cstring *) addstk[--asp];
             p = cptr->buf;
             ptr1 = (cstring *) &strstk[ssp];
-            t = ncopy(&p, ptr1->buf);                                           // convert to canonic number
+            t = ncopy(&p, ptr1->buf, TRUE);                                     // convert to canonic number
             if (t < 0) ERROR(t);                                                // complain on error
             ptr1->len = t;
             ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
@@ -1632,7 +1644,7 @@ int run(int savasp, int savssp)                                                 
             cptr = (cstring *) addstk[--asp];
             p = cptr->buf;
             ptr1 = (cstring *) &strstk[ssp];
-            t = ncopy(&p, ptr1->buf);                                           // convert to canonic number
+            t = ncopy(&p, ptr1->buf, TRUE);                                     // convert to canonic number
             if (t < 0) ERROR(t);                                                // complain on error
             ptr1->len = t;
             ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
@@ -1688,7 +1700,7 @@ int run(int savasp, int savssp)                                                 
             cptr = (cstring *) addstk[--asp];
             p = cptr->buf;
             ptr1 = (cstring *) temp;                                            // some temp storage for arithmetic
-            t = ncopy(&p, ptr1->buf);                                           // convert to canonic number
+            t = ncopy(&p, ptr1->buf, TRUE);                                     // convert to canonic number
             if (t < 0) ERROR(t);                                                // complain on error
             ptr1->len = t;
             var = (mvar *) addstk[--asp];                                       // get first arg
@@ -1725,7 +1737,7 @@ int run(int savasp, int savssp)                                                 
             cptr = (cstring *) addstk[--asp];
             p = cptr->buf;
             ptr1 = (cstring *) &strstk[ssp];
-            t = ncopy(&p, ptr1->buf);                                           // convert to canonic number
+            t = ncopy(&p, ptr1->buf, TRUE);                                     // convert to canonic number
             if (t < 0) ERROR(t);                                                // complain on error
             ptr1->len = t;
             ssp += sizeof(u_short) + ptr1->len + 1;                             // point past it
@@ -2088,8 +2100,8 @@ int run(int savasp, int savssp)                                                 
             pieces = 0;                                                         // count subscripts
 
             // Note: The below two mvars have been pre-expanded to maximum size (i.e., sizeof(mvar)).
-            var = (mvar *) addstk[--asp];                                       // get the destination mvar ptr
-            var2 = (mvar *) addstk[--asp];                                      // get the source mvar ptr
+            var = (mvar *) addstk[--asp];                                       // get the destination mvar pointer
+            var2 = (mvar *) addstk[--asp];                                      // get the source mvar pointer
 
             if (var->name.var_cu[0] == '$') {                                   // destination is SSVN/ISV
                 if (var->uci == UCI_IS_LOCALVAR) ERROR(-ERRM8);                 // must be ^$ROUTINE()
@@ -2341,7 +2353,7 @@ int run(int savasp, int savssp)                                                 
                 curframe->pc = partab.jobtab->dostk[partab.jobtab->cur_do - 1].endlin;
                 p = curframe->pc;                                               // the new pc
                 if (!*p) p++;                                                   // skip possible eol
-                if (*p == LINENUM) p += sizeof(short) * 2 + 1;
+                if (*p == LINENUM) p += sizeof(u_short) * 2 + 1;
 
                 if (*p != CHKDOTS) {
                     partab.jobtab->cur_do--;                                    // back to original frame
@@ -2351,14 +2363,15 @@ int run(int savasp, int savssp)                                                 
             }
 
             if ((curframe->symbol == NULL) && rouadd->num_vars) {               // need symbol space? and have any vars?
-                curframe->symbol = malloc(rouadd->num_vars * sizeof(short));    // symbol index space
+                curframe->symbol = malloc(rouadd->num_vars * sizeof(u_short));  // symbol index space
+                if (curframe->symbol == NULL) ERROR(-(ERRMLAST + ERRZLAST + errno)); // no memory
                 for (i = 0; i < rouadd->num_vars; i++) curframe->symbol[i] = -1; // for each one, mark not setup
             }
 
             rsmpc = curframe->pc;                                               // get the new pc
             args &= 127;                                                        // clear $$ bit of count
 
-            if (args > 0) {                                                     // check for args
+            if ((args > 0) || (*rsmpc == LOADARG)) {                            // check for formal or actual args
                 if (*rsmpc++ != LOADARG) {                                      // any there?
                     curframe->symbol = NULL;
                     partab.jobtab->cur_do--;                                    // point back
@@ -2394,7 +2407,7 @@ int run(int savasp, int savssp)                                                 
 
                 for (i = args - 2; i >= 0; i--) {                               // for each supplied arg
                     var->volset = rsmpc[i] + 1;                                 // get the index
-                    cptr = (cstring *) addstk[--asp];                           // get data ptr
+                    cptr = (cstring *) addstk[--asp];                           // get data pointer
 
                     if (cptr != NULL) {                                         // normal data type?
                         if (cptr->len != VAR_UNDEFINED) {
@@ -2403,7 +2416,7 @@ int run(int savasp, int savssp)                                                 
                         }
                     } else {                                                    // must be by-reference
                         p = addstk[--asp];                                      // the data pointer
-                        cptr = (cstring *) addstk[--asp];                       // get real data ptr
+                        cptr = (cstring *) addstk[--asp];                       // get real data pointer
                         var->name = ((mvar *) cptr)->name;                      // copy the name
                         t = ST_ConData(var, p);                                 // connect them
                         if (t < 0) break;                                       // exit on error
@@ -2423,12 +2436,17 @@ int run(int savasp, int savssp)                                                 
             p = rsmpc;                                                          // the new pc
             if (!*p) p++;                                                       // skip possible eol
             if (*p++ == LINENUM) memcpy(&curframe->line_num, p, sizeof(u_short)); // store the line number
-            //if (partab.jobtab->dostk[partab.jobtab->cur_do].level) ERROR(-ERRM14); // can't DO to line level above 1
+
+            if (opc != CMDON) {
+                p += 4;
+                if ((*p++ == CHKDOTS) && *p) ERROR(-ERRM14);                    // can't DO argument to line level above 1
+            }
+
             curframe->savasp = savasp;                                          // save
             curframe->savssp = savssp;                                          // save
             curframe->asp = asp;                                                // save
             curframe->ssp = ssp;                                                // save
-            curframe->isp = isp;                                                // and indirect stack ptr
+            curframe->isp = isp;                                                // and indirect stack pointer
             savasp = asp;                                                       // use these in
             savssp = ssp;                                                       // the subroutine
             break;                                                              // return to interp
@@ -2489,7 +2507,7 @@ int run(int savasp, int savssp)                                                 
                 ERROR(-(ERRZ49 + ERRMLAST));                                    // job table full
             }
 
-            i = 0;                                                              // strstk ptr
+            i = 0;                                                              // strstk pointer
             strstk[i++] = 'D';                                                  // pretend it's a DO
             strstk[i++] = ' ';                                                  // and a space
             list = (var_u *) &tag;                                              // point at the tag
@@ -2594,7 +2612,7 @@ int run(int savasp, int savssp)                                                 
 
             if (!var_equal(rou, partab.jobtab->dostk[partab.jobtab->cur_do].rounam) &&
               partab.jobtab->dostk[partab.jobtab->cur_do].level && !partab.jobtab->error_frame) {
-                ERROR(-ERRM45);                                                 // can't GOTO from ....
+                ERROR(-ERRM45);                                                 // can't GOTO routine with a line level above 1
             }
 
             for (i = partab.jobtab->cur_do; i > 0; i--) {
@@ -2686,12 +2704,13 @@ int run(int savasp, int savssp)                                                 
             if ((curframe->level != i) && !partab.jobtab->error_frame) ERROR(-ERRM45); // different dots? then complain
 
             /*
-             * For dots still need to check dots and new routine
-             * and lesser dots between source and destination
+             * For dots still need to check dots and not new routine
+             * and no lesser dots between source and destination
              */
 
             if ((curframe->symbol == NULL) && rouadd->num_vars) {               // need symbol space? and have any vars?
                 curframe->symbol = malloc(rouadd->num_vars * sizeof(short));    // symbol index space
+                if (curframe->symbol == NULL) ERROR(-(ERRMLAST + ERRZLAST + errno)); // no memory
                 for (i = 0; i < rouadd->num_vars; i++) curframe->symbol[i] = -1; // for each one, mark not setup
             }
 
@@ -2773,6 +2792,18 @@ int run(int savasp, int savssp)                                                 
 
             curframe = &partab.jobtab->dostk[partab.jobtab->cur_do];            // point at it
 
+            if (curframe->newtab != NULL) {                                     // any news there?
+                ST_Restore((ST_newtab *) curframe->newtab);                     // restore them
+            }
+
+            if (curframe->flags & DO_FLAG_ATT) {                                // if we attached
+                if (curframe->symbol != NULL) {                                 // had some vars?
+                    ST_SymDet(SOA((rbd *) curframe->routine)->num_vars, curframe->symbol); // detach symbols
+                }
+
+                Routine_Detach((rbd *) SOA(curframe->routine));                 // detach routine
+            }
+
             if ((curframe->type == TYPE_RUN) || (curframe->type == TYPE_JOB)) {
                 if ((opc == CMQUIT) || (partab.debug == BREAK_OFF)) return CMQUIT; // return the quit (CMQUITA [$STACK 0] too)
                 return cstringtoi((cstring *) addstk[--asp]) | BREAK_QN;        // tell it how many
@@ -2786,20 +2817,7 @@ int run(int savasp, int savssp)                                                 
                 ERROR(-ERRM16);                                                 // complain
             }
 
-            if (curframe->newtab != NULL) {                                     // any news there?
-                ST_Restore((ST_newtab *) curframe->newtab);                     // restore them
-            }
-
             infor = curframe->flags & DO_FLAG_FOR;                              // reset for flag if required
-
-            if (curframe->flags & DO_FLAG_ATT) {                                // if we attached
-                if (curframe->symbol != NULL) {                                 // had some vars?
-                    ST_SymDet(SOA((rbd *) curframe->routine)->num_vars, curframe->symbol); // detach symbols
-                }
-
-                Routine_Detach((rbd *) SOA(curframe->routine));                 // detach routine
-            }
-
             if (partab.jobtab->error_frame) curframe->symbol = NULL;            // clear pointer to prevent nasty bugs in error
             cptr = NULL;                                                        // shut up the C compiler
             if (opc == CMQUITA) cptr = (cstring *) addstk[--asp];               // if there was an arg then pick it up
@@ -2845,13 +2863,14 @@ int run(int savasp, int savssp)                                                 
             cptr = (cstring *) p;                                               // for function call
 
             for (i = 0; i < args; i++) {                                        // for each arg
-                s = UTIL_mvartolock((mvar *) addstk[--asp], p + sizeof(u_short));
+                s = UTIL_mvartolock((mvar *) addstk[asp - args + i], p + sizeof(u_short));
                 if (s < 0) ERROR(s);                                            // check for error
                 memcpy(p, &s, sizeof(short));                                   // save the size
                 p += s + sizeof(u_short);                                       // add the length
                 if ((u_long) p & 1) p++;                                        // ensure even
             }
 
+            asp -= args;                                                        // remove the args
             if (partab.jobtab->async_error) break;                              // break on error from loop
 
             if (opc == CMLCK) {
@@ -3049,7 +3068,7 @@ ENABLE_WARN
 
                     if (rsmpc[i] == CHKDOTS) {                                  // if that's a CHKDOTS
                         rsmpc = &rsmpc[i];                                      // point at it
-                        break;                                                  // and quit - NOTE: was in LINENUM, typo?
+                        break;                                                  // NOTE: was in LINENUM, not CHKDOTS, typo?
                     }
                 }
             }
@@ -3107,14 +3126,14 @@ ENABLE_WARN
             forx->increment = (u_char *) &strstk[ssp];                          // where we will put it
             cptr = (cstring *) addstk[--asp];                                   // point at the incr
             p = cptr->buf;
-            t = ncopy(&p, forx->increment);                                     // copy numerically
+            t = ncopy(&p, forx->increment, TRUE);                               // copy numerically
             if (t < 0) ERROR(t);
             ssp += t + 2;                                                       // cover it
             savssp = ssp;
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             ptr1 = (cstring *) addstk[--asp];                                   // point at the start value
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);                                           // copy numerically
+            t = ncopy(&p, cptr->buf, TRUE);                                     // copy numerically
             if (t < 0) ERROR(t);
             cptr->len = t;                                                      // start value now in cptr
             ssp += t + 4;
@@ -3143,20 +3162,20 @@ ENABLE_WARN
             forx->done = (u_char *) &strstk[ssp];                               // where we will put it
             cptr = (cstring *) addstk[--asp];                                   // point at final value
             p = cptr->buf;
-            t = ncopy(&p, forx->done);                                          // copy numerically
+            t = ncopy(&p, forx->done, TRUE);                                    // copy numerically
             if (t < 0) ERROR(t);
             ssp += t + 2;                                                       // cover it
             forx->increment = (u_char *) &strstk[ssp];                          // where we will put it
             cptr = (cstring *) addstk[--asp];                                   // point at the incr
             p = cptr->buf;
-            t = ncopy(&p, forx->increment);                                     // copy numerically
+            t = ncopy(&p, forx->increment, TRUE);                               // copy numerically
             if (t < 0) ERROR(t);
             ssp += t + 2;                                                       // cover it
             savssp = ssp;
             cptr = (cstring *) &strstk[ssp];                                    // where we will put it
             ptr1 = (cstring *) addstk[--asp];                                   // point at the start value
             p = ptr1->buf;
-            t = ncopy(&p, cptr->buf);                                           // copy numerically
+            t = ncopy(&p, cptr->buf, TRUE);                                     // copy numerically
             if (t < 0) ERROR(t);
             cptr->len = t;                                                      // start value now in cptr
             s = forx->svar;                                                     // get syment
@@ -3273,9 +3292,9 @@ ENABLE_WARN
 
             p = ptr1->buf;                                                      // point at the data
             cptr = (cstring *) &strstk[ssp];                                    // some space
-            t = ncopy(&p, cptr->buf);
+            t = ncopy(&p, cptr->buf, TRUE);
             if (t < 0) ERROR(t);
-            strcpy((char *) temp, (char *) forx->increment);
+            str_copy((char *) temp, (char *) forx->increment, sizeof(temp));
             t = runtime_add((char *) cptr->buf, (char *) temp);                 // increment the index
             if (t < 0) ERROR(t);
             cptr->len = t;
@@ -3317,11 +3336,9 @@ ENABLE_WARN
 
         // ***** Indirection Stuff *****
         case INDREST:                                                           // RESTORE isp and rsmpc
-            assert(sizeof(isp) == sizeof(long));
-            memcpy(&isp, rsmpc, sizeof(long));                                  // restore the isp
-            rsmpc += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            memcpy(&rsmpc, rsmpc, sizeof(u_char *));                            // and the rsmpc
+            memcpy(rsm.bytes, rsmpc, sizeof(rsm.bytes));                        // and the rsmpc
+            rsmpc = rsm.pc;
             break;                                                              // continue
 
         case INDCLOS:                                                           // CLOSE indirect
@@ -3420,11 +3437,9 @@ ENABLE_WARN
             if (*source_ptr != '\0') ERROR(-(ERRZ57 + ERRMLAST));               // must point at end of var or complain
             if (INDANOK(comp_ptr)) ERROR(-(ERRZ58 + ERRMLAST));                 // too much indirection
             *comp_ptr++ = INDREST;                                              // restore things
-            assert(sizeof(isp) == sizeof(long));
-            memcpy(comp_ptr, &isp, sizeof(long));                               // the isp to restore
-            comp_ptr += sizeof(long);
             assert(sizeof(rsmpc) == sizeof(u_char *));
-            memcpy(comp_ptr, &rsmpc, sizeof(u_char *));                         // and the rsmpc
+            rsm.pc = rsmpc;
+            memcpy(comp_ptr, rsm.bytes, sizeof(rsm.bytes));                     // and the rsmpc
             comp_ptr += sizeof(u_char *);
             rsmpc = &indstk[isp];                                               // what we are going to do
             isp += comp_ptr - &indstk[isp];                                     // adjust isp
@@ -3445,7 +3460,6 @@ ENABLE_WARN
         case XCCOMP:                                                            // Xcall $&%COMPRESS()
             j = cstringtoi((cstring *) addstk[--asp]);                          // get second arg
             ptr1 = (cstring *) addstk[--asp];                                   // the first argument
-            if ((j & 15) < 1) ERROR(-(ERRZ64 + ERRMLAST));                      // range check
             var = &partab.jobtab->last_ref;                                     // use this so all can see it
             t = UTIL_MvarFromCStr(ptr1, var);                                   // convert to an mvar
             if (t < 0) ERROR(t);                                                // complain on error
@@ -3654,7 +3668,7 @@ ENABLE_WARN
             memcpy(&var2->name.var_cu, "$ROUTINE", 8);                          // ^$ROUTINE
             var2->volset = partab.jobtab->rvol;                                 // the volume
             var2->uci = partab.jobtab->ruci;                                    // and the UCI
-            t = UTIL_Key_Build(ptr1, &var2->key[0]);                            // build the key
+            t = UTIL_Key_Build(ptr1, &var2->key[0], FALSE);                     // build the key
             if (t < 0) ERROR(t);                                                // give up on error
             var2->slen = t;                                                     // save the length
             t = Compile_Routine((mvar *) NULL, var2, &strstk[ssp]);             // don't compile a routine, just check it

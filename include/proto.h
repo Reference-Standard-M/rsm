@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/proto.h
- * Summary: module RSM header file - prototypes
+ * File:    include/proto.h
+ * Summary: RSM Module Header File - prototypes
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef RSM_PROTO_H
@@ -65,7 +61,7 @@ short SQ_Init(void);                                                            
 // open on this channel, this file/device, in this mode, timeout (-1 = unlimited)
 short SQ_Open(int chan, cstring *object, const cstring *op, int tout);
 
-// set chan as current $IO, input terminators or NULL, output terminators or NULL, parameters see rsm/include/rsm.h
+// set chan as current $IO, input terminators or NULL, output terminators or NULL, parameters see include/rsm.h
 short SQ_Use(int chan, cstring *interm, const cstring *outerm, int par);
 short SQ_Close(int chan);                                                       // close channel
 int   SQ_Write(cstring *buf);                                                   // write to current $IO
@@ -133,7 +129,6 @@ int   Djustify2(u_char *ret_buffer, cstring *expr, int size);
 int   Djustify3(u_char *ret_buffer, cstring *expr, int size, int round);
 short Dlength1(u_char *ret_buffer, const cstring *expr);
 short Dlength2(u_char *ret_buffer, const cstring *expr, const cstring *delim);
-int   Dlength2x(const cstring *expr, const cstring *delim);
 short Dname1(u_char *ret_buffer, mvar *var);
 short Dname2(u_char *ret_buffer, mvar *var, int sub);
 short Dorder1(u_char *ret_buffer, mvar *var);
@@ -199,8 +194,8 @@ short SS_Kill(mvar *var);                                                       
 short SS_Order(mvar *var, u_char *buf, int dir);                                // get next subscript
 
 // Key utility
-short UTIL_Key_Build(cstring *src, u_char *dest);                               // location of source string
-short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt);                     // extract subscript
+short UTIL_Key_Build(cstring *src, u_char *dest, u_char nul_ok);                // location of source string
+short UTIL_Key_Extract(const u_char *key, u_char *str, int *cnt);               // extract subscript
 short UTIL_String_Key(u_char *key, u_char *str, int max_subs);                  // extract all keys
 short UTIL_String_Mvar(mvar *var, u_char *str, int max_subs);                   // mvar -> string
 int   UTIL_Key_Last(const mvar *var);                                           // point at last subs in mvar
@@ -212,7 +207,7 @@ int   UTIL_Key_Chars_In_Subs(char *Key, int keylen, int maxsubs, int *subs, char
 // General utility
 u_short    UTIL_strerror(int err, u_char *buf);                                 // return string error msg
 int        mcopy(u_char *src, u_char *dst, int bytes);                          // memmove with checking etc.
-short      ncopy(u_char **src, u_char *dst);                                    // copy as number
+short      ncopy(u_char **src, u_char *dst, int runtime);                       // copy as number
 void       CleanJob(int job);                                                   // tidy up a job
 void       panic(const char *msg);                                              // die on error
 void       Routine_Init(int vol);                                               // proto for routine setup
@@ -224,7 +219,6 @@ void       Dump_rbd(void);                                                      
 void       Dump_ltd(void);                                                      // dump lock descriptors
 
 // Lock string conversion utility
-short UTIL_String_Lock(locktab *var, u_char  *str);                             // convert lock entry to full environment string
 short UTIL_mvartolock(mvar *var, u_char *buf);                                  // convert mvar to string
 
 // Share and semaphore stuff

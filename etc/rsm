@@ -1,10 +1,11 @@
-#
 # Package: Reference Standard M
-# File:    rsm/etc/rsm
+# File:    etc/rsm
 # Summary: Bash completion script for rsm executable
 #
-# David Wicksell <dlw@linux.com>
-# Copyright © 2023-2024 Fourth Watch Software LC
+# SPDX-FileCopyrightText:  © 2023-2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License (AGPL) as
@@ -18,9 +19,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
-#
-# SPDX-FileCopyrightText:  © 2023 David Wicksell <dlw@linux.com>
-# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 #
 # If you want to install this for a single user, copy this file to
@@ -80,7 +78,7 @@ __rsm_option()
         ;;
 
     -j)
-        [[ -z ${rsm_current} ]] && COMPREPLY=("$(compgen -W 'max-jobs(1-1024_jobs)')")
+        [[ -z ${rsm_current} ]] && COMPREPLY=("$(compgen -W 'max-jobs(1-4096_jobs)')")
         return
         ;;
 

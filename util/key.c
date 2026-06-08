@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/util/key.c
- * Summary: module database - key utilities
+ * File:    util/key.c
+ * Summary: Database Module - key utilities
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2017
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2017)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "proto.h"                                                              // standard prototypes
@@ -37,7 +33,7 @@
  * Function: UTIL_Key_Build - Build a key from an ASCII source
  * Key is in order: NEGATIVE NUMBER -> ZERO -> POSITIVE NUMBER -> STRING
  */
-short UTIL_Key_Build(cstring *src, u_char *dest)                                // location of source string and where to put it
+short UTIL_Key_Build(cstring *src, u_char *dest, u_char nul_ok)                 // location of source string and where to put it
 {
     int minus = 0;                                                              // minus flag
     int dp = -1;                                                                // decimal point flag
@@ -110,7 +106,7 @@ string:                                                                         
     dest[to++] = (u_char) 128;                                                  // copy in the flag
 
     for (i = 0; i < src->len; i++) {                                            // for each char in string
-        if ((dest[to++] = src->buf[i]) == 0) return -(ERRZ5 + ERRMLAST);        // copy it and complain if null
+        if (((dest[to++] = src->buf[i]) == 0) && !nul_ok) return -(ERRZ5 + ERRMLAST); // copy it and complain if null
     }
 
     dest[to++] = '\0';                                                          // trailing null
@@ -128,7 +124,7 @@ string:                                                                         
  *
  * NOTE: if cnt is passed in non-zero, double the quotes(")
  */
-short UTIL_Key_Extract(u_char *key, u_char *str, int *cnt)
+short UTIL_Key_Extract(const u_char *key, u_char *str, int *cnt)
 {
     short s;                                                                    // size
     int   i = 0;                                                                // index
@@ -370,6 +366,8 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
         v = (*ptr == '|');                                                      // environment specified?
 
         if (v || (*ptr == '[')) {                                               // environment specified?
+            u_char volset;
+
             ptr++;                                                              // skip the [ or |
             VAR_CLEAR(nam);                                                     // clear quadword
             if (*ptr++ != '"') return -(ERRZ12 + ERRMLAST);                     // must be a quote so complain
@@ -405,10 +403,11 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
                 var->volset = i + 1;                                            // store the vol#
             }
 
-            if (var->volset == 0) var->volset = partab.jobtab->vol;             // default
+            volset = var->volset;
+            if (volset == 0) volset = partab.jobtab->vol;                       // default
 
             for (i = 0; i < UCIS; i++) {                                        // scan UCI list
-                if (var_equal(SOA(partab.vol[var->volset - 1]->vollab)->uci[i].name, nam)) {
+                if (var_equal(SOA(partab.vol[volset - 1]->vollab)->uci[i].name, nam)) {
                     break;                                                      // quit if found
                 }
             }
@@ -450,7 +449,7 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
                 }
             }                                                                   // end quote processing
 
-            if (i == 255) return -(ERRZ12 + ERRMLAST);                          // junk
+            if (i == MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);                  // junk
             if (!q && ((*ptr == ',') || (*ptr == ')'))) break;                  // end numeric subs
 DISABLE_WARN(-Warray-bounds)
             kb->buf[i++] = *ptr++;                                              // copy one character
@@ -459,9 +458,9 @@ DISABLE_WARN(-Warray-bounds)
         kb->buf[i] = '\0';                                                      // null terminate
         kb->len = (u_short) i;                                                  // save the length
 ENABLE_WARN
-        s = UTIL_Key_Build(kb, &var->key[var->slen]);                           // do one key
+        s = UTIL_Key_Build(kb, &var->key[var->slen], FALSE);                    // do one key
         if (s < 0) return s;                                                    // got an error
-        if ((s + var->slen) > 255) return -(ERRZ12 + ERRMLAST);                 // junk
+        if ((s + var->slen) > MAX_KEY_SIZE) return -(ERRZ2 + ERRMLAST);         // junk
         if ((var->key[var->slen] == 128) && !q) return -(ERRZ12 + ERRMLAST);    // got a string + no quotes, that's junk
         subs++;                                                                 // count a subscript
         var->slen += s;                                                         // save new length

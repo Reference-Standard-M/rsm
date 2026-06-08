@@ -3,13 +3,12 @@ Package: Reference Standard M
 File:    doc/adoc/language.adoc
 Summary: Language usage documentation
 
-David Wicksell <dlw@linux.com>
-Copyright © 2020-2024 Fourth Watch Software LC
-https://gitlab.com/Reference-Standard-M/rsm
-
-Based on MUMPS V1 by Raymond Douglas Newman
-Copyright © 1999-2003
-https://gitlab.com/Reference-Standard-M/mumpsv1
+SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2003)
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -18,15 +17,13 @@ Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
 You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
-
-SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 ////
 
 :source-highlighter: highlight.js
 :highlightjs-languages: cos
 
 = Language Guide
+Author: David Wicksell
 
 == Summary
 
@@ -84,11 +81,12 @@ xref:xcall.adoc[External Call Interface].
 
 === Volume Sets and User Class Identifiers
 
-RSM currently supports only one volume (database file) per volume set, though
-that will change in the future. Each volume is created with an initial manager
-UCI [User Class Identifier], which is named `MGR` by default, but which can be
-named at volume creation with the `-e` option. Each volume can also contain up
-to a total of 63 UCIs, including the default manager UCI.
+RSM currently supports only one volume (database and after-image journal file)
+per volume set, though that will change in the future. Each volume is created
+with an initial manager UCI [User Class Identifier], which is named `MGR` by
+default, but which can be named at volume creation with the `-e` option. Each
+volume can also contain up to a total of 63 UCIs, including the default manager
+UCI.
 
 === Volumes and Journals
 
@@ -114,16 +112,16 @@ turned off with `set ^$system("eok")=0` as a privileged user (see below).
 The use of the term '`privilege`' in this document means either that the command
 is in a library [manager] routine (one beginning with a `%`), or the user is
 privileged in the underlying operating environment. A privileged user refers to
-either the user who started the RSM environment, the '`root`' user, or a user
-that's a member of a group that's allowed to become the '`root`' user.
+either the user who started the RSM environment, a member of the group that
+started the RSM environment, or the '`root`' user.
 
-IMPORTANT: Currently any user may create or edit a library routine
+IMPORTANT: Currently any user may create or edit a library routine.
 
 == Commands
 
-IMPORTANT: Commands without an argument must be followed by two or more spaces
+IMPORTANT: Commands without an argument must be followed by two or more spaces.
 
-NOTE: M commands are case-insensitive, and have a long and short form
+NOTE: Commands are case-insensitive, and have a long and short form.
 
 === `*;*` Comment
 
@@ -166,7 +164,7 @@ Valid truth-value expression.
 
 Break specifier (see below).
 
-NOTE: Argument indirection is not permitted
+NOTE: Argument indirection is not permitted.
 
 ==== Usage
 
@@ -202,7 +200,7 @@ current routine. A `QUIT` may be followed by a positive integer to execute that
 many commands (not lines) before breaking again.
 
 NOTE: When using `QUIT` with a step command number, `BREAK` in routines, as
-well as any breakpoints encountered during stepping, will be ignored
+well as any breakpoints encountered during stepping, will be ignored.
 
 The `$ZBP` array (case-sensitive), stores all the currently active breakpoints.
 Its format is `$ZBP(_routine_,_linenum_)`. You can `$ORDER` or `$QUERY` through
@@ -211,7 +209,7 @@ breakpoints or `QUIT` handler code, if set. There is also an included vendor API
 called `BP^%DEBUG`, found in `utils.rsm`, which will list all current
 breakpoints and handlers.
 
-WARNING: Code entered in the debugger must be 255 characters or less
+WARNING: Code entered in the debugger must be 255 characters or less.
 
 ==== Standard
 
@@ -257,7 +255,7 @@ Relinquishes ownership of the specified channel. If the channel is not currently
 open, the command is ignored. If the channel is current (i.e., `$IO` is equal to
 _channel_) then `$IO` is set to 0.
 
-NOTE: Closing channel 0 is always ignored
+NOTE: Closing channel 0 is always ignored.
 
 ==== Standard
 
@@ -540,7 +538,7 @@ success of initiating the process, as the `JOB` command always succeeds. If no
 _timeout_ is present, `$TEST` is unchanged and the current process is suspended
 until the other process has been successfully initiated.
 
-NOTE: If a _timeout_ is present, `$TEST` is always set to `1`
+NOTE: If a _timeout_ is present, `$TEST` is always set to `1`.
 
 ==== Standard
 
@@ -738,7 +736,7 @@ may be supplied in full or abbreviated form, and is case-insensitive.
 |===
 
 IMPORTANT: If you open a file in `IO` mode (read-write), it will set the file
-pointer to the beginning of the file
+pointer to the beginning of the file.
 
 ==== Standard
 
@@ -922,10 +920,10 @@ are:
 |`"TERMINATOR="_$CHAR(_n_[,...])`   |All              |Input/read terminators
 |===
 
-IMPORTANT: `TERMINATOR` arguments must be ASCII characters [0-127]
+IMPORTANT: `TERMINATOR` arguments must be ASCII characters [0-127].
 
 NOTE: `"TERMINATOR="_$CHAR(13,10)` means that the following is placed in `$KEY`
-not returned in the data
+not returned in the data.
 
 ==== Standard
 
@@ -962,7 +960,7 @@ _offset_ is the block number to read, `0` to free the view buffer, or minus
 
 Read and write disk data in an open view channel buffer.
 
-NOTE: The volume should be write locked before using `VIEW`
+NOTE: The volume should be write locked before using `VIEW`.
 
 ==== Standard
 
@@ -991,7 +989,7 @@ Where _writeargument_ is one of the following:
 
 * Format character string
 ** `#` -> Carrige return, page feed combination
-** `!` -> Carrige return, linefeed combination, or specified output terminators
+** `!` -> Carrige return, linefeed combination, or specified output sequence
 ** `?_n_` -> Tab to character position _n_ (left most position is `0`)
 ** `/_cmd_[(_params_)]` -> Provide device specific control [X3.64]
 * `_expr_` -> Any valid M expression
@@ -1015,7 +1013,7 @@ Output characters to the current output device.
 |Form feed             |`$X` -> `0`, `$Y` -> `0`
 |===
 
-NOTE: `write *_intexpr_` does not alter `$X` or `$Y`
+NOTE: `write *_intexpr_` does not alter `$X` or `$Y`.
 
 ==== Standard
 
@@ -1062,8 +1060,7 @@ xecute "write ""x is 1""":x=1,"write ""x is not 1""":x-1 ; Run string as M code
 
 == Intrinsic Functions
 
-NOTE: Intrinsic functions are case-insensitive, and have a short and long form,
-denoted with square bracket notation
+NOTE: Intrinsic functions are case-insensitive, and have a long and short form.
 
 === $ASCII|$A
 
@@ -1160,7 +1157,7 @@ Where the default for _start_ is `1` and the default for _stop_ is _start_.
 
 Characters from positions _start_ through _stop_ of expression.
 
-NOTE: May also be used as the destination for the `SET` command
+NOTE: May also be used as the destination for the `SET` command.
 
 ==== Standard
 
@@ -1221,7 +1218,7 @@ Where code is zero or more of the following:
 |`-` (minus)|Suppress the minus sign on negative values
 |===
 
-NOTE: `P` may not be used with `T`, `+` (plus), or `-` (minus) [`$ECODE="M2"`]
+NOTE: `P` may not be used with `T`, `+` (plus), or `-` (minus) [`$ECODE="M2"`].
 
 ==== Returns
 
@@ -1390,8 +1387,9 @@ with the actual element of `-1`.
 ==== Standard
 
 This is not in the current standard, as it was removed from a previous standard.
-However, it is still used in some M code, so it is enabled by default. This
-feature may be turned off with `set ^$system("$nextok")=0` as a privileged user.
+However, it is still used in some M code, so it can be enabled and used in RSM.
+This feature may be turned on with `set ^$system("$nextok")=1` as a privileged
+user.
 
 ==== Examples
 
@@ -1429,7 +1427,7 @@ Complies exactly using the M collating sequence.
 ----
 kill A set A(1,2)="",A(1,4)="" ; Create A array
 write $order(A(1,""))          ; -> 2
-write $order(A(1,""),1)        ; -> 4
+write $order(A(1,""),1)        ; -> 2
 write $order(A(1,2))           ; -> 4
 write $order(A(1,4),-1)        ; -> 2
 write $order(A(1,4))           ; -> ""
@@ -1450,7 +1448,7 @@ Where _int1_ defaults to `1` and _int2_ defaults to _int1_.
 Returns the substring of _expr1_ bounded by but not including the _int1_ to
 _int2_ occurrence of _expr2_ in _expr1_.
 
-NOTE: May also be used as the destination for the `SET` command
+NOTE: May also be used as the destination for the `SET` command.
 
 ==== Standard
 
@@ -1747,8 +1745,8 @@ write $view(-1,44,2) ; -> Index for first key in block
 
 == Intrinsic Special Variables
 
-NOTE: Intrinsic special variables are case-insensitive, and have a short and
-long form, denoted with square bracket notation
+NOTE: Intrinsic special variables are case-insensitive, and have a long and
+short form.
 
 === $DEVICE|$D
 
@@ -2098,8 +2096,8 @@ write $y ; -> 0
 
 == Structured System Variables
 
-NOTE: SSV names are case-insensitive, and have a short and long form, denoted
-with square bracket notation
+NOTE: Structured system variables are case-insensitive, and have a long and
+short form.
 
 `$QUERY` will not work on any SSV, while `$ORDER` and `$DATA` will work on
 specific nodes within each SSV. `MERGE` will not work on any SSV except for
@@ -2125,7 +2123,7 @@ Provides a list of all the suppported character sets (currently only M), and
 information about their collation, legal identifiers, and input/output
 transformations between them. `^$CHARACTER` is read-only at this time.
 
-NOTE: All nodes are case-insensitive
+NOTE: All nodes are case-insensitive.
 
 ==== Action
 
@@ -2159,7 +2157,7 @@ Provides a list of all the currently open device channels in the job. `$ORDER`
 may be used for the device channel. Stores per-device information about a number
 of device characteristics. `^$DEVICE` is read-only at this time.
 
-NOTE: The `^$DEVICE` subscripts listed below are case-insensitive
+NOTE: The `^$DEVICE` subscripts listed below are case-insensitive.
 
 The following second level (and higher) subscripts are also provided:
 
@@ -2178,7 +2176,7 @@ The following second level (and higher) subscripts are also provided:
 |`"OPTIONS","DELETE"`    |Which keys are delete characters
 |`"OPTIONS","ECHO"`      |Whether input keys are echoed
 |`"OPTIONS","ESCAPE"`    |Whether escape processing is on
-|`"OPTIONS","OUTPUT"`    |The output terminator when using `write !`
+|`"OPTIONS","OUTPUT"`    |The output sequence when using `write !`
 |`"OPTIONS","TERMINATOR"`|The read terminator characters [ASCII]
 |`"OPTIONS","TYPEAHEAD"` |Whether read type-ahead processing is on
 |`"REMOTE"`              |Remote host and port
@@ -2231,7 +2229,7 @@ as well.
 |===
 |Subscripts            |Contains                             |Settable
 
-|`_global_`            |Top pointer block number of _global_ |No
+|`_global_`            |Top root block number of _global_    |No
 |`"$GLOBAL"`           |Global directory block number for UCI|No
 |`_global_,"CHARACTER"`|Always returns "M"                   |No
 |`_global_,"COLLATE"`  |Always returns ""                    |No
@@ -2240,7 +2238,7 @@ as well.
 |===
 
 NOTE: While the name of a global is case-sensitive, including `$GLOBAL`, the
-`"CHARACTER"`, `"COLLATE"`, and `"JOURNAL"` subscripts are case-insenstive
+`"CHARACTER"`, `"COLLATE"`, and `"JOURNAL"` subscripts are case-insenstive.
 
 ==== Action
 
@@ -2280,7 +2278,7 @@ the job number only; it returns the job numbers of currently active jobs only.
 
 The following second level (and higher) subscripts are also provided:
 
-NOTE: The `^$JOB` subscripts listed below are case-insensitive
+NOTE: The `^$JOB` subscripts listed below are case-insensitive.
 
 [%autowidth]
 .^$JOB Usage
@@ -2319,7 +2317,7 @@ NOTE: The `^$JOB` subscripts listed below are case-insensitive
 This SSV may be used as the source of any M command and a `^$JOB(_jobnum_)` node
 may be killed by a privileged user or process.
 
-NOTE: A `kill ^$job` is a signal to shutdown the environment
+NOTE: A `kill ^$job` is a signal to shutdown the environment.
 
 ==== Standard
 
@@ -2426,6 +2424,7 @@ Provides system specific data (e.g., database statistics).
 |`"PRECISION"`                    |Default numeric precision  |Privilege
 |`"STRING_MAX"`                   |Maximum size of strings    |No
 |`"TRANTAB",_num_`                |`_to=from_` (global maps)  |Privilege
+|`"WORD_SIZE"`                    |Machine word size          |No
 |`"VOL",_vol_,"BLKALLOC"`         |Block allocations          |No
 |`"VOL",_vol_,"BLKDEALL"`         |Block deallocations        |No
 |`"VOL",_vol_,"BLKREORG"`         |Block reorganizations      |No
@@ -2475,8 +2474,8 @@ set ^$system("vol",1,"uci",2)="DEV" ; Create UCI environment
 
 == Operators
 
-NOTE: All M operations are parsed in a strict left-to-right order; parentheses
-may be used to alter this order
+NOTE: All operations are parsed in a strict left-to-right order; parentheses may
+be used to alter this order.
 
 [source,cos]
 ----
@@ -2856,7 +2855,7 @@ set A="B=1,C=2" set @A ; Will assign 1 to B and 2 to C
 ----
 
 NOTE: Argument indirection may not be used with the `BREAK`, `FOR`, and `VIEW`
-commands
+commands.
 
 == Routine Format
 

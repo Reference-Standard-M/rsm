@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Package: Reference Standard M
+# File:    snap/local/rsm.man
+# Summary: Snap man page
+#
+# SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
+# SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+# SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License (AGPL) as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
+
+exec "$SNAP/usr/bin/mandoc" -T locale -O width=$(tput cols 2>/dev/null || echo 80) "$SNAP/usr/share/man/man1/rsm.1.gz" |
+  less -R -M -PM" Manual page rsm(1) ?ltline %lt?L/%L.:byte %bB?s/%s..?e (END):?pB %pB\%.. (press h for help or q to quit)"
+
+# ex: filetype=sh

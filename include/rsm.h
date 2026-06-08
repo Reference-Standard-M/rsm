@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/include/rsm.h
- * Summary: module RSM header file - standard includes
+ * File:    include/rsm.h
+ * Summary: RSM Module Header File - standard includes
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,16 +22,78 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef RSM_RSM_H
 #define RSM_RSM_H
 
 #include <inttypes.h>                                                           // for portable bit types
-#include <sys/types.h>                                                          // for portable C types
+#include <stdbool.h>                                                            // for boolean type
+#include <string.h>
+#include <sys/types.h>                                                          // for portable types
+
+#ifdef NDEBUG
+#   define INLINE inline
+#else
+#   define INLINE __attribute__((unused))
+#endif
+
+static INLINE uint16_t swap_endian16(uint16_t value)
+{
+#ifdef __clang__
+#   if __has_builtin(__builtin_bswap16)
+    return __builtin_bswap16(value);
+#   else
+    return (value >> 8) | (value << 8);
+#   endif
+#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
+    return __builtin_bswap16(value);
+#else
+    return (value >> 8) | (value << 8);
+#endif
+}
+
+static INLINE uint32_t swap_endian32(uint32_t value)
+{
+#ifdef __clang__
+#   if __has_builtin(__builtin_bswap32)
+    return __builtin_bswap32(value);
+#   else
+    return ((value >> 24) & UINT32_C(0x000000FF)) | ((value >> 8)  & UINT32_C(0x0000FF00)) |
+           ((value << 8)  & UINT32_C(0x00FF0000)) | ((value << 24) & UINT32_C(0xFF000000));
+#   endif
+#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+    return __builtin_bswap32(value);
+#else
+    return ((value >> 24) & UINT32_C(0x000000FF)) | ((value >> 8)  & UINT32_C(0x0000FF00)) |
+           ((value << 8)  & UINT32_C(0x00FF0000)) | ((value << 24) & UINT32_C(0xFF000000));
+#endif
+}
+
+static INLINE uint64_t swap_endian64(uint64_t value)
+{
+#ifdef __clang__
+#   if __has_builtin(__builtin_bswap64)
+    return __builtin_bswap64(value);
+#   else
+    return ((value >> 56) & UINT64_C(0x00000000000000FF)) | ((value >> 40) & UINT64_C(0x000000000000FF00)) |
+           ((value >> 24) & UINT64_C(0x0000000000FF0000)) | ((value >> 8)  & UINT64_C(0x00000000FF000000)) |
+           ((value << 8)  & UINT64_C(0x000000FF00000000)) | ((value << 24) & UINT64_C(0x0000FF0000000000)) |
+           ((value << 40) & UINT64_C(0x00FF000000000000)) | ((value << 56) & UINT64_C(0xFF00000000000000));
+#   endif
+#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+    return __builtin_bswap64(value);
+#else
+    return ((value >> 56) & UINT64_C(0x00000000000000FF)) | ((value >> 40) & UINT64_C(0x000000000000FF00)) |
+           ((value >> 24) & UINT64_C(0x0000000000FF0000)) | ((value >> 8)  & UINT64_C(0x00000000FF000000)) |
+           ((value << 8)  & UINT64_C(0x000000FF00000000)) | ((value << 24) & UINT64_C(0x0000FF0000000000)) |
+           ((value << 40) & UINT64_C(0x00FF000000000000)) | ((value << 56) & UINT64_C(0xFF00000000000000));
+#endif
+}
+
+#define SWAP_ENDIAN(value) ((sizeof(value) == 2) ? swap_endian16((uint16_t) (value)) : \
+                            (sizeof(value) == 4) ? swap_endian32((uint32_t) (value)) : \
+                            (sizeof(value) == 8) ? swap_endian64((uint64_t) (value)) : (value))
 
 // General constant definitions
 #define RSM_STRING(num)     RSM_STRINGIFY(num)
@@ -42,17 +103,18 @@
 #define TRUE    1                                                               // or 1
 #define OFF     -1                                                              // Buffer history is turned off
 
-#define RSM_MAGIC           4155766917U                                         // Seems unique
+#define RSM_MAGIC           UINT32_C(4155766917)                                // Seems unique - database
+#define JRN_MAGIC           (RSM_MAGIC - 1)                                     // Seems unique - journal
 #define RSM_SYSTEM          50                                                  // MDC assigned number
-#define MAX_DATABASE_BLKS   2147483647U                                         // Maximum of 2**31-1 unsigned for now
-#define MAX_BLOCK_SIZE      256U                                                // Maximum block size in KiB
+#define MAX_DATABASE_BLKS   UINT32_C(2147483647)                                // Maximum of 2**31-1 unsigned for now
+#define MAX_BLOCK_SIZE      UINT16_C(256)                                       // Maximum block size in KiB
 #define VERSION_MAJOR       1                                                   // Major version number
-#define VERSION_MINOR       82                                                  // Minor version number
-#define VERSION_PATCH       4                                                   // Patch version number
+#define VERSION_MINOR       83                                                  // Minor version number
+#define VERSION_PATCH       0                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
-#define VERSION_TEST        2                                                   // Test version number
+#define VERSION_TEST        1                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
-#define MAX_JOBS            1024                                                // Maximum number of jobs
+#define MAX_JOBS            4096                                                // Maximum number of jobs
 #define DAEMONS             16                                                  // Jobs per daemon
 #define MIN_DAEMONS         2                                                   // Minimum of these
 #define MAX_DAEMONS         16                                                  // Maximum of these
@@ -65,8 +127,8 @@
 #   define PRVGRP   0                                                           // Priv group FreeBSD and Linux
 #endif                                                                          // Darwin
 
-//#define MAX_INT_DIGITS 10                                                     // can be an int at 10 - not currently used
-#define DEFAULT_PREC    18                                                      // default number of decimal places
+//#define MAX_INT_DIGITS 10                                                       // can be an int at 10 - not currently used
+#define DEFAULT_PREC    32                                                      // default number of decimal places
 #define MAX_PREC        128                                                     // max number of decimal places
 #define MAX_NUM_BYTES   256                                                     // max size of a number
 #define MAX_STR_LEN     65534                                                   // max size of a string (65535 VAR/NODE_UNDEFINED)
@@ -76,6 +138,7 @@
 #define MAX_NUM_ARGS    (127 - 1)                                               // max number of arguments
 #define MAX_NUM_TAGS    256                                                     // max number of tags/labels
 #define MAX_NUM_VARS    255                                                     // max number of routine variables
+#define MAX_ERR_LEN     256                                                     // max size of error messages
 
 #if RSM_DBVER == 1
 #   define VAR_LEN  8                                                           // length of var_u - must be multiple of 8
@@ -169,11 +232,11 @@
 #define MAX_HISTORY 128                                                         // max size of history recall buffer
 
 // Do frame types - negative numbers are error codes
-#define TYPE_RUN        1                                                       // normal RSM startup
-#define TYPE_JOB        2                                                       // got jobbed [0] only
+#define TYPE_RUN        1                                                       // Normal
+#define TYPE_JOB        2                                                       // JOB
 #define TYPE_DO         3                                                       // DO
-#define TYPE_EXTRINSIC  4                                                       // Extrinsic
-#define TYPE_XECUTE     5                                                       // eXecute
+#define TYPE_EXTRINSIC  4                                                       // $$
+#define TYPE_XECUTE     5                                                       // XECUTE
 
 #define DO_FLAG_TEST    1                                                       // $TEST value (0/1)
 #define DO_FLAG_ATT     2                                                       // sym attach done
@@ -259,8 +322,8 @@ typedef struct __attribute__ ((__packed__)) MVAR {                              
 } mvar;                                                                         // end M subs var
 
 // Common memory structures
-struct  GBD;                                                                    // defined in rsm/include/database.h
-struct  RBD;                                                                    // defined in rsm/include/compile.h
+struct  GBD;                                                                    // defined in include/database.h
+struct  RBD;                                                                    // defined in include/compile.h
 
 typedef struct __attribute__ ((__packed__)) UCI_TAB {
     var_u name;                                                                 // UCI name
@@ -474,6 +537,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB {                            
     locktab *lockfree;                                                          // head of lock free space
     u_int64 addoff;                                                             // offset from systab to additional buffers
     u_int64 addsize;                                                            // additional buffer size
+    int     unsecured;                                                          // whether the RSM environment is unsecure or not
     vol_def *vol[MAX_VOL];                                                      // array of volume pointers
     u_int   last_blk_used[MAX_VOL];                                             // actually setup for real jobs for all volumes
 } systab_struct;                                                                // end of systab
@@ -509,14 +573,14 @@ extern u_char        *rsmpc;                                                    
 extern int           restricted;                                                // whether RSM is in restricted mode or not
 
 // Compiler warning suppression
-#define PRAGMA(x)   _Pragma(#x)
+#define PRAGMA(name)   _Pragma(#name)
 
 #if __GNUC__ >= 11
-#   define ENABLE_WARN          _Pragma("GCC diagnostic pop")
 #   define DISABLE_WARN(name)   _Pragma("GCC diagnostic push") PRAGMA(GCC diagnostic ignored #name)
+#   define ENABLE_WARN          _Pragma("GCC diagnostic pop")
 #else
-#   define ENABLE_WARN
 #   define DISABLE_WARN(name)
+#   define ENABLE_WARN
 #endif
 
 // VAR_U macros and inline functions
@@ -539,6 +603,18 @@ static inline u_int var_empty(var_u var)
 {
     if (var.var_q == 0) return TRUE;
     return FALSE;
+}
+
+static inline size_t str_copy(char *dst, const char *src, size_t dmax)
+{
+    size_t slen, len;
+
+    if (dmax == 0) return 0;
+    slen = strlen(src);
+    len = (slen < (dmax - 1)) ? slen : dmax - 1;
+    if (len) memcpy(dst, src, len);
+    dst[len] = '\0';
+    return len;
 }
 
 // Last block used multi-volume job offset (last_block_used[job][volume])

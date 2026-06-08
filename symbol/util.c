@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/symbol/util.c
- * Summary: module symbol - symbol table utilities
+ * File:    symbol/util.c
+ * Summary: Symbol Module - symbol table utilities
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2016
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2016)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "symbol.h"                                                             // our definitions
@@ -34,11 +30,13 @@
 #include "init.h"                                                               // init prototypes
 #include "proto.h"                                                              // standard prototypes
 #include <ctype.h>
+#include <stddef.h>                                                             // for offsetof
+#include <stdio.h>                                                              // always include
 #include <stdlib.h>                                                             // always include
 #include <string.h>                                                             // for string ops
 
 short         st_hash[ST_HASH + 1];                                             // allocate hashing table
-symtab_struct symtab[ST_MAX + 1];                                               // and symbol table
+symtab_struct symtab[ST_MAX + 1] = {{.fwd_link = 0}};                           // and symbol table
 
 /*
  * Function: FixData(ST_data *old, ST_data *new, int count)
@@ -159,7 +157,7 @@ void ST_Init(void)                                                              
  * Function: ST_Locate - locate varname in symbol table
  * Return the symtab entry number or -1 on fail
  */
-short ST_Locate(var_u var)                                                      // var name in a quad
+static short ST_Locate(var_u var)                                               // var name in a quad
 {
     int   hash;                                                                 // hash value
     short fwd;                                                                  // fwd link pointer
@@ -223,11 +221,35 @@ short ST_Create(var_u var)                                                      
     st_hash[ST_FREE] = symtab[fwd].fwd_link;                                    // unlink from free list
     symtab[fwd].fwd_link = st_hash[hash];                                       // link previous after this
     st_hash[hash] = fwd;                                                        // link this first
-    symtab[fwd].usage = 0;                                                      // no NEWs or routine att*
+    symtab[fwd].usage = 0;                                                      // no NEWs or routine attaches
     VAR_COPY(symtab[fwd].varnam, var);                                          // copy in variable name
     symtab[fwd].data = ST_DATA_NULL;                                            // no data just yet
     return fwd;                                                                 // return the pointer
 }                                                                               // end of ST_Create()
+
+/*
+ * Function: ST_RemDp - Free a dependent block, if appropriate
+ * returns nothing
+ */
+static void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
+{
+    if (dp == ST_DEPEND_NULL) return;                                           // no dependents to check
+
+    // next dependency, has part match key
+    if ((dp->deplnk != ST_DEPEND_NULL) && (UTIL_Key_Cmp(dp->bytes, mvardr->key, dp->keylen, mvardr->slen) == KEQUAL)) {
+        ST_RemDp(dblk, dp, dp->deplnk, mvardr);                                 // try to get rid of next one
+    }                                                                           // end if keys part match
+
+    if (UTIL_Key_Cmp(dp->bytes, mvardr->key, dp->keylen, mvardr->slen) == KEQUAL) { // keys match to slen
+        if (prev != ST_DEPEND_NULL) {                                           // if not removing first dep
+            prev->deplnk = dp->deplnk;                                          // bypass a dep killee
+        } else {                                                                // end if !removing first dep - removing first dep
+            dblk->deplnk = dp->deplnk;                                          // bypass a first dep killee
+        }                                                                       // end else removing first dep
+
+        free(dp);                                                               // get rid of this dep
+    }                                                                           // end if keys match up to slen
+}                                                                               // end function ST_RemDp
 
 /*
  * Function: ST_Kill - KILL a variable
@@ -302,30 +324,6 @@ short ST_Kill(mvar *var)                                                        
 
     return 0;                                                                   // all done
 }                                                                               // end of ST_Kill()
-
-/*
- * Function: ST_RemDp - Free a dependent block, if appropriate
- * returns nothing
- */
-void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
-{
-    if (dp == ST_DEPEND_NULL) return;                                           // no dependents to check
-
-    // next dependency, has part match key
-    if ((dp->deplnk != ST_DEPEND_NULL) && (UTIL_Key_Cmp(dp->bytes, mvardr->key, dp->keylen, mvardr->slen) == KEQUAL)) {
-        ST_RemDp(dblk, dp, dp->deplnk, mvardr);                                 // try to get rid of next one
-    }                                                                           // end if keys part match
-
-    if (UTIL_Key_Cmp(dp->bytes, mvardr->key, dp->keylen, mvardr->slen) == KEQUAL) { // keys match to slen
-        if (prev != ST_DEPEND_NULL) {                                           // if not removing first dep
-            prev->deplnk = dp->deplnk;                                          // bypass a dep killee
-        } else {                                                                // end if !removing first dep - removing first dep
-            dblk->deplnk = dp->deplnk;                                          // bypass a first dep killee
-        }                                                                       // end else removing first dep
-
-        free(dp);                                                               // get rid of this dep
-    }                                                                           // end if keys match up to slen
-}                                                                               // end function ST_RemDp
 
 /*
  * Function: ST_Get - Retrieve data
@@ -1033,6 +1031,8 @@ short ST_Dump(void)                                                             
     cstring   *ckey;                                                            // variable key data gets dumped
     u_char    dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                 // variable name gets dumped
     u_char    dumpk[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                // variable key name gets dumped
+    size_t    dlen = sizeof(dump) - offsetof(cstring, buf);                     // len of dump buf
+    size_t    dklen = sizeof(dumpk) - offsetof(cstring, buf);                   // len of dumpk buf
     ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
 
     for (int i = 0; i < ST_MAX; i++) {                                          // for each entry in symbol table
@@ -1086,19 +1086,16 @@ ENABLE_WARN
                 if (!isprint(symtab[i].data->data[k])) {
                     if (escape) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, ",", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, ",");
                     } else if (k == 0) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 3;
+                        cdata->len = str_copy((char *) cdata->buf, "$C(", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "$C(");
                     } else {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 5;
+                        cdata->len = str_copy((char *) cdata->buf, "\"_$C(", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"_$C(");
                     }
 
                     t = SQ_Write(cdata);                                        // dump data character
@@ -1111,9 +1108,8 @@ ENABLE_WARN
 
                     if (k == (symtab[i].data->dbc - 1)) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, ")", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, ")");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
@@ -1122,25 +1118,22 @@ ENABLE_WARN
                 } else {
                     if (string && (k == 0)) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, "\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
 
                     if (escape) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 3;
+                        cdata->len = str_copy((char *) cdata->buf, ")_\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, ")_\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     } else if (symtab[i].data->data[k] == '"') {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, "\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
@@ -1151,9 +1144,8 @@ ENABLE_WARN
 
                     if (string && (k == (symtab[i].data->dbc - 1))) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, "\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
@@ -1162,9 +1154,8 @@ ENABLE_WARN
 
             if (!symtab[i].data->dbc) {
 DISABLE_WARN(-Warray-bounds)
-                cdata->len = 2;
+                cdata->len = str_copy((char *) cdata->buf, "\"\"", dlen);
 ENABLE_WARN
-                strcpy((char *) cdata->buf, "\"\"");
                 t = SQ_Write(cdata);                                            // dump data character
                 if (t < 0) return (short) t;                                    // die on error
             }
@@ -1204,20 +1195,17 @@ ENABLE_WARN
 DISABLE_WARN(-Warray-bounds)
                 if (!isprint(cdata->buf[k])) {
                     if (escape) {
-                        ckey->len = 1;
+                        ckey->len = str_copy((char *) ckey->buf, ",", dklen);
 ENABLE_WARN
-                        strcpy((char *) ckey->buf, ",");
                     } else {
                         if (k == (paren + 2)) {
 DISABLE_WARN(-Warray-bounds)
-                            ckey->len = 3;
+                            ckey->len = str_copy((char *) ckey->buf, "$C(", dklen);
 ENABLE_WARN
-                            strcpy((char *) ckey->buf, "$C(");
                         } else {
 DISABLE_WARN(-Warray-bounds)
-                            ckey->len = 5;
+                            ckey->len = str_copy((char *) ckey->buf, "\"_$C(", dklen);
 ENABLE_WARN
-                            strcpy((char *) ckey->buf, "\"_$C(");
                         }
                     }
 
@@ -1233,14 +1221,12 @@ ENABLE_WARN
                     if (escape) {
 DISABLE_WARN(-Warray-bounds)
                         if (k == (cdata->len - 3)) {
-                            ckey->len = 1;
+                            ckey->len = str_copy((char *) ckey->buf, ")", dklen);
 ENABLE_WARN
-                            strcpy((char *) ckey->buf, ")");
                         } else {
 DISABLE_WARN(-Warray-bounds)
-                            ckey->len = 3;
+                            ckey->len = str_copy((char *) ckey->buf, ")_\"", dklen);
 ENABLE_WARN
-                            strcpy((char *) ckey->buf, ")_\"");
                         }
 
                         t = SQ_Write(ckey);                                     // dump data character
@@ -1295,19 +1281,16 @@ ENABLE_WARN
                 if (!isprint(depPtr->bytes[k])) {
                     if (escape) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, ",", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, ",");
                     } else if (k == (j + 2)) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 3;
+                        cdata->len = str_copy((char *) cdata->buf, "$C(", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "$C(");
                     } else {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 5;
+                        cdata->len = str_copy((char *) cdata->buf, "\"_$C(", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"_$C(");
                     }
 
                     t = SQ_Write(cdata);                                        // dump data character
@@ -1320,9 +1303,8 @@ ENABLE_WARN
 
                     if (k == (datalen + j + 1)) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, ")", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, ")");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
@@ -1331,25 +1313,22 @@ ENABLE_WARN
                 } else {
                     if (string && (k == (j + 2))) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, "\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
 
                     if (escape) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 3;
+                        cdata->len = str_copy((char *) cdata->buf, ")_\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, ")_\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     } else if (depPtr->bytes[k] == '"') {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, "\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
@@ -1360,9 +1339,8 @@ ENABLE_WARN
 
                     if (string && (k == (datalen + j + 1))) {
 DISABLE_WARN(-Warray-bounds)
-                        cdata->len = 1;
+                        cdata->len = str_copy((char *) cdata->buf, "\"", dlen);
 ENABLE_WARN
-                        strcpy((char *) cdata->buf, "\"");
                         t = SQ_Write(cdata);                                    // dump data character
                         if (t < 0) return (short) t;                            // die on error
                     }
@@ -1371,9 +1349,8 @@ ENABLE_WARN
 
             if (!datalen) {
 DISABLE_WARN(-Warray-bounds)
-                cdata->len = 2;
+                cdata->len = str_copy((char *) cdata->buf, "\"\"", dlen);
 ENABLE_WARN
-                strcpy((char *) cdata->buf, "\"\"");
                 t = SQ_Write(cdata);                                            // dump data character
                 if (t < 0) return (short) t;                                    // die on error
             }
@@ -1419,7 +1396,7 @@ DISABLE_WARN(-Warray-bounds)
 ENABLE_WARN
             memcpy(global->key, gks, gs);                                       // restore initial key
             global->slen = gs;                                                  // restore initial length
-            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
+            global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs], FALSE);
 
             // set rest of global key and len
             t = DB_Set(global, (cstring *) &symtab[i].data->dbc);               // try to set it
@@ -1449,7 +1426,7 @@ ENABLE_WARN
             if ((j & 1) != 0) j++;                                              // up it to next even boudary
             memcpy(global->key, gks, gs);                                       // restore initial key
             global->slen = gs;                                                  // restore initial length
-            global->slen += UTIL_Key_Build(cdata, &global->key[gs]);
+            global->slen += UTIL_Key_Build(cdata, &global->key[gs], FALSE);
 
             // set up global key
             t = DB_Set(global, (cstring *) &depPtr->bytes[j]);                  // try to set it

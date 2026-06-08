@@ -1,15 +1,14 @@
 /*
  * Package: Reference Standard M
- * File:    rsm/compile/dollar.c
- * Summary: module compile - evaluate functions, vars etc.
+ * File:    compile/dollar.c
+ * Summary: Compile Module - evaluate functions, vars etc.
  *
- * David Wicksell <dlw@linux.com>
- * Copyright © 2020-2024 Fourth Watch Software LC
- * https://gitlab.com/Reference-Standard-M/rsm
- *
- * Based on MUMPS V1 by Raymond Douglas Newman
- * Copyright © 1999-2018
- * https://gitlab.com/Reference-Standard-M/mumpsv1
+ * SPDX-FileCopyrightText:  © 2020-2026 Fourth Watch Software LC
+ * SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+ * SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+ * SPDX-FileComment:        Derived from MUMPS V1 (BSD-3-Clause)
+ * SPDX-FileComment:        Original work by Raymond Douglas Newman (1999-2018)
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License (AGPL) as
@@ -23,9 +22,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see https://www.gnu.org/licenses/.
- *
- * SPDX-FileCopyrightText:  © 2020 David Wicksell <dlw@linux.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "compile.h"                                                            // compiler stuff
@@ -178,50 +174,50 @@ void dodollar(void)                                                             
             *comp_ptr++ = '\0';                                                 // null terminated
         }
 
-        if (strcmp(name, "%WAIT") == 0) {                                       // $&%WAIT()
-            *comp_ptr++ = XCWAIT;                                               // save the opcode
-        } else if (strcmp(name, "%COMPRESS") == 0) {                            // $&%COMPRESS()
+        if (strncmp(name, "%COMPRESS", 10) == 0) {                              // $&%COMPRESS()
             *comp_ptr++ = XCCOMP;                                               // save the opcode
-        } else if (strcmp(name, "%SIGNAL") == 0) {                              // $&%SIGNAL()
-            *comp_ptr++ = XCSIG;                                                // save the opcode
-        } else if (strcmp(name, "%HOST") == 0) {                                // $&%HOST()
-            *comp_ptr++ = XCHOST;                                               // save the opcode
-        } else if (strcmp(name, "%FILE") == 0) {                                // $&%FILE()
-            *comp_ptr++ = XCFILE;                                               // save the opcode
-        } else if (strcmp(name, "DEBUG") == 0) {                                // $&DEBUG()
-            *comp_ptr++ = XCDEBUG;                                              // save the opcode
-        } else if (strcmp(name, "%DIRECTORY") == 0) {                           // $&%DIRECTORY()
+        } else if (strncmp(name, "%DIRECTORY", 11) == 0) {                      // $&%DIRECTORY()
             *comp_ptr++ = XCDIR;                                                // save the opcode
-        } else if (strcmp(name, "%ERRMSG") == 0) {                              // $&%ERRMSG()
+        } else if (strncmp(name, "%ERRMSG", 8) == 0) {                          // $&%ERRMSG()
             *comp_ptr++ = XCERR;                                                // save the opcode
-        } else if (strcmp(name, "%OPCOM") == 0) {                               // $&%OPCOM()
-            *comp_ptr++ = XCOPC;                                                // save the opcode
-        } else if (strcmp(name, "%SPAWN") == 0) {                               // $&%SPAWN()
-            *comp_ptr++ = XCSPA;                                                // save the opcode
-        } else if (strcmp(name, "%VERSION") == 0) {                             // $&%VERSION()
-            *comp_ptr++ = XCVER;                                                // save the opcode
-        } else if (strcmp(name, "%ZWRITE") == 0) {                              // $&%ZWRITE()
-            *comp_ptr++ = XCZWR;                                                // save the opcode
-        } else if (strcmp(name, "E") == 0) {                                    // $&E()
-            *comp_ptr++ = XCE;                                                  // save the opcode
-        } else if (strcmp(name, "PASCHK") == 0) {                               // $&PASCHK()
-            *comp_ptr++ = XCPAS;                                                // save the opcode
-        } else if (strcmp(name, "V") == 0) {                                    // $&V()
-            *comp_ptr++ = XCV;                                                  // save the opcode
-        } else if (strcmp(name, "X") == 0) {                                    // $&X()
-            *comp_ptr++ = XCX;                                                  // save the opcode
-        } else if (strcmp(name, "XRSM") == 0) {                                 // $&XRSM()
-            *comp_ptr++ = XCXRSM;                                               // save the opcode
-        } else if (strcmp(name, "%SETENV") == 0) {                              // $&%SETENV()
-            *comp_ptr++ = XCSETENV;                                             // save the opcode
-        } else if (strcmp(name, "%GETENV") == 0) {                              // $&%GETENV()
-            *comp_ptr++ = XCGETENV;                                             // save the opcode
-        } else if (strcmp(name, "%ROUCHK") == 0) {                              // $&%ROUCHK()
-            *comp_ptr++ = XCROUCHK;                                             // save the opcode
-        } else if (strcmp(name, "%FORK") == 0) {                                // $&%FORK()
+        } else if (strncmp(name, "%FILE", 6) == 0) {                            // $&%FILE()
+            *comp_ptr++ = XCFILE;                                               // save the opcode
+        } else if (strncmp(name, "%FORK", 6) == 0) {                            // $&%FORK()
             *comp_ptr++ = XCFORK;                                               // save the opcode
-        } else if (strcmp(name, "%IC") == 0) {                                  // $&%IC()
+        } else if (strncmp(name, "%GETENV", 8) == 0) {                          // $&%GETENV()
+            *comp_ptr++ = XCGETENV;                                             // save the opcode
+        } else if (strncmp(name, "%HOST", 6) == 0) {                            // $&%HOST()
+            *comp_ptr++ = XCHOST;                                               // save the opcode
+        } else if (strncmp(name, "%IC", 4) == 0) {                              // $&%IC()
             *comp_ptr++ = XCIC;                                                 // save the opcode
+        } else if (strncmp(name, "%OPCOM", 7) == 0) {                           // $&%OPCOM()
+            *comp_ptr++ = XCOPC;                                                // save the opcode
+        } else if (strncmp(name, "%ROUCHK", 8) == 0) {                          // $&%ROUCHK()
+            *comp_ptr++ = XCROUCHK;                                             // save the opcode
+        } else if (strncmp(name, "%SETENV", 8) == 0) {                          // $&%SETENV()
+            *comp_ptr++ = XCSETENV;                                             // save the opcode
+        } else if (strncmp(name, "%SIGNAL", 8) == 0) {                          // $&%SIGNAL()
+            *comp_ptr++ = XCSIG;                                                // save the opcode
+        } else if (strncmp(name, "%SPAWN", 7) == 0) {                           // $&%SPAWN()
+            *comp_ptr++ = XCSPA;                                                // save the opcode
+        } else if (strncmp(name, "%VERSION", 9) == 0) {                         // $&%VERSION()
+            *comp_ptr++ = XCVER;                                                // save the opcode
+        } else if (strncmp(name, "%WAIT", 6) == 0) {                            // $&%WAIT()
+            *comp_ptr++ = XCWAIT;                                               // save the opcode
+        } else if (strncmp(name, "%ZWRITE", 8) == 0) {                          // $&%ZWRITE()
+            *comp_ptr++ = XCZWR;                                                // save the opcode
+        } else if (strncmp(name, "DEBUG", 6) == 0) {                            // $&DEBUG()
+            *comp_ptr++ = XCDEBUG;                                              // save the opcode
+        } else if (strncmp(name, "E", 2) == 0) {                                // $&E()
+            *comp_ptr++ = XCE;                                                  // save the opcode
+        } else if (strncmp(name, "PASCHK", 7) == 0) {                           // $&PASCHK()
+            *comp_ptr++ = XCPAS;                                                // save the opcode
+        } else if (strncmp(name, "V", 2) == 0) {                                // $&V()
+            *comp_ptr++ = XCV;                                                  // save the opcode
+        } else if (strncmp(name, "X", 2) == 0) {                                // $&X()
+            *comp_ptr++ = XCX;                                                  // save the opcode
+        } else if (strncmp(name, "XRSM", 5) == 0) {                             // $&XRSM()
+            *comp_ptr++ = XCXRSM;                                               // save the opcode
         } else {
             comperror(-(ERRZ18 + ERRMLAST));                                    // junk
         }
@@ -530,7 +526,7 @@ function:                                                                       
         }
 
         if (args == 3) {
-            *comp_ptr++ = FUNE3;                                                // two arg form
+            *comp_ptr++ = FUNE3;                                                // three arg form
             return;                                                             // and exit
         }
 
@@ -558,7 +554,7 @@ function:                                                                       
             }
 
             if (args == 3) {
-                *comp_ptr++ = FUNFN3;                                           // two arg form
+                *comp_ptr++ = FUNFN3;                                           // three arg form
                 return;                                                         // and exit
             }
 

@@ -3,9 +3,10 @@ Package: Reference Standard M
 File:    doc/adoc/rsm.adoc
 Summary: rsm program documentation
 
-David Wicksell <dlw@linux.com>
-Copyright © 2024 Fourth Watch Software LC
-https://gitlab.com/Reference-Standard-M/rsm
+SPDX-FileCopyrightText:  © 2024-2026 Fourth Watch Software LC
+SPDX-FileContributor:    David Wicksell <dlw@linux.com>
+SPDX-FileComment:        https://gitlab.com/Reference-Standard-M/rsm
+SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -14,12 +15,10 @@ Sections, with no Front-Cover texts, and with no Back-Cover Texts.
 
 You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
-
-SPDX-FileCopyrightText:  © 2024 David Wicksell <dlw@linux.com>
-SPDX-License-Identifier: GFDL-1.3-no-invariants-or-later
 ////
 
 = RSM(1)
+Author: David Wicksell
 
 == Name
 
@@ -74,19 +73,19 @@ except when using the *-V* or *-h* options.
 *-s* _database-size_::
   Initial size of the database (100-2147483647 blocks).
 [*-m* _map-size_]::
-  Size of the map block (0-262147 KiB). Defaults to 3 KiB, _block-size_,
-  or large enough to map _database-size_.
+  Size of the map block (0-262147 KiB). Defaults (minimum) to larger of 3 KiB,
+  _block-size_, or large enough to map _database-size_.
 [*-e* _environment-name_]::
   Name of the manager UCI (1-32 alpha characters). Defaults to *MGR*.
 
 === Initialize and start an environment:
 
 *-j* _max-jobs_::
-  Size of the job table in the environment (1-1024 jobs). Size of the
+  Size of the job table in the environment (1-4096 jobs). Size of the
   lock table is _max-jobs_ * 32 KiB.
 [*-g* _global-buffers_]::
   Size of the global buffers (1-131072 MiB). Defaults to _max-jobs_ / 2
-  (min: 1 MiB or 64 buffers).
+  (min: larger of 1 MiB or 64 buffers).
 [*-r* _routine-buffers_]::
   Size of the routine buffers (1-4095 MiB). Defaults to _max-jobs_ / 8
   (min: 1 MiB).
@@ -137,7 +136,7 @@ David Wicksell <dlw@linux.com>
 == Copyright
 
 This man page is for *Reference Standard M* +
-Copyright © 2020-2024 Fourth Watch Software LC
+Copyright © 2020-2026 Fourth Watch Software LC
 
 == Code License
 
