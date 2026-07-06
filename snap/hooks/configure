@@ -2,7 +2,7 @@
 #
 # Package: Reference Standard M
 # File:    snap/hooks/configure
-# Summary: Snap configure hook
+# Summary: Snap configure hook for rsm
 #
 # SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
 # SPDX-FileContributor:    David Wicksell <dlw@linux.com>
@@ -26,22 +26,28 @@ mjobs=$(snapctl get max-jobs)
 gbuff=$(snapctl get global-buffers)
 rbuff=$(snapctl get routine-buffers)
 
-if [ -n "$mjobs" ]; then
-    if ! echo "$mjobs" | grep -qE '^[0-9]+$' || [ "$mjobs" -lt 1 ] || [ "$mjobs" -gt 4096 ]; then
+if [ -n "$mjobs" ]
+then
+    if ! echo "$mjobs" | grep -qE '^[0-9]+$' || [ "$mjobs" -lt 1 ] || [ "$mjobs" -gt 4096 ]
+    then
         echo "The max-jobs option must be set to a positive integer between 1 and 4096"
         exit 1
     fi
 fi
 
-if [ -n "$gbuff" ]; then
-    if ! echo "$gbuff" | grep -qE '^[0-9]+$' || [ "$gbuff" -lt 1 ] || [ "$gbuff" -gt 131072 ]; then
+if [ -n "$gbuff" ]
+then
+    if ! echo "$gbuff" | grep -qE '^[0-9]+$' || [ "$gbuff" -lt 1 ] || [ "$gbuff" -gt 131072 ]
+    then
         echo "The global-buffers option must be set to a positive integer between 1 and 131072"
         exit 1
     fi
 fi
 
-if [ -n "$rbuff" ]; then
-    if ! echo "$rbuff" | grep -qE '^[0-9]+$' || [ "$rbuff" -lt 1 ] || [ "$rbuff" -gt 4095 ]; then
+if [ -n "$rbuff" ]
+then
+    if ! echo "$rbuff" | grep -qE '^[0-9]+$' || [ "$rbuff" -lt 1 ] || [ "$rbuff" -gt 4095 ]
+    then
         echo "The routine-buffers option must be set to a positive integer between 1 and 4095"
         exit 1
     fi

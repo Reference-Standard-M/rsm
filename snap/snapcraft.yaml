@@ -63,13 +63,14 @@ parts:
       - RSM_BUILD: all
     override-pull: |
       craftctl default
-      craftctl set version=$(git describe --tags | sed 's/-doc$//')
+      craftctl set version=$(git describe --tags | grep -o 'v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*')
     override-build: |
       make -j prefix=/usr $RSM_BUILD
       make prefix=/usr install DESTDIR=$CRAFT_PART_INSTALL
       make prefix=/usr install-docs DESTDIR=$CRAFT_PART_INSTALL
-      install -D -m 755 "$CRAFT_PROJECT_DIR/snap/local/rsm.daemon" "$CRAFT_PART_INSTALL/usr/bin/rsm.daemon"
-      install -D -m 755 "$CRAFT_PROJECT_DIR/snap/local/rsm.man" "$CRAFT_PART_INSTALL/usr/bin/rsm.man"
+      install -D -m 755 $CRAFT_PROJECT_DIR/snap/local/rsm.wrapper $CRAFT_PART_INSTALL/usr/bin/rsm.wrapper
+      install -D -m 755 $CRAFT_PROJECT_DIR/snap/local/rsm.daemon $CRAFT_PART_INSTALL/usr/bin/rsm.daemon
+      install -D -m 755 $CRAFT_PROJECT_DIR/snap/local/rsm.man $CRAFT_PART_INSTALL/usr/bin/rsm.man
 
   mandoc:
     plugin: nil
@@ -80,7 +81,7 @@ parts:
 
 apps:
   rsm:
-    command: usr/bin/rsm
+    command: usr/bin/rsm.wrapper
     environment:
       RSM_DBFILE: $SNAP_COMMON/rsm.dat
     plugs:

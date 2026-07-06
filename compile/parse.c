@@ -685,11 +685,14 @@ void parse_kill(int indkillb)                                                   
             if (*(comp_ptr - 1) != INDKILL) *comp_ptr++ = CMKILL;               // and the opcode
             if (*source_ptr != ',') break;                                      // done
             source_ptr++;                                                       // point at next
+            if (*source_ptr == '(') break;                                      // exclusive KILL?
         }
     }                                                                           // end while
 
-    if (*source_ptr == ',') {                                                   // stupid A,A),...
+    if (*source_ptr == ',') {                                                   // move to KILL
         source_ptr++;                                                           // point past comma
+        parse_kill(indkillb);                                                   // and re-enter
+    } else if (*source_ptr == '(') {                                            // move to exclusive KILL
         parse_kill(indkillb);                                                   // and re-enter
     }
 

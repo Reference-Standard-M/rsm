@@ -1022,18 +1022,18 @@ short ST_SymKill(short pos)
 // 0 to ST_MAX - 1 (i.e., ((ST_HASH + 1) * 3))
 short ST_Dump(void)                                                             // dump entire symbol table to $IO
 {
-    int       j;                                                                // generic counter
-    int       t;                                                                // for functions
-    int       escape;
-    int       string;
-    int       dot;
-    cstring   *cdata;                                                           // variable data gets dumped
-    cstring   *ckey;                                                            // variable key data gets dumped
-    u_char    dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                 // variable name gets dumped
-    u_char    dumpk[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];                // variable key name gets dumped
-    size_t    dlen = sizeof(dump) - offsetof(cstring, buf);                     // len of dump buf
-    size_t    dklen = sizeof(dumpk) - offsetof(cstring, buf);                   // len of dumpk buf
-    ST_depend *depPtr = ST_DEPEND_NULL;                                         // active dependent ptr
+    int             j;                                                          // generic counter
+    int             t;                                                          // for functions
+    int             escape;
+    int             string;
+    int             dot;
+    cstring         *cdata;                                                     // variable data gets dumped
+    cstring         *ckey;                                                      // variable key data gets dumped
+    u_char          dump[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];           // variable name gets dumped
+    u_char          dumpk[VAR_LEN + MAX_KEY_SIZE + MAX_NUM_SUBS + 12];          // variable key name gets dumped
+    size_t          dlen = sizeof(dump) - offsetof(cstring, buf);               // len of dump buf
+    size_t          dklen = sizeof(dumpk) - offsetof(cstring, buf);             // len of dumpk buf
+    const ST_depend *depPtr = ST_DEPEND_NULL;                                   // active dependent ptr
 
     for (int i = 0; i < ST_MAX; i++) {                                          // for each entry in symbol table
         if (symtab[i].data == ST_DATA_NULL) continue;                           // get out if nothing to dump

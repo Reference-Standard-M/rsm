@@ -246,7 +246,6 @@ int run(int savasp, int savssp)                                                 
                 if (opc == OPIFI) {                                             // indirect
                     assert(sizeof(isp) == sizeof(long));
                     memcpy(&isp, rsmpc, sizeof(isp));                           // restore the isp
-                    rsmpc += sizeof(long);
                 }
 
                 if (infor) {

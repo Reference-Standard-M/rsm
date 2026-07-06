@@ -42,11 +42,11 @@ process. It attempts to transfer every routine and global from every UCI, as
 well as setting up and configuring your new database to match your old database.
 
 If you wish to do this process manually, follow the steps outlined in this
-document. This example process will upgrade '`old-database.dat`' to
-'`new-database.dat`', and assumes the old database environment has been shut
-down. In order to use this process, you must load the routines in `utils.rsm`
-in both the old and new databases, in order to run the export and import
-routines. See the {site}/README.adoc[README] file for more information.
+document. This example process will upgrade '`old.dat`' to '`new.dat`', and
+assumes the old database environment has been shut down. In order to use this
+process, you must load the routines in `utils.rsm` in both the old and new
+databases, in order to run the export and import routines. See the
+{site}/README.adoc[README] file for more information.
 
 Build RSM for database version 1, and then start the old database environment in
 single-user mode:
@@ -54,8 +54,8 @@ single-user mode:
 [source,bash]
 ----
 make clean && make dbver=1
-./rsm -j 1 old-database.dat
-./rsm old-database.dat
+./rsm -j 1 old.dat
+./rsm old.dat
 ----
 
 Export the routines and globals from the manager UCI that you wish to move to
@@ -104,21 +104,21 @@ RSM [MGR]> do ^%GS
 Global(s):  *
 Filename:   usr.go
 Header Txt: RSM USR globals
-TST       PATIENTS  XVEMS     UTILITY
+RSM       PATIENTS  XVEMS     UTILITY
 RSM [MGR]> kill ^$job
 ----
 
 Compile RSM without the `dbver` flag, using the latest build, with database
 version 2. Create a new database and start the new environment in single-user
 mode. For this example, we'll assume the new database volume will be named
-`TST`. See the {site}/README.adoc[README] file for more information about
+`RSM`. See the {site}/README.adoc[README] file for more information about
 creating a new RSM database and environment:
 
 [source,bash]
 ----
 make clean && make
-./rsm -v TST -b 16 -s 4096 new-database.dat
-./rsm -j 1 new-database.dat
+./rsm -v RSM -b 16 -s 4096 new.dat
+./rsm -j 1 new.dat
 ----
 
 Load the new vendor utility routines, so that you have the import routines
@@ -126,8 +126,8 @@ available, and start an RSM job:
 
 [source,bash]
 ----
-./rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' new-database.dat
-./rsm new-database.dat
+./rsm -x 'open 1:("utils.rsm":"r") use 1 read code xecute code' new.dat
+./rsm new.dat
 ----
 
 Import the routines and globals you exported from the older database and shut
@@ -138,7 +138,7 @@ down the environment:
 RSM [MGR]> do ^%RR
 Restore from file: mgr.ro
 
-Saved by %RS from [MGR,TST] on 24 Dec 2020 at 12:00:00 PM
+Saved by %RS from [MGR,RSM] on 24 Dec 2020 at 12:00:00 PM
 RSM MGR routines
 Restore N> y
 %BLKDMP   %C        %D        %DD       %DED      %ED       %ET       %ETDISP
@@ -152,14 +152,14 @@ LOG2      MATH      MUMTRIS   MUMTRIS2  SSD       UCI
 RSM [MGR]> do ^%GR
 Restore from file: mgr.go
 
-Saved by %GS from [MGR,TST] on 24 Dec 2020 at 12:05:00 PM
+Saved by %GS from [MGR,RSM] on 24 Dec 2020 at 12:05:00 PM
 RSM MGR globals
 Restore N> y
 ^%AUTH    ^%C       ^%UTILITY ^FOR      ^OVR      ^SET      ^UTILITY
 RSM [MGR]> do ^%RR
 Restore from file: usr.ro
 
-Saved by %RS from [USR,TST] on 24 Dec 2020 at 12:10:00 PM
+Saved by %RS from [USR,RSM] on 24 Dec 2020 at 12:10:00 PM
 RSM USR routines
 Restore N> y
 GETDOCS   PATINFO   NAMEINFO
@@ -167,10 +167,10 @@ GETDOCS   PATINFO   NAMEINFO
 RSM [MGR]> do ^%GR
 Restore from file: usr.go
 
-Saved by %GS from [USR,TST] on 24 Dec 2020 at 12:15:00 PM
+Saved by %GS from [USR,RSM] on 24 Dec 2020 at 12:15:00 PM
 RSM USR globals
 Restore N> y
-^TST      ^PATIENTS ^XVEMS    ^UTILITY
+^RSM      ^PATIENTS ^XVEMS    ^UTILITY
 RSM [MGR]> kill ^$job
 ----
 

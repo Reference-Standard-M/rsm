@@ -145,7 +145,7 @@ ENABLE_WARN
 DISABLE_WARN(-Warray-bounds)
         if (ct->len) {
 ENABLE_WARN
-            var_u        lbl = {0};
+            var_u        lbl;
             tags         *ttbl;
             const u_char *pc;
             u_short      us = 0;
@@ -154,6 +154,7 @@ ENABLE_WARN
             u_short      src_num;
             u_short      src_code;
 
+            VAR_CLEAR(lbl);
 DISABLE_WARN(-Warray-bounds)
             if (cr->len == 0) return -(ERRZ9 + ERRMLAST);                       // have to have a routine
 ENABLE_WARN

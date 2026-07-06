@@ -854,7 +854,6 @@ short SS_Set(mvar *var, cstring *data)                                          
     int     j;                                                                  // and another
     short   s;                                                                  // for functions
     int     cnt;                                                                // count of bytes used
-    var_u   n;                                                                  // for names
     u_char  tmp[1024];                                                          // temp string space
     int     ptmp = 0;                                                           // pointer into this
     int     nsubs = 0;                                                          // count subscripts
@@ -1109,6 +1108,8 @@ ENABLE_WARN
 
         if ((nsubs == 4) && (strncasecmp((char *) subs[0]->buf, "vol\0", 4) == 0) &&
           (strncasecmp((char *) subs[2]->buf, "uci\0", 4) == 0)) {              // ^$SYSTEM("VOL",n,"UCI",n)
+            var_u n;                                                            // for names
+
             i = cstringtoi(subs[1]);                                            // get vol#
             j = cstringtoi(subs[3]);                                            // and UCI#
             if ((data->len < 1) || (data->len > VAR_LEN)) return -(ERRZ12 + ERRMLAST); // syntx
