@@ -22,7 +22,7 @@ Author: David Wicksell
 
 == Summary
 
-Reference Standard M Version 1.83.0 conforms to ANSI/MDC X11.1-1995
+Reference Standard M Version 1.83.1 conforms to ANSI/MDC X11.1-1995
 (ISO/IEC 11756:1999) with the following exceptions (there may be more):
 
 * Supports up to 32 uniquely distinguished characters in names, rather than 8
@@ -50,8 +50,7 @@ Reference Standard M Version 1.83.0 conforms to ANSI/MDC X11.1-1995
 * `$DEVICE` may not be set
 * `$STORAGE` does not return the number of characters of free space remaining,
   it returns the number of free local variable slots in the symbol table
-* The uniqueness of `$SYSTEM` is only guaranteed by compiler build macros, so
-  may not be unique under certain conditions
+* The uniqueness of `$SYSTEM` cannot be guaranteed but is likely in practice
 * `^$CHARACTER` does not include a `"PATCODE"` node or algorithm
 * `^$GLOBAL` includes extra nodes
 * `^$JOB` includes extra nodes

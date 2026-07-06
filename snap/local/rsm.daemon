@@ -2,7 +2,7 @@
 #
 # Package: Reference Standard M
 # File:    snap/local/rsm.daemon
-# Summary: Snap daemon script
+# Summary: Snap daemon script for rsm
 #
 # SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
 # SPDX-FileContributor:    David Wicksell <dlw@linux.com>
@@ -23,13 +23,14 @@
 # along with this program. If not, see https://www.gnu.org/licenses/.
 
 mjobs=$(snapctl get max-jobs 2>/dev/null)
-gbuff=$(snapctl get global-buffers 2>/dev/null)
-rbuff=$(snapctl get routine-buffers 2>/dev/null)
-
 mjobs=${mjobs:-32}
+gbuff=$(snapctl get global-buffers 2>/dev/null)
 gbuff=${gbuff:-$((mjobs / 2))}
+rbuff=$(snapctl get routine-buffers 2>/dev/null)
 rbuff=${rbuff:-$((mjobs / 8))}
+rsmdb="$(snapctl get database-file 2>/dev/null)"
+rsmdb="${rsmdb:-$SNAP_COMMON/rsm.dat}"
 
-exec "$SNAP/usr/bin/rsm" -j "$mjobs" -g "$gbuff" -r "$rbuff" -U "$SNAP_COMMON"/rsm.dat
+exec $SNAP/usr/bin/rsm -j $mjobs -g $gbuff -r $rbuff -U "$rsmdb"
 
 # ex: filetype=sh

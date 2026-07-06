@@ -347,8 +347,6 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
     int     subs = 0;                                                           // number of subscripts
     u_char  *ptr;                                                               // a handy pointer
     cstring *kb;                                                                // for key builds
-    var_u   nam;                                                                // for name comparisons
-    var_u   vol;                                                                // ditto
     u_char  tmp[MAX_KEY_SIZE + 5];                                              // temp area for subscripts
 
     kb = (cstring *) tmp;                                                       // make it a cstring
@@ -366,6 +364,7 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
         v = (*ptr == '|');                                                      // environment specified?
 
         if (v || (*ptr == '[')) {                                               // environment specified?
+            var_u  nam;                                                         // for name comparisons
             u_char volset;
 
             ptr++;                                                              // skip the [ or |
@@ -381,6 +380,8 @@ short UTIL_MvarFromCStr(cstring *src, mvar *var)
             ptr++;                                                              // go past closing "
 
             if (!v && (*ptr == ',')) {                                          // vol name too ? and not in a vertical bar
+                var_u vol;                                                      // for name comparisons
+
                 ptr++;                                                          // skip the ,
                 VAR_CLEAR(vol);                                                 // clear quadword
                 if (*ptr++ != '"') return -(ERRZ12 + ERRMLAST);                 // must be a quote so complain

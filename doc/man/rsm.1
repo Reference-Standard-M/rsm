@@ -26,7 +26,7 @@
 .\" /usr/local/share/man/man1/, and run these commands:
 .\"   sudo gzip -f9 /usr/local/share/man/man1/rsm.1 && sudo mandb -q
 
-.TH RSM 1 "2026 Jun 8" V1.83.0 "Reference Standard M User Manual"
+.TH RSM 1 "2026 Jul 5" V1.83.1 "Reference Standard M User Manual"
 
 .SH NAME
 rsm - an implementation of the M programming language and database
@@ -149,6 +149,58 @@ Failure (rsm)
 .BR RSM_DBFILE
 The path to the main database file. If not set, the file path has to be passsed
 as the last argument to \fBrsm\fP for most commands. See above for details.
+
+.SH SNAP PACKAGE
+The \fBrsm\fP snap is available from the Snap Store. The snap installs with
+two commands: \fBrsm\fP for direct mode and \fBrsm.man\fP for the man page. It
+also installs \fBrsm.daemon\fP, which runs automatically as a background
+service and will restart on failure.
+
+The database is created automatically at install time with the vendor utility
+routines loaded, and the daemon is started automatically. On refresh, the vendor
+utility routines are reloaded automatically into the configured database.
+
+The default database file is located at \fB$SNAP_COMMON/rsm.dat\fP, which
+persists across snap updates, refreshes, and reverts. If the snap is removed,
+its data is saved to a recoverable snapshot unless \fB--purge\fP is passed to
+\fBsnap remove\fP; use \fBsnap saved\fP and \fBsnap restore\fP to manage and
+restore it. This does not apply to a custom \fBdatabase-file\fP path, which is
+unaffected by removal or snapshotting.
+
+The following configuration options are available via \fBsudo snap set rsm\fP:
+
+.TP
+.BR max-jobs
+Size of the job table in the environment (1-4096 jobs).
+Defaults to 32.
+.TP
+.BR global-buffers
+Size of the global buffers in MiB (1-131072 MiB).
+Defaults to max-jobs / 2.
+.TP
+.BR routine-buffers
+Size of the routine buffers in MiB (1-4095 MiB).
+Defaults to max-jobs / 8.
+.TP
+.BR database-file
+Path to the database file.
+Defaults to \fB$SNAP_COMMON/rsm.dat\fP.
+
+.TP
+Configuration changes require an environment restart to take effect:
+
+.RS
+.nf
+$ sudo snap restart rsm
+.fi
+.RE
+
+.TP
+Snap documentation:
+.BR https://snapcraft.io/docs
+.TP
+RSM snap page:
+.BR https://snapcraft.io/rsm
 
 .SH INTERNET RESOURCES
 .TP

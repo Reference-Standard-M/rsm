@@ -27,7 +27,8 @@ identified below. It is licensed under the GNU Affero General Public License,
 version 3.0 or later. The license text is available in link:COPYING[COPYING].
 
 Reference Standard M (RSM) is derived from MUMPS V1 (MV1), originally authored
-by Raymond Douglas Newman and released under the BSD 3-Clause License.
+by Raymond Douglas Newman (Copyright © 1999-2018) and released under the BSD
+3-Clause License.
 
 On June 17, 2020, Raymond Douglas Newman transferred stewardship and future
 development of MUMPS V1 to David Wicksell of Fourth Watch Software LC and

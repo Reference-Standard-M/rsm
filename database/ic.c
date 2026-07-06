@@ -113,21 +113,17 @@ static u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)  
 {
     short   s;                                                                  // for funct
     int     left_edge;                                                          // a flag
-    u_char  emsg[MAX_ERR_LEN];                                                  // for errors
     int     isdata;                                                             // blk type
     int     Llevel;                                                             // local level
     gbd     *Lgbd;                                                              // and GBD
-    u_int   b1;                                                                 // a block
     u_char  k[MAX_KEY_SIZE + 5];                                                // local key
     u_short *isx;                                                               // a map
     u_int   *iix;                                                               // a map
     u_char  k1[MAX_KEY_SIZE + 5];                                               // for keys
     u_char  k2[MAX_KEY_SIZE + 5];                                               // for keys
-    var_u   kglobal;                                                            // for globals in a global directory
     cstring *c;                                                                 // for chunk
     cstring *r;                                                                 // for record
     u_char  *eob;                                                               // end of block
-    u_int   lb;                                                                 // last block
     u_int   max_block;                                                          // max block for volume
 
     max_block = SOA(partab.vol[volnum]->vollab)->max_block;
@@ -144,6 +140,8 @@ static u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)  
     s = Get_block(block);                                                       // get it
 
     if (s < 0) {                                                                // if that failed
+        u_char emsg[MAX_ERR_LEN];                                               // for errors
+
         UTIL_strerror(s, emsg);                                                 // decode message
 
         // error msg
@@ -203,9 +201,13 @@ static u_int ic_block(u_int block, u_int points_at, u_char *kin, var_u global)  
     }
 
     if (!isdata) {                                                              // if a pointer
-        int Llast = SOA(blk[level]->mem)->last_idx;                             // local last_idx
+        int   Llast;                                                            // local last_idx
+        u_int b1;                                                               // a block
         u_int brl = 0;                                                          // block rl
+        u_int lb;                                                               // last block
+        var_u kglobal;                                                          // for globals in a global directory
 
+        Llast = SOA(blk[level]->mem)->last_idx;
         lb = 0;                                                                 // clear this
 
         for (int Lidx = IDX_START; Lidx <= Llast; Lidx++) {
@@ -468,7 +470,6 @@ void ic_map(int flag)                                                           
     gbd          *ptr;                                                          // a handy pointer
     int          status;                                                        // block status
     u_char       type_byte;                                                     // for read
-    u_char       emsg[30];                                                      // for errors
 
     lock = (flag == -1) ? SEM_READ : SEM_WRITE;                                 // what we need
     c = (u_char *) SOA(partab.vol[volnum]->map);                                // point at it
@@ -517,6 +518,8 @@ void ic_map(int flag)                                                           
             icerr++;                                                            // count error
 
             if (flag != -3) {                                                   // don't write messages in daemons for now
+                u_char emsg[30];                                                // for errors
+
                 memcpy(emsg, "no data, but marked used\0", 25);                 // marked used in map block
                 if (status) memcpy(emsg, "data, but marked free\0", 22);        // marked free in map block
                 outc->len = snprintf((char *) &outc->buf[0], WRT_LEN, "%10u has %s in map block", block, emsg); // error msg

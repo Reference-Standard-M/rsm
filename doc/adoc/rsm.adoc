@@ -17,6 +17,9 @@ You should have received a copy of the GNU Free Documentation License along
 with this program. If not, see https://www.gnu.org/licenses/.
 ////
 
+:source-highlighter: highlight.js
+:highlightjs-languages: bash
+
 = RSM(1)
 Author: David Wicksell
 
@@ -29,31 +32,30 @@ rsm - an implementation of the M programming language and database
 *rsm -V* +
 *rsm -h* +
 *rsm -i* [_database-file_] +
-*rsm -v* _volume-name_ *-b* _block-size_ *-s* _database-size_ [*-m*
-_map-size_] [*-e* _environment-name_] [_database-file_] +
+*rsm -v* _volume-name_ *-b* _block-size_ *-s* _database-size_ [*-m* _map-size_]
+ [*-e* _environment-name_] [_database-file_] +
 *rsm -j* _max-jobs_ [*-g* _global-buffers_] [*-r* _routine-buffers_]
-[_database-file_] +
-*rsm* [*-e* _environment-name_] [*-x* _M-commands_] [*-R*]
-[_database-file_] +
+ [_database-file_] +
+*rsm* [*-e* _environment-name_] [*-x* _M-commands_] [*-R*] [_database-file_] +
 *rsm -k* [_database-file_]
 
 == Description
 
-The *rsm* program creates database volumes, manages the environment, and
-runs instances [jobs] of *Reference Standard M*.
+The *rsm* program creates database volumes, manages the environment, and runs
+instances [jobs] of *Reference Standard M*.
 
-*Reference Standard M* (RSM) is an implementation of the M programming
-language and database, which implements the latest M standard that has
-been released by the M Development Committee (MDC), currently ANSI/MDC
-X11.1-1995 (ISO/IEC 11756:1999).
+*Reference Standard M* (RSM) is an implementation of the M programming language
+and database, which implements the latest M standard that has been released by
+the M Development Committee (MDC), currently ANSI/MDC X11.1-1995 (ISO/IEC
+11756:1999).
 
 == Options
 
-RSM options are used together, as shown under each sub-heading. Some
-options may have different functionality based on context, which is
-outlined below. A full command line must either end with _database-file_
-or the *RSM_DBFILE* environment variable must be set to _database-file_,
-except when using the *-V* or *-h* options.
+RSM options are used together, as shown under each sub-heading. Some options may
+have different functionality based on context, which is outlined below. A full
+command line must either end with _database-file_ or the *RSM_DBFILE*
+environment variable must be set to _database-file_, except when using the *-V*
+or *-h* options.
 
 === Show useful information:
 
@@ -81,14 +83,14 @@ except when using the *-V* or *-h* options.
 === Initialize and start an environment:
 
 *-j* _max-jobs_::
-  Size of the job table in the environment (1-4096 jobs). Size of the
-  lock table is _max-jobs_ * 32 KiB.
+  Size of the job table in the environment (1-4096 jobs). Size of the lock table
+  is _max-jobs_ * 32 KiB.
 [*-g* _global-buffers_]::
-  Size of the global buffers (1-131072 MiB). Defaults to _max-jobs_ / 2
-  (min: larger of 1 MiB or 64 buffers).
+  Size of the global buffers (1-131072 MiB). Defaults to _max-jobs_ / 2 (min:
+  larger of 1 MiB or 64 buffers).
 [*-r* _routine-buffers_]::
-  Size of the routine buffers (1-4095 MiB). Defaults to _max-jobs_ / 8
-  (min: 1 MiB).
+  Size of the routine buffers (1-4095 MiB). Defaults to _max-jobs_ / 8 (min: 1
+  MiB).
 
 === Start a job and attach to the environment:
 
@@ -116,9 +118,49 @@ except when using the *-V* or *-h* options.
 == Environment Variables
 
 *RSM_DBFILE*::
-  The path to the main database file. If not set, the file path has to
-  be passsed as the last argument to *rsm* for most commands. See above
-  for details.
+  The path to the main database file. If not set, the file path has to be passed
+  as the last argument to *rsm* for most commands. See above for details.
+
+== Snap Package
+
+The *rsm* snap is available from the Snap Store. The snap installs with two
+commands: *rsm* for direct mode and *rsm.man* for the man page. It also installs
+*rsm.daemon*, which runs automatically as a background service and will restart
+on failure.
+
+The database is created automatically at install time with the vendor utility
+routines loaded, and the daemon is started automatically. On refresh, the vendor
+utility routines are reloaded automatically into the configured database.
+
+The default database file is located at *$SNAP++_++COMMON/rsm.dat*, which
+persists across snap updates, refreshes, and reverts. If the snap is removed,
+its data is saved to a recoverable snapshot unless *--purge* is passed to *snap
+remove*; use *snap saved* and *snap restore* to manage and restore it. This
+does not apply to a custom *database-file* path, which is unaffected by removal
+or snapshotting.
+
+The following configuration options are available via *sudo snap set rsm*:
+
+*max-jobs*::
+  Size of the job table in the environment (1-4096 jobs). Defaults to 32.
+*global-buffers*::
+  Size of the global buffers in MiB (1-131072 MiB). Defaults to max-jobs / 2.
+*routine-buffers*::
+  Size of the routine buffers in MiB (1-4095 MiB). Defaults to max-jobs / 8.
+*database-file*::
+  Path to the database file. Defaults to *$SNAP++_++COMMON/rsm.dat*.
+
+Configuration changes require an environment restart to take effect:
+
+[source,bash]
+----
+$ sudo snap restart rsm
+----
+
+Snap documentation:::
+  *https://snapcraft.io/docs*
+RSM snap page:::
+  *https://snapcraft.io/rsm*
 
 == Internet Resources
 
@@ -140,32 +182,30 @@ Copyright © 2020-2026 Fourth Watch Software LC
 
 == Code License
 
-This program is free software: you can redistribute it and/or modify it
-under the terms of the GNU Affero General Public License (AGPL) as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License (AGPL) as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
-General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see *https://www.gnu.org/licenses/*.
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see *https://www.gnu.org/licenses/*.
 
 == Document License
 
-Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.3 or
-any later version published by the Free Software Foundation; with no
-Invariant Sections, with no Front-Cover texts, and with no Back-Cover
-Texts.
+Permission is granted to copy, distribute and/or modify this document under the
+terms of the GNU Free Documentation License, Version 1.3 or any later version
+published by the Free Software Foundation; with no Invariant Sections, with no
+Front-Cover texts, and with no Back-Cover Texts.
 
-You should have received a copy of the GNU Free Documentation License
-along with this program. If not, see *https://www.gnu.org/licenses/*.
+You should have received a copy of the GNU Free Documentation License along with
+this program. If not, see *https://www.gnu.org/licenses/*.
 
 == Bugs
 
 Check the issue tracker at
-*https://gitlab.com/reference-standard-m/rsm/-/issues* for information
-on currently documented bugs.
+*https://gitlab.com/reference-standard-m/rsm/-/issues* for information on
+currently documented bugs.

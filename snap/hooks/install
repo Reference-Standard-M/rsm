@@ -2,7 +2,7 @@
 #
 # Package: Reference Standard M
 # File:    snap/hooks/install
-# Summary: Snap install hook
+# Summary: Snap install hook for rsm
 #
 # SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
 # SPDX-FileContributor:    David Wicksell <dlw@linux.com>
@@ -24,12 +24,12 @@
 
 if [ ! -f "$SNAP_COMMON/rsm.dat" ]
 then
-    "$SNAP"/usr/bin/rsm -v RSM -b 16 -s 16384 -m 262147 -U "$SNAP_COMMON"/rsm.dat
+    $SNAP/usr/bin/rsm -v RSM -b 16 -s 16384 -m 262147 -U $SNAP_COMMON/rsm.dat
 fi
 
-"$SNAP"/usr/bin/rsm -j 1 -U "$SNAP_COMMON"/rsm.dat
-"$SNAP"/usr/bin/rsm -x "open 1:(\"$SNAP/usr/share/rsm/utils.rsm\":\"read\") use 1 read code xecute code" "$SNAP_COMMON"/rsm.dat
-"$SNAP"/usr/bin/rsm -k "$SNAP_COMMON"/rsm.dat
+$SNAP/usr/bin/rsm -j 1 -U $SNAP_COMMON/rsm.dat
+$SNAP/usr/bin/rsm -x "open 1:(\"$SNAP/usr/share/rsm/utils.rsm\":\"read\") use 1 read code xecute code" $SNAP_COMMON/rsm.dat
+$SNAP/usr/bin/rsm -k $SNAP_COMMON/rsm.dat
 
 exit 0
 

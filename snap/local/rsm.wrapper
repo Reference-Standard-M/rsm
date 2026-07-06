@@ -1,8 +1,8 @@
 #!/bin/sh
 #
 # Package: Reference Standard M
-# File:    snap/local/rsm.man
-# Summary: Snap man page for rsm
+# File:    snap/local/rsm.wrapper
+# Summary: Snap command wrapper script for rsm
 #
 # SPDX-FileCopyrightText:  © 2026 Fourth Watch Software LC
 # SPDX-FileContributor:    David Wicksell <dlw@linux.com>
@@ -22,7 +22,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
 
-exec $SNAP/usr/bin/mandoc -T locale -O width=$(tput cols 2>/dev/null || echo 80) $SNAP/usr/share/man/man1/rsm.1.gz |
-  less -R -M -PM" Manual page rsm(1) ?ltline %lt?L/%L.:byte %bB?s/%s..?e (END):?pB %pB\%.. (press h for help or q to quit)"
+rsmdb="$(snapctl get database-file 2>/dev/null)"
+rsmdb="${rsmdb:-$SNAP_COMMON/rsm.dat}"
+
+exec $SNAP/usr/bin/rsm "$@" "${rsmdb}"
 
 # ex: filetype=sh

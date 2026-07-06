@@ -36,7 +36,7 @@ WORKDIR /opt/rsm
 COPY . /opt/rsm
 
 # The 'make install' command below requires USER set to root
-ENV USER=root RSM_DBFILE=/opt/rsm/tst.dat
+ENV USER=root RSM_DBFILE=/opt/rsm/rsm.dat
 
 # Build the rsm executable, install it system-wide for $PATH, and clean up the working directory
 # Passing '--build-arg CC=clang' will use clang instead of gcc to compile RSM
@@ -51,15 +51,15 @@ ARG bsize=16 blocks=16384 journal=off
 # Create the database and load the vendor utility routines and turn on journaling if requested
 RUN if [ "$journal" = "on" ]; \
     then \
-        rsm -v TST -b $bsize -s $blocks; \
+        rsm -v RSM -b $bsize -s $blocks; \
         rsm -j 1; \
         rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'; \
-        rsm -x 'set ^$system("vol",1,"journal_file")="/opt/rsm/tst.jnl"'; \
+        rsm -x 'set ^$system("vol",1,"journal_file")="/opt/rsm/rsm.jnl"'; \
         rsm -x 'set ^$system("vol",1,"journal_requested")=1'; \
         rsm -x 'set ^$global("$GLOBAL","journal")=1'; \
         rsm -k; \
     else \
-        rsm -v TST -b $bsize -s $blocks; \
+        rsm -v RSM -b $bsize -s $blocks; \
         rsm -j 1; \
         rsm -x 'open 1:("utils.rsm":"read") use 1 read code xecute code'; \
         rsm -k; \
@@ -73,7 +73,7 @@ FROM ubuntu:26.04 AS final
 LABEL com.fourthwatchsoftware.vendor="Fourth Watch Software LC" \
       com.fourthwatchsoftware.maintainer="David Wicksell <dlw@linux.com>" \
       com.fourthwatchsoftware.description="Reference Standard M Docker Image" \
-      com.fourthwatchsoftware.version="1.83.0" \
+      com.fourthwatchsoftware.version="1.83.1" \
       com.fourthwatchsoftware.licenses="AGPL-3.0-or-later" \
       com.fourthwatchsoftware.url="https://gitlab.com/Reference-Standard-M/rsm"
 
@@ -84,7 +84,7 @@ COPY --from=builder /usr/local /usr/local
 COPY --from=builder /opt/rsm/log /opt/rsm/log
 COPY --from=builder /opt/rsm/bin/docker /opt/rsm/bin/
 COPY --from=builder /opt/rsm/etc/magic /opt/rsm/etc/
-COPY --from=builder /opt/rsm/tst.* /opt/rsm/
+COPY --from=builder /opt/rsm/rsm.* /opt/rsm/
 
 # Install runtime dependencies and clean up
 ARG DEBIAN_FRONTEND=noninteractive
@@ -95,7 +95,7 @@ RUN apt-get -qq update && apt-get -qq --no-install-recommends install file vim-n
 WORKDIR /opt/rsm
 
 # SHELL is needed for the MCL to shell out with an OS command
-ENV SHELL=/bin/bash RSM_DBFILE=/opt/rsm/tst.dat
+ENV SHELL=/bin/bash RSM_DBFILE=/opt/rsm/rsm.dat
 
 # Install and compile the local RSM magic file, and turn Bash completion on
 RUN cp etc/magic $HOME/.magic && cd && file -C -m $HOME/.magic && cd - >/dev/null && \

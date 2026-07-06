@@ -25,6 +25,16 @@ Author: David Wicksell
 
 == Release Changelog
 
+=== v1.83.1 -- 2026 Jul 5
+
+* Fix exclusive `KILL` syntax incorrectly rejected as a syntax error
+  - Issue https://gitlab.com/Reference-Standard-M/rsm/-/issues/9
+* Add `database-file` snap option to store the database outside `$SNAP_COMMON`
+* Add snap refresh hook to reload vendor utility routines automatically
+* Fix snap version parsing to strip build metadata from release tags
+* Fix incorrect snap documentation in `README.adoc`
+* Add missing snap documentation to `rsm.1` and `rsm.adoc`
+
 === v1.83.0 -- 2026 Jun 8
 
 * Increase max jobs from 1024 to 4096

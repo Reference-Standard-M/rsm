@@ -110,7 +110,7 @@ static INLINE uint64_t swap_endian64(uint64_t value)
 #define MAX_BLOCK_SIZE      UINT16_C(256)                                       // Maximum block size in KiB
 #define VERSION_MAJOR       1                                                   // Major version number
 #define VERSION_MINOR       83                                                  // Minor version number
-#define VERSION_PATCH       0                                                   // Patch version number
+#define VERSION_PATCH       1                                                   // Patch version number
 #define VERSION_PRE         0                                                   // Pre-release number
 #define VERSION_TEST        0                                                   // Test version number
 #define MBYTE               1048576                                             // 1024*1024
